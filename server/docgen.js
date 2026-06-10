@@ -13,6 +13,8 @@ const CSS = `
   .brand img{height:46px;width:auto;display:block;}
   .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right;}
   .who{font-weight:700;color:#6e5cc4;}
+  .indic{background:#f4f2fb;border-left:3px solid #6e5cc4;padding:10px 14px;border-radius:8px;color:#41406a;}
+  .indic .hint{color:#74718a;font-size:12px;}
   .eyebrow{font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a9842f;margin-top:22px;}
   h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:30px;color:#2c2945;margin:6px 0 4px;line-height:1.1;}
   .sub{color:#74718a;font-size:14px;margin-bottom:18px;}

@@ -18,7 +18,7 @@ export default function Login({ onSuccess }) {
   return (
     <div className="login-screen">
       <form className="login-card" onSubmit={submit}>
-        <div className="login-brand">CP<span>wire</span></div>
+        <div className="login-logo"><img src="/cpwire-logo.png" alt="CPwire" /></div>
         <div className="login-tag">Cockpit de pilotage · chef de projet</div>
         <div className="field">
           <label>Identifiant</label>

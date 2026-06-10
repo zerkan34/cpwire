@@ -22,6 +22,26 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };
 
+  // Fallback sans application mail : ouvre Outlook sur le web avec le brouillon pré-rempli.
+  const outlookWebShare = () => {
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(
+      `Bonjour,\n\nRapport « ${title} ».\n\n` + htmlToText(html) + `\n\n— Envoyé depuis CPwire`
+    );
+    downloadHtml(html, filename);
+    window.open(`https://outlook.office.com/mail/deeplink/compose?subject=${subject}&body=${body}`, "_blank", "noopener");
+  };
+
+  const copyText = async () => {
+    const txt = `${title}\n\n` + htmlToText(html);
+    try {
+      await navigator.clipboard.writeText(txt);
+      setMsg({ t: "ok", m: "Texte du rapport copié — colle-le dans ton e-mail." });
+    } catch {
+      setMsg({ t: "warn", m: "Copie impossible sur ce navigateur — utilise « Télécharger »." });
+    }
+  };
+
   const apiMail = async () => {
     const to = window.prompt("Destinataire(s), séparés par des virgules :", "");
     if (!to) return;
@@ -56,12 +76,14 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
           <div className="row-actions">
             <button className="btn-solid gold" onClick={() => downloadHtml(html, filename)}>Télécharger</button>
             <button className="btn-line" onClick={() => printHtml(html)}>Imprimer / PDF</button>
-            <button className="btn-line" onClick={mailtoShare}>Partager par Outlook</button>
+            <button className="btn-line" onClick={copyText}>Copier le texte</button>
+            <button className="btn-line" onClick={outlookWebShare}>Outlook (web)</button>
+            <button className="btn-line" onClick={mailtoShare}>Outlook (appli)</button>
             {dossier && <button className="btn-line" onClick={toSharePoint} disabled={busy === "sp"}>{busy === "sp" ? "Dépôt…" : "Déposer sur SharePoint"}</button>}
             <button className="btn-line" onClick={apiMail} disabled={busy === "mail"}>{busy === "mail" ? "Envoi…" : "Envoyer via Outlook (auto)"}</button>
           </div>
           {msg && <div className={msg.t === "ok" ? "ok-note" : "warn-note"}>{msg.m}</div>}
-          <div className="hint">« Partager par Outlook » marche sans configuration. « Envoyer via Outlook (auto) » et « Déposer sur SharePoint » nécessitent Microsoft 365 (voir README).</div>
+          <div className="hint">Sans appli mail installée, utilise « Outlook (web) » ou « Copier le texte ». « Envoyer via Outlook (auto) » et « SharePoint » nécessitent Microsoft 365 (voir README).</div>
         </div>
       </div>
     </div>

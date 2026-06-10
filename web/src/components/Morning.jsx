@@ -2,13 +2,11 @@ import React, { useMemo, useState } from "react";
 import { genMorningCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
-// Statuts "actifs" à passer en revue le matin : À FAIRE + EN COURS + RETOUR TEST + RETOUR PRODUCTION.
-const ACTIVE = ["afaire", "encours", "retourTest", "retourProd"];
+// Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
+const ACTIVE = ["encours", "retourTest"];
 const ORDER = [
   ["encours", "En cours", "prog"],
   ["retourTest", "Retour test", "todo"],
-  ["retourProd", "Retour production", "block"],
-  ["afaire", "À faire", "todo"],
 ];
 
 export default function Morning({ issues = [], onTicket }) {
@@ -44,7 +42,7 @@ export default function Morning({ issues = [], onTicket }) {
         </span>
       </div>
       <p className="hint" style={{ marginTop: -6 }}>
-        Reprend la charge active (À faire · En cours · Retour test · Retour production) par client, pour ta réunion matinale.
+        Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
       </p>
       {err && <div className="banner">Erreur : {err}</div>}
       <div className="row-actions" style={{ marginBottom: 16 }}>

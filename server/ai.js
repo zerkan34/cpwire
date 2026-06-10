@@ -71,21 +71,15 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
   return `<ul>${li}${more}</ul>`;
 }
 
-function templateDaily(dossier, issues) {
+function templateDaily(dossier, issues, analyseHtml = "") {
   const inCat = (c) => issues.filter((i) => i.categorie === c);
-  const inCats = (cs) => issues.filter((i) => cs.includes(i.categorie));
-  const n = (c) => inCat(c).length;
-
-  const reste = inCats(RESTE_CATS).length;
-  const recArmonie = n("recetteArmonie");
-  const recClient = n("recetteClient");
-  const attClient = n("attenteClient");
-  const enProd = n("miseEnProd");
-  const termineTot = n("termine");
+  const recArmonie = inCat("recetteArmonie").length;
 
   const termineToday = inCat("termine").filter((i) => isToday(i.maj));
-  const prodToday = inCat("miseEnProd").filter((i) => isToday(i.maj));
-  const enCours = inCats(ACTIVE_CATS).sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+  // « En cours dans la journée » = tickets actifs (en cours / retour test / retour prod) touchés aujourd'hui.
+  const enCoursToday = issues
+    .filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj))
+    .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
 
   // Activité du jour par personne : tickets touchés aujourd'hui (terminés / en cours).
   const touchedToday = issues.filter((i) => isToday(i.maj));
@@ -105,67 +99,75 @@ function templateDaily(dossier, issues) {
       `</table>`
     : `<h2>Activité du jour par personne</h2><p>Aucun ticket mis à jour aujourd'hui.</p>`;
 
-  // Ligne de synthèse chiffrée
-  const kpis = `<div class="kpi-row">
-    <div class="kpi"><div class="v">${reste}</div><div class="l">Reste à faire</div></div>
-    <div class="kpi"><div class="v">${recArmonie}</div><div class="l">Attente recette</div></div>
-    <div class="kpi"><div class="v">${recClient}</div><div class="l">Recette client</div></div>
-    <div class="kpi"><div class="v">${enProd}</div><div class="l">Mises en prod</div></div>
-    <div class="kpi"><div class="v">${termineTot}</div><div class="l">Terminés</div></div>
-  </div>`;
-
-  const ligne = `<p><b>En une ligne :</b> ${reste} à faire · ${recArmonie} en attente de recette (Armonie) · ` +
-    `${recClient} en attente de recette client · ${attClient} en attente client · ${enProd} en mise en production` +
-    `${prodToday.length ? ` (dont ${prodToday.length} aujourd'hui)` : ""}.</p>`;
+  const analyseBloc = analyseHtml
+    ? `<h2>Analyse de la journée</h2>${analyseHtml}`
+    : "";
 
   const termineBloc = termineToday.length
     ? `<h2>Terminés aujourd'hui (${termineToday.length})</h2>${catList(termineToday)}`
     : `<h2>Terminés aujourd'hui</h2><p>Aucun ticket passé en « Terminé » aujourd'hui.</p>`;
 
-  const prodBloc = prodToday.length
-    ? `<h2>Mises en production aujourd'hui (${prodToday.length})</h2>${catList(prodToday)}`
-    : "";
+  const enCoursBloc = enCoursToday.length
+    ? `<h2>En cours dans la journée (${enCoursToday.length})</h2>${catList(enCoursToday, { showStatus: true })}`
+    : `<h2>En cours dans la journée</h2><p>Aucun ticket travaillé aujourd'hui.</p>`;
 
-  return kpis +
-    `<h2>Synthèse de la journée</h2><p>Dossier <b>${esc(dossier)}</b>.</p>${ligne}` +
-    tablePersonnes +
+  // Indication simple (pas de liste) :
+  const recetteIndic = `<p class="indic"><b>En attente de recette — Armonie :</b> ${recArmonie} ticket(s). <span class="hint">(pour information)</span></p>`;
+
+  return tablePersonnes +
+    analyseBloc +
     termineBloc +
-    prodBloc +
-    `<h2>En cours (${enCours.length})</h2>${catList(enCours, { showStatus: true })}` +
-    `<h2>En attente de recette — Armonie (${recArmonie})</h2>${catList(inCat("recetteArmonie"))}` +
-    `<h2>En attente de recette — client (${recClient})</h2>${catList(inCat("recetteClient"))}` +
-    (attClient ? `<h2>En attente client (${attClient})</h2>${catList(inCat("attenteClient"))}` : "");
+    enCoursBloc +
+    recetteIndic;
 }
 
 export async function dailyReport(dossier, issues) {
-  // Le corps (chiffres + listes) est TOUJOURS calculé de façon déterministe :
-  // les nombres sont donc exacts. L'IA n'ajoute (si dispo) qu'une intro rédigée.
-  const body = templateDaily(dossier, issues);
+  // Données du jour (toujours exactes, calcul déterministe).
+  const dayDone = issues.filter((i) => i.categorie === "termine" && isToday(i.maj));
+  const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
+  const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
 
-  let intro = "";
+  // Compte par personne (pour nourrir l'analyse).
+  const whoDone = {};
+  dayDone.forEach((i) => { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné"); whoDone[d] = (whoDone[d] || 0) + 1; });
+  const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d} (${n})`).join(", ");
+
+  // Analyse « chef de projet senior » : claire, concise, pertinente — placée avant « Terminés ».
+  let analyseHtml = "";
   if (aiAvailable()) {
-    const isToday = (iso) => { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString(); };
-    const reste = issues.filter((i) => RESTE_CATS.includes(i.categorie)).length;
-    const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
-    const recC = issues.filter((i) => i.categorie === "recetteClient").length;
-    const prod = issues.filter((i) => i.categorie === "miseEnProd").length;
-    const finisJour = issues.filter((i) => i.categorie === "termine" && isToday(i.maj)).length;
     try {
-      const prompt = `Rédige UNIQUEMENT un court paragraphe d'introduction (2 à 3 phrases, balise <p>) ` +
-        `pour le compte rendu journalier du dossier "${dossier}". Données réelles à refléter fidèlement, ` +
-        `sans inventer de chiffres : ${finisJour} ticket(s) terminé(s) aujourd'hui, ${reste} restant(s) à faire, ` +
-        `${recA} en attente de recette Armonie, ${recC} en attente de recette client, ${prod} en mise en production. ` +
-        `Ton professionnel, factuel. Ne renvoie que le <p>…</p>.`;
-      intro = await callClaude(STYLE, prompt);
-    } catch { intro = ""; }
+      const liste = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : ""}`).join("\n");
+      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE de la journée pour le dossier "${dossier}", ` +
+        `en 3 à 5 phrases, claire, précise et pertinente : ce qui a été accompli, les points saillants, ` +
+        `un éventuel point d'attention. Reste factuel, ne réinvente pas de chiffres.\n` +
+        `Données réelles : ${dayDone.length} ticket(s) terminé(s) aujourd'hui, ${dayActive.length} en cours dans la journée, ` +
+        `${recA} en attente de recette Armonie. Réparti par personne : ${topWho || "—"}.\n` +
+        `Tickets terminés aujourd'hui :\n${liste || "(aucun)"}\n` +
+        `Réponds UNIQUEMENT par un ou deux paragraphes HTML <p>…</p>, sans titre.`;
+      analyseHtml = await callClaude(STYLE, prompt);
+    } catch { analyseHtml = ""; }
   }
+  if (!analyseHtml) {
+    // Repli déterministe (sans IA) : une synthèse concise et utile.
+    if (dayDone.length || dayActive.length) {
+      const phrases = [];
+      phrases.push(`Aujourd'hui, <b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${esc(dossier)}.`);
+      if (topWho) phrases.push(`Contributions principales : ${esc(topWho)}.`);
+      if (recA) phrases.push(`<b>${recA}</b> ticket(s) restent en attente de recette côté Armonie — à suivre pour validation.`);
+      analyseHtml = `<p>${phrases.join(" ")}</p>`;
+    } else {
+      analyseHtml = `<p>Aucune activité enregistrée aujourd'hui sur le dossier ${esc(dossier)} (aucun ticket terminé ni mis à jour).</p>`;
+    }
+  }
+
+  const body = templateDaily(dossier, issues, analyseHtml);
 
   const html = buildDoc({
     kicker: "Compte rendu journalier",
     title: `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
     subtitle: `Dossier ${dossier} · activité consolidée`,
     cartouche: [["Client / dossier", dossier], ["Type", "CR journalier"], ["Date", new Date().toLocaleDateString("fr-FR")]],
-    bodyHtml: intro + body,
+    bodyHtml: body,
     etabliPar: process.env.ME || "Chef de projet",
   });
   return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
@@ -173,9 +175,16 @@ export async function dailyReport(dossier, issues) {
 
 
 // ---------- Brief de réunion matinale (état des lieux) ----------
-// Reprend la charge active : À FAIRE + EN COURS + RETOUR TEST + RETOUR PRODUCTION.
-export async function morningReport(dossier, issues) {
-  const active = issues.filter((i) => RESTE_CATS.includes(i.categorie));
+// Ne garde que les gens d'ARMONIE (les contacts client sont exclus via clientNames).
+// Périmètre : ce qui est en mouvement (En cours + Retour test).
+export async function morningReport(dossier, issues, clientNames = new Set()) {
+  const FOCUS = ["encours", "retourTest"];
+  const isClient = (i) => {
+    const d = (i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "")).trim().toLowerCase();
+    return d && clientNames.has(d);
+  };
+  // En mouvement + uniquement les gens d'Armonie.
+  const active = issues.filter((i) => FOCUS.includes(i.categorie) && !isClient(i));
 
   // Charge par personne (qui a quoi sur sa table ce matin).
   const byDev = {};
@@ -194,51 +203,75 @@ export async function morningReport(dossier, issues) {
     return `<h2>${titre} (${arr.length})</h2>${catList(arr, { cap: 100 })}`;
   };
 
+  const nEnCours = active.filter((i) => i.categorie === "encours").length;
+  const nRetourTest = active.filter((i) => i.categorie === "retourTest").length;
+  const enRetard = active.filter((i) => i.enRetard);
+
   const kpis = `<div class="kpi-row">
-    <div class="kpi"><div class="v">${active.length}</div><div class="l">À traiter</div></div>
-    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "encours").length}</div><div class="l">En cours</div></div>
-    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "retourTest").length}</div><div class="l">Retour test</div></div>
-    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "retourProd").length}</div><div class="l">Retour prod</div></div>
-    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "afaire").length}</div><div class="l">À faire</div></div>
+    <div class="kpi"><div class="v">${active.length}</div><div class="l">À passer en revue</div></div>
+    <div class="kpi"><div class="v">${nEnCours}</div><div class="l">En cours</div></div>
+    <div class="kpi"><div class="v">${nRetourTest}</div><div class="l">Retour test</div></div>
   </div>`;
 
+  // Synthèse « état des lieux » préparée (façon chef de projet senior) : points à aborder au stand-up.
+  let synthese = "";
+  if (aiAvailable() && active.length) {
+    try {
+      const top = persons.slice(0, 6).map(([d, n]) => `${d} (${n})`).join(", ");
+      const retardListe = enRetard.slice(0, 10).map((i) => `${i.cle} ${i.resume}`).join(" ; ");
+      const prompt = `Tu es chef de projet senior. Prépare l'ÉTAT DES LIEUX pour le stand-up du matin, dossier "${dossier}", ` +
+        `équipe Armonie uniquement. Sois concret et orienté action (points à aborder, priorités, blocages éventuels), ` +
+        `en 3 à 5 phrases. Ne réinvente pas de chiffres.\n` +
+        `Données : ${active.length} ticket(s) actif(s) (${nEnCours} en cours, ${nRetourTest} en retour test). ` +
+        `Charge par personne : ${top || "—"}. ` +
+        `${enRetard.length ? "En retard : " + enRetard.length + " (" + retardListe + ")." : "Aucun ticket en retard."}\n` +
+        `Réponds UNIQUEMENT en HTML <p>…</p>, sans titre.`;
+      synthese = await callClaude(STYLE, prompt);
+    } catch { synthese = ""; }
+  }
+  if (!synthese) {
+    const bits = [];
+    bits.push(`État des lieux du matin — dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${active.length}</b> ticket(s) à passer en revue, dont <b>${nEnCours}</b> en cours et <b>${nRetourTest}</b> en retour test.`);
+    if (persons.length) bits.push(`À aborder en priorité avec ${esc(persons.slice(0, 3).map(([d]) => d).join(", "))}.`);
+    if (enRetard.length) bits.push(`<b>Point d'attention :</b> ${enRetard.length} ticket(s) en retard à traiter en priorité.`);
+    else bits.push(`Aucun ticket en retard à ce stade.`);
+    synthese = `<p>${bits.join(" ")}</p>`;
+  }
+
   const body = kpis +
-    `<h2>Synthèse</h2><p>État des lieux pour la réunion du matin — dossier <b>${esc(dossier)}</b> : ` +
-    `${active.length} ticket(s) actif(s) à passer en revue.</p>` +
+    `<h2>État des lieux</h2>${synthese}` +
     charge +
     sec("encours", "En cours") +
-    sec("retourTest", "Retour test") +
-    sec("retourProd", "Retour production") +
-    sec("afaire", "À faire");
+    sec("retourTest", "Retour test");
 
   const html = buildDoc({
     kicker: "Brief de réunion matinale",
     title: `Réunion du ${new Date().toLocaleDateString("fr-FR")}`,
-    subtitle: `Dossier ${dossier} · état des lieux (charge active)`,
+    subtitle: `Dossier ${dossier} · équipe Armonie`,
     cartouche: [["Client / dossier", dossier], ["Type", "Brief matinal"], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Chef de projet",
   });
-  return { html, generatedBy: "données" };
+  return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
 }
 
 
 export async function explainTicket(ticket) {
   if (aiAvailable()) {
-    const prompt = `Explique ce ticket Jira en français très simple, pour un chef de projet NON technique.
+    const prompt = `Explique ce ticket en 1 à 2 phrases TRÈS simples, comme à quelqu'un qui n'y connaît rien.
 Titre : ${ticket.resume}
-${ticket.descriptionText ? "Description :\n" + ticket.descriptionText : ""}
-Statut : ${ticket.statut}
-En 2 à 4 phrases courtes : de quoi il s'agit concrètement, et ce que ça change pour le client. Pas de jargon. Réponds en texte simple.`;
+${ticket.descriptionText ? "Détail : " + ticket.descriptionText.slice(0, 1500) : ""}
+Dis juste, sans jargon : de quoi il s'agit, et à quoi ça sert. Phrases courtes. Pas de termes techniques.`;
     return await callClaude(
-      "Tu traduis des tickets techniques en explications claires pour une personne non technique. Français, simple, concret, sans jargon.",
+      "Tu expliques des tickets techniques en mots simples du quotidien, pour une personne non technique. Très court, concret, zéro jargon.",
       prompt
     );
   }
-  // Repli sans clé : on renvoie au moins la description nettoyée.
-  return ticket.descriptionText
-    ? `Résumé : ${ticket.resume}. Détail indiqué dans le ticket : ${ticket.descriptionText.slice(0, 400)}`
-    : `Ce ticket concerne : ${ticket.resume}. (Ajoute une clé IA pour une explication détaillée en langage clair.)`;
+  // Repli sans clé IA : une phrase simple à partir des infos disponibles.
+  if (ticket.descriptionText) {
+    return `En clair : ${ticket.resume}. ${ticket.descriptionText.slice(0, 220).trim()}…`;
+  }
+  return `En clair : ce ticket concerne « ${ticket.resume} ».`;
 }
 
 // ---------- Rapport de réalisation d'un ticket ----------

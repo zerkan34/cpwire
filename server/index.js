@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription } from "./jira.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { dailyReport, morningReport, ticketReport, meetingReport, globalReport, explainTicket, aiAvailable } from "./ai.js";
@@ -150,7 +150,16 @@ app.post("/api/cr/morning", guard, async (req, res) => {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const sub = dossier && dossier !== "Tous" ? got.issues.filter((i) => i.dossier === dossier) : got.issues;
-    const out = await morningReport(dossier || "Tous les clients", sub);
+    // Ensemble des contacts côté CLIENT (pour ne garder que les gens d'Armonie dans le brief).
+    const clientNames = new Set();
+    try {
+      for (const d of readDossiers()) {
+        for (const m of (d.team || [])) {
+          if (m && m.cote === "Client" && m.nom) clientNames.add(m.nom.trim().toLowerCase());
+        }
+      }
+    } catch {}
+    const out = await morningReport(dossier || "Tous les clients", sub, clientNames);
     logEvent("brief_matin", `Brief matinal - ${dossier || "tous"}`, { dossier: dossier || "Tous", count: sub.length });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
@@ -167,7 +176,13 @@ app.post("/api/ticket/explain", guard, async (req, res) => {
     if (!t) return res.status(404).json({ error: "Ticket introuvable." });
     const cacheKey = `${t.cle}@${t.maj}`;
     if (explainCache.has(cacheKey)) return res.json({ explication: explainCache.get(cacheKey), cached: true });
-    const explication = await explainTicket(t);
+    // La description n'est plus chargée en masse : on va la chercher pour CE ticket.
+    let ticket = t;
+    if (isConfigured() && !t.descriptionText) {
+      const desc = await fetchIssueDescription(t.cle);
+      if (desc) ticket = { ...t, descriptionText: desc };
+    }
+    const explication = await explainTicket(ticket);
     explainCache.set(cacheKey, explication);
     res.json({ explication, cached: false });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }

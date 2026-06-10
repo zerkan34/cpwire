@@ -27,7 +27,6 @@ const FIELDS = [
   "project",
   "updated",
   "labels",
-  "description",
 ];
 
 // Appelle l'endpoint de recherche enrichie et suit la pagination jusqu'au bout.
@@ -114,8 +113,25 @@ function normalize(it) {
     categorie: categoryFromStatus(statusName), // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
     echeance: f.duedate || null,
     enRetard,
-    descriptionText: adfToText(f.description).trim().slice(0, 4000),
+    descriptionText: "", // chargée à la demande (voir fetchIssueDescription) pour accélérer l'import
     maj: f.updated || null,
     url: `${BASE_URL}/browse/${it.key}`,
   };
+}
+
+// Récupère la description d'UN seul ticket, à la demande (ouverture d'un ticket).
+// Évite de transporter des milliers de descriptions à chaque actualisation.
+export async function fetchIssueDescription(key) {
+  if (!isConfigured() || !key) return "";
+  const url = `${BASE_URL}/rest/api/3/issue/${encodeURIComponent(key)}?fields=description`;
+  try {
+    const res = await fetch(url, {
+      headers: { Authorization: authHeader(), Accept: "application/json" },
+    });
+    if (!res.ok) return "";
+    const data = await res.json();
+    return adfToText(data.fields?.description).trim().slice(0, 4000);
+  } catch {
+    return "";
+  }
 }
