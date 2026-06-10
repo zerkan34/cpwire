@@ -253,3 +253,62 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   z-index: 90; animation: toast-in .25s ease-out; max-width: 90vw; text-align: center;
 }
 @keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ===================== PWA — bouton d'installation ===================== */
+.install-fab {
+  position: fixed; right: 16px; z-index: 95;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--gold); color: #2a2410; border: 0; border-radius: 99px;
+  font-weight: 700; font-size: 13px; padding: 12px 17px; cursor: pointer;
+  box-shadow: 0 10px 30px rgba(44,41,69,.32);
+}
+.install-fab:hover { filter: brightness(1.06); }
+.install-ios { position: fixed; inset: 0; background: rgba(28,25,45,.55); backdrop-filter: blur(2px);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 96; padding: 14px; }
+.install-ios-box { background: #fff; border-radius: 16px; padding: 20px 22px; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); }
+.install-ios-box ol { margin: 12px 0 16px; padding-left: 20px; } .install-ios-box li { margin: 8px 0; }
+
+/* ===================== Optimisation mobile ===================== */
+@media (max-width: 768px) {
+  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .hdr { padding: 20px 18px; border-radius: 18px; }
+  .hdr h1 { font-size: 22px; }
+  .hdr .sub { font-size: 13px; }
+  .hdr-row { gap: 14px; }
+  .hdr-actions { align-items: stretch; width: 100%; }
+  .hdr-actions > div { width: 100%; }
+  .hdr-actions .btn { flex: 1; text-align: center; }
+  .src { text-align: left; }
+
+  /* Onglets : barre défilante horizontale (look appli) */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex: 0 0 auto; }
+
+  .section-title { font-size: 17px; margin: 22px 0 12px; }
+  .recap-grid { grid-template-columns: 1fr; }
+
+  /* Boutons confortables au doigt */
+  .btn, .btn-solid, .btn-line { min-height: 44px; }
+
+  /* Tableau des tickets : on garde l'essentiel (Clé, Résumé, Statut) */
+  .panel > table { font-size: 12.5px; }
+  .panel > table th, .panel > table td { padding: 8px 7px; }
+  .panel > table th:nth-child(2), .panel > table td:nth-child(2),  /* Dossier */
+  .panel > table th:nth-child(4), .panel > table td:nth-child(4),  /* Assigné */
+  .panel > table th:nth-child(5), .panel > table td:nth-child(5) { /* Échéance */
+    display: none;
+  }
+
+  /* Modales plus larges */
+  .overlay { padding: 14px 10px; }
+  .modal { max-width: 100%; }
+
+  /* Évite tout débordement horizontal */
+  td, .pcard, .recap-card { word-break: break-word; }
+}
+
+@media (max-width: 480px) {
+  .kpis { gap: 8px; }
+  .install-fab { font-size: 12.5px; padding: 11px 14px; }
+}

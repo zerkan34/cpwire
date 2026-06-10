@@ -10,6 +10,7 @@ import DossierModal from "./components/DossierModal.jsx";
 import DailyRecap from "./components/DailyRecap.jsx";
 import Developers from "./components/Developers.jsx";
 import Morning from "./components/Morning.jsx";
+import InstallPWA from "./components/InstallPWA.jsx";
 import Meetings from "./components/Meetings.jsx";
 import History from "./components/History.jsx";
 
@@ -140,6 +141,7 @@ export default function App() {
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
 
       {toast && <div className="toast" role="status">{toast}</div>}
+      <InstallPWA />
     </div>
   );
 }

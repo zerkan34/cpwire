@@ -36,6 +36,7 @@ export const genTicketReport = (cle, note, resume) => post(`/api/ticket/report`,
 export const pushTicket = (cle, comment, markDone) => post(`/api/ticket/push`, { cle, comment, markDone });
 export const explainTicket = (cle) => post(`/api/ticket/explain`, { cle });
 export const genGlobalCR = () => post(`/api/cr/global`, {});
+export const genMorningCR = (dossier) => post(`/api/cr/morning`, { dossier });
 export const shareMail = (to, subject, html) => post(`/api/share/mail`, { to, subject, html });
 export const shareSharePoint = (folderPath, filename, html) => post(`/api/share/sharepoint`, { folderPath, filename, html });
 
