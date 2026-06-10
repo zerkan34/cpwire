@@ -1,6 +1,8 @@
 // docgen.js — habille un contenu (fragment HTML) dans la charte Armonie,
 // pour un rendu propre à l'écran (aperçu) et au téléchargement / impression PDF.
 
+import { LOGO_DATA_URI } from "./logo.js";
+
 const CSS = `
   *{box-sizing:border-box;}
   body{margin:0;font-family:'Inter',system-ui,sans-serif;color:#3d3b4d;background:#fff;line-height:1.55;font-size:14px;}
@@ -8,7 +10,9 @@ const CSS = `
   .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #c7a14a;padding-bottom:16px;margin-bottom:8px;}
   .brand{font-family:'Poppins',sans-serif;font-weight:800;font-size:20px;color:#3a3658;}
   .brand b{color:#a9842f;}
+  .brand img{height:46px;width:auto;display:block;}
   .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right;}
+  .who{font-weight:700;color:#6e5cc4;}
   .eyebrow{font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a9842f;margin-top:22px;}
   h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:30px;color:#2c2945;margin:6px 0 4px;line-height:1.1;}
   .sub{color:#74718a;font-size:14px;margin-bottom:18px;}
@@ -44,7 +48,7 @@ export function buildDoc({ kicker, title, subtitle, cartouche = [], bodyHtml, et
   const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${FONTS}<style>${CSS}</style><title>${title}</title></head>
 <body><div class="page">
-  <div class="top"><div class="brand">armo<b>n</b>ie</div><div class="conf">Armonie Group · Confidentiel<br>${date}</div></div>
+  <div class="top"><div class="brand"><img src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${date}</div></div>
   <div class="eyebrow">${kicker}</div>
   <h1>${title}</h1>
   <div class="sub">${subtitle || ""}</div>

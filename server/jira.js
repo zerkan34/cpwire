@@ -1,7 +1,7 @@
 // jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
-import { dossierFromKey, bucketFromStatus, ME } from "./config.js";
+import { dossierFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, ME } from "./config.js";
 
 const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
 const EMAIL = process.env.JIRA_EMAIL || "";
@@ -99,16 +99,19 @@ function normalize(it) {
   const enRetard = Boolean(due && due < today && statut !== "Terminé");
 
   const assigne = f.assignee?.displayName || "Non assigné";
+  const summary = f.summary || "";
   return {
     cle: it.key,
     mine: assigne === ME,
     projet: f.project?.key || "",
     dossier: dossierFromKey(it.key),
-    resume: f.summary || "",
+    resume: summary,
     assigne,
+    dev: devFromIssue(assigne, summary), // dév responsable (assigné, sinon nom en fin de titre)
     priorite: f.priority?.name || "",
     statutJira: statusName,
-    statut, // Bloqué / À faire / En cours / Terminé
+    statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)
+    categorie: categoryFromStatus(statusName), // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
     echeance: f.duedate || null,
     enRetard,
     descriptionText: adfToText(f.description).trim().slice(0, 4000),

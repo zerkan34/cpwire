@@ -1,6 +1,7 @@
 // ai.js — rédaction assistée. Utilise l'API Claude si ANTHROPIC_API_KEY est défini,
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
+import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS } from "./config.js";
 
 const KEY = process.env.ANTHROPIC_API_KEY || "";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -35,7 +36,10 @@ function buckets(issues) {
 }
 function listHtml(arr) {
   if (!arr.length) return "<p>—</p>";
-  return "<ul>" + arr.map((i) => `<li><b>${i.cle}</b> — ${esc(i.resume)}${i.assigne && i.assigne !== "Non assigné" ? ` <i>(${esc(i.assigne)})</i>` : ""}</li>`).join("") + "</ul>";
+  return "<ul>" + arr.map((i) => {
+    const who = (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "");
+    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)}${who ? ` — <span class="who">${esc(who)}</span>` : ""}</li>`;
+  }).join("") + "</ul>";
 }
 function esc(s){return String(s==null?"":s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
 
@@ -49,41 +53,176 @@ function kpiRow(g, total) {
   </div>`;
 }
 
+function isToday(iso) {
+  if (!iso) return false;
+  const d = new Date(iso), n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+// Liste HTML d'une sélection de tickets (avec dév + statut détaillé, plafonnée).
+function catList(arr, { showStatus = false, cap = 60 } = {}) {
+  if (!arr.length) return "<p>—</p>";
+  const shown = arr.slice(0, cap);
+  const li = shown.map((i) => {
+    const who = i.dev && i.dev !== "Non assigné" ? ` — <span class="who">${esc(i.dev)}</span>` : "";
+    const st = showStatus ? ` — <b>${esc(CATEGORY_LABEL[i.categorie] || i.statutJira || "")}</b>` : "";
+    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)}${who}${st}</li>`;
+  }).join("");
+  const more = arr.length > cap ? `<li>+ ${arr.length - cap} autre(s)…</li>` : "";
+  return `<ul>${li}${more}</ul>`;
+}
+
 function templateDaily(dossier, issues) {
-  const g = buckets(issues);
-  return kpiRow(g, issues.length) +
-    `<h2>Synthèse de la journée</h2><p>Activité du jour sur le dossier <b>${esc(dossier)}</b> : ` +
-    `${g["Terminé"].length} ticket(s) terminé(s), ${g["En cours"].length} en cours, ${g["Bloqué"].length} bloqué(s), ${g["À faire"].length} à traiter.</p>` +
-    `<h2>Terminé aujourd'hui</h2>${listHtml(g["Terminé"])}` +
-    `<h2>En cours</h2>${listHtml(g["En cours"])}` +
-    `<h2>Bloqués — à débloquer</h2>${listHtml(g["Bloqué"])}` +
-    `<h2>À faire / prochaines étapes</h2>${listHtml(g["À faire"])}`;
+  const inCat = (c) => issues.filter((i) => i.categorie === c);
+  const inCats = (cs) => issues.filter((i) => cs.includes(i.categorie));
+  const n = (c) => inCat(c).length;
+
+  const reste = inCats(RESTE_CATS).length;
+  const recArmonie = n("recetteArmonie");
+  const recClient = n("recetteClient");
+  const attClient = n("attenteClient");
+  const enProd = n("miseEnProd");
+  const termineTot = n("termine");
+
+  const termineToday = inCat("termine").filter((i) => isToday(i.maj));
+  const prodToday = inCat("miseEnProd").filter((i) => isToday(i.maj));
+  const enCours = inCats(ACTIVE_CATS).sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+
+  // Activité du jour par personne : tickets touchés aujourd'hui (terminés / en cours).
+  const touchedToday = issues.filter((i) => isToday(i.maj));
+  const parPersonne = {};
+  touchedToday.forEach((i) => {
+    const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
+    (parPersonne[d] ||= { dev: d, faits: 0, encours: 0, total: 0 });
+    parPersonne[d].total += 1;
+    if (DONE_CATS.includes(i.categorie)) parPersonne[d].faits += 1;
+    else if (ACTIVE_CATS.includes(i.categorie)) parPersonne[d].encours += 1;
+  });
+  const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
+  const tablePersonnes = personnes.length
+    ? `<h2>Activité du jour par personne</h2>
+       <table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total du jour</th></tr>` +
+      personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
+      `</table>`
+    : `<h2>Activité du jour par personne</h2><p>Aucun ticket mis à jour aujourd'hui.</p>`;
+
+  // Ligne de synthèse chiffrée
+  const kpis = `<div class="kpi-row">
+    <div class="kpi"><div class="v">${reste}</div><div class="l">Reste à faire</div></div>
+    <div class="kpi"><div class="v">${recArmonie}</div><div class="l">Attente recette</div></div>
+    <div class="kpi"><div class="v">${recClient}</div><div class="l">Recette client</div></div>
+    <div class="kpi"><div class="v">${enProd}</div><div class="l">Mises en prod</div></div>
+    <div class="kpi"><div class="v">${termineTot}</div><div class="l">Terminés</div></div>
+  </div>`;
+
+  const ligne = `<p><b>En une ligne :</b> ${reste} à faire · ${recArmonie} en attente de recette (Armonie) · ` +
+    `${recClient} en attente de recette client · ${attClient} en attente client · ${enProd} en mise en production` +
+    `${prodToday.length ? ` (dont ${prodToday.length} aujourd'hui)` : ""}.</p>`;
+
+  const termineBloc = termineToday.length
+    ? `<h2>Terminés aujourd'hui (${termineToday.length})</h2>${catList(termineToday)}`
+    : `<h2>Terminés aujourd'hui</h2><p>Aucun ticket passé en « Terminé » aujourd'hui.</p>`;
+
+  const prodBloc = prodToday.length
+    ? `<h2>Mises en production aujourd'hui (${prodToday.length})</h2>${catList(prodToday)}`
+    : "";
+
+  return kpis +
+    `<h2>Synthèse de la journée</h2><p>Dossier <b>${esc(dossier)}</b>.</p>${ligne}` +
+    tablePersonnes +
+    termineBloc +
+    prodBloc +
+    `<h2>En cours (${enCours.length})</h2>${catList(enCours, { showStatus: true })}` +
+    `<h2>En attente de recette — Armonie (${recArmonie})</h2>${catList(inCat("recetteArmonie"))}` +
+    `<h2>En attente de recette — client (${recClient})</h2>${catList(inCat("recetteClient"))}` +
+    (attClient ? `<h2>En attente client (${attClient})</h2>${catList(inCat("attenteClient"))}` : "");
 }
 
 export async function dailyReport(dossier, issues) {
-  let body;
+  // Le corps (chiffres + listes) est TOUJOURS calculé de façon déterministe :
+  // les nombres sont donc exacts. L'IA n'ajoute (si dispo) qu'une intro rédigée.
+  const body = templateDaily(dossier, issues);
+
+  let intro = "";
   if (aiAvailable()) {
-    const data = issues.map((i) => `- ${i.cle} | ${i.statut} | ${i.resume} | ${i.assigne} | échéance ${i.echeance || "n/c"}${i.enRetard ? " | EN RETARD" : ""}`).join("\n");
-    const prompt = `Rédige le compte rendu journalier d'activité du dossier client "${dossier}".
-Tickets du jour :\n${data}\n
-Structure : une courte synthèse, puis les sections « Terminé aujourd'hui », « En cours », « Bloqués », « À faire ». Mets en avant les retards et blocages.`;
-    body = await callClaude(STYLE, prompt);
-  } else {
-    body = templateDaily(dossier, issues);
+    const isToday = (iso) => { if (!iso) return false; const d = new Date(iso), n = new Date(); return d.toDateString() === n.toDateString(); };
+    const reste = issues.filter((i) => RESTE_CATS.includes(i.categorie)).length;
+    const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
+    const recC = issues.filter((i) => i.categorie === "recetteClient").length;
+    const prod = issues.filter((i) => i.categorie === "miseEnProd").length;
+    const finisJour = issues.filter((i) => i.categorie === "termine" && isToday(i.maj)).length;
+    try {
+      const prompt = `Rédige UNIQUEMENT un court paragraphe d'introduction (2 à 3 phrases, balise <p>) ` +
+        `pour le compte rendu journalier du dossier "${dossier}". Données réelles à refléter fidèlement, ` +
+        `sans inventer de chiffres : ${finisJour} ticket(s) terminé(s) aujourd'hui, ${reste} restant(s) à faire, ` +
+        `${recA} en attente de recette Armonie, ${recC} en attente de recette client, ${prod} en mise en production. ` +
+        `Ton professionnel, factuel. Ne renvoie que le <p>…</p>.`;
+      intro = await callClaude(STYLE, prompt);
+    } catch { intro = ""; }
   }
+
   const html = buildDoc({
     kicker: "Compte rendu journalier",
     title: `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
     subtitle: `Dossier ${dossier} · activité consolidée`,
     cartouche: [["Client / dossier", dossier], ["Type", "CR journalier"], ["Date", new Date().toLocaleDateString("fr-FR")]],
-    bodyHtml: body,
+    bodyHtml: intro + body,
     etabliPar: process.env.ME || "Chef de projet",
   });
-  return { html, generatedBy: aiAvailable() ? "Claude" : "gabarit" };
+  return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
 }
 
 
-// ---------- Explication simple d'un ticket (pour non-technique) ----------
+// ---------- Brief de réunion matinale (état des lieux) ----------
+// Reprend la charge active : À FAIRE + EN COURS + RETOUR TEST + RETOUR PRODUCTION.
+export async function morningReport(dossier, issues) {
+  const active = issues.filter((i) => RESTE_CATS.includes(i.categorie));
+
+  // Charge par personne (qui a quoi sur sa table ce matin).
+  const byDev = {};
+  active.forEach((i) => {
+    const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
+    byDev[d] = (byDev[d] || 0) + 1;
+  });
+  const persons = Object.entries(byDev).sort((a, b) => b[1] - a[1]);
+  const charge = persons.length
+    ? `<h2>Charge par personne</h2><table class="data"><tr><th>Personne</th><th>Tickets actifs</th></tr>` +
+      persons.map(([d, n]) => `<tr><td><span class="who">${esc(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
+    : "";
+
+  const sec = (cat, titre) => {
+    const arr = active.filter((i) => i.categorie === cat);
+    return `<h2>${titre} (${arr.length})</h2>${catList(arr, { cap: 100 })}`;
+  };
+
+  const kpis = `<div class="kpi-row">
+    <div class="kpi"><div class="v">${active.length}</div><div class="l">À traiter</div></div>
+    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "encours").length}</div><div class="l">En cours</div></div>
+    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "retourTest").length}</div><div class="l">Retour test</div></div>
+    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "retourProd").length}</div><div class="l">Retour prod</div></div>
+    <div class="kpi"><div class="v">${active.filter((i) => i.categorie === "afaire").length}</div><div class="l">À faire</div></div>
+  </div>`;
+
+  const body = kpis +
+    `<h2>Synthèse</h2><p>État des lieux pour la réunion du matin — dossier <b>${esc(dossier)}</b> : ` +
+    `${active.length} ticket(s) actif(s) à passer en revue.</p>` +
+    charge +
+    sec("encours", "En cours") +
+    sec("retourTest", "Retour test") +
+    sec("retourProd", "Retour production") +
+    sec("afaire", "À faire");
+
+  const html = buildDoc({
+    kicker: "Brief de réunion matinale",
+    title: `Réunion du ${new Date().toLocaleDateString("fr-FR")}`,
+    subtitle: `Dossier ${dossier} · état des lieux (charge active)`,
+    cartouche: [["Client / dossier", dossier], ["Type", "Brief matinal"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    bodyHtml: body,
+    etabliPar: process.env.ME || "Chef de projet",
+  });
+  return { html, generatedBy: "données" };
+}
+
+
 export async function explainTicket(ticket) {
   if (aiAvailable()) {
     const prompt = `Explique ce ticket Jira en français très simple, pour un chef de projet NON technique.

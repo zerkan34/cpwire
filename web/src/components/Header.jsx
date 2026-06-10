@@ -1,4 +1,5 @@
 import React from "react";
+import { LOGO_DATA_URI } from "../logo.js";
 
 function Kpi({ lbl, val, cls }) {
   return (
@@ -16,6 +17,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
     <header className="hdr">
       <div className="hdr-row">
         <div>
+          <img src={LOGO_DATA_URI} alt="Armonie" style={{ height: 34, marginBottom: 8, filter: "brightness(0) invert(1)" }} />
           <div className="eyebrow">CPwire · cockpit de pilotage{me ? " · " + me : ""}</div>
           <h1>Ce qu'il reste à faire &amp; ce qui avance</h1>
           <div className="sub">
@@ -26,7 +28,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <div className="hdr-actions">
           <div style={{ display: "flex", gap: 8 }}>
             <button className="btn gold" onClick={onRefresh} disabled={loading}>
-              {loading ? "Actualisation…" : "Actualiser depuis Jira"}
+              {loading ? "Actualisation…" : "Actualiser"}
             </button>
             <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
           </div>

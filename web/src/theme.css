@@ -225,3 +225,31 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .expl { background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 12px; padding: 14px 16px; margin: 4px 0 16px; }
 .expl-h { font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: 6px; }
 .expl p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.55; }
+
+/* --- Onglet Développeurs --- */
+.dev-list { display: flex; flex-direction: column; gap: 8px; }
+.dev-block { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.dev-row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: none; border: 0; cursor: pointer; text-align: left; }
+.dev-row:hover { background: var(--purple-soft); }
+.dev-name { font-weight: 700; min-width: 160px; color: var(--ink); }
+.dev-bar { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; min-width: 60px; }
+.dev-bar-fill { display: block; height: 100%; background: linear-gradient(var(--purple), var(--purple-strong)); }
+.dev-counts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.dev-tot { font-weight: 800; font-size: 15px; color: var(--indigo); min-width: 30px; text-align: right; }
+.dev-caret { color: var(--muted); font-size: 13px; margin-left: 2px; }
+.dev-items { list-style: none; margin: 0; padding: 4px 8px 10px; border-top: 1px solid var(--line); }
+.dev-items li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 13px; }
+.dev-items li:hover { background: var(--purple-soft); }
+@media (max-width: 640px) {
+  .dev-name { min-width: 110px; font-size: 13px; }
+  .dev-bar { display: none; }
+}
+
+/* --- Toast (message subtil après actualisation) --- */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: var(--indigo); color: #fff; font-size: 13px; font-weight: 600;
+  padding: 11px 18px; border-radius: 99px; box-shadow: 0 10px 30px rgba(44,41,69,.28);
+  z-index: 90; animation: toast-in .25s ease-out; max-width: 90vw; text-align: center;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }

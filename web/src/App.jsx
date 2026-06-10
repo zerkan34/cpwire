@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken } from "./api.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -8,12 +8,16 @@ import IssueTable from "./components/IssueTable.jsx";
 import TicketModal from "./components/TicketModal.jsx";
 import DossierModal from "./components/DossierModal.jsx";
 import DailyRecap from "./components/DailyRecap.jsx";
+import Developers from "./components/Developers.jsx";
+import Morning from "./components/Morning.jsx";
 import Meetings from "./components/Meetings.jsx";
 import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 const TABS = [
   { id: "cockpit", label: "Cockpit" }, { id: "recap", label: "Récap du jour" },
+  { id: "morning", label: "Brief matin" },
+  { id: "devs", label: "Développeurs" },
   { id: "meetings", label: "Réunions" }, { id: "history", label: "Historique" },
 ];
 
@@ -31,6 +35,14 @@ export default function App() {
   const [onlyMine, setOnlyMine] = useState(false);
   const [ticket, setTicket] = useState(null);
   const [fiche, setFiche] = useState(null); // {nom}
+  const [toast, setToast] = useState("");
+  const toastTimer = useRef(null);
+
+  const showToast = useCallback((msg) => {
+    setToast(msg);
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => setToast(""), 6000);
+  }, []);
 
   useEffect(() => {
     const logout = () => { setAuthed(false); };
@@ -43,9 +55,16 @@ export default function App() {
     try {
       const [p, d] = await Promise.all([fetchPortfolio({ refresh }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
       setData(p); setDossiers(d.dossiers || {});
+      if (refresh) {
+        const diag = p.diagnostic || {};
+        const n = diag.totalImporte ?? (p.issues?.length || 0);
+        const np = diag.parProjet ? Object.keys(diag.parProjet).length : 0;
+        const zero = diag.projetsSansTicket?.length || 0;
+        showToast(`✓ Actualisé — ${n} ticket${n > 1 ? "s" : ""} importé${n > 1 ? "s" : ""} depuis Jira · ${np} projet${np > 1 ? "s" : ""}${zero ? ` · ⚠ ${zero} sans ticket` : ""}`);
+      }
     } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true); }
     finally { setLoading(false); }
-  }, []);
+  }, [showToast]);
 
   useEffect(() => { if (authed) load(false); }, [authed, load]);
 
@@ -109,6 +128,8 @@ export default function App() {
       )}
 
       {tab === "recap" && <DailyRecap onTicket={setTicket} />}
+      {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
+      {tab === "devs" && <Developers issues={issues} onTicket={setTicket} />}
       {tab === "meetings" && <Meetings />}
       {tab === "history" && <History />}
 
@@ -117,6 +138,8 @@ export default function App() {
       {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
       {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
+
+      {toast && <div className="toast" role="status">{toast}</div>}
     </div>
   );
 }

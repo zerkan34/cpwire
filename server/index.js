@@ -11,7 +11,7 @@ import "dotenv/config";
 import { searchIssues, isConfigured } from "./jira.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
-import { dailyReport, ticketReport, meetingReport, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { dailyReport, morningReport, ticketReport, meetingReport, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -22,7 +22,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
-const PROJECTS = (process.env.PROJECTS || "TEDL,TDSS,TIMA,TDIA,PTAF,ERP26").split(",").map((s) => s.trim()).filter(Boolean);
+const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,PBAL,TIMA,PIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
 // Import EXHAUSTIF : tous les tickets des projets, aucun filtre excluant.
 const DEFAULT_JQL = process.env.JQL || `project in (${PROJECTS.join(",")}) ORDER BY created ASC`;
 const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
@@ -140,6 +140,18 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const sub = got.issues.filter((i) => i.dossier === dossier);
     const out = await dailyReport(dossier, sub);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/morning", guard, async (req, res) => {
+  try {
+    const dossier = req.body.dossier;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = dossier && dossier !== "Tous" ? got.issues.filter((i) => i.dossier === dossier) : got.issues;
+    const out = await morningReport(dossier || "Tous les clients", sub);
+    logEvent("brief_matin", `Brief matinal - ${dossier || "tous"}`, { dossier: dossier || "Tous", count: sub.length });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
