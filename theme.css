@@ -1,61 +1,39 @@
 import React from "react";
-import { LOGO_DATA_URI } from "../logo.js";
 
-function Kpi({ lbl, val, cls }) {
+export default function Filters({
+  issues, statuts, dossier, statut, onlyLate, onlyMine, me,
+  onDossier, onStatut, onToggleLate, onToggleMine,
+}) {
+  const dossiers = ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()];
+  const count = (key, val) => (val === "Tous" ? issues.length : issues.filter((i) => i[key] === val).length);
+
   return (
-    <div className={`kpi ${cls || ""}`}>
-      <div className="lbl">{lbl}</div>
-      <div className="val">{val ?? "—"}</div>
-    </div>
-  );
-}
-
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout }) {
-  const k = kpis || {};
-  const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
-  return (
-    <header className="hdr">
-      <div className="hdr-row">
-        <div>
-          <img src={LOGO_DATA_URI} alt="Armonie" style={{ height: 34, marginBottom: 8, filter: "brightness(0) invert(1)" }} />
-          <div className="eyebrow">CPwire · cockpit de pilotage{me ? " · " + me : ""}</div>
-          <h1>Ce qu'il reste à faire &amp; ce qui avance</h1>
-          <div className="sub">
-            Vue consolidée de tous tes projets Jira. À faire, en cours, bloqués, en retard,
-            terminés — recalculés à chaque actualisation.
-          </div>
-        </div>
-        <div className="hdr-actions">
-          <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn gold" onClick={onRefresh} disabled={loading}>
-              {loading ? "Actualisation…" : "Actualiser"}
-            </button>
-            <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
-          </div>
-          <div className="src">
-            {source ? `Source : ${source}` : "Chargement…"}
-            <br />
-            Données au {when}
-          </div>
-        </div>
+    <>
+      <div className="filters">
+        <span className="fg-lbl">Dossier</span>
+        {dossiers.map((d) => (
+          <button key={d} className={`fbtn ${dossier === d ? "active" : ""}`} onClick={() => onDossier(d)}>
+            {d}<span className="cnt">{d === "Tous" ? issues.length : count("dossier", d)}</span>
+          </button>
+        ))}
       </div>
-
-      <div className="kpis">
-        <Kpi lbl="Total" val={k.total} />
-        <Kpi lbl="À faire" val={k["À faire"]} cls="todo" />
-        <Kpi lbl="En cours" val={k["En cours"]} cls="prog" />
-        <Kpi lbl="Bloqués" val={k["Bloqué"]} cls="block" />
-        <Kpi lbl="En retard" val={k.enRetard} cls="late" />
-        <Kpi lbl="Terminés" val={k["Terminé"]} cls="done" />
+      <div className="filters">
+        <span className="fg-lbl">Statut</span>
+        <button className={`fbtn ${statut === "Tous" ? "active" : ""}`} onClick={() => onStatut("Tous")}>
+          Tous<span className="cnt">{issues.length}</span>
+        </button>
+        {statuts.map((s) => (
+          <button key={s} className={`fbtn ${statut === s ? "active" : ""}`} onClick={() => onStatut(s)}>
+            {s}<span className="cnt">{count("statut", s)}</span>
+          </button>
+        ))}
+        <button className={`fbtn ${onlyLate ? "active" : ""}`} onClick={onToggleLate}>
+          En retard<span className="cnt">{issues.filter((i) => i.enRetard).length}</span>
+        </button>
+        <button className={`fbtn ${onlyMine ? "active" : ""}`} onClick={onToggleMine}>
+          Mes tickets<span className="cnt">{issues.filter((i) => i.mine).length}</span>
+        </button>
       </div>
-
-      <div className="progress">
-        <span>Avancement ({k["Terminé"] ?? 0} terminés sur {k.total ?? 0})</span>
-        <span className="bar">
-          <span style={{ width: `${k.avancement || 0}%` }} />
-        </span>
-        <b>{k.avancement || 0}&nbsp;%</b>
-      </div>
-    </header>
+    </>
   );
 }
