@@ -1,0 +1,45 @@
+cp|WIRE — fichiers modifiés (déposer sur GitHub en respectant l'arborescence)
+Généré le 2026-06-11 10:26
+
+server/ai.js
+server/config.js
+server/devmeta.js
+server/docgen.js
+server/index.js
+server/jira.js
+server/logo.js
+server/store.js
+web/index.html
+web/public/cpwire-logo.png
+web/public/icons/apple-touch-icon.png
+web/public/icons/icon-192.png
+web/public/icons/icon-512.png
+web/public/icons/maskable-512.png
+web/public/manifest.webmanifest
+web/public/sw.js
+web/src/App.jsx
+web/src/api.js
+web/src/components/DailyRecap.jsx
+web/src/components/DeveloperModal.jsx
+web/src/components/Developers.jsx
+web/src/components/DocPreview.jsx
+web/src/components/DossierModal.jsx
+web/src/components/EnCours.jsx
+web/src/components/ErrorBoundary.jsx
+web/src/components/ExportBar.jsx
+web/src/components/Filters.jsx
+web/src/components/Header.jsx
+web/src/components/History.jsx
+web/src/components/InstallPWA.jsx
+web/src/components/IssueTable.jsx
+web/src/components/Login.jsx
+web/src/components/Meetings.jsx
+web/src/components/Morning.jsx
+web/src/components/TicketModal.jsx
+web/src/logo.js
+web/src/main.jsx
+web/src/modalNav.js
+web/src/theme.css
+web/src/utils.js
+
+TOTAL : 40 fichiers

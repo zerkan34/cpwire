@@ -210,7 +210,7 @@ tr:hover td { background: var(--row-alt); }
 .foot { margin-top: 30px; text-align: center; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 800px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
-@media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, 1fr); } .hdr h1 { font-size: 24px; } }
+@media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, 1fr); } .hdr h1 { font-size: 18px; letter-spacing: 0.05em; } }
 
 /* ===== Onglets ===== */
 .tabs { display: flex; gap: 6px; margin: 18px 0 4px; flex-wrap: wrap; }
@@ -443,9 +443,10 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 
 /* ===================== Optimisation mobile ===================== */
 @media (max-width: 768px) {
-  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); }
+  html, body { max-width: 100%; overflow-x: hidden; }
+  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); max-width: 100%; box-sizing: border-box; }
   .hdr { padding: 20px 18px; border-radius: 18px; }
-  .hdr h1 { font-size: 22px; }
+  .hdr h1 { font-size: 20px; letter-spacing: 0.06em; }
   .hdr .sub { font-size: 13px; }
   .hdr-row { gap: 14px; }
   .hdr-actions { align-items: stretch; width: 100%; }
@@ -550,3 +551,36 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .ni-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .ni-time { font-size: 11.5px; color: var(--muted); }
 @media (max-width: 560px) { .notif-panel { position: fixed; top: 64px; right: 8px; left: 8px; width: auto; } }
+
+/* ===== Bouton « Tout recharger » (icône soignée) ===== */
+.reload-btn { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--purple-line); background: #fff; color: var(--purple-strong); border-radius: 99px; padding: 6px 14px 6px 7px; font-size: 12.5px; font-weight: 700; cursor: pointer; box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
+.reload-btn:hover { background: var(--purple-soft); transform: translateY(-1px); box-shadow: var(--shadow-lg); }
+.reload-btn:disabled { opacity: .7; cursor: default; transform: none; }
+.reload-ico { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: linear-gradient(135deg, var(--purple), var(--purple-strong)); color: #fff; font-size: 15px; line-height: 1; box-shadow: inset 0 0 0 2px rgba(199,161,74,.45); }
+.reload-txt { letter-spacing: .01em; }
+@keyframes spin360 { to { transform: rotate(360deg); } }
+.reload-btn.spin .reload-ico { animation: spin360 .9s linear infinite; }
+
+/* ===== Réunions — cartes & aperçu ===== */
+.meet-card { border: 1px solid var(--line); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); background: var(--card); }
+.meet-hd { background: linear-gradient(135deg, var(--indigo-deep), var(--indigo)); color: #fff; padding: 13px 18px; font-weight: 700; font-size: 14.5px; letter-spacing: .03em; box-shadow: inset 0 -2px 0 rgba(199,161,74,.6); }
+.meet-bd { padding: 18px 18px 20px; }
+.meet-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 640px) { .meet-grid2 { grid-template-columns: 1fr; gap: 0; } }
+.fselect.block { display: block; width: 100%; border-radius: 12px; padding: 11px 13px; font-size: 14px; font-weight: 500; }
+.prep-result { margin-top: 18px; border-top: 2px solid var(--line-soft); padding-top: 16px; animation: prep-in .25s ease-out; }
+@keyframes prep-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.prep-result-hd { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; flex-wrap: wrap; }
+.prep-result-t { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 14px; color: var(--ink); }
+.prep-result .doc-frame { height: 64vh; }
+
+/* ===== Renforts mobile (lisibilité, pas de coupe de mots) ===== */
+@media (max-width: 768px) {
+  .meet-bd { padding: 14px 14px 16px; }
+  .prep-result .doc-frame { height: 56vh; }
+  .ta { min-height: 92px; }
+  /* Coupe propre des longues chaînes, jamais en plein milieu d'un mot court */
+  .ni-line, .enc-name, .dev-name, .pcard, .recap-card, td, .meet-bd, .field label { overflow-wrap: break-word; word-break: normal; }
+  /* Champs et selects bien au doigt */
+  input[type="text"], textarea, select, .fselect { font-size: 16px; } /* >=16px évite le zoom auto iOS */
+}

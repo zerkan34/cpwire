@@ -10,21 +10,36 @@ export function downloadHtml(html, filename) {
   URL.revokeObjectURL(url);
 }
 
+// Impression via une iframe cachée : pas de nouvelle fenêtre/onglet « about:blank »,
+// et l'app ne se fige plus (l'aperçu d'impression est isolé dans l'iframe).
 export function printHtml(html) {
   try {
-    const w = window.open("", "_blank");
-    if (!w) {
-      // Pop-up bloquée -> on télécharge le document plutôt que de planter.
-      downloadHtml(html, "document.html");
-      return false;
-    }
-    w.document.open();
-    w.document.write(html);
-    w.document.close();
-    try { w.document.title = " "; } catch { /* ignore */ }
-    try { w.onafterprint = () => { try { w.close(); } catch { /* */ } }; } catch { /* */ }
-    w.focus();
-    setTimeout(() => { try { w.document.title = " "; w.print(); } catch { /* */ } }, 450);
+    const old = document.getElementById("cpwire-print-frame");
+    if (old) old.remove();
+    const iframe = document.createElement("iframe");
+    iframe.id = "cpwire-print-frame";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+    document.body.appendChild(iframe);
+
+    let done = false;
+    const cleanup = () => { setTimeout(() => { try { iframe.remove(); } catch { /* */ } }, 1500); };
+
+    iframe.onload = () => {
+      if (done) return; done = true;
+      try {
+        const w = iframe.contentWindow;
+        try { w.document.title = " "; } catch { /* */ }
+        w.focus();
+        w.onafterprint = cleanup;
+        w.print();
+        setTimeout(cleanup, 60000); // filet de sécurité
+      } catch (e) {
+        cleanup();
+        try { downloadHtml(html, "document.html"); } catch { /* */ }
+      }
+    };
+    iframe.srcdoc = html;
     return true;
   } catch (e) {
     try { downloadHtml(html, "document.html"); } catch { /* */ }

@@ -107,9 +107,6 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
                 )}
               </div>
             )}
-            {onRelaunch && (
-              <button className="btn ghost relaunch" onClick={onRelaunch} title="Relancer l'application (recharge la page si elle se bloque)">⟳</button>
-            )}
             <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
           </div>
           <div className="src">

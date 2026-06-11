@@ -221,7 +221,6 @@ export default function App() {
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
-        onRelaunch={() => window.location.reload()}
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead} />
@@ -261,8 +260,10 @@ export default function App() {
 
           <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
-            <button className="btn-line sm" onClick={() => load(false, true)} disabled={loading} title="Recharge l'intégralité des tickets depuis Jira (à utiliser rarement)">
-              ↻ Tout recharger
+            <button className={`reload-btn ${loading ? "spin" : ""}`} onClick={() => load(false, true)} disabled={loading}
+              title="Tout recharger : réimporte l'intégralité des tickets depuis Jira" aria-label="Tout recharger">
+              <span className="reload-ico">⟳</span>
+              <span className="reload-txt">Tout recharger</span>
             </button>
           </div>
           <div className="panel">
