@@ -60,10 +60,11 @@ export default function Morning({ issues = [], onTicket }) {
             const open = openD === dossier;
             return (
               <div className="recap-card" key={dossier}>
-                <h3>
-                  {dossier}
-                  <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>{items.length} actif{items.length > 1 ? "s" : ""}</span>
-                </h3>
+                <div className="recap-hd">
+                  <span className="recap-hd-name">{dossier}</span>
+                  <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
+                </div>
+                <div className="recap-bd">
                 <div className="filters" style={{ marginBottom: 8 }}>
                   {ORDER.map(([c, label, pill]) => count(c) ? (
                     <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
@@ -86,6 +87,7 @@ export default function Morning({ issues = [], onTicket }) {
                 <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => make(dossier)} disabled={busy === dossier}>
                   {busy === dossier ? "Préparation…" : `Préparer le brief de ${dossier}`}
                 </button>
+                </div>
               </div>
             );
           })}
