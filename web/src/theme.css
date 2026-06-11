@@ -632,10 +632,23 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .ni-expl b { color: var(--ink); }
 
 /* ===== Ticket : bannière "Dernière mise à jour" ===== */
-.last-update { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; }
-.lu-tag { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--purple-strong); background: #fff; border: 1px solid var(--purple-line); border-radius: 99px; padding: 3px 9px; }
-.lu-body { flex: 1; min-width: 180px; font-size: 13.5px; color: var(--ink); }
-.lu-when { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.last-update { background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 12px; padding: 11px 14px; margin-bottom: 14px; }
+.lu-tag { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--purple-strong); margin-bottom: 5px; }
+.lu-body { font-size: 14px; color: var(--ink); line-height: 1.5; }
+.lu-who { font-weight: 700; }
+.lu-sep { color: var(--purple); font-weight: 700; }
+.lu-when { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+
+/* Transition de statut dans l'historique : ancien (barré) → nouveau (mis en avant) */
+.chg-field { display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; margin-right: 7px; }
+.chg-from { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(0,0,0,.28); }
+.chg-arrow { color: var(--purple); margin: 0 7px; font-weight: 700; }
+.chg-to { font-weight: 700; color: var(--purple-strong); background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 6px; padding: 1px 8px; white-space: normal; }
+
+/* Panneau Développeurs : bandeau dégradé en tête (comme les autres) */
+.dev-panel { padding: 0; overflow: hidden; }
+.dev-panel .recap-hd { margin: 0; }
+.dev-panel-bd { padding: 16px 18px 14px; }
 
 /* ===== Recherche : suggestions en accordéon ===== */
 .search-suggest { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; max-height: 60vh; overflow-y: auto; }
