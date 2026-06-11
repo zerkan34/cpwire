@@ -71,17 +71,22 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
   return `<ul>${li}${more}</ul>`;
 }
 
+function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
+
 function templateDaily(dossier, issues, analyseHtml = "") {
   const inCat = (c) => issues.filter((i) => i.categorie === c);
-  const recArmonie = inCat("recetteArmonie").length;
+  const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const enCoursToday = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const recArmonie = inCat("recetteArmonie");
+  const recClient = inCat("recetteClient");
+  const attenteClient = inCat("attenteClient");
+  const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
 
-  const termineToday = inCat("termine").filter((i) => isToday(i.maj));
-  // « En cours dans la journée » = tickets actifs (en cours / retour test / retour prod) touchés aujourd'hui.
-  const enCoursToday = issues
-    .filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj))
-    .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+  // Photo globale du dossier (pas seulement la journée) pour la ligne de KPI.
+  const g = { "Terminé": [], "En cours": [], "À faire": [], "Bloqué": [] };
+  issues.forEach((i) => { (g[i.statut] || (g[i.statut] = [])).push(i); });
 
-  // Activité du jour par personne : tickets touchés aujourd'hui (terminés / en cours).
+  // Activité du jour par personne.
   const touchedToday = issues.filter((i) => isToday(i.maj));
   const parPersonne = {};
   touchedToday.forEach((i) => {
@@ -93,32 +98,32 @@ function templateDaily(dossier, issues, analyseHtml = "") {
   });
   const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
   const tablePersonnes = personnes.length
-    ? `<h2>Activité du jour par personne</h2>
-       <table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total du jour</th></tr>` +
+    ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total du jour</th></tr>` +
       personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
       `</table>`
-    : `<h2>Activité du jour par personne</h2><p>Aucun ticket mis à jour aujourd'hui.</p>`;
+    : `<p>Aucun ticket mis à jour aujourd'hui.</p>`;
 
-  const analyseBloc = analyseHtml
-    ? `<h2>Analyse de la journée</h2>${analyseHtml}`
+  const recette = [...recArmonie, ...recClient];
+  const recetteBloc = recette.length
+    ? `<h3>En recette — ${recArmonie.length} côté Armonie · ${recClient.length} côté client</h3>${catList(recette, { showStatus: true, cap: 40 })}`
+    : `<h3>En recette</h3><p>Aucun ticket en attente de recette.</p>`;
+  const attenteBloc = attenteClient.length
+    ? `<h3>En attente client (${attenteClient.length})</h3>${catList(attenteClient, { cap: 40 })}`
     : "";
+  const bloquantsBloc = bloquants.length
+    ? `<h3>⚠ Points bloquants (${bloquants.length})</h3>${catList(bloquants, { showStatus: true, cap: 40 })}`
+    : `<h3>Points bloquants</h3><p>Aucun point bloquant signalé à ce jour.</p>`;
 
-  const termineBloc = termineToday.length
-    ? `<h2>Terminés aujourd'hui (${termineToday.length})</h2>${catList(termineToday)}`
-    : `<h2>Terminés aujourd'hui</h2><p>Aucun ticket passé en « Terminé » aujourd'hui.</p>`;
-
-  const enCoursBloc = enCoursToday.length
-    ? `<h2>En cours dans la journée (${enCoursToday.length})</h2>${catList(enCoursToday, { showStatus: true })}`
-    : `<h2>En cours dans la journée</h2><p>Aucun ticket travaillé aujourd'hui.</p>`;
-
-  // Indication simple (pas de liste) :
-  const recetteIndic = `<p class="indic"><b>En attente de recette — Armonie :</b> ${recArmonie} ticket(s). <span class="hint">(pour information)</span></p>`;
-
-  return tablePersonnes +
-    analyseBloc +
-    termineBloc +
-    enCoursBloc +
-    recetteIndic;
+  return `<h2>Synthèse de la journée</h2>
+    ${kpiRow(g, issues.length)}
+    ${analyseHtml || ""}
+    <h2>État des lieux détaillé</h2>
+    <h3>Terminés aujourd'hui (${doneToday.length})</h3>${doneToday.length ? catList(doneToday) : "<p>Aucun ticket passé en « Terminé » aujourd'hui.</p>"}
+    <h3>En cours / en traitement (${enCoursToday.length})</h3>${enCoursToday.length ? catList(enCoursToday, { showStatus: true }) : "<p>Aucun ticket travaillé aujourd'hui.</p>"}
+    ${recetteBloc}
+    ${attenteBloc}
+    ${bloquantsBloc}
+    <h2>Activité du jour par personne</h2>${tablePersonnes}`;
 }
 
 export async function dailyReport(dossier, issues) {
@@ -165,10 +170,10 @@ export async function dailyReport(dossier, issues) {
   const html = buildDoc({
     kicker: "Compte rendu journalier",
     title: `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
-    subtitle: `Dossier ${dossier} · activité consolidée`,
-    cartouche: [["Client / dossier", dossier], ["Type", "CR journalier"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    subtitle: `Dossier ${dossier} — équipe Armonie · activité consolidée`,
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR journalier"], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
-    etabliPar: process.env.ME || "Chef de projet",
+    etabliPar: process.env.ME || "Nicolas Durand",
   });
   return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
 }
@@ -248,9 +253,9 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
     kicker: "Brief de réunion matinale",
     title: `Réunion du ${new Date().toLocaleDateString("fr-FR")}`,
     subtitle: `Dossier ${dossier} · équipe Armonie`,
-    cartouche: [["Client / dossier", dossier], ["Type", "Brief matinal"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "Brief matinal"], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
-    etabliPar: process.env.ME || "Chef de projet",
+    etabliPar: process.env.ME || "Nicolas Durand",
   });
   return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
 }
@@ -307,9 +312,9 @@ export async function globalReport(byDossier) {
     kicker: "Rapport journalier global",
     title: `Activité du ${new Date().toLocaleDateString("fr-FR")}`,
     subtitle: "Tous les clients, organisé par dossier",
-    cartouche: [["Type", "Rapport global"], ["Clients", dossiers.join(", ")], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Équipe", "Armonie"], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "Rapport global"], ["Clients", dossiers.join(", ")], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: intro + body,
-    etabliPar: process.env.ME || "Chef de projet",
+    etabliPar: process.env.ME || "Nicolas Durand",
   });
   return { html, generatedBy: aiAvailable() ? "données" : "gabarit" };
 }
@@ -343,9 +348,9 @@ Sections attendues : Objet, Participants, Points abordés, Décisions (numérot�
     kicker: "Compte rendu de réunion",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
-    cartouche: [["Objet", esc(titre || "Réunion")], ["Participants", esc(participants || "—")], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Objet", esc(titre || "Réunion")], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(participants || "—")], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
-    etabliPar: process.env.ME || "Chef de projet",
+    etabliPar: process.env.ME || "Nicolas Durand",
   });
   return { html, generatedBy: aiAvailable() ? "Claude" : "gabarit" };
 }
