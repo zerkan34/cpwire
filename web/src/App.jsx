@@ -14,6 +14,7 @@ import EnCours from "./components/EnCours.jsx";
 import Morning from "./components/Morning.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import Meetings from "./components/Meetings.jsx";
+import CRA from "./components/CRA.jsx";
 import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
@@ -23,7 +24,7 @@ const TABS = [
   { id: "recap", label: "Récap du jour" },
   { id: "morning", label: "Brief matin" },
   { id: "devs", label: "Développeurs" },
-  { id: "meetings", label: "Réunions" }, { id: "history", label: "Historique" },
+  { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
 ];
 
 function notify(title, body) {
@@ -338,6 +339,7 @@ export default function App() {
       {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "meetings" && <Meetings issues={issues} />}
+      {tab === "cra" && <CRA onTicket={setTicket} />}
       {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
