@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { downloadHtml, printHtml } from "../utils.js";
 import { shareMail, shareSharePoint } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import { useReadOnly } from "../readonly.js";
 
 function htmlToText(html) {
   const div = document.createElement("div");
@@ -11,6 +12,7 @@ function htmlToText(html) {
 
 export default function DocPreview({ title, html, filename, dossier, onClose }) {
   useModalBack(onClose);
+  const ro = useReadOnly();
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState("");
 
@@ -82,8 +84,8 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
             <button className="btn-line" onClick={copyText}>Copier le texte</button>
             <button className="btn-line" onClick={outlookWebShare}>Outlook (web)</button>
             <button className="btn-line" onClick={mailtoShare}>Outlook (appli)</button>
-            {dossier && <button className="btn-line" onClick={toSharePoint} disabled={busy === "sp"}>{busy === "sp" ? "Dépôt…" : "Déposer sur SharePoint"}</button>}
-            <button className="btn-line" onClick={apiMail} disabled={busy === "mail"}>{busy === "mail" ? "Envoi…" : "Envoyer via Outlook (auto)"}</button>
+            {!ro && dossier && <button className="btn-line" onClick={toSharePoint} disabled={busy === "sp"}>{busy === "sp" ? "Dépôt…" : "Déposer sur SharePoint"}</button>}
+            {!ro && <button className="btn-line" onClick={apiMail} disabled={busy === "mail"}>{busy === "mail" ? "Envoi…" : "Envoyer via Outlook (auto)"}</button>}
           </div>
           {msg && <div className={msg.t === "ok" ? "ok-note" : "warn-note"}>{msg.m}</div>}
           <div className="hint">Sans appli mail installée, utilise « Outlook (web) » ou « Copier le texte ». « Envoyer via Outlook (auto) » et « SharePoint » nécessitent Microsoft 365 (voir README).</div>

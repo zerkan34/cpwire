@@ -3,6 +3,7 @@ import { genMeetingReport, genMeetingPrep } from "../api.js";
 import { buildSimpleDoc, esc } from "../utils.js";
 import { TEAM } from "../team.js";
 import ExportBar from "./ExportBar.jsx";
+import { useReadOnly } from "../readonly.js";
 
 const SUJETS = [
   "Point d'avancement", "Comité de pilotage (COPIL)", "Point technique",
@@ -317,15 +318,16 @@ function CompteRendu() {
 }
 
 export default function Meetings({ issues = [] }) {
+  const ro = useReadOnly();
   const [mode, setMode] = useState("prep");
   return (
     <>
       <div className="section-title">Réunions</div>
       <div className="ctabs">
         <button className={`ctab ${mode === "prep" ? "active" : ""}`} onClick={() => setMode("prep")}>Préparation réunion</button>
-        <button className={`ctab ${mode === "cr" ? "active" : ""}`} onClick={() => setMode("cr")}>Compte rendu de réunion</button>
+        {!ro && <button className={`ctab ${mode === "cr" ? "active" : ""}`} onClick={() => setMode("cr")}>Compte rendu de réunion</button>}
       </div>
-      {mode === "prep" ? <PrepReunion issues={issues} /> : <CompteRendu />}
+      {(ro || mode === "prep") ? <PrepReunion issues={issues} /> : <CompteRendu />}
     </>
   );
 }

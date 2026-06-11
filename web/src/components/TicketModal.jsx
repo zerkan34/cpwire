@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
 import { frDate, esc, buildSimpleDoc } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import { useReadOnly } from "../readonly.js";
 import ExportBar from "./ExportBar.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
@@ -41,6 +42,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
   const [report, setReport] = useState("");
   const [markDone, setMarkDone] = useState(true);
   const [busy, setBusy] = useState("");
+  const ro = useReadOnly();
   const [msg, setMsg] = useState(null);
   const [explication, setExplication] = useState("");
   const [explLoading, setExplLoading] = useState(false);
@@ -232,15 +234,19 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
               placeholder="Le rapport généré apparaît ici — ajuste-le librement." />
           </div>
 
-          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5, margin: "4px 0 10px" }}>
-            <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} />
-            Marquer le ticket comme « Terminé » dans Jira
-          </label>
+          {!ro && (
+            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5, margin: "4px 0 10px" }}>
+              <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} />
+              Marquer le ticket comme « Terminé » dans Jira
+            </label>
+          )}
 
           <div className="row-actions">
-            <button className="btn-solid gold" onClick={push} disabled={busy === "push"}>
-              {busy === "push" ? "Envoi…" : "Envoyer dans Jira"}
-            </button>
+            {!ro && (
+              <button className="btn-solid gold" onClick={push} disabled={busy === "push"}>
+                {busy === "push" ? "Envoi…" : "Envoyer dans Jira"}
+              </button>
+            )}
             <button className="btn-line" onClick={backOut}>Fermer</button>
           </div>
 

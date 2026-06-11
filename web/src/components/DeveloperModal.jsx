@@ -3,6 +3,7 @@ import { printHtml, buildSimpleDoc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import { useReadOnly } from "../readonly.js";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 const DONE = ["termine", "miseEnProd"];
@@ -45,6 +46,7 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ 
 export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
   const [period, setPeriod] = useState("tout");
   const [copied, setCopied] = useState(false);
+  const ro = useReadOnly();
   useModalBack(onClose);
 
   const askDelete = () => {
@@ -178,7 +180,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           {deleted && (
             <div className="banner" style={{ marginTop: 0, marginBottom: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
               <span style={{ flex: 1 }}>Cette fiche est marquée comme <b>supprimée</b> (développeur inactif). Ses données restent consultables.</span>
-              <button className="btn-line sm" onClick={() => onRestore && onRestore()}>Restaurer la fiche</button>
+              {!ro && <button className="btn-line sm" onClick={() => onRestore && onRestore()}>Restaurer la fiche</button>}
             </div>
           )}
 
@@ -242,7 +244,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
 
           <p className="period-sum">
             <b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)
-            {!deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
+            {!ro && !deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
           </p>
           <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
 
