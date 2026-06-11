@@ -2,6 +2,7 @@
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
 import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS } from "./config.js";
+import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
 const KEY = process.env.ANTHROPIC_API_KEY || "";
 const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
@@ -73,7 +74,61 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
 
 function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
 
-function templateDaily(dossier, issues, analyseHtml = "") {
+// Petite limite de concurrence pour ne pas saturer Jira lors de la récupération des détails.
+async function mapLimit(items, limit, fn) {
+  const out = []; let idx = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (idx < items.length) { const i = idx++; out[i] = await fn(items[i], i); }
+  });
+  await Promise.all(workers);
+  return out;
+}
+
+// Construit, pour chaque ticket, un bloc dépliable (accordéon) qui explique réellement :
+// le sujet, la problématique (description Jira), les travaux réalisés (commentaires de temps),
+// l'avancement (transitions de statut) et les intervenants. Honnête : indique ce qui manque dans Jira.
+async function detailedTicketsHtml(tickets) {
+  if (!tickets || !tickets.length) return "";
+  const cap = tickets.slice(0, 14);
+  const enriched = await mapLimit(cap, 5, async (i) => {
+    const [desc, act] = await Promise.all([
+      fetchIssueDescription(i.cle).catch(() => ""),
+      fetchIssueActivity(i.cle).catch(() => ({ timeline: [], worklogs: [], totalTime: "", totalSeconds: 0 })),
+    ]);
+    return { i, desc, act };
+  });
+
+  return enriched.map(({ i, desc, act }) => {
+    const statut = CATEGORY_LABEL[i.categorie] || i.statut || "—";
+    const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "");
+    const prob = desc
+      ? esc(desc.slice(0, 600)) + (desc.length > 600 ? "…" : "")
+      : `<span class="cr-none">Non documentée dans Jira.</span>`;
+    const works = (act.worklogs || []).filter((w) => w.comment)
+      .map((w) => `<li>${esc(w.comment)} <span class="cr-meta">— ${esc(w.who)}${w.time ? ", " + esc(w.time) : ""}</span></li>`);
+    const travaux = works.length
+      ? `<ul class="cr-works">${works.join("")}</ul>`
+      : `<span class="cr-none">Aucun détail de travaux saisi dans Jira — à demander au développeur.</span>`;
+    const trans = (act.timeline || []).filter((t) => t.champ === "Statut")
+      .slice(0, 6).reverse()
+      .map((t) => `<span class="cr-from">${esc(t.from)}</span> → <span class="cr-to">${esc(t.to)}</span>`)
+      .join(" , puis ");
+    const avancement = trans || `Statut actuel : <b>${esc(statut)}</b>`;
+    const tps = act.totalSeconds ? ` · ${esc(act.totalTime)} saisies` : "";
+    return `<details class="cr-tk">
+      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-st">${esc(statut)}</span></summary>
+      <div class="cr-tk-bd">
+        <p class="cr-row"><span class="cr-lbl">Problématique / contexte</span>${prob}</p>
+        <div class="cr-row"><span class="cr-lbl">Travaux réalisés</span>${travaux}</div>
+        <p class="cr-row"><span class="cr-lbl">Avancement</span>${avancement}</p>
+        <p class="cr-row"><span class="cr-lbl">Intervenant(s)</span>${esc(who || "—")}${tps}</p>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+
+function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
   const inCat = (c) => issues.filter((i) => i.categorie === c);
   const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
   const enCoursToday = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
@@ -118,8 +173,8 @@ function templateDaily(dossier, issues, analyseHtml = "") {
     ${kpiRow(g, issues.length)}
     ${analyseHtml || ""}
     <h2>État des lieux détaillé</h2>
-    <h3>Terminés aujourd'hui (${doneToday.length})</h3>${doneToday.length ? catList(doneToday) : "<p>Aucun ticket passé en « Terminé » aujourd'hui.</p>"}
-    <h3>En cours / en traitement (${enCoursToday.length})</h3>${enCoursToday.length ? catList(enCoursToday, { showStatus: true }) : "<p>Aucun ticket travaillé aujourd'hui.</p>"}
+    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours aujourd'hui. Cliquez sur un ticket pour déplier le détail (sujet, problématique, travaux réalisés, avancement).</p>
+    ${detailedHtml || "<p>Aucun ticket travaillé aujourd'hui.</p>"}
     ${recetteBloc}
     ${attenteBloc}
     ${bloquantsBloc}
@@ -165,7 +220,14 @@ export async function dailyReport(dossier, issues) {
     }
   }
 
-  const body = templateDaily(dossier, issues, analyseHtml);
+  // Détail explicatif par ticket : ce qui a été travaillé/terminé aujourd'hui.
+  // Repli : si rien aujourd'hui, on prend les tickets les plus récemment mis à jour.
+  const seen = new Set();
+  let detailSource = [...dayDone, ...dayActive].filter((i) => { if (seen.has(i.cle)) return false; seen.add(i.cle); return true; });
+  if (!detailSource.length) detailSource = [...issues].sort(byMajDesc).slice(0, 10);
+  const detailedHtml = await detailedTicketsHtml(detailSource);
+
+  const body = templateDaily(dossier, issues, analyseHtml, detailedHtml);
 
   const html = buildDoc({
     kicker: "Compte rendu journalier",
@@ -297,11 +359,21 @@ export async function globalReport(byDossier) {
   const dossiers = Object.keys(byDossier);
   let body = '';
   let totalAll = 0, doneAll = 0;
+  let detailBudget = 18; // plafond global d'appels détaillés (latence Jira maîtrisée)
   for (const dossier of dossiers) {
     const issues = byDossier[dossier];
     const g = buckets(issues);
     totalAll += issues.length; doneAll += g["Terminé"].length;
+    // Détail explicatif (accordéon) : terminés aujourd'hui, plafonné par client et au global.
+    const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+    let detailHtml = "";
+    if (doneToday.length && detailBudget > 0) {
+      const take = doneToday.slice(0, Math.min(4, detailBudget));
+      detailBudget -= take.length;
+      detailHtml = `<h3>Terminés aujourd'hui — détail</h3>` + (await detailedTicketsHtml(take));
+    }
     body += `<h2>${esc(dossier)}</h2>` + kpiRow(g, issues.length) +
+      detailHtml +
       `<h3>Terminé</h3>${listHtml(g["Terminé"])}` +
       `<h3>En cours</h3>${listHtml(g["En cours"])}` +
       (g["Bloqué"].length ? `<h3>Bloqués</h3>${listHtml(g["Bloqué"])}` : "") +
