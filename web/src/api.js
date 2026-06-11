@@ -39,6 +39,7 @@ export const explainTicket = (cle) => post(`/api/ticket/explain`, { cle });
 export const fetchTicketActivity = (cle) => post(`/api/ticket/activity`, { cle });
 export const genGlobalCR = () => post(`/api/cr/global`, {});
 export const genMorningCR = (dossier) => post(`/api/cr/morning`, { dossier });
+export const genMeetingPrep = (payload) => post(`/api/meeting/prep`, payload);
 export const fetchDeletedDevs = () => req(`/api/devs/deleted`);
 export const deleteDevFiche = (name) => post(`/api/devs/delete`, { name });
 export const restoreDevFiche = (name) => post(`/api/devs/restore`, { name });

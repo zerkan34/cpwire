@@ -10,6 +10,7 @@ import DossierModal from "./components/DossierModal.jsx";
 import DeveloperModal from "./components/DeveloperModal.jsx";
 import DailyRecap from "./components/DailyRecap.jsx";
 import Developers from "./components/Developers.jsx";
+import EnCours from "./components/EnCours.jsx";
 import Morning from "./components/Morning.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import Meetings from "./components/Meetings.jsx";
@@ -17,7 +18,9 @@ import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 const TABS = [
-  { id: "cockpit", label: "Cockpit" }, { id: "recap", label: "Récap du jour" },
+  { id: "cockpit", label: "Cockpit" },
+  { id: "encours", label: "En cours" },
+  { id: "recap", label: "Récap du jour" },
   { id: "morning", label: "Brief matin" },
   { id: "devs", label: "Développeurs" },
   { id: "meetings", label: "Réunions" }, { id: "history", label: "Historique" },
@@ -55,7 +58,7 @@ export default function App() {
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [showTop, setShowTop] = useState(false);
-  const [notifCount, setNotifCount] = useState(0);
+  const [notifs, setNotifs] = useState([]);
   const [notifOn, setNotifOn] = useState(() => { try { return localStorage.getItem("cpwire_notif") === "1"; } catch { return false; } });
   const toastTimer = useRef(null);
   const highlightTimer = useRef(null);
@@ -105,11 +108,15 @@ export default function App() {
         } else {
           setChangedKeys(null);
         }
-        // Pastille de notifications : on incrémente sur une actualisation auto (silencieuse),
-        // on remet à zéro quand l'utilisateur actualise lui-même (il voit les données fraîches).
-        if (!silent) setNotifCount(0);
+        // Notifications : sur une actualisation auto (silencieuse), on ajoute une entrée
+        // par ticket modifié dans le panneau de la cloche (avec OS notification).
         if (silent && ch.length) {
-          setNotifCount((c) => c + ch.length);
+          const byKey = new Map((p.issues || []).map((i) => [i.cle, i]));
+          const entries = ch.map((k) => {
+            const i = byKey.get(k) || {};
+            return { id: `${k}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, cle: k, resume: i.resume || "Ticket mis à jour", statut: i.statut || "", at: Date.now(), read: false };
+          });
+          setNotifs((prev) => [...entries, ...prev].slice(0, 60));
           notify(`🔔 ${ch.length} ticket(s) modifié(s) dans Jira`, ch.slice(0, 4).join(", "));
         }
         const n = p.diagnostic?.totalImporte ?? (p.issues?.length || 0);
@@ -168,10 +175,12 @@ export default function App() {
     }
   }, [notifOn, showToast]);
 
-  const onBell = useCallback(() => {
-    if (notifCount > 0) { setNotifCount(0); return; } // acquitter la pastille
-    notifToggle();
-  }, [notifCount, notifToggle]);
+  const openNotif = useCallback((cle) => {
+    const it = issues.find((i) => i.cle === cle);
+    if (it) setTicket(it);
+    setNotifs((prev) => prev.map((n) => (n.cle === cle ? { ...n, read: true } : n)));
+  }, [issues]);
+  const markAllNotifRead = useCallback(() => setNotifs((prev) => prev.map((n) => ({ ...n, read: true }))), []);
 
   const removeDev = useCallback(async (name) => {
     try { const r = await deleteDevFiche(name); setDeletedDevs(r.deleted || []); showToast(`Fiche de ${name} masquée. Restaurable depuis la fiche.`); }
@@ -210,8 +219,10 @@ export default function App() {
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
+        onRelaunch={() => window.location.reload()}
         query={query} onQuery={setQuery}
-        notifOn={notifOn} onToggleNotif={onBell} notifCount={notifCount} />
+        notifOn={notifOn} onToggleNotifOn={notifToggle}
+        notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead} />
 
       <div className="tabs">
         {TABS.map((t) => (
@@ -266,9 +277,10 @@ export default function App() {
       )}
 
       {tab === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "meetings" && <Meetings />}
+      {tab === "meetings" && <Meetings issues={issues} />}
       {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>

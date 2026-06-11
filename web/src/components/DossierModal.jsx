@@ -37,9 +37,14 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
     const rows = team.map((m) => `<tr><td>${esc(m.nom)}</td><td>${esc(m.poste)}</td><td>${esc(m.email)}</td><td>${esc(m.statut)}</td><td>${esc(m.cote)}</td></tr>`).join("");
     let body = `<h2>Présentation</h2><p>${esc(desc) || "<span class='muted'>—</span>"}</p>`;
     body += `<h2>Technologies</h2><p>${techList.length ? esc(techList.join(", ")) : "<span class='muted'>—</span>"}</p>`;
-    body += `<h2>Équipe &amp; contacts (${team.length}) — Armonie : ${armonie.length} · Client : ${client.length}</h2>` +
+    body += `<h2>Équipe &amp; contacts</h2>` +
       `<table><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th></tr>${rows || "<tr><td colspan='5'>—</td></tr>"}</table>`;
-    return buildSimpleDoc({ title: `Fiche dossier — ${nom}`, subtitle: `${nom} — équipe Armonie · Chef de projet : Nicolas Durand`, bodyHtml: body });
+    const cartouche = [
+      ["Dossier", `${nom} — équipe Armonie`],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Équipe", `${team.length} personne(s) · Armonie ${armonie.length} · Client ${client.length}`],
+    ];
+    return buildSimpleDoc({ kicker: "Fiche dossier", title: `Fiche dossier — ${nom}`, cartouche, bodyHtml: body });
   };
 
   return (

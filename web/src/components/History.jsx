@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchHistory } from "../api.js";
-import { frDate, printHtml } from "../utils.js";
+import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
 
 const LABELS = { cr_journalier: "CR journalier", cr_reunion: "CR réunion", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
 const DONE = ["termine", "miseEnProd"];
@@ -96,24 +96,24 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
   const label = periodLabel(period);
 
   const exportPdf = () => {
-    const css = `body{font-family:Arial,Helvetica,sans-serif;color:#2a2937;font-size:12px;padding:26px;} h1{font-size:20px;color:#c95f1c;margin:0 0 2px;} .sub{color:#666;margin-bottom:14px;font-size:12px;} h2{font-size:14px;color:#2c2945;margin:18px 0 4px;} h3{font-size:12.5px;color:#2c2945;background:#f4f2fb;border-left:4px solid #e0600f;padding:6px 10px;margin:14px 0 4px;} table{width:100%;border-collapse:collapse;margin:4px 0 6px;font-size:11px;} th{background:#f7f6fc;text-align:left;padding:5px 8px;border:1px solid #e2def2;font-size:9.5px;text-transform:uppercase;} td{padding:5px 8px;border:1px solid #eee;vertical-align:top;} tr{break-inside:avoid;} .meta{color:#666;font-weight:600;font-size:10.5px;} .foot{margin-top:16px;color:#999;font-size:10px;}`;
     let clientsHtml = "";
     data.clients.forEach((c) => {
       const rows = c.items.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${esc(i.dev || i.assigne || "")}</td><td>${esc(i.statutJira || i.statut)}</td><td>${fr(i.resolu || i.maj)}</td></tr>`).join("");
-      clientsHtml += `<h3>${esc(c.client)} <span class="meta">— ${c.done} terminé(s) · ${c.active} en cours · ${c.blocked} bloqué(s)</span></h3>
+      clientsHtml += `<h3>${esc(c.client)} — ${c.done} terminé(s) · ${c.active} en cours · ${c.blocked} bloqué(s)</h3>
         <table><tr><th>Clé</th><th>Résumé</th><th>Dév.</th><th>Statut</th><th>Date</th></tr>${rows}</table>`;
     });
     const devRows = data.devs.map((d) => `<tr><td>${esc(d.dev)}${delSet.has(d.dev) ? " (supprimé)" : ""}</td><td>${d.done}</td><td>${d.touched}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${css}</style><title>Récap ${esc(label)}</title></head><body>
-      <h1>Récap par client — ${esc(label)}</h1>
-      <div class="sub">${data.totalDone} ticket(s) terminé(s) · ${data.touched} ticket(s) avec activité · ${data.clients.length} client(s)</div>
-      <h2>Par client</h2>
-      ${clientsHtml || "<p>Aucune activité sur la période.</p>"}
+    const body = `<h2>Par client</h2>${clientsHtml || "<p class='muted'>Aucune activité sur la période.</p>"}
       <h2>Synthèse par développeur</h2>
-      <table><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr>${devRows}</table>
-      <div class="foot">Généré par cp|WIRE — ${new Date().toLocaleString("fr-FR")}</div>
-    </body></html>`;
-    printHtml(html);
+      <table><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr>${devRows}</table>`;
+    const cartouche = [
+      ["Client", client === "Tous" ? "Tous les clients" : client],
+      ["Période", label],
+      ["Équipe", "Armonie"],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Synthèse", `${data.totalDone} terminé(s) · ${data.touched} avec activité · ${data.clients.length} client(s)`],
+    ];
+    printHtml(buildSimpleDoc({ kicker: "Récap par client", title: `Récap — ${label}`, cartouche, bodyHtml: body }));
   };
 
   return (

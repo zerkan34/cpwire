@@ -1,4 +1,6 @@
 // utils.js — helpers partagés.
+import { LOGO_DATA_URI } from "./logo.js";
+
 export function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
   const url = URL.createObjectURL(blob);
@@ -9,14 +11,25 @@ export function downloadHtml(html, filename) {
 }
 
 export function printHtml(html) {
-  const w = window.open("", "_blank");
-  if (!w) return;
-  w.document.write(html);
-  w.document.close();
-  // Titre vide -> l'en-tête d'impression du navigateur n'affiche plus le nom du document.
-  try { w.document.title = " "; } catch { /* ignore */ }
-  w.focus();
-  setTimeout(() => { try { w.document.title = " "; } catch { /* */ } w.print(); }, 400);
+  try {
+    const w = window.open("", "_blank");
+    if (!w) {
+      // Pop-up bloquée -> on télécharge le document plutôt que de planter.
+      downloadHtml(html, "document.html");
+      return false;
+    }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
+    try { w.document.title = " "; } catch { /* ignore */ }
+    try { w.onafterprint = () => { try { w.close(); } catch { /* */ } }; } catch { /* */ }
+    w.focus();
+    setTimeout(() => { try { w.document.title = " "; w.print(); } catch { /* */ } }, 450);
+    return true;
+  } catch (e) {
+    try { downloadHtml(html, "document.html"); } catch { /* */ }
+    return false;
+  }
 }
 
 export function frDate(iso) {
@@ -29,28 +42,52 @@ export function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
 }
 
-// Construit un document autonome (charte légère cp|WIRE) à imprimer / télécharger.
-// bodyHtml : fragment HTML déjà constitué (titres <h2>, <table>, <p>…).
-export function buildSimpleDoc({ title, subtitle = "", bodyHtml = "" }) {
-  const date = new Date().toLocaleString("fr-FR");
+// Construit un document autonome à la CHARTE ARMONIE (logo, filet doré, Poppins,
+// cartouche, titres à liseré violet, tableaux à en-tête sombre, pied de page).
+// Mêmes codes que les CR -> tous les PDF de l'app sont homogènes.
+// Champs : kicker (eyebrow), title, subtitle, cartouche [[clé,val]…], bodyHtml, etabliPar.
+export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand" }) {
+  const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
   const css = `*{box-sizing:border-box}
-    body{font-family:Arial,Helvetica,sans-serif;color:#2a2937;font-size:13px;margin:0;padding:30px;line-height:1.5}
-    h1{font-size:20px;color:#2c2945;margin:0 0 2px}
-    .sub{color:#6b6880;margin:0 0 16px;font-size:13px}
-    h2{font-size:14px;color:#2c2945;border-left:4px solid #6e5cc4;padding-left:10px;margin:20px 0 8px}
-    table{width:100%;border-collapse:collapse;margin:6px 0 12px;font-size:12px}
-    th{background:#f5f4fb;text-align:left;padding:7px 9px;border:1px solid #e6e3f2;font-size:9.5px;text-transform:uppercase;letter-spacing:.04em;color:#5a5870}
-    td{padding:7px 9px;border:1px solid #efedf7;vertical-align:top}
+    body{margin:0;font-family:'Inter',system-ui,Arial,sans-serif;color:#3d3b4d;background:#fff;line-height:1.55;font-size:13.5px}
+    .page{max-width:820px;margin:0 auto;padding:38px 44px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #c7a14a;padding-bottom:15px;margin-bottom:6px}
+    .brand img{height:44px;width:auto;display:block}
+    .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right}
+    .eyebrow{font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a9842f;margin-top:20px}
+    h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:25px;color:#2c2945;margin:5px 0 4px;line-height:1.12}
+    .sub{color:#74718a;font-size:13.5px;margin-bottom:16px}
+    .cartouche{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12.5px}
+    .cartouche td{border:1px solid #e7e5f1;padding:7px 11px}
+    .cartouche td:first-child{background:#f6f5fb;font-weight:600;color:#3a3658;width:165px}
+    h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2c2945;margin:22px 0 8px;padding-left:12px;border-left:5px solid #6e5cc4}
+    h3{font-size:13.5px;color:#3a3658;background:#f4f2fb;border-left:4px solid #c7a14a;padding:6px 10px;margin:14px 0 5px}
+    p{margin:8px 0}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px}
+    table th{background:#3a3658;color:#fff;text-align:left;padding:8px 10px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+    table td{border-bottom:1px solid #f0eef7;padding:8px 10px;vertical-align:top}
     tr{break-inside:avoid}
     .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;background:#eef;color:#3a3a6a}
+    .pill.done{background:#e2f3ea;color:#1f8a5f}.pill.prog{background:#e6effb;color:#2f5fa8}
+    .pill.todo{background:#fbf0e2;color:#b07423}.pill.block{background:#fbe6e3;color:#c0392b}
     .muted{color:#8a8799}
-    .foot{margin-top:26px;border-top:1px solid #e6e3f2;padding-top:10px;color:#9b98ad;font-size:10.5px;display:flex;justify-content:space-between}
-    @page{margin:14mm 13mm}`;
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title> </title><style>${css}</style></head><body>
-    <h1>${esc(title)}</h1>${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
+    .foot{margin-top:28px;border-top:1px solid #e7e5f1;padding-top:12px;display:flex;justify-content:space-between;font-size:10.5px;color:#74718a}
+    @page{margin:13mm 12mm}
+    @media print{.page{padding:0;max-width:none}}`;
+  const cart = (cartouche && cartouche.length)
+    ? `<table class="cartouche">${cartouche.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>`
+    : "";
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
+  <body><div class="page">
+    <div class="top"><div class="brand"><img src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${esc(date)}</div></div>
+    ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
+    <h1>${esc(title)}</h1>
+    ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
+    ${cart}
     ${bodyHtml}
-    <div class="foot"><span>cp|WIRE — Armonie Group · document de travail</span><span>${esc(date)}</span></div>
-  </body></html>`;
+    <div class="foot"><span>${etabliPar ? "Établi par " + esc(etabliPar) : "Armonie Group"}</span><span>cp|WIRE · document de travail · à valider</span></div>
+  </div></body></html>`;
 }
 
 // Extrait un texte lisible d'un fragment/Document HTML (pour copier / e-mail).

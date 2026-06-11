@@ -69,15 +69,16 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
   const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
 
   const buildTicketHtml = () => {
-    const metaRows = [
-      ["Dossier", ticket.dossier],
+    const cartouche = [
+      ["Clé", ticket.cle],
+      ["Client / dossier", `${ticket.dossier} — équipe Armonie`],
+      ["Chef de projet", "Nicolas Durand"],
       ["Statut", `${ticket.statut}${ticket.flagged ? " · 🚩 flaggé" : ""}${ticket.enRetard ? " · en retard" : ""}`],
       ["Assigné", ticket.assigne],
       ["Priorité", ticket.priorite || "—"],
       ["Échéance", ticket.echeance || "—"],
-      ["Mise à jour", frDate(ticket.maj)],
-    ].map(([k, v]) => `<tr><th style="width:150px">${esc(k)}</th><td>${esc(v)}</td></tr>`).join("");
-    let body = `<h2>Informations</h2><table>${metaRows}</table>`;
+    ];
+    let body = "";
     if (explication) body += `<h2>Explication</h2><p>${esc(explication)}</p>`;
     if (note) body += `<h2>Note du chef de projet</h2><p>${esc(note)}</p>`;
     if (report) body += `<h2>Rapport</h2><p>${esc(report).replace(/\n/g, "<br>")}</p>`;
@@ -91,7 +92,8 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
         `<table><tr><th>Quand</th><th>Qui</th><th>Action</th></tr>` +
         activity.timeline.map((t) => `<tr><td>${esc(whenFmt(t.date))}</td><td>${esc(t.who)}</td><td>${esc(t.champ)} : ${esc(t.from)} → <b>${esc(t.to)}</b></td></tr>`).join("") + `</table>`;
     }
-    return buildSimpleDoc({ title: `${ticket.cle} — ${ticket.resume}`, subtitle: `${ticket.dossier} — équipe Armonie · Chef de projet : Nicolas Durand`, bodyHtml: body });
+    if (!body) body = "<p class='muted'>Aucun détail complémentaire pour ce ticket.</p>";
+    return buildSimpleDoc({ kicker: "Fiche ticket", title: `${ticket.cle} — ${ticket.resume}`, cartouche, bodyHtml: body });
   };
 
   return (
