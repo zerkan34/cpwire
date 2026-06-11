@@ -37,6 +37,21 @@ const CSS = `
   .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#74718a;}
   .foot{margin-top:34px;border-top:1px solid #e7e5f1;padding-top:12px;display:flex;justify-content:space-between;font-size:10.5px;color:#74718a;}
   .editable{outline:none;}
+  details.cr-tk{border:1px solid #e7e5f1;border-radius:10px;margin:8px 0;overflow:hidden;background:#fff;}
+  details.cr-tk[open]{box-shadow:0 2px 10px rgba(40,30,80,.06);}
+  details.cr-tk>summary{cursor:pointer;list-style:none;padding:10px 13px;font-size:13px;display:flex;align-items:center;gap:9px;background:#faf9fe;}
+  details.cr-tk>summary::-webkit-details-marker{display:none;}
+  details.cr-tk>summary:before{content:"\\25B8";color:#6e5cc4;font-size:11px;}
+  details.cr-tk[open]>summary:before{content:"\\25BE";}
+  details.cr-tk>summary .cr-tk-k{font-family:monospace;font-weight:700;color:#5a48b0;font-size:12px;}
+  details.cr-tk>summary .cr-tk-st{margin-left:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#74718a;font-weight:700;white-space:nowrap;}
+  .cr-tk-bd{padding:11px 14px 13px;border-top:1px solid #f0eef7;}
+  .cr-row{margin:8px 0;font-size:13px;}
+  .cr-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6e5cc4;font-weight:800;margin-bottom:2px;}
+  .cr-works{margin:3px 0 0 0;padding-left:16px;} .cr-works li{margin:3px 0;}
+  .cr-meta{color:#74718a;font-size:11px;}
+  .cr-from{color:#74718a;text-decoration:line-through;} .cr-to{font-weight:700;color:#5a48b0;}
+  .cr-none{color:#74718a;font-style:italic;}
   @page{margin:14mm 13mm;}
   @media print{.page{padding:0;max-width:none;}}
 `;
