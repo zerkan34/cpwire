@@ -34,10 +34,20 @@ export default function App() {
   const [statut, setStatut] = useState("Tous");
   const [onlyLate, setOnlyLate] = useState(false);
   const [onlyMine, setOnlyMine] = useState(false);
+  const [query, setQuery] = useState("");
+  const [person, setPerson] = useState("Tous");
+  const [priorite, setPriorite] = useState("Tous");
+  const [changedKeys, setChangedKeys] = useState(null); // Set des clés modifiées (surbrillance)
   const [ticket, setTicket] = useState(null);
   const [fiche, setFiche] = useState(null); // {nom}
   const [toast, setToast] = useState("");
   const toastTimer = useRef(null);
+  const highlightTimer = useRef(null);
+
+  const resetFilters = useCallback(() => {
+    setDossier("Tous"); setStatut("Tous"); setOnlyLate(false); setOnlyMine(false);
+    setQuery(""); setPerson("Tous"); setPriorite("Tous");
+  }, []);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -51,17 +61,27 @@ export default function App() {
     return () => window.removeEventListener("cpwire-logout", logout);
   }, []);
 
-  const load = useCallback(async (refresh = false) => {
+  const load = useCallback(async (refresh = false, full = false) => {
     setLoading(true); setError(""); setNeedsConfig(false);
     try {
-      const [p, d] = await Promise.all([fetchPortfolio({ refresh }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
+      const [p, d] = await Promise.all([fetchPortfolio({ refresh, full }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
       setData(p); setDossiers(d.dossiers || {});
-      if (refresh) {
-        const diag = p.diagnostic || {};
-        const n = diag.totalImporte ?? (p.issues?.length || 0);
-        const np = diag.parProjet ? Object.keys(diag.parProjet).length : 0;
-        const zero = diag.projetsSansTicket?.length || 0;
-        showToast(`✓ Actualisé — ${n} ticket${n > 1 ? "s" : ""} importé${n > 1 ? "s" : ""} depuis Jira · ${np} projet${np > 1 ? "s" : ""}${zero ? ` · ⚠ ${zero} sans ticket` : ""}`);
+      if (refresh || full) {
+        const ch = Array.isArray(p.changed) ? p.changed : [];
+        if (ch.length) {
+          setChangedKeys(new Set(ch));
+          if (highlightTimer.current) clearTimeout(highlightTimer.current);
+          highlightTimer.current = setTimeout(() => setChangedKeys(null), 30000);
+        } else {
+          setChangedKeys(null);
+        }
+        const n = p.diagnostic?.totalImporte ?? (p.issues?.length || 0);
+        const msg = full
+          ? `✓ Tout rechargé — ${n} ticket${n > 1 ? "s" : ""} en mémoire.`
+          : ch.length
+            ? `✓ Actualisé — ${ch.length} ticket${ch.length > 1 ? "s" : ""} modifié${ch.length > 1 ? "s" : ""} (surbrillance 30 s).`
+            : `✓ Actualisé — aucun changement depuis la dernière synchro.`;
+        showToast(msg);
       }
     } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true); }
     finally { setLoading(false); }
@@ -70,9 +90,22 @@ export default function App() {
   useEffect(() => { if (authed) load(false); }, [authed, load]);
 
   const issues = data?.issues || [];
-  const filtered = useMemo(() => issues.filter((i) =>
-    (dossier === "Tous" || i.dossier === dossier) && (statut === "Tous" || i.statut === statut) &&
-    (!onlyLate || i.enRetard) && (!onlyMine || i.mine)), [issues, dossier, statut, onlyLate, onlyMine]);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return issues.filter((i) => {
+      if (dossier !== "Tous" && i.dossier !== dossier) return false;
+      if (statut !== "Tous" && i.statut !== statut) return false;
+      if (onlyLate && !i.enRetard) return false;
+      if (onlyMine && !i.mine) return false;
+      if (person !== "Tous" && (i.assigne || "Non assigné") !== person) return false;
+      if (priorite !== "Tous" && (i.priorite || "—") !== priorite) return false;
+      if (q) {
+        const hay = `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      return true;
+    });
+  }, [issues, dossier, statut, onlyLate, onlyMine, person, priorite, query]);
 
   if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
 
@@ -117,13 +150,20 @@ export default function App() {
           <div className="section-title">Portefeuille <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
           <Portfolio parDossier={data?.parDossier} onOpen={(d) => setFiche({ nom: d })} />
 
-          <div className="section-title">{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</div>
+          <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
+            <button className="btn-line sm" onClick={() => load(false, true)} disabled={loading} title="Recharge l'intégralité des tickets depuis Jira (à utiliser rarement)">
+              ↻ Tout recharger
+            </button>
+          </div>
           <div className="panel">
             <Filters issues={issues} statuts={STATUTS} dossier={dossier} statut={statut}
-              onlyLate={onlyLate} onlyMine={onlyMine} onDossier={setDossier} onStatut={setStatut}
-              onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)} />
+              onlyLate={onlyLate} onlyMine={onlyMine} query={query} person={person} priorite={priorite}
+              onDossier={setDossier} onStatut={setStatut}
+              onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
+              onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
             <div className="sep" />
-            <IssueTable rows={filtered} loading={loading} onTicket={setTicket} />
+            <IssueTable rows={filtered} loading={loading} onTicket={setTicket} changedKeys={changedKeys} />
           </div>
         </>
       )}

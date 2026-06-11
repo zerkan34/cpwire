@@ -26,7 +26,8 @@ export async function login(email, password) {
   return data;
 }
 
-export const fetchPortfolio = ({ refresh = false } = {}) => req(`/api/portfolio${refresh ? "?refresh=1" : ""}`);
+export const fetchPortfolio = ({ refresh = false, full = false } = {}) =>
+  req(`/api/portfolio${full ? "?full=1" : refresh ? "?refresh=1" : ""}`);
 export const fetchRecap = () => req(`/api/recap`);
 export const fetchHistory = () => req(`/api/history`);
 export const fetchDossiers = () => req(`/api/dossiers`);
