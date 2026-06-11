@@ -1,98 +1,94 @@
-import React, { useMemo, useState } from "react";
-import DeveloperModal from "./DeveloperModal.jsx";
+import React, { useState } from "react";
+import { downloadHtml, printHtml } from "../utils.js";
+import { shareMail, shareSharePoint } from "../api.js";
+import { useModalBack, backOut } from "../modalNav.js";
 
-const ACTIVE = ["encours", "retourTest", "retourProd"];
-const DONE = ["termine", "miseEnProd"];
-const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
+function htmlToText(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return (div.textContent || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
+}
 
-// Onglet "Développeurs" : qui a combien de tickets ; clic sur un dev -> fiche (stats jour/mois).
-export default function Developers({ issues = [], onTicket }) {
-  const [dossier, setDossier] = useState("Tous");
-  const [selected, setSelected] = useState(null); // ligne dev ouverte en fiche
+export default function DocPreview({ title, html, filename, dossier, onClose }) {
+  useModalBack(onClose);
+  const [msg, setMsg] = useState(null);
+  const [busy, setBusy] = useState("");
 
-  const dossiers = useMemo(
-    () => ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()],
-    [issues]
-  );
+  const mailtoShare = () => {
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(
+      `Bonjour,\n\nVeuillez trouver ci-dessous le rapport « ${title} ».\n(Le document mis en forme est téléchargé pour pouvoir l'y joindre.)\n\n` +
+      htmlToText(html) + `\n\n— Envoyé depuis CPwire`
+    );
+    downloadHtml(html, filename);
+    window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  };
 
-  const rows = useMemo(() => {
-    const scope = issues.filter((i) => dossier === "Tous" || i.dossier === dossier);
-    const m = {};
-    scope.forEach((i) => {
-      const d = i.dev || i.assigne || "Non assigné";
-      (m[d] ||= { dev: d, total: 0, termine: 0, encours: 0, recette: 0, retard: 0, items: [] });
-      const r = m[d];
-      r.total += 1;
-      if (DONE.includes(i.categorie)) r.termine += 1;
-      else if (ACTIVE.includes(i.categorie)) r.encours += 1;
-      else if (WAIT.includes(i.categorie)) r.recette += 1;
-      if (i.enRetard) r.retard += 1;
-      r.items.push(i);
-    });
-    return Object.values(m).sort((a, b) => b.total - a.total);
-  }, [issues, dossier]);
+  // Fallback sans application mail : ouvre Outlook sur le web avec le brouillon pré-rempli.
+  const outlookWebShare = () => {
+    const subject = encodeURIComponent(title);
+    const body = encodeURIComponent(
+      `Bonjour,\n\nRapport « ${title} ».\n\n` + htmlToText(html) + `\n\n— Envoyé depuis CPwire`
+    );
+    downloadHtml(html, filename);
+    window.open(`https://outlook.office.com/mail/deeplink/compose?subject=${subject}&body=${body}`, "_blank", "noopener");
+  };
 
-  const maxTotal = rows.reduce((m, r) => Math.max(m, r.total), 0) || 1;
-  const totalTickets = rows.reduce((s, r) => s + r.total, 0);
-  const realDevs = rows.filter((r) => r.dev !== "Non assigné").length;
+  const copyText = async () => {
+    const txt = `${title}\n\n` + htmlToText(html);
+    try {
+      await navigator.clipboard.writeText(txt);
+      setMsg({ t: "ok", m: "Texte du rapport copié — colle-le dans ton e-mail." });
+    } catch {
+      setMsg({ t: "warn", m: "Copie impossible sur ce navigateur — utilise « Télécharger »." });
+    }
+  };
 
+  const apiMail = async () => {
+    const to = window.prompt("Destinataire(s), séparés par des virgules :", "");
+    if (!to) return;
+    setBusy("mail"); setMsg(null);
+    try { await shareMail(to.split(",").map((s) => s.trim()), title, html); setMsg({ t: "ok", m: "E-mail envoyé via Outlook." }); }
+    catch (e) { setMsg({ t: "warn", m: e.message }); }
+    finally { setBusy(""); }
+  };
+
+  const toSharePoint = async () => {
+    const folder = window.prompt("Dossier SharePoint :", `Clients/${dossier || ""}/Rapports`);
+    if (!folder) return;
+    setBusy("sp"); setMsg(null);
+    try {
+      const r = await shareSharePoint(folder, filename, html);
+      setMsg({ t: "ok", m: "Déposé sur SharePoint." + (r.webUrl ? " " + r.webUrl : "") });
+    } catch (e) { setMsg({ t: "warn", m: e.message }); }
+    finally { setBusy(""); }
+  };
+
+  if (!html) return null;
   return (
-    <>
-      <div className="section-title">Développeurs
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {realDevs} développeur(s) · {totalTickets} ticket(s){dossier !== "Tous" ? ` · ${dossier}` : ""}
-        </span>
-      </div>
-
-      <div className="panel">
-        <div className="filters">
-          <span className="fg-lbl">Dossier</span>
-          {dossiers.map((d) => (
-            <button key={d} className={`fbtn ${dossier === d ? "active" : ""}`}
-              onClick={() => setDossier(d)}>{d}</button>
-          ))}
+    <div className="overlay" onClick={backOut}>
+      <div className="modal" style={{ maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-hd">
+          <button className="modal-back" onClick={backOut} title="Retour">←</button>
+          <button className="x" onClick={backOut}>×</button>
+          <div className="k">Document généré</div>
+          <h3>{title}</h3>
         </div>
-        <div className="sep" />
-
-        {rows.length === 0 ? (
-          <div className="empty">Aucun ticket pour ce périmètre.</div>
-        ) : (
-          <div className="dev-list">
-            {rows.map((r) => (
-              <button className="dev-row" key={r.dev} onClick={() => setSelected(r.dev)} title="Voir la fiche du développeur">
-                <span className="dev-name">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
-                <span className="dev-bar">
-                  <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
-                </span>
-                <span className="dev-counts">
-                  <span className="dev-tot">{r.total}</span>
-                  <span className="pill done">{r.termine}</span>
-                  <span className="pill prog">{r.encours}</span>
-                  {r.recette ? <span className="pill todo">{r.recette}</span> : null}
-                  {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
-                  <span className="dev-caret">›</span>
-                </span>
-              </button>
-            ))}
+        <div className="modal-bd">
+          <iframe className="doc-frame" srcDoc={html} title="aperçu" />
+          <div className="row-actions">
+            <button className="btn-solid gold" onClick={() => downloadHtml(html, filename)}>Télécharger</button>
+            <button className="btn-line" onClick={() => printHtml(html)}>Imprimer / PDF</button>
+            <button className="btn-line" onClick={copyText}>Copier le texte</button>
+            <button className="btn-line" onClick={outlookWebShare}>Outlook (web)</button>
+            <button className="btn-line" onClick={mailtoShare}>Outlook (appli)</button>
+            {dossier && <button className="btn-line" onClick={toSharePoint} disabled={busy === "sp"}>{busy === "sp" ? "Dépôt…" : "Déposer sur SharePoint"}</button>}
+            <button className="btn-line" onClick={apiMail} disabled={busy === "mail"}>{busy === "mail" ? "Envoi…" : "Envoyer via Outlook (auto)"}</button>
           </div>
-        )}
+          {msg && <div className={msg.t === "ok" ? "ok-note" : "warn-note"}>{msg.m}</div>}
+          <div className="hint">Sans appli mail installée, utilise « Outlook (web) » ou « Copier le texte ». « Envoyer via Outlook (auto) » et « SharePoint » nécessitent Microsoft 365 (voir README).</div>
+        </div>
       </div>
-
-      <p className="hint">
-        Clique un développeur pour ouvrir sa fiche (tickets pris, activité du jour, répartition par mois).
-        Légende : <span className="pill done">terminés</span> <span className="pill prog">en cours</span>
-        <span className="pill todo">en recette</span>. Le volume reflète l'activité, pas une note de performance.
-        Les tickets sans personne assignée dans Jira apparaissent sous « Non assigné ⚠ ».
-      </p>
-
-      {selected && (
-        <DeveloperModal
-          devName={selected}
-          allIssues={issues}
-          onClose={() => setSelected(null)}
-          onTicket={(i) => { setSelected(null); onTicket && onTicket(i); }}
-        />
-      )}
-    </>
+    </div>
   );
 }

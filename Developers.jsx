@@ -1,97 +1,58 @@
-import React, { useMemo, useState } from "react";
-import { genMorningCR } from "../api.js";
-import DocPreview from "./DocPreview.jsx";
+import React, { useEffect, useState } from "react";
 
-// Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
-const ACTIVE = ["encours", "retourTest"];
-const ORDER = [
-  ["encours", "En cours", "prog"],
-  ["retourTest", "Retour test", "todo"],
-];
+// Bouton discret pour installer CPwire sur l'écran d'accueil.
+// Android/Chrome : utilise l'invite native. iPhone/Safari : affiche la marche à suivre.
+export default function InstallPWA() {
+  const [deferred, setDeferred] = useState(null);
+  const [iosHelp, setIosHelp] = useState(false);
 
-export default function Morning({ issues = [], onTicket }) {
-  const [busy, setBusy] = useState("");
-  const [doc, setDoc] = useState(null);
-  const [err, setErr] = useState("");
-  const [openD, setOpenD] = useState(null);
+  const isStandalone =
+    (typeof window !== "undefined" &&
+      (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone)) || false;
+  const isIos = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
-  const parDossier = useMemo(() => {
-    const m = {};
-    issues.filter((i) => ACTIVE.includes(i.categorie)).forEach((i) => {
-      (m[i.dossier] ||= []).push(i);
-    });
-    return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
-  }, [issues]);
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
+    const onInstalled = () => setDeferred(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
-  const make = async (dossier) => {
-    setBusy(dossier); setErr("");
-    try {
-      const { html } = await genMorningCR(dossier);
-      setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(""); }
+  if (isStandalone) return null;            // déjà installée
+  if (!deferred && !isIos) return null;     // navigateur sans installation possible
+
+  const click = async () => {
+    if (deferred) {
+      deferred.prompt();
+      try { await deferred.userChoice; } catch {}
+      setDeferred(null);
+    } else {
+      setIosHelp((v) => !v);
+    }
   };
-
-  const totalActif = parDossier.reduce((s, [, arr]) => s + arr.length, 0);
 
   return (
     <>
-      <div className="section-title">Brief du matin
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— état des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""})
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
-      </p>
-      {err && <div className="banner">Erreur : {err}</div>}
-      <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={() => make("Tous")} disabled={busy === "Tous"}>
-          {busy === "Tous" ? "Préparation…" : "Préparer le brief (tous les clients)"}
-        </button>
-      </div>
-
-      {parDossier.length === 0 ? (
-        <div className="panel empty">Rien d'actif à passer en revue — tout est en recette, en prod ou terminé. 🎉</div>
-      ) : (
-        <div className="recap-grid">
-          {parDossier.map(([dossier, items]) => {
-            const count = (c) => items.filter((i) => i.categorie === c).length;
-            const open = openD === dossier;
-            return (
-              <div className="recap-card" key={dossier}>
-                <h3>
-                  {dossier}
-                  <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>{items.length} actif{items.length > 1 ? "s" : ""}</span>
-                </h3>
-                <div className="filters" style={{ marginBottom: 8 }}>
-                  {ORDER.map(([c, label, pill]) => count(c) ? (
-                    <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
-                  ) : null)}
-                </div>
-                <ul>
-                  {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                      <span className="k">{i.cle}</span>
-                      <span style={{ flex: 1 }}>{i.resume}</span>
-                      {i.dev && i.dev !== "Non assigné" ? <span className="tag">{i.dev}</span> : null}
-                    </li>
-                  ))}
-                  {items.length > 5 && (
-                    <li style={{ color: "var(--purple-strong)", cursor: "pointer", fontWeight: 600 }} onClick={() => setOpenD(open ? null : dossier)}>
-                      {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
-                    </li>
-                  )}
-                </ul>
-                <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => make(dossier)} disabled={busy === dossier}>
-                  {busy === dossier ? "Préparation…" : `Préparer le brief de ${dossier}`}
-                </button>
-              </div>
-            );
-          })}
+      <button className="install-fab" onClick={click} aria-label="Installer l'application">
+        ⬇ Installer l'appli
+      </button>
+      {iosHelp && (
+        <div className="install-ios" onClick={() => setIosHelp(false)}>
+          <div className="install-ios-box" onClick={(e) => e.stopPropagation()}>
+            <b>Installer CPwire sur ton iPhone</b>
+            <ol>
+              <li>Appuie sur le bouton <b>Partager</b> <span aria-hidden>􀈂</span> (en bas de Safari).</li>
+              <li>Choisis <b>« Sur l'écran d'accueil »</b>.</li>
+              <li>Appuie sur <b>Ajouter</b> — l'icône Armonie apparaît sur ton écran.</li>
+            </ol>
+            <button className="btn-solid" onClick={() => setIosHelp(false)}>Compris</button>
+          </div>
         </div>
       )}
-      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
     </>
   );
 }

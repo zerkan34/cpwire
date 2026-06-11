@@ -1,0 +1,183 @@
+import React, { useState } from "react";
+import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
+import { frDate } from "../utils.js";
+import { useModalBack, backOut } from "../modalNav.js";
+
+const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+
+function whenFmt(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
+
+export default function TicketModal({ ticket, onClose, onPushed }) {
+  const [note, setNote] = useState("");
+  const [report, setReport] = useState("");
+  const [markDone, setMarkDone] = useState(true);
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState(null);
+  const [explication, setExplication] = useState("");
+  const [explLoading, setExplLoading] = useState(false);
+  const [activity, setActivity] = useState(null);
+  const [actLoading, setActLoading] = useState(false);
+
+  useModalBack(onClose);
+
+  React.useEffect(() => {
+    let alive = true;
+    if (ticket?.cle && ticket.url && ticket.url !== "#") {
+      setExplication(""); setExplLoading(true);
+      explainTicket(ticket.cle)
+        .then((r) => { if (alive) setExplication(r.explication); })
+        .catch(() => { if (alive) setExplication(""); })
+        .finally(() => { if (alive) setExplLoading(false); });
+
+      setActivity(null); setActLoading(true);
+      fetchTicketActivity(ticket.cle)
+        .then((r) => { if (alive) setActivity(r); })
+        .catch(() => { if (alive) setActivity(null); })
+        .finally(() => { if (alive) setActLoading(false); });
+    }
+    return () => { alive = false; };
+  }, [ticket?.cle]);
+
+  if (!ticket) return null;
+
+  const draft = async () => {
+    setBusy("draft"); setMsg(null);
+    try { const { text } = await genTicketReport(ticket.cle, note, ticket.resume); setReport(text); }
+    catch (e) { setMsg({ type: "warn", text: e.message }); }
+    finally { setBusy(""); }
+  };
+
+  const push = async () => {
+    if (!report.trim()) { setMsg({ type: "warn", text: "Rédige d'abord le rapport." }); return; }
+    if (!window.confirm(`Envoyer ce rapport dans Jira sur ${ticket.cle}${markDone ? " et passer le ticket à « Terminé »" : ""} ?`)) return;
+    setBusy("push"); setMsg(null);
+    try {
+      const r = await pushTicket(ticket.cle, report, markDone);
+      setMsg({ type: "ok", text: r.simulated ? "Mode démo : envoi simulé et journalisé." : `Envoyé dans Jira${r.transition?.applied ? " · statut : " + r.transition.applied : ""}.` });
+      onPushed && onPushed();
+    } catch (e) { setMsg({ type: "warn", text: e.message }); }
+    finally { setBusy(""); }
+  };
+
+  const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
+
+  return (
+    <div className="overlay" onClick={backOut}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-hd">
+          <button className="modal-back" onClick={backOut} title="Retour">←</button>
+          <button className="x" onClick={backOut}>×</button>
+          <div className="k">{ticket.cle}{ticket.mine ? "  ·  pour moi" : ""}</div>
+          <h3>{ticket.resume}</h3>
+        </div>
+        <div className="modal-bd">
+          <div className="meta-grid">
+            <div className="cell"><div className="l">Dossier</div><div className="v">{ticket.dossier}</div></div>
+            <div className="cell"><div className="l">Statut</div><div className="v"><span className={`pill ${PILL[ticket.statut]}`}>{ticket.statut}</span>{ticket.flagged ? <span className="flag-badge">🚩 FLAGGÉ</span> : null}{ticket.enRetard ? <span className="late"> · en retard</span> : null}</div></div>
+            <div className="cell"><div className="l">Assigné</div><div className="v">{ticket.assigne}</div></div>
+            <div className="cell"><div className="l">Priorité</div><div className="v">{ticket.priorite || "—"}</div></div>
+            <div className="cell"><div className="l">Échéance</div><div className="v">{ticket.echeance || "—"}</div></div>
+            <div className="cell"><div className="l">Mise à jour</div><div className="v">{frDate(ticket.maj)}</div></div>
+          </div>
+
+          {ticket.url && ticket.url !== "#" && (
+            <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer">Ouvrir le ticket dans Jira ↗</a>
+          )}
+
+          <div className="expl">
+            <div className="expl-h">Explication simple</div>
+            {explLoading ? (
+              <p className="hint">Analyse du ticket en cours…</p>
+            ) : explication ? (
+              <p>{explication}</p>
+            ) : (
+              <p className="hint">Disponible une fois connecté à Jira (et avec la clé IA pour une explication détaillée).</p>
+            )}
+          </div>
+
+          {/* Historique & temps : qui a fait quoi, quand, et heures saisies */}
+          <div className="expl">
+            <div className="expl-h">Historique &amp; temps</div>
+            {actLoading ? (
+              <p className="hint">Chargement de l'historique…</p>
+            ) : !hasActivity ? (
+              <p className="act-empty">Aucun historique ni temps saisi pour ce ticket (ou Jira non connecté).</p>
+            ) : (
+              <>
+                {activity.totalSeconds > 0 && (
+                  <div className="worklog-total"><b>Temps saisi (total) :</b> {activity.totalTime}</div>
+                )}
+                {activity.worklogs && activity.worklogs.length > 0 && (
+                  <table className="act-tbl">
+                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
+                    <tbody>
+                      {activity.worklogs.map((w, k) => (
+                        <tr key={k}>
+                          <td className="c-when">{whenFmt(w.date)}</td>
+                          <td className="c-who">{w.who}</td>
+                          <td className="c-act"><b>{w.time}</b>{w.comment ? ` — ${w.comment}` : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {activity.timeline && activity.timeline.length > 0 && (
+                  <table className="act-tbl">
+                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {activity.timeline.map((t, k) => (
+                        <tr key={k}>
+                          <td className="c-when">{whenFmt(t.date)}</td>
+                          <td className="c-who">{t.who}</td>
+                          <td className="c-act">{t.champ} : {t.from} → <b>{t.to}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
+          </div>
+
+          <div className="field">
+            <label>Ce que j'ai fait (note rapide)</label>
+            <textarea className="ta" style={{ minHeight: 60 }} value={note} onChange={(e) => setNote(e.target.value)}
+              placeholder="Ex. Développement terminé, testé en recette, livré." />
+          </div>
+
+          <div className="row-actions">
+            <button className="btn-line" onClick={draft} disabled={busy === "draft"}>
+              {busy === "draft" ? "Rédaction…" : "Rédiger le rapport (IA)"}
+            </button>
+          </div>
+
+          <div className="field" style={{ marginTop: 14 }}>
+            <label>Rapport (modifiable avant envoi)</label>
+            <textarea className="ta" value={report} onChange={(e) => setReport(e.target.value)}
+              placeholder="Le rapport généré apparaît ici — ajuste-le librement." />
+          </div>
+
+          <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5, margin: "4px 0 10px" }}>
+            <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} />
+            Marquer le ticket comme « Terminé » dans Jira
+          </label>
+
+          <div className="row-actions">
+            <button className="btn-solid gold" onClick={push} disabled={busy === "push"}>
+              {busy === "push" ? "Envoi…" : "Envoyer dans Jira"}
+            </button>
+            <button className="btn-line" onClick={backOut}>Fermer</button>
+          </div>
+
+          {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}

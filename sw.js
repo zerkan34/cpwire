@@ -1,187 +1,479 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { fetchPortfolio, fetchDossiers, getToken, clearToken } from "./api.js";
-import Login from "./components/Login.jsx";
-import Header from "./components/Header.jsx";
-import Portfolio from "./components/Portfolio.jsx";
-import Filters from "./components/Filters.jsx";
-import IssueTable from "./components/IssueTable.jsx";
-import TicketModal from "./components/TicketModal.jsx";
-import DossierModal from "./components/DossierModal.jsx";
-import DailyRecap from "./components/DailyRecap.jsx";
-import Developers from "./components/Developers.jsx";
-import Morning from "./components/Morning.jsx";
-import InstallPWA from "./components/InstallPWA.jsx";
-import Meetings from "./components/Meetings.jsx";
-import History from "./components/History.jsx";
+/* theme.css — identité visuelle reprise du document portefeuille Armonie. */
+:root {
+  --indigo: #3a3658;
+  --indigo-deep: #2c2945;
+  --purple: #6e5cc4;
+  --purple-strong: #5a48b0;
+  --purple-soft: #efecfb;
+  --purple-line: #cfc6f2;
+  --gold: #c7a14a;
+  --gold-deep: #a9842f;
+  --orange: #fb7a28;
+  --orange-deep: #e0600f;
+  --orange-soft: #fff2e7;
+  --ink: #2a2937;
+  --body: #3d3b4d;
+  --muted: #74718a;
+  --line: #e7e5f1;
+  --line-soft: #f0eef7;
+  --row-alt: #f6f5fb;
+  --bg: #f4f3f8;
+  --card: #ffffff;
+  --green: #1f8a5f;
+  --green-bg: #e2f3ea;
+  --blue: #2f5fa8;
+  --blue-bg: #e6effb;
+  --amber: #b07423;
+  --amber-bg: #fbf0e2;
+  --red: #c0392b;
+  --red-bg: #fbe6e3;
+  --shadow: 0 1px 3px rgba(38, 35, 64, 0.06), 0 8px 28px rgba(38, 35, 64, 0.07);
+  --shadow-lg: 0 18px 50px rgba(38, 35, 64, 0.16);
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--body);
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+a { color: inherit; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 26px 24px 60px; }
 
-const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
-const TABS = [
-  { id: "cockpit", label: "Cockpit" }, { id: "recap", label: "Récap du jour" },
-  { id: "morning", label: "Brief matin" },
-  { id: "devs", label: "Développeurs" },
-  { id: "meetings", label: "Réunions" }, { id: "history", label: "Historique" },
-];
+/* ---- En-tête ---- */
+.hdr {
+  background: linear-gradient(135deg, var(--indigo-deep), var(--indigo) 55%, #46426c);
+  color: #fff; border-radius: 22px; padding: 26px 30px; box-shadow: var(--shadow-lg);
+  position: relative; overflow: hidden;
+}
+.hdr:before {
+  content: ""; position: absolute; right: -70px; top: -70px; width: 240px; height: 240px;
+  border-radius: 50%; background: radial-gradient(circle, rgba(199, 161, 74, 0.2), transparent 70%);
+}
+.hdr-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; position: relative; }
+.eyebrow { display: block; width: 100%; text-align: right; font-weight: 700; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
+.hdr h1 { font-family: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 22px; color: #fff; margin: 10px 0 0; line-height: 1.15; }
+.hdr .sub { color: rgba(255, 255, 255, 0.75); font-size: 14px; max-width: 560px; }
+.hdr-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.btn {
+  font-family: "Inter"; font-weight: 600; font-size: 13px; cursor: pointer; border: 0;
+  border-radius: 10px; padding: 10px 16px; display: inline-flex; align-items: center; gap: 8px;
+  transition: transform 0.12s ease, filter 0.12s ease;
+}
+.btn:hover { filter: brightness(1.06); transform: translateY(-1px); }
+.btn.gold { background: var(--orange); color: #fff; }
+.btn.gold:hover { background: var(--orange-deep); }
+.btn.ghost { background: rgba(255, 255, 255, 0.12); color: #fff; border: 1px solid rgba(255, 255, 255, 0.22); }
+.src { font-size: 11.5px; color: rgba(255, 255, 255, 0.62); }
 
-export default function App() {
-  const [authed, setAuthed] = useState(Boolean(getToken()));
-  const [tab, setTab] = useState("cockpit");
-  const [data, setData] = useState(null);
-  const [dossiers, setDossiers] = useState({});
-  const [error, setError] = useState("");
-  const [needsConfig, setNeedsConfig] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [dossier, setDossier] = useState("Tous");
-  const [statut, setStatut] = useState("Tous");
-  const [onlyLate, setOnlyLate] = useState(false);
-  const [onlyMine, setOnlyMine] = useState(false);
-  const [query, setQuery] = useState("");
-  const [person, setPerson] = useState("Tous");
-  const [priorite, setPriorite] = useState("Tous");
-  const [changedKeys, setChangedKeys] = useState(null); // Set des clés modifiées (surbrillance)
-  const [ticket, setTicket] = useState(null);
-  const [fiche, setFiche] = useState(null); // {nom}
-  const [toast, setToast] = useState("");
-  const toastTimer = useRef(null);
-  const highlightTimer = useRef(null);
+/* ---- KPI ---- */
+.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-top: 22px; position: relative; }
+.kpi { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 13px; padding: 13px 14px; }
+.kpi .lbl { font-weight: 600; font-size: 10.5px; letter-spacing: 0.07em; text-transform: uppercase; color: rgba(255, 255, 255, 0.66); }
+.kpi .val { font-family: "Poppins"; font-weight: 800; font-size: 28px; line-height: 1.05; margin-top: 5px; color: #fff; }
+.kpi.todo .val { color: #ffd5a8; }
+.kpi.prog .val { color: #a8c8ff; }
+.kpi.block .val { color: #ffb1a6; }
+.kpi.done .val { color: #a6e7c8; }
+.kpi.late .val { color: #ff9d8e; }
+.progress { margin-top: 18px; display: flex; align-items: center; gap: 12px; font-size: 13px; color: rgba(255, 255, 255, 0.85); position: relative; }
+.bar { flex: 1; height: 11px; border-radius: 99px; background: rgba(255, 255, 255, 0.16); overflow: hidden; }
+.bar > span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #6ed0a8, #37b07f); transition: width 0.4s ease; }
 
-  const resetFilters = useCallback(() => {
-    setDossier("Tous"); setStatut("Tous"); setOnlyLate(false); setOnlyMine(false);
-    setQuery(""); setPerson("Tous"); setPriorite("Tous");
-  }, []);
+/* ---- En-tête : barre recherche + actions alignées (même ligne que Actualiser) ---- */
+.hdr-left { min-width: 0; }
+.hdr-bar { display: flex; gap: 8px; align-items: center; justify-content: flex-end; flex-wrap: wrap; }
+.hdr-bar .btn { height: 40px; }
+.hdr-search { position: relative; width: 280px; }
+.hdr-search input { width: 100%; height: 40px; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.97); border-radius: 10px; padding: 0 34px; font-size: 13.5px; color: var(--body); }
+.hdr-search input:focus { outline: 2px solid rgba(255,255,255,.55); }
+.hs-ic { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); font-size: 13px; opacity: .55; pointer-events: none; }
+.hs-x { position: absolute; right: 6px; top: 50%; transform: translateY(-50%); border: 0; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); padding: 4px 6px; }
+.hs-x:hover { color: var(--ink); }
+.btn.bell { position: relative; }
+.bell-badge { position: absolute; top: -7px; right: -7px; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 99px; background: var(--red); color: #fff; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--indigo-deep); }
 
-  const showToast = useCallback((msg) => {
-    setToast(msg);
-    if (toastTimer.current) clearTimeout(toastTimer.current);
-    toastTimer.current = setTimeout(() => setToast(""), 6000);
-  }, []);
+/* ---- Jauge dans le bouton Actualiser ---- */
+.gauge-btn { position: relative; overflow: hidden; min-width: 138px; }
+.gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--orange-deep); transition: width .35s ease; z-index: 0; }
+.gauge-label { position: relative; z-index: 1; }
 
-  useEffect(() => {
-    const logout = () => { setAuthed(false); };
-    window.addEventListener("cpwire-logout", logout);
-    return () => window.removeEventListener("cpwire-logout", logout);
-  }, []);
+/* ---- Bouton cloche (notifications) ---- */
+.btn.bell { padding-left: 12px; padding-right: 12px; }
+.btn.bell.on { background: var(--orange); color: #fff; border-color: var(--orange); }
 
-  const load = useCallback(async (refresh = false, full = false) => {
-    setLoading(true); setError(""); setNeedsConfig(false);
-    try {
-      const [p, d] = await Promise.all([fetchPortfolio({ refresh, full }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
-      setData(p); setDossiers(d.dossiers || {});
-      if (refresh || full) {
-        const ch = Array.isArray(p.changed) ? p.changed : [];
-        if (ch.length) {
-          setChangedKeys(new Set(ch));
-          if (highlightTimer.current) clearTimeout(highlightTimer.current);
-          highlightTimer.current = setTimeout(() => setChangedKeys(null), 30000);
-        } else {
-          setChangedKeys(null);
-        }
-        const n = p.diagnostic?.totalImporte ?? (p.issues?.length || 0);
-        const msg = full
-          ? `✓ Tout rechargé — ${n} ticket${n > 1 ? "s" : ""} en mémoire.`
-          : ch.length
-            ? `✓ Actualisé — ${ch.length} ticket${ch.length > 1 ? "s" : ""} modifié${ch.length > 1 ? "s" : ""} (surbrillance 30 s).`
-            : `✓ Actualisé — aucun changement depuis la dernière synchro.`;
-        showToast(msg);
-      }
-    } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true); }
-    finally { setLoading(false); }
-  }, [showToast]);
+/* ---- Bouton remonter en haut ---- */
+.to-top { position: fixed; left: 16px; z-index: 95; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); width: 44px; height: 44px; border-radius: 50%; border: 0; background: var(--indigo); color: #fff; font-size: 20px; cursor: pointer; box-shadow: 0 10px 26px rgba(44,41,69,.32); animation: toast-in .2s ease-out; }
+.to-top:hover { background: var(--indigo-deep); }
 
-  useEffect(() => { if (authed) load(false); }, [authed, load]);
+/* ---- Nom de développeur (récap, tables) cliquable + supprimé ---- */
+.dev-chip { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; font-size: 12px; color: var(--orange-deep); background: var(--orange-soft); border: 1px solid #f6d8be; border-radius: 99px; padding: 2px 10px; cursor: pointer; white-space: nowrap; }
+.dev-chip:hover { background: var(--orange); color: #fff; border-color: var(--orange); }
+.dev-chip.del { color: var(--muted); background: var(--line-soft); border-color: var(--line); text-decoration: line-through; }
+.dev-del-tag { font-size: 10px; font-weight: 600; color: var(--muted); margin-left: 4px; font-style: italic; }
+.dev-row.del .dname { color: var(--muted); text-decoration: line-through; opacity: .75; }
 
-  const issues = data?.issues || [];
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return issues.filter((i) => {
-      if (dossier !== "Tous" && i.dossier !== dossier) return false;
-      if (statut !== "Tous" && i.statut !== statut) return false;
-      if (onlyLate && !i.enRetard) return false;
-      if (onlyMine && !i.mine) return false;
-      if (person !== "Tous" && (i.assigne || "Non assigné") !== person) return false;
-      if (priorite !== "Tous" && (i.priorite || "—") !== priorite) return false;
-      if (q) {
-        const hay = `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      return true;
-    });
-  }, [issues, dossier, statut, onlyLate, onlyMine, person, priorite, query]);
+/* ---- Esthétique tickets (tableau cockpit) ---- */
+tbody tr { transition: background .12s ease; }
+tbody tr:hover td { background: var(--purple-soft); }
+tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold-deep); }
+tr.has-flag td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
+.prio-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 7px; vertical-align: middle; background: var(--line); }
+.prio-dot.p-haute, .prio-dot.p-highest, .prio-dot.p-high { background: var(--red); }
+.prio-dot.p-moyenne, .prio-dot.p-medium { background: var(--amber); }
+.prio-dot.p-basse, .prio-dot.p-low, .prio-dot.p-lowest { background: var(--blue); }
+.assignee-link { cursor: pointer; border-bottom: 1px dotted var(--purple-line); }
+.assignee-link:hover { color: var(--purple-strong); }
 
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
+/* ---- Sections ---- */
+.section-title { font-family: "Poppins"; font-weight: 700; font-size: 19px; color: var(--ink); margin: 30px 0 14px; display: flex; align-items: center; gap: 11px; }
+.section-title:before { content: ""; width: 11px; height: 26px; border-radius: 5px; background: linear-gradient(var(--purple), var(--purple-strong)); }
 
-  const diag = data?.diagnostic;
+/* ---- Cartes projet ---- */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+.pcard { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); cursor: pointer; transition: transform 0.12s ease, box-shadow 0.15s ease, border-color 0.15s ease; }
+.pcard:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--purple-line); }
+.pcard.active { border-color: var(--purple); box-shadow: 0 0 0 2px var(--purple-soft), var(--shadow); }
+.pcard h3 { font-family: "Poppins"; font-weight: 700; font-size: 17px; color: var(--ink); margin: 0 0 4px; }
+.pcard .meta { font-size: 12px; color: var(--muted); margin-bottom: 12px; }
+.pcard .pbar { height: 9px; border-radius: 99px; background: var(--line); overflow: hidden; margin-bottom: 12px; }
+.pcard .pbar > span { display: block; height: 100%; background: linear-gradient(90deg, #6ed0a8, #37b07f); }
+.pcard .stats { display: flex; flex-wrap: wrap; gap: 8px; }
+.dot { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; }
+.dot:before { content: ""; width: 8px; height: 8px; border-radius: 50%; }
+.dot.todo:before { background: var(--amber); } .dot.todo { color: var(--amber); }
+.dot.prog:before { background: var(--blue); } .dot.prog { color: var(--blue); }
+.dot.block:before { background: var(--red); } .dot.block { color: var(--red); }
+.dot.done:before { background: var(--green); } .dot.done { color: var(--green); }
+.health { float: right; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
+.health.green { background: var(--green-bg); color: var(--green); }
+.health.amber { background: var(--amber-bg); color: var(--amber); }
+.health.red { background: var(--red-bg); color: var(--red); }
 
-  return (
-    <div className="wrap">
-      <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
-        loading={loading} me={data?.me} onRefresh={() => load(true)}
-        onLogout={() => { clearToken(); setAuthed(false); }} />
+/* ---- Filtres + table ---- */
+.panel { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 10px; }
+.fg-lbl { font-weight: 700; font-size: 11px; letter-spacing: 0.07em; text-transform: uppercase; color: var(--muted); margin-right: 2px; }
+.fbtn { font-weight: 600; font-size: 12.5px; cursor: pointer; border: 1px solid var(--line); background: #fff; color: var(--body); border-radius: 99px; padding: 6px 13px; transition: all 0.12s ease; }
+.fbtn:hover { border-color: var(--purple); }
+.fbtn.active { background: var(--purple); border-color: var(--purple); color: #fff; }
+.fbtn .cnt { opacity: 0.65; font-weight: 500; margin-left: 5px; }
 
-      <div className="tabs">
-        {TABS.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
-            {t.label}{t.id === "cockpit" && data?.kpis?.mine ? <span className="b">{data.kpis.mine} pour moi</span> : null}
-          </button>
-        ))}
-      </div>
+/* Recherche + sélecteurs de filtre */
+.search-row { position: relative; display: flex; align-items: center; margin-bottom: 12px; }
+.search-ic { position: absolute; left: 12px; font-size: 14px; opacity: .6; pointer-events: none; }
+.search-input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 36px; font-size: 14px; color: var(--body); }
+.search-input:focus { outline: 2px solid var(--purple-soft); border-color: var(--purple); }
+.search-x { position: absolute; right: 8px; border: 0; background: none; cursor: pointer; font-size: 18px; line-height: 1; color: var(--muted); padding: 4px 8px; }
+.search-x:hover { color: var(--purple-strong); }
+.fselect { border: 1px solid var(--line); background: #fff; color: var(--body); border-radius: 99px; padding: 6px 12px; font-size: 12.5px; font-weight: 600; cursor: pointer; }
+.fselect:focus { outline: 2px solid var(--purple-soft); border-color: var(--purple); }
+.fbtn.reset { border-color: #e7c4c4; color: #b4434a; }
+.fbtn.reset:hover { border-color: #b4434a; }
+.btn-line.sm { font-size: 12px; padding: 5px 11px; border-radius: 8px; }
 
-      {needsConfig && (
-        <div className="banner">
-          Jira n'est pas configuré côté serveur. Renseigne <b>JIRA_BASE_URL</b>, <b>JIRA_EMAIL</b> et
-          <b> JIRA_API_TOKEN</b> dans <b>server/.env</b>, puis relance le serveur. Aucune donnée fictive n'est affichée.
-        </div>
-      )}
-      {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
+/* Tri par colonne */
+.th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.th-sort:hover { color: var(--purple-strong); }
+.sort-ar { font-size: 10px; margin-left: 2px; color: var(--purple); }
+.sort-ar.dim { opacity: .3; color: var(--muted); }
 
-      {diag && diag.projetsSansTicket?.length > 0 && (
-        <div className="banner">
-          Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
-          <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
-        </div>
-      )}
+/* Surbrillance des tickets modifiés à l'actualisation (~30 s) */
+@keyframes chgFlash {
+  0% { background: #fff3cf; }
+  85% { background: #fff8e6; }
+  100% { background: transparent; }
+}
+tr.row-changed td { animation: chgFlash 30s ease-out forwards; }
+tr.row-changed td:first-child { box-shadow: inset 3px 0 0 var(--gold-deep); }
+.chg-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; background: var(--gold-deep); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+.sep { height: 1px; background: var(--line); margin: 8px 0 4px; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 9px 10px; border-bottom: 2px solid var(--line); }
+td { padding: 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+tr:hover td { background: var(--row-alt); }
+.k { font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.k:hover { color: var(--purple-strong); text-decoration: underline; }
+.tag { font-weight: 600; font-size: 11px; color: var(--purple-strong); background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
+.pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11.5px; padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
+.pill:before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.pill.todo { background: var(--amber-bg); color: var(--amber); }
+.pill.prog { background: var(--blue-bg); color: var(--blue); }
+.pill.block { background: var(--red-bg); color: var(--red); }
+.pill.done { background: var(--green-bg); color: var(--green); }
+.late { color: var(--red); font-weight: 600; font-size: 11px; }
+.empty { padding: 30px; text-align: center; color: var(--muted); }
+.banner { padding: 12px 16px; border-radius: 12px; background: var(--amber-bg); color: var(--amber); font-size: 13px; margin-top: 14px; border: 1px solid #f0dcc0; }
+.foot { margin-top: 30px; text-align: center; color: var(--muted); font-size: 12px; }
 
-      {tab === "cockpit" && (
-        <>
-          {diag && (
-            <p className="hint" style={{ marginTop: 4 }}>
-              Import vérifié — {diag.totalImporte} tickets : {Object.entries(diag.parProjet).map(([k, v]) => `${k} (${v})`).join(" · ") || "—"}
-            </p>
-          )}
-          <div className="section-title">Portefeuille <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
-          <Portfolio parDossier={data?.parDossier} onOpen={(d) => setFiche({ nom: d })} />
+@media (max-width: 800px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 520px) { .kpis { grid-template-columns: repeat(2, 1fr); } .hdr h1 { font-size: 24px; } }
 
-          <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
-            <button className="btn-line sm" onClick={() => load(false, true)} disabled={loading} title="Recharge l'intégralité des tickets depuis Jira (à utiliser rarement)">
-              ↻ Tout recharger
-            </button>
-          </div>
-          <div className="panel">
-            <Filters issues={issues} statuts={STATUTS} dossier={dossier} statut={statut}
-              onlyLate={onlyLate} onlyMine={onlyMine} query={query} person={person} priorite={priorite}
-              onDossier={setDossier} onStatut={setStatut}
-              onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
-              onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
-            <div className="sep" />
-            <IssueTable rows={filtered} loading={loading} onTicket={setTicket} changedKeys={changedKeys} />
-          </div>
-        </>
-      )}
+/* ===== Onglets ===== */
+.tabs { display: flex; gap: 6px; margin: 18px 0 4px; flex-wrap: wrap; }
+.tab { font-weight: 600; font-size: 13.5px; cursor: pointer; border: 0; background: transparent; color: var(--muted); padding: 9px 16px; border-radius: 10px; display: inline-flex; align-items: center; gap: 7px; }
+.tab:hover { background: var(--purple-soft); color: var(--purple-strong); }
+.tab.active { background: var(--indigo); color: #fff; }
+.tab .b { background: var(--gold); color: #2a2410; border-radius: 99px; font-size: 11px; padding: 1px 7px; font-weight: 700; }
 
-      {tab === "recap" && <DailyRecap onTicket={setTicket} />}
-      {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
-      {tab === "devs" && <Developers issues={issues} onTicket={setTicket} />}
-      {tab === "meetings" && <Meetings />}
-      {tab === "history" && <History />}
+/* ===== Surlignage « mes tickets » ===== */
+tr.mine td { background: #fdf7e8; }
+tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
+.me-badge { display: inline-block; font-size: 10px; font-weight: 700; color: var(--gold-deep); background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
 
-      <div className="foot">CPwire · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
+/* ===== Modale ===== */
+.overlay { position: fixed; inset: 0; background: rgba(28, 25, 45, 0.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 24px 16px; z-index: 50; overflow-y: auto; }
+.modal { background: var(--card); border-radius: 18px; width: 100%; max-width: 720px; box-shadow: var(--shadow-lg); overflow: hidden; max-height: 92vh; display: flex; flex-direction: column; margin: auto; }
+.modal-hd { background: linear-gradient(135deg, var(--orange-deep), var(--orange)); color: #fff; padding: 20px 24px 20px 52px; position: relative; flex-shrink: 0; }
+.modal-hd .k { font-family: "JetBrains Mono", monospace; font-weight: 600; color: rgba(255,255,255,.9); font-size: 13px; }
+.modal-hd h3 { font-family: "Poppins"; font-weight: 700; font-size: 20px; margin: 4px 0 0; color: #fff; }
+.modal-hd .x { position: absolute; top: 16px; right: 18px; cursor: pointer; color: rgba(255,255,255,.85); font-size: 22px; line-height: 1; background: none; border: 0; }
+.modal-back { position: absolute; top: 15px; left: 16px; cursor: pointer; color: #fff; font-size: 17px; line-height: 1; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.22); width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: background .15s ease, transform .15s ease; }
+.modal-back:hover { background: rgba(255,255,255,.3); transform: translateX(-2px); }
+.modal-back:active { transform: translateX(-2px) scale(.94); }
+.modal-bd { padding: 22px 24px; overflow-y: auto; }
+.meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 16px; }
+.meta-grid .cell .l { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
+.meta-grid .cell .v { font-size: 14px; color: var(--ink); margin-top: 2px; }
+.ta { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-family: "Inter"; font-size: 13.5px; color: var(--body); resize: vertical; min-height: 90px; }
+.ta:focus { outline: 2px solid var(--purple-soft); border-color: var(--purple); }
+.row-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+.btn-line { font-weight: 600; font-size: 13px; cursor: pointer; border-radius: 10px; padding: 10px 16px; border: 1px solid var(--line); background: #fff; color: var(--body); }
+.btn-line:hover { border-color: var(--purple); }
+.btn-line:disabled { opacity: .5; cursor: default; }
+.btn-solid { font-weight: 600; font-size: 13px; cursor: pointer; border-radius: 10px; padding: 10px 16px; border: 0; background: var(--purple); color: #fff; }
+.btn-solid:hover { filter: brightness(1.07); }
+.btn-solid.gold { background: var(--orange); color: #fff; }
+.btn-solid.gold:hover { background: var(--orange-deep); }
+.btn-solid:disabled { opacity: .5; cursor: default; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 8px; }
+.ok-note { background: var(--green-bg); color: var(--green); border-radius: 9px; padding: 9px 12px; font-size: 13px; margin-top: 10px; }
+.warn-note { background: var(--amber-bg); color: var(--amber); border-radius: 9px; padding: 9px 12px; font-size: 13px; margin-top: 10px; }
 
-      {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
-      {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
-        onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
+/* ===== Récap du jour ===== */
+.recap-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+.recap-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 18px 20px; }
+.recap-card h3 { font-family: "Poppins"; font-size: 17px; color: var(--ink); margin: 0 0 4px; display: flex; justify-content: space-between; align-items: center; }
+.recap-card ul { margin: 10px 0; padding-left: 0; list-style: none; }
+.recap-card li { font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); display: flex; gap: 8px; align-items: baseline; }
+.recap-card li .k { font-family: "JetBrains Mono"; font-size: 11.5px; color: var(--muted); min-width: 72px; }
 
-      {toast && <div className="toast" role="status">{toast}</div>}
-      <InstallPWA />
-    </div>
-  );
+/* ===== Aperçu document (iframe) ===== */
+.doc-frame { width: 100%; height: 60vh; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+
+/* ===== Formulaire réunion ===== */
+.field { margin-bottom: 14px; }
+.field label { display: block; font-weight: 600; font-size: 12.5px; color: var(--ink); margin-bottom: 5px; }
+.field input[type=text] { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font-size: 14px; }
+.drop { border: 1.5px dashed var(--purple-line); border-radius: 12px; padding: 16px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer; background: var(--purple-soft); }
+.chips-files { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.chip-file { font-size: 12px; background: var(--purple-soft); border: 1px solid var(--purple-line); color: var(--purple-strong); border-radius: 8px; padding: 3px 9px; }
+
+/* ===== Historique ===== */
+.hist { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; }
+.hist-row { display: flex; gap: 14px; align-items: baseline; padding: 12px 18px; border-bottom: 1px solid var(--line-soft); font-size: 13.5px; }
+.hist-row .when { font-family: "JetBrains Mono"; font-size: 12px; color: var(--muted); min-width: 130px; }
+.hist-row .type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--purple-strong); background: var(--purple-soft); border-radius: 6px; padding: 2px 8px; }
+
+/* ===== Login CPwire ===== */
+.login-screen { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px;
+  background: radial-gradient(120% 120% at 80% 0%, #56517e 0%, var(--cover-1, #4a4670) 38%, var(--cover-2, #322f4d) 100%); }
+.login-card { background: var(--card); border-radius: 20px; box-shadow: var(--shadow-lg); padding: 34px 32px; width: 100%; max-width: 400px; }
+.login-brand { font-family: "Poppins"; font-weight: 800; font-size: 34px; color: var(--indigo-deep); letter-spacing: -0.5px; }
+.login-brand span { color: var(--gold); }
+.hdr-brand { display: inline-block; }
+.hdr-logo { height: 30px; width: auto; display: block; margin-bottom: 6px; }
+.login-logo { background: linear-gradient(135deg, var(--indigo-deep), var(--indigo)); border-radius: 14px; padding: 20px 22px; text-align: center; margin-bottom: 14px; }
+.login-logo img { height: 30px; width: auto; display: inline-block; }
+.login-tag { color: var(--muted); font-size: 13px; margin: 2px 0 22px; }
+.login-card .field { margin-bottom: 14px; }
+.login-card input { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 13px; font-size: 14px; }
+.login-card input:focus { outline: 2px solid var(--purple-soft); border-color: var(--purple); }
+.login-foot { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 18px; }
+
+/* ===== Édition fiche dossier ===== */
+.cover-1 { } /* placeholder */
+table.edit-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.edit-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 4px 6px; }
+table.edit-tbl td { padding: 3px 4px; }
+table.edit-tbl input, table.edit-tbl select { width: 100%; border: 1px solid var(--line); border-radius: 8px; padding: 7px 8px; font-size: 13px; background: #fff; }
+table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var(--purple); border-color: var(--purple); }
+.x-row { border: 0; background: var(--red-bg); color: var(--red); width: 26px; height: 26px; border-radius: 7px; cursor: pointer; font-size: 16px; line-height: 1; }
+.x-row:hover { filter: brightness(0.96); }
+
+/* ===== Lien Jira & explication simple (modale ticket) ===== */
+.jira-link { display: inline-block; margin: 0 0 14px; font-weight: 600; font-size: 13px; color: var(--purple-strong);
+  background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 9px; padding: 8px 14px; text-decoration: none; }
+.jira-link:hover { background: #e6e1f8; }
+.expl { background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 12px; padding: 14px 16px; margin: 4px 0 16px; }
+.expl-h { font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: 6px; }
+.expl p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.55; }
+
+/* --- Onglet Développeurs --- */
+.dev-list { display: flex; flex-direction: column; gap: 8px; }
+.dev-block { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.dev-row { width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 14px; background: none; border: 0; cursor: pointer; text-align: left; }
+.dev-row:hover { background: var(--purple-soft); }
+.dev-name { font-weight: 700; min-width: 160px; color: var(--ink); }
+.dev-bar { flex: 1; height: 8px; border-radius: 99px; background: var(--line); overflow: hidden; min-width: 60px; }
+.dev-bar-fill { display: block; height: 100%; background: linear-gradient(var(--purple), var(--purple-strong)); }
+.dev-counts { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.dev-tot { font-weight: 800; font-size: 15px; color: var(--indigo); min-width: 30px; text-align: right; }
+.dev-caret { color: var(--muted); font-size: 18px; margin-left: 4px; font-weight: 700; }
+
+/* Fiche développeur (modale) */
+.dev-sec-h { font-family: "Poppins"; font-weight: 700; font-size: 13.5px; color: var(--ink); margin: 18px 0 8px; }
+.dev-stats { display: flex; gap: 8px; flex-wrap: wrap; }
+.dstat { flex: 1; min-width: 84px; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; }
+.dstat .v { font-family: "Poppins"; font-weight: 800; font-size: 23px; color: var(--ink); line-height: 1; }
+.dstat .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-top: 5px; font-weight: 700; }
+.dstat.done { background: #eef7f0; border-color: #cfe8d6; }
+.dstat.prog { background: #eef1fb; border-color: #d3dcf5; }
+.dstat.todo { background: #fdf6e6; border-color: #ecd9a8; }
+.dstat.block { background: #fcebec; border-color: #f0c7cb; }
+.dstat.flagged { background: var(--orange-soft); border-color: #f3d6bd; }
+.month-chart { display: flex; align-items: flex-end; gap: 10px; height: 130px; padding: 6px 4px 0; border: 1px solid var(--line); border-radius: 12px; }
+.mc-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 4px; }
+.mc-val { font-weight: 800; font-size: 12px; color: var(--indigo); }
+.mc-bar-wrap { width: 100%; max-width: 42px; flex: 1; display: flex; align-items: flex-end; }
+.mc-bar { width: 100%; min-height: 3px; border-radius: 6px 6px 0 0; background: linear-gradient(var(--purple), var(--purple-strong)); transition: height .2s ease; }
+.mc-lbl { font-size: 11px; color: var(--muted); text-transform: capitalize; font-weight: 600; }
+.period-sum { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 10px; padding: 9px 13px; font-size: 13.5px; color: var(--ink); margin: 4px 0 12px; }
+.proj-tbl { width: 100%; border-collapse: collapse; margin: 4px 0 6px; }
+.proj-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); padding: 7px 10px; border-bottom: 2px solid var(--line); }
+.proj-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.dev-when { font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+
+/* Drapeau (flagged) */
+.flag { color: var(--orange-deep); font-weight: 700; }
+.flag-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; background: var(--orange-deep); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
+
+/* Tableaux alignés dans les fiches (colonnes fixes -> tout aligné) */
+.fiche-tbl, .act-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 4px 0 8px; font-size: 13px; }
+.fiche-tbl th, .act-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 7px 8px; border-bottom: 2px solid var(--line); }
+.fiche-tbl td, .act-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.fiche-tbl tbody tr { cursor: pointer; }
+.fiche-tbl tbody tr:hover td { background: var(--purple-soft); }
+.fiche-tbl .c-cle { width: 92px; white-space: nowrap; }
+.fiche-tbl .c-proj { width: 96px; white-space: nowrap; }
+.fiche-tbl .c-date { width: 86px; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.fiche-tbl .c-stat { width: 120px; white-space: nowrap; }
+.fiche-tbl .c-res { white-space: normal; word-break: break-word; }
+.act-tbl .c-when { width: 128px; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.act-tbl .c-who { width: 128px; font-weight: 600; white-space: nowrap; }
+.act-tbl .c-act { white-space: normal; word-break: break-word; }
+.worklog-total { background: var(--orange-soft); border: 1px solid #f3d6bd; border-radius: 10px; padding: 9px 13px; font-size: 14px; color: var(--ink); margin: 4px 0 10px; }
+.act-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
+
+/* Récap par client (historique) */
+.cli-block { margin: 12px 0 2px; }
+.cli-h { display: flex; align-items: center; gap: 10px; margin: 12px 0 2px; flex-wrap: wrap; }
+.cli-meta { font-size: 12px; color: var(--muted); }
+
+/* Lignes du récap du jour : 2 niveaux (clé+statut, puis résumé, puis dev) */
+.recap-card li.ri { display: block; padding: 9px 6px; border-bottom: 1px solid var(--line-soft); cursor: pointer; border-radius: 8px; }
+.recap-card li.ri:hover { background: var(--purple-soft); }
+.recap-card li.ri:last-of-type { border-bottom: 0; }
+.ri-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ri-top .k { min-width: 0; }
+.ri-res { font-size: 13px; color: var(--body); margin: 4px 0 6px; line-height: 1.4; word-break: break-word; }
+.ri-dev { line-height: 1; }
+.recap-card li.ri-more { display: block; padding: 8px 6px 2px; font-size: 12.5px; border: 0; }
+
+/* ---- Conteneur de filtres structuré (bandeau couleur header) ---- */
+.filter-box { border: 1px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 6px; box-shadow: var(--shadow); }
+.filter-box-hd { background: linear-gradient(135deg, var(--indigo-deep), var(--indigo)); color: #fff; font-weight: 700; font-size: 12px; letter-spacing: .09em; text-transform: uppercase; padding: 9px 14px; display: flex; align-items: center; justify-content: space-between; }
+.filter-reset { border: 1px solid rgba(255,255,255,.3); background: rgba(255,255,255,.12); color: #fff; border-radius: 8px; font-size: 11.5px; font-weight: 600; padding: 4px 10px; cursor: pointer; letter-spacing: 0; text-transform: none; }
+.filter-reset:hover { background: rgba(255,255,255,.24); }
+.filter-box-bd { padding: 12px 14px 8px; background: var(--card); }
+.filter-grp { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 7px 0; border-bottom: 1px solid var(--line-soft); }
+.filter-grp:last-child { border-bottom: 0; }
+.filter-grp .fg-lbl { min-width: 84px; flex-shrink: 0; }
+.fg-chips { display: flex; gap: 7px; flex-wrap: wrap; }
+
+/* Onglets clients (historique des récaps) */
+.ctabs { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
+.ctab { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-weight: 600; font-size: 13px; padding: 8px 15px; border-radius: 10px; cursor: pointer; transition: all .12s ease; }
+.ctab:hover { border-color: var(--purple-line); color: var(--ink); }
+.ctab.active { background: linear-gradient(135deg, var(--indigo-deep), var(--indigo)); color: #fff; border-color: var(--indigo); }
+.dev-items { list-style: none; margin: 0; padding: 4px 8px 10px; border-top: 1px solid var(--line); }
+.dev-items li { display: flex; align-items: center; gap: 10px; padding: 7px 8px; border-radius: 8px; font-size: 13px; }
+.dev-items li:hover { background: var(--purple-soft); }
+@media (max-width: 640px) {
+  .dev-name { min-width: 110px; font-size: 13px; }
+  .dev-bar { display: none; }
+}
+
+/* --- Toast (message subtil après actualisation) --- */
+.toast {
+  position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%);
+  background: var(--indigo); color: #fff; font-size: 13px; font-weight: 600;
+  padding: 11px 18px; border-radius: 99px; box-shadow: 0 10px 30px rgba(44,41,69,.28);
+  z-index: 90; animation: toast-in .25s ease-out; max-width: 90vw; text-align: center;
+}
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 10px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+/* ===================== PWA — bouton d'installation ===================== */
+.install-fab {
+  position: fixed; right: 16px; z-index: 95;
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  background: var(--gold); color: #2a2410; border: 0; border-radius: 99px;
+  font-weight: 700; font-size: 13px; padding: 12px 17px; cursor: pointer;
+  box-shadow: 0 10px 30px rgba(44,41,69,.32);
+}
+.install-fab:hover { filter: brightness(1.06); }
+.install-ios { position: fixed; inset: 0; background: rgba(28,25,45,.55); backdrop-filter: blur(2px);
+  display: flex; align-items: flex-end; justify-content: center; z-index: 96; padding: 14px; }
+.install-ios-box { background: #fff; border-radius: 16px; padding: 20px 22px; width: 100%; max-width: 420px; box-shadow: var(--shadow-lg); }
+.install-ios-box ol { margin: 12px 0 16px; padding-left: 20px; } .install-ios-box li { margin: 8px 0; }
+
+/* ===================== Optimisation mobile ===================== */
+@media (max-width: 768px) {
+  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); }
+  .hdr { padding: 20px 18px; border-radius: 18px; }
+  .hdr h1 { font-size: 22px; }
+  .hdr .sub { font-size: 13px; }
+  .hdr-row { gap: 14px; }
+  .hdr-actions { align-items: stretch; width: 100%; }
+  .hdr-actions > div { width: 100%; }
+  .hdr-actions .btn { flex: 1; text-align: center; }
+  .hdr-bar { justify-content: stretch; }
+  .hdr-search { width: 100%; flex: 1 1 100%; }
+  .hdr-bar .btn { height: 42px; }
+  .src { text-align: left; }
+
+  /* Onglets : barre défilante horizontale (look appli) */
+  .tabs { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab { white-space: nowrap; flex: 0 0 auto; }
+
+  .section-title { font-size: 17px; margin: 22px 0 12px; }
+  .recap-grid { grid-template-columns: 1fr; }
+
+  /* Boutons confortables au doigt */
+  .btn, .btn-solid, .btn-line { min-height: 44px; }
+
+  /* Tableau des tickets : on garde l'essentiel (Clé, Résumé, Statut) */
+  .panel > table { font-size: 12.5px; }
+  .panel > table th, .panel > table td { padding: 8px 7px; }
+  .panel > table th:nth-child(2), .panel > table td:nth-child(2),  /* Dossier */
+  .panel > table th:nth-child(4), .panel > table td:nth-child(4),  /* Assigné */
+  .panel > table th:nth-child(5), .panel > table td:nth-child(5) { /* Échéance */
+    display: none;
+  }
+
+  /* Modales plus larges */
+  .overlay { padding: 14px 10px; }
+  .modal { max-width: 100%; }
+
+  /* Évite tout débordement horizontal */
+  td, .pcard, .recap-card { word-break: break-word; }
+}
+
+@media (max-width: 480px) {
+  .kpis { gap: 8px; }
+  .install-fab { font-size: 12.5px; padding: 11px 14px; }
 }
