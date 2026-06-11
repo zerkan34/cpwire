@@ -384,7 +384,12 @@ export default function App() {
               <span className="reload-txt">Tout recharger</span>
             </button>
           </div>
-          <div className="panel">
+          <div className="panel cockpit-panel">
+            <div className="recap-hd">
+              <span className="recap-hd-name">Tous les tickets</span>
+              <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
+            </div>
+            <div className="cockpit-bd">
             <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
               onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
               onDossier={setDossier} onStatut={setStatut}
@@ -393,6 +398,7 @@ export default function App() {
               onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
             <div className="sep" />
             <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
+            </div>
           </div>
         </>
       )}
