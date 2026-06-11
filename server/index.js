@@ -12,7 +12,7 @@ import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity }
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
-import { dailyReport, morningReport, ticketReport, meetingReport, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { dailyReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -315,6 +315,26 @@ app.post("/api/meeting/report", guard, upload.fields([{ name: "audio", maxCount:
 });
 
 // ---- Fiches dossiers (éditables) ----
+app.post("/api/meeting/prep", guard, async (req, res) => {
+  try {
+    const { dossier, sujet, type, notes, importedText } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = dossier && dossier !== "Tous" ? got.issues.filter((i) => i.dossier === dossier) : got.issues;
+    const clientNames = new Set();
+    try {
+      for (const d of readDossiers()) {
+        for (const m of (d.team || [])) {
+          if (m && m.cote === "Client" && m.nom) clientNames.add(m.nom.trim().toLowerCase());
+        }
+      }
+    } catch {}
+    const out = await meetingPrep({ dossier: dossier || "Tous les clients", sujet, type, notes, importedText, issues: sub, clientNames });
+    logEvent("prep_reunion", `Préparation réunion - ${dossier || "tous"}${sujet ? " · " + sujet : ""}`, { dossier: dossier || "Tous", sujet: sujet || type || "" });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
 app.get("/api/dossiers", guard, (_req, res) => res.json({ dossiers: readDossiers() }));
 app.put("/api/dossiers/:nom", guard, (req, res) => {
   try {
