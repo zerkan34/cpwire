@@ -134,6 +134,7 @@ function normalize(it) {
     dossier: dossierFromKey(it.key),
     resume: summary,
     assigne,
+    assigneEmail: f.assignee?.emailAddress || "", // souvent masqué par Jira (vie privée)
     dev: devFromIssue(assigne, summary, labels), // dév principal (assigné, sinon titre, sinon étiquette)
     contributors: contributorsFromIssue(assigne, summary, labels), // tous les intervenants (assigné + titre + étiquettes)
     labels,
@@ -234,4 +235,34 @@ export async function fetchIssueDescription(key) {
   } catch {
     return "";
   }
+}
+
+// Pour la fiche développeur : sur ses tickets ACTIFS, combien d'heures CE dev a saisi,
+// depuis quand il en est assigné, et sa dernière activité réelle. Appels à la demande.
+export async function fetchDevWork(devName, keys = []) {
+  if (!isConfigured() || !devName || !keys.length) return { configured: isConfigured(), items: [] };
+  const dn = String(devName).trim().toLowerCase();
+  const out = [];
+  for (const key of keys.slice(0, 10)) {
+    try {
+      const a = await fetchIssueActivity(key);
+      let sec = 0, lastWork = null;
+      (a.worklogs || []).forEach((w) => {
+        if (String(w.who || "").trim().toLowerCase() === dn) {
+          sec += w.seconds || 0;
+          if (w.date && (!lastWork || String(w.date) > String(lastWork))) lastWork = w.date;
+        }
+      });
+      let since = null;
+      (a.timeline || []).forEach((t) => {
+        if (t.champ === "Assigné" && String(t.to || "").trim().toLowerCase() === dn) {
+          if (!since || String(t.date) > String(since)) since = t.date;
+        }
+      });
+      out.push({ cle: key, heuresDevSec: sec, heuresDev: fmtSeconds(sec), depuisAssigne: since, derniereActivite: lastWork, totalTime: a.totalTime });
+    } catch {
+      out.push({ cle: key, heuresDevSec: 0, heuresDev: "0h", depuisAssigne: null, derniereActivite: null, totalTime: "0h" });
+    }
+  }
+  return { configured: true, items: out };
 }

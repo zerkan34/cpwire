@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -256,6 +256,15 @@ app.post("/api/ticket/activity", guard, async (req, res) => {
     if (!isConfigured()) return res.json({ configured: false, timeline: [], worklogs: [], totalTime: "0h" });
     const out = await fetchIssueActivity(req.body.cle);
     res.json({ configured: true, ...out });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/dev/work", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, items: [] });
+    const { dev, keys } = req.body || {};
+    const out = await fetchDevWork(dev, Array.isArray(keys) ? keys : []);
+    res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 

@@ -115,8 +115,18 @@ function parseDevLabels(str) {
   });
   return Object.keys(o).length ? o : null;
 }
+// Table par défaut déduite de la convention observée dans vos étiquettes Jira :
+// 1re lettre du prénom + 2 premières lettres du nom (ex. GPI = Guillaume Pizard, HRE = Hamza Rebai).
+// Surchargeable intégralement par la variable d'env DEV_LABELS ("HRE:Hamza Rebai,SCR:Steven Crugeon").
 export const DEV_LABELS = parseDevLabels(process.env.DEV_LABELS) || {
-  HRE: "Hamza",
+  HRE: "Hamza Rebai", SCR: "Steven Crugeon", GPI: "Guillaume Pizard", MPR: "Mathieu Prie",
+  BPA: "Bastien Pavageau", IGH: "Inès Ghamgui", LCH: "Léo Charrier", FAN: "Fetra Andriamahaly",
+  EPI: "Erik Pillere", GBO: "Geoffrey Bourmond", GGA: "Geoffrey Gambée", JVE: "Joshua Vegas",
+  VNG: "Vantai Nguyen", LGU: "Léo Gualano", MME: "Maamar Meziane", AEL: "Abdelaziz El Kaddari",
+  LSA: "Ludovic Sagnal", MAD: "Michael Adjedj", TMA: "Thomas Malavieille", PAG: "Pedram Aguiard",
+  TNO: "Tony Noel", CCH: "Cyrille Chassange", TKI: "Tania Kicien", MAN: "Marie Antoine Samy",
+  RDA: "Reda Dahmane", GCH: "Gaëtan Chaugny", HFR: "Henry Franceschi", COI: "Clément Oiry",
+  AQU: "Adrien Quillère",
 };
 
 const NAME_IN_TITLE = /\(([A-ZÀ-Ÿ][\p{L}'’.\-]*(?:\s[A-ZÀ-Ÿ][\p{L}'’.\-]*)+)\)\s*$/u;
@@ -140,7 +150,14 @@ export function devFromIssue(assignee = "", summary = "", labels = []) {
 // C'est cette liste qui sert à compter les tickets « travaillés » par dév.
 export function contributorsFromIssue(assignee = "", summary = "", labels = []) {
   const out = [];
-  const add = (n) => { const v = String(n || "").trim(); if (v && v !== "Non assigné" && !out.includes(v)) out.push(v); };
+  const seen = new Set();
+  const add = (n) => {
+    const v = String(n || "").trim();
+    if (!v || v === "Non assigné") return;
+    const k = v.toLowerCase();
+    if (seen.has(k)) return;
+    seen.add(k); out.push(v);
+  };
   if (assignee) add(assignee);
   const m = String(summary || "").match(NAME_IN_TITLE);
   if (m) add(m[1].trim());
