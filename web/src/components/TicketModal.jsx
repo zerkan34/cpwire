@@ -172,9 +172,9 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                   const le = lastEvent(activity);
                   return le ? (
                     <div className="last-update">
-                      <span className="lu-tag">Dernière mise à jour</span>
-                      <span className="lu-body"><b>{le.who}</b>{le.kind === "change" ? " · " : " "}{le.text}</span>
-                      <span className="lu-when">{whenFmt(le.date)} · {ago(le.date)}</span>
+                      <div className="lu-tag">Dernière mise à jour</div>
+                      <div className="lu-body"><span className="lu-who">{le.who}</span>{le.kind === "change" ? <span className="lu-sep"> · </span> : " "}{le.text}</div>
+                      <div className="lu-when">{whenFmt(le.date)} · {ago(le.date)}</div>
                     </div>
                   ) : null;
                 })()}
@@ -188,7 +188,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                           <tr key={k}>
                             <td className="c-when">{whenFmt(t.date)}</td>
                             <td className="c-who">{t.who}</td>
-                            <td className="c-act">{t.champ} : {t.from} → <b>{t.to}</b></td>
+                            <td className="c-act"><span className="chg-field">{t.champ}</span> <span className="chg-from">{t.from || "—"}</span><span className="chg-arrow">→</span><span className="chg-to">{t.to || "—"}</span></td>
                           </tr>
                         ))}
                       </tbody>
