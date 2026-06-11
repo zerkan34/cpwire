@@ -36,6 +36,27 @@ export async function login(email, password) {
   return data;
 }
 
+// ---- Invitation lecture seule ----
+// Lit un éventuel jeton d'invitation passé dans l'URL : ...?invite=<token>
+export const getInviteFromUrl = () => {
+  try { return new URLSearchParams(window.location.search).get("invite") || ""; }
+  catch { return ""; }
+};
+// Retire le paramètre ?invite de l'URL (après connexion) pour ne pas le re-déclencher au rechargement.
+export const stripInviteFromUrl = () => {
+  try {
+    const u = new URL(window.location.href);
+    u.searchParams.delete("invite");
+    window.history.replaceState({}, "", u.pathname + u.search + u.hash);
+  } catch { /* ignore */ }
+};
+// "Connexion" d'un invité : on enregistre le jeton du lien comme jeton d'accès.
+export const loginGuest = (token) => { setToken(token); };
+// Rôle de la session courante : "owner" ou "guest".
+export const fetchSession = () => req(`/api/session`);
+// (Owner) crée un lien d'invitation valable `hours` heures → renvoie { token, expiresAt, hours }.
+export const createInvite = (hours) => post(`/api/invite`, { hours });
+
 export const fetchPortfolio = ({ refresh = false, full = false } = {}) =>
   req(`/api/portfolio${full ? "?full=1" : refresh ? "?refresh=1" : ""}`, { timeoutMs: 180000 });
 export const fetchRecap = () => req(`/api/recap`);

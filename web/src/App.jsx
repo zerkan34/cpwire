@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary } from "./api.js";
+import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite } from "./api.js";
+import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
@@ -38,6 +40,8 @@ function notify(title, body) {
 
 export default function App() {
   const [authed, setAuthed] = useState(Boolean(getToken()));
+  const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
+  const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
   const [data, setData] = useState(null);
   const [dossiers, setDossiers] = useState({});
@@ -80,6 +84,24 @@ export default function App() {
     if (toastTimer.current) clearTimeout(toastTimer.current);
     toastTimer.current = setTimeout(() => setToast(""), 6000);
   }, []);
+
+  // Génère un lien d'invitation en lecture seule, le copie dans le presse-papier.
+  const makeInvite = useCallback(async () => {
+    const raw = window.prompt("Durée de validité du lien d'invitation, en heures (ex. 24 = 1 jour, 168 = 1 semaine) :", "24");
+    if (raw === null) return;
+    const hours = Math.min(Math.max(parseInt(raw, 10) || 24, 1), 720);
+    try {
+      const r = await createInvite(hours);
+      const link = `${window.location.origin}/?invite=${encodeURIComponent(r.token)}`;
+      const until = new Date(r.expiresAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" });
+      try {
+        await navigator.clipboard.writeText(link);
+        showToast(`🔗 Lien d'invitation (lecture seule) copié — valable jusqu'au ${until}.`);
+      } catch {
+        window.prompt(`Copie automatique impossible. Copie ce lien (valable jusqu'au ${until}) :`, link);
+      }
+    } catch (e) { showToast("Échec de création du lien : " + e.message); }
+  }, [showToast]);
 
   useEffect(() => {
     const logout = () => { setAuthed(false); };
@@ -166,6 +188,12 @@ export default function App() {
 
   useEffect(() => { if (authed) load(false); }, [authed, load]);
   useEffect(() => { if (authed) fetchDeletedDevs().then((r) => setDeletedDevs(r.deleted || [])).catch(() => {}); }, [authed]);
+
+  // Confirme le rôle auprès du serveur (lecture seule pour un invité).
+  useEffect(() => {
+    if (!authed) return;
+    fetchSession().then((s) => setReadOnly(s.role === "guest")).catch(() => {});
+  }, [authed]);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
   useEffect(() => { if (query.trim() && tab !== "cockpit") setTab("cockpit"); /* eslint-disable-next-line */ }, [query]);
@@ -285,9 +313,18 @@ export default function App() {
 
   // Garde-fou d'authentification : sans jeton valide, on affiche l'écran de connexion
   // (au lieu de rester bloqué sur la barre de chargement sans rien proposer).
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
+  if (!authed) return (
+    <Login
+      invite={invite}
+      onSuccess={(d) => {
+        if (invite || (d && d.role === "guest")) { stripInviteFromUrl(); setReadOnly(true); }
+        setAuthed(true);
+      }}
+    />
+  );
 
   return (
+    <ReadOnlyContext.Provider value={readOnly}>
     <div className="wrap">
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
@@ -296,6 +333,14 @@ export default function App() {
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
         issues={issues} onOpenTicket={setTicket} />
+
+      {readOnly ? (
+        <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation, génération de comptes rendus et export uniquement ; aucune modification n'est possible.</div>
+      ) : (
+        <div className="owner-bar">
+          <button className="btn-line invite-btn" onClick={makeInvite} title="Créer un lien d'accès en lecture seule, à partager">🔗 Inviter (lien lecture seule)</button>
+        </div>
+      )}
 
       <div className="tabs">
         {TABS.map((t) => (
@@ -376,5 +421,6 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
       <InstallPWA />
     </div>
+    </ReadOnlyContext.Provider>
   );
 }
