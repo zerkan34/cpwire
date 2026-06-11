@@ -1,7 +1,7 @@
 // jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
-import { dossierFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, ME } from "./config.js";
+import { dossierFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME } from "./config.js";
 
 const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
 const EMAIL = process.env.JIRA_EMAIL || "";
@@ -134,7 +134,9 @@ function normalize(it) {
     dossier: dossierFromKey(it.key),
     resume: summary,
     assigne,
-    dev: devFromIssue(assigne, summary), // dév responsable (assigné, sinon nom en fin de titre)
+    dev: devFromIssue(assigne, summary, labels), // dév principal (assigné, sinon titre, sinon étiquette)
+    contributors: contributorsFromIssue(assigne, summary, labels), // tous les intervenants (assigné + titre + étiquettes)
+    labels,
     priorite: f.priority?.name || "",
     statutJira: statusName,
     statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)

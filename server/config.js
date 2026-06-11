@@ -94,11 +94,56 @@ export function bucketFromStatus(statusName = "", _statusCategoryKey = "", flagg
 export const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 
 // --- Identification du développeur --------------------------------------
-// Priorité : la personne assignée Jira. Repli : un nom "Prénom Nom" en fin de
-// titre entre parenthèses (cas des projets de réécriture où le dev est dans le résumé).
+// Un ticket peut impliquer plusieurs personnes. On retient :
+//  1) la personne ASSIGNÉE dans Jira (auto-assignation comprise) ;
+//  2) un nom « (Prénom Nom) » écrit en fin de titre (projets de réécriture) ;
+//  3) les INITIALES présentes dans les ÉTIQUETTES (labels) Jira — ex. « HRE » -> Hamza.
+//
+// >>> Table des initiales d'étiquette -> nom EXACT du dev (tel qu'affiché dans Jira). <<<
+//     À compléter pour chaque dév. Surchargée par la variable d'env DEV_LABELS
+//     au format "HRE:Hamza Rebai,GPI:Guillaume Pizard".
+function parseDevLabels(str) {
+  if (!str) return null;
+  const o = {};
+  String(str).split(/[;,]/).forEach((pair) => {
+    const idx = pair.indexOf(":");
+    if (idx > 0) {
+      const code = pair.slice(0, idx).trim().toUpperCase();
+      const name = pair.slice(idx + 1).trim();
+      if (code && name) o[code] = name;
+    }
+  });
+  return Object.keys(o).length ? o : null;
+}
+export const DEV_LABELS = parseDevLabels(process.env.DEV_LABELS) || {
+  HRE: "Hamza",
+};
+
 const NAME_IN_TITLE = /\(([A-ZÀ-Ÿ][\p{L}'’.\-]*(?:\s[A-ZÀ-Ÿ][\p{L}'’.\-]*)+)\)\s*$/u;
-export function devFromIssue(assignee = "", summary = "") {
+
+// Renvoie un nom de dév depuis une étiquette, si elle correspond à un code connu.
+function devFromLabel(label = "") {
+  const code = String(label || "").trim().toUpperCase();
+  return DEV_LABELS[code] || null;
+}
+
+// Dév « principal » (1 par ticket) : assigné, sinon nom en titre, sinon 1re étiquette connue.
+export function devFromIssue(assignee = "", summary = "", labels = []) {
   if (assignee && assignee !== "Non assigné") return assignee;
   const m = String(summary || "").match(NAME_IN_TITLE);
-  return m ? m[1].trim() : "Non assigné";
+  if (m) return m[1].trim();
+  for (const l of labels || []) { const n = devFromLabel(l); if (n) return n; }
+  return "Non assigné";
+}
+
+// TOUS les contributeurs d'un ticket (assigné + nom en titre + initiales en étiquette).
+// C'est cette liste qui sert à compter les tickets « travaillés » par dév.
+export function contributorsFromIssue(assignee = "", summary = "", labels = []) {
+  const out = [];
+  const add = (n) => { const v = String(n || "").trim(); if (v && v !== "Non assigné" && !out.includes(v)) out.push(v); };
+  if (assignee) add(assignee);
+  const m = String(summary || "").match(NAME_IN_TITLE);
+  if (m) add(m[1].trim());
+  (labels || []).forEach((l) => { const n = devFromLabel(l); if (n) add(n); });
+  return out;
 }
