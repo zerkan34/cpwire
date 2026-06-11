@@ -8,13 +8,15 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity } from "./jira.js";
+import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { dailyReport, morningReport, ticketReport, meetingReport, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
+import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { sendMail, uploadToSharePoint, msConfigured } from "./microsoft.js";
 
@@ -43,8 +45,9 @@ function guard(req, res, next) {
 app.use(cors());
 app.use(express.json({ limit: "8mb" }));
 
-const TTL = (Number(process.env.CACHE_MINUTES) || 15) * 60 * 1000;
-let cache = { at: 0, payload: null };
+// Photo persistante du portefeuille (chargée au démarrage si elle existe).
+let snap = loadSnapshot();                                   // { syncedAt, issues }
+let snapMap = new Map((snap.issues || []).map((i) => [i.cle, i]));
 
 function isToday(iso) {
   if (!iso) return false;
@@ -82,13 +85,71 @@ function aggregate(issues, source) {
   };
 }
 
-async function getIssues(force, jql) {
+// Format de date attendu par JQL : "yyyy/MM/dd HH:mm".
+function jqlDate(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// JQL incrémental : uniquement les tickets modifiés depuis la dernière synchro (avec 5 min de marge).
+function incrementalJql(sinceIso) {
+  const d = new Date(new Date(sinceIso).getTime() - 5 * 60 * 1000);
+  return `project in (${PROJECTS.join(",")}) AND updated >= "${jqlDate(d)}" ORDER BY updated DESC`;
+}
+// Recalcule "en retard" à la lecture (la date du jour avance même sans mouvement du ticket).
+function withLate(issues) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return issues.map((i) => {
+    const due = i.echeance ? new Date(i.echeance) : null;
+    const enRetard = Boolean(due && due < today && i.statut !== "Terminé");
+    return enRetard === i.enRetard ? i : { ...i, enRetard };
+  });
+}
+
+// Récupère les tickets. Stratégie :
+//  - 1er chargement (aucune photo) ou « Tout recharger » -> récupération COMPLÈTE depuis Jira.
+//  - lecture simple -> on sert la mémoire (aucun appel réseau).
+//  - actualisation -> INCRÉMENTALE : on ne va chercher que ce qui a bougé.
+async function getIssues(arg, jqlArg) {
+  const opts = (typeof arg === "object" && arg !== null) ? arg : { refresh: Boolean(arg), jql: jqlArg };
+
   if (isConfigured()) {
-    if (!force && cache.payload && Date.now() - cache.at < TTL) return { issues: cache.payload.issues, source: "Jira (cache)" };
-    const issues = await searchIssues(jql || DEFAULT_JQL);
-    return { issues, source: "Jira (live)" };
+    // Requête personnalisée (avancé) : recherche complète sans toucher à la photo.
+    if (opts.jql) {
+      const issues = await searchIssues(opts.jql);
+      return { issues: withLate(issues), source: "Jira (requête)", changed: [] };
+    }
+
+    const haveSnap = snapMap.size > 0 && snap.syncedAt;
+    if (opts.full || !haveSnap) {
+      const issues = await searchIssues(DEFAULT_JQL);
+      snapMap = new Map(issues.map((i) => [i.cle, i]));
+      snap = { syncedAt: new Date().toISOString(), issues };
+      saveSnapshot(snap);
+      return { issues: withLate(issues), source: "Jira (complet)", changed: [] };
+    }
+
+    if (!opts.refresh) {
+      return { issues: withLate(snap.issues), source: "mémoire", changed: [] };
+    }
+
+    // Actualisation incrémentale.
+    const updated = await searchIssues(incrementalJql(snap.syncedAt));
+    const changed = [];
+    for (const it of updated) {
+      const prev = snapMap.get(it.cle);
+      if (!prev || prev.maj !== it.maj || prev.statut !== it.statut || prev.categorie !== it.categorie) changed.push(it.cle);
+      snapMap.set(it.cle, it);
+    }
+    snap = { syncedAt: new Date().toISOString(), issues: Array.from(snapMap.values()) };
+    saveSnapshot(snap);
+    return {
+      issues: withLate(snap.issues),
+      source: `Jira (incrémental · ${updated.length} vérifié${updated.length > 1 ? "s" : ""})`,
+      changed,
+    };
   }
-  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME })), source: "DÉMO (ALLOW_DEMO=1)" };
+
+  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
   return null; // ni Jira, ni démo -> écran de configuration
 }
 
@@ -112,10 +173,11 @@ app.get("/api/health", (_req, res) =>
 
 app.get("/api/portfolio", guard, async (req, res) => {
   try {
-    const got = await getIssues(req.query.refresh === "1", req.query.jql);
+    const got = await getIssues({ refresh: req.query.refresh === "1", full: req.query.full === "1", jql: req.query.jql });
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
     const payload = aggregate(got.issues, got.source);
-    if (isConfigured()) cache = { at: Date.now(), payload };
+    payload.changed = got.changed || [];
+    payload.syncedAt = snap.syncedAt || null;
     res.json(payload);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
@@ -185,6 +247,15 @@ app.post("/api/ticket/explain", guard, async (req, res) => {
     const explication = await explainTicket(ticket);
     explainCache.set(cacheKey, explication);
     res.json({ explication, cached: false });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Historique (qui a fait quoi, quand) + heures saisies (worklogs) d'un ticket — à la demande.
+app.post("/api/ticket/activity", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, timeline: [], worklogs: [], totalTime: "0h" });
+    const out = await fetchIssueActivity(req.body.cle);
+    res.json({ configured: true, ...out });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
@@ -273,6 +344,22 @@ app.post("/api/share/sharepoint", guard, async (req, res) => {
 });
 
 app.get("/api/history", guard, (_req, res) => res.json({ events: readHistory() }));
+
+// Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).
+app.get("/api/devs/deleted", guard, (_req, res) => res.json({ deleted: readDeleted() }));
+app.post("/api/devs/delete", guard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Nom manquant." });
+  const deleted = addDeleted(name);
+  logEvent("dev_delete", `Fiche développeur masquée : ${name}`);
+  res.json({ deleted });
+});
+app.post("/api/devs/restore", guard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  const deleted = removeDeleted(name);
+  logEvent("dev_restore", `Fiche développeur restaurée : ${name}`);
+  res.json({ deleted });
+});
 
 // ---- Sert l'interface (build) en production : un seul service à déployer ----
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
