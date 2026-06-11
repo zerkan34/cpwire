@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { saveDossier } from "../api.js";
+import { useModalBack, backOut } from "../modalNav.js";
 
 const blank = () => ({ nom: "", poste: "", email: "", statut: "Actif", cote: "Armonie" });
 
 export default function DossierModal({ nom, fiche, onClose, onSaved }) {
+  useModalBack(onClose);
   const [desc, setDesc] = useState(fiche?.description || "");
   const [tech, setTech] = useState((fiche?.tech || []).join(", "));
   const [team, setTeam] = useState((fiche?.team || []).map((m) => ({ ...m })));
@@ -29,10 +31,11 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
   const armonie = team.filter((m) => m.cote === "Armonie");
 
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={backOut}>
       <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
-          <button className="x" onClick={onClose}>×</button>
+          <button className="modal-back" onClick={backOut} title="Retour">←</button>
+          <button className="x" onClick={backOut}>×</button>
           <div className="k">Fiche dossier</div>
           <h3>{nom}</h3>
         </div>
@@ -77,7 +80,7 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
 
           <div className="row-actions">
             <button className="btn-solid gold" onClick={save} disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer la fiche"}</button>
-            <button className="btn-line" onClick={onClose}>Fermer</button>
+            <button className="btn-line" onClick={backOut}>Fermer</button>
           </div>
           {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
         </div>

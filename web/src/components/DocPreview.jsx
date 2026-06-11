@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { downloadHtml, printHtml } from "../utils.js";
 import { shareMail, shareSharePoint } from "../api.js";
+import { useModalBack, backOut } from "../modalNav.js";
 
 function htmlToText(html) {
   const div = document.createElement("div");
@@ -9,6 +10,7 @@ function htmlToText(html) {
 }
 
 export default function DocPreview({ title, html, filename, dossier, onClose }) {
+  useModalBack(onClose);
   const [msg, setMsg] = useState(null);
   const [busy, setBusy] = useState("");
 
@@ -64,10 +66,11 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
 
   if (!html) return null;
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={backOut}>
       <div className="modal" style={{ maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
-          <button className="x" onClick={onClose}>×</button>
+          <button className="modal-back" onClick={backOut} title="Retour">←</button>
+          <button className="x" onClick={backOut}>×</button>
           <div className="k">Document généré</div>
           <h3>{title}</h3>
         </div>

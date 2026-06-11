@@ -4,11 +4,12 @@ import DocPreview from "./DocPreview.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function DailyRecap({ onTicket }) {
+export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
   const [recap, setRecap] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
   const [doc, setDoc] = useState(null);
+  const delSet = new Set(deletedDevs);
 
   useEffect(() => {
     fetchRecap().then(setRecap).catch((e) => setErr(e.message));
@@ -61,13 +62,24 @@ export default function DailyRecap({ onTicket }) {
                 </span>
               </h3>
               <ul>
-                {items.slice(0, 6).map((i) => (
-                  <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                    <span className="k">{i.cle}</span>
-                    <span style={{ flex: 1 }}>{i.resume}</span>
-                    <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
-                  </li>
-                ))}
+                {items.slice(0, 6).map((i) => {
+                  const dev = i.dev || i.assigne || "";
+                  const showDev = dev && dev !== "Non assigné";
+                  const isDel = delSet.has(dev);
+                  return (
+                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
+                      <span className="k">{i.cle}</span>
+                      <span style={{ flex: 1 }}>{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</span>
+                      {showDev && (
+                        <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"
+                          onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>
+                          {dev}{isDel ? <span className="dev-del-tag">supprimé</span> : null}
+                        </span>
+                      )}
+                      <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
+                    </li>
+                  );
+                })}
                 {items.length > 6 && <li style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
               </ul>
               <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>

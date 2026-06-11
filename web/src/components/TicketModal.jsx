@@ -1,8 +1,17 @@
 import React, { useState } from "react";
-import { genTicketReport, pushTicket, explainTicket } from "../api.js";
+import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
 import { frDate } from "../utils.js";
+import { useModalBack, backOut } from "../modalNav.js";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+
+function whenFmt(iso) {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+  } catch { return iso; }
+}
 
 export default function TicketModal({ ticket, onClose, onPushed }) {
   const [note, setNote] = useState("");
@@ -12,6 +21,10 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
   const [msg, setMsg] = useState(null);
   const [explication, setExplication] = useState("");
   const [explLoading, setExplLoading] = useState(false);
+  const [activity, setActivity] = useState(null);
+  const [actLoading, setActLoading] = useState(false);
+
+  useModalBack(onClose);
 
   React.useEffect(() => {
     let alive = true;
@@ -21,6 +34,12 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
         .then((r) => { if (alive) setExplication(r.explication); })
         .catch(() => { if (alive) setExplication(""); })
         .finally(() => { if (alive) setExplLoading(false); });
+
+      setActivity(null); setActLoading(true);
+      fetchTicketActivity(ticket.cle)
+        .then((r) => { if (alive) setActivity(r); })
+        .catch(() => { if (alive) setActivity(null); })
+        .finally(() => { if (alive) setActLoading(false); });
     }
     return () => { alive = false; };
   }, [ticket?.cle]);
@@ -46,18 +65,21 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
     finally { setBusy(""); }
   };
 
+  const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
+
   return (
-    <div className="overlay" onClick={onClose}>
+    <div className="overlay" onClick={backOut}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
-          <button className="x" onClick={onClose}>×</button>
+          <button className="modal-back" onClick={backOut} title="Retour">←</button>
+          <button className="x" onClick={backOut}>×</button>
           <div className="k">{ticket.cle}{ticket.mine ? "  ·  pour moi" : ""}</div>
           <h3>{ticket.resume}</h3>
         </div>
         <div className="modal-bd">
           <div className="meta-grid">
             <div className="cell"><div className="l">Dossier</div><div className="v">{ticket.dossier}</div></div>
-            <div className="cell"><div className="l">Statut</div><div className="v"><span className={`pill ${PILL[ticket.statut]}`}>{ticket.statut}</span>{ticket.enRetard ? <span className="late"> · en retard</span> : null}</div></div>
+            <div className="cell"><div className="l">Statut</div><div className="v"><span className={`pill ${PILL[ticket.statut]}`}>{ticket.statut}</span>{ticket.flagged ? <span className="flag-badge">🚩 FLAGGÉ</span> : null}{ticket.enRetard ? <span className="late"> · en retard</span> : null}</div></div>
             <div className="cell"><div className="l">Assigné</div><div className="v">{ticket.assigne}</div></div>
             <div className="cell"><div className="l">Priorité</div><div className="v">{ticket.priorite || "—"}</div></div>
             <div className="cell"><div className="l">Échéance</div><div className="v">{ticket.echeance || "—"}</div></div>
@@ -76,6 +98,50 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
               <p>{explication}</p>
             ) : (
               <p className="hint">Disponible une fois connecté à Jira (et avec la clé IA pour une explication détaillée).</p>
+            )}
+          </div>
+
+          {/* Historique & temps : qui a fait quoi, quand, et heures saisies */}
+          <div className="expl">
+            <div className="expl-h">Historique &amp; temps</div>
+            {actLoading ? (
+              <p className="hint">Chargement de l'historique…</p>
+            ) : !hasActivity ? (
+              <p className="act-empty">Aucun historique ni temps saisi pour ce ticket (ou Jira non connecté).</p>
+            ) : (
+              <>
+                {activity.totalSeconds > 0 && (
+                  <div className="worklog-total"><b>Temps saisi (total) :</b> {activity.totalTime}</div>
+                )}
+                {activity.worklogs && activity.worklogs.length > 0 && (
+                  <table className="act-tbl">
+                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
+                    <tbody>
+                      {activity.worklogs.map((w, k) => (
+                        <tr key={k}>
+                          <td className="c-when">{whenFmt(w.date)}</td>
+                          <td className="c-who">{w.who}</td>
+                          <td className="c-act"><b>{w.time}</b>{w.comment ? ` — ${w.comment}` : ""}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+                {activity.timeline && activity.timeline.length > 0 && (
+                  <table className="act-tbl">
+                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
+                    <tbody>
+                      {activity.timeline.map((t, k) => (
+                        <tr key={k}>
+                          <td className="c-when">{whenFmt(t.date)}</td>
+                          <td className="c-who">{t.who}</td>
+                          <td className="c-act">{t.champ} : {t.from} → <b>{t.to}</b></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
             )}
           </div>
 
@@ -106,7 +172,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
             <button className="btn-solid gold" onClick={push} disabled={busy === "push"}>
               {busy === "push" ? "Envoi…" : "Envoyer dans Jira"}
             </button>
-            <button className="btn-line" onClick={onClose}>Fermer</button>
+            <button className="btn-line" onClick={backOut}>Fermer</button>
           </div>
 
           {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}

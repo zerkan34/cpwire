@@ -8,6 +8,14 @@ function fmtDate(s) {
   try { return new Date(s).toLocaleDateString("fr-FR"); } catch { return s; }
 }
 
+function prioClass(p) {
+  const x = (p || "").toLowerCase();
+  if (/haut|high|criti|urgen|bloqu/.test(x)) return "p-haute";
+  if (/moy|medium|normal/.test(x)) return "p-moyenne";
+  if (/bas|low|mineur|minor|trivial/.test(x)) return "p-basse";
+  return "";
+}
+
 // Colonnes triables (clé d'accès + façon de comparer).
 const COLS = [
   { key: "cle", label: "Clé", get: (r) => r.cle, type: "text" },
@@ -18,7 +26,7 @@ const COLS = [
   { key: "statut", label: "Statut", get: (r) => STATUT_ORDER[r.statut] ?? 99, type: "num" },
 ];
 
-export default function IssueTable({ rows, loading, onTicket, changedKeys }) {
+export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys }) {
   const [sortKey, setSortKey] = useState(null);   // null = tri "intelligent" par défaut
   const [sortDir, setSortDir] = useState("asc");
 
@@ -70,13 +78,15 @@ export default function IssueTable({ rows, loading, onTicket, changedKeys }) {
       </thead>
       <tbody>
         {sorted.map((r) => {
-          const cls = [r.mine ? "mine" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
+          const cls = [r.mine ? "mine" : "", r.flagged ? "has-flag" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
           return (
             <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
               <td><span className="k">{r.cle}</span></td>
               <td><span className="tag">{r.dossier}</span></td>
-              <td>{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}</td>
-              <td>{r.assigne}</td>
+              <td><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}</td>
+              <td>{r.assigne && r.assigne !== "Non assigné" && onDev
+                ? <span className="assignee-link" title="Voir la fiche du développeur" onClick={(e) => { e.stopPropagation(); onDev(r.assigne); }}>{r.assigne}</span>
+                : r.assigne}</td>
               <td>{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
               <td><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
             </tr>

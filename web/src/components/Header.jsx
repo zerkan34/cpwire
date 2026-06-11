@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 function Kpi({ lbl, val, cls }) {
   return (
@@ -9,22 +9,47 @@ function Kpi({ lbl, val, cls }) {
   );
 }
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, query, onQuery, notifOn, onToggleNotif }) {
   const k = kpis || {};
   const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
+
+  // Jauge de chargement (simulée : progresse vers ~92 %, puis 100 % à la fin).
+  const [prog, setProg] = useState(0);
+  useEffect(() => {
+    let id;
+    if (loading) {
+      setProg((p) => (p > 0 && p < 92 ? p : 8));
+      id = setInterval(() => setProg((p) => (p < 92 ? p + Math.max(1, (92 - p) * 0.07) : p)), 320);
+      return () => clearInterval(id);
+    } else {
+      setProg((p) => (p > 0 ? 100 : 0));
+      const t = setTimeout(() => setProg(0), 550);
+      return () => clearTimeout(t);
+    }
+  }, [loading]);
+
   return (
     <header className="hdr">
       <div className="hdr-row">
         <div>
-          <img src="/cpwire-logo.png" alt="CPwire" className="hdr-logo" />
-          <div className="eyebrow">Cockpit de pilotage</div>
-          <h1>Ce qu'il reste à faire &amp; ce qui avance</h1>
+          <span className="hdr-brand">
+            <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
+            <span className="eyebrow">Cockpit de pilotage</span>
+          </span>
+          <h1>Welcome to the jungle !</h1>
         </div>
         <div className="hdr-actions">
           <div style={{ display: "flex", gap: 8 }}>
-            <button className="btn gold" onClick={onRefresh} disabled={loading}>
-              {loading ? "Actualisation…" : "Actualiser"}
+            <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
+              <span className="gauge-fill" style={{ width: `${prog}%` }} />
+              <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
             </button>
+            {onToggleNotif && (
+              <button className={`btn bell ${notifOn ? "on" : "ghost"}`} onClick={onToggleNotif}
+                title={notifOn ? "Notifications activées (actualisation auto)" : "Activer les notifications + actualisation auto"}>
+                {notifOn ? "🔔" : "🔕"}
+              </button>
+            )}
             <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
           </div>
           <div className="src">
@@ -34,6 +59,15 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           </div>
         </div>
       </div>
+
+      {onQuery && (
+        <div className="hdr-search">
+          <span className="hs-ic">🔎</span>
+          <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
+            placeholder="Rechercher un ticket, une personne, une clé, un mot…" />
+          {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
+        </div>
+      )}
 
       <div className="kpis">
         <Kpi lbl="Total" val={k.total} />

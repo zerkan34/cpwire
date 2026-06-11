@@ -1,14 +1,13 @@
 import React, { useMemo, useState } from "react";
-import DeveloperModal from "./DeveloperModal.jsx";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 const DONE = ["termine", "miseEnProd"];
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 
 // Onglet "Développeurs" : qui a combien de tickets ; clic sur un dev -> fiche (stats jour/mois).
-export default function Developers({ issues = [], onTicket }) {
+export default function Developers({ issues = [], onTicket, onDev, deletedDevs = [] }) {
   const [dossier, setDossier] = useState("Tous");
-  const [selected, setSelected] = useState(null); // ligne dev ouverte en fiche
+  const delSet = new Set(deletedDevs);
 
   const dossiers = useMemo(
     () => ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()],
@@ -35,12 +34,13 @@ export default function Developers({ issues = [], onTicket }) {
   const maxTotal = rows.reduce((m, r) => Math.max(m, r.total), 0) || 1;
   const totalTickets = rows.reduce((s, r) => s + r.total, 0);
   const realDevs = rows.filter((r) => r.dev !== "Non assigné").length;
+  const nonAssigne = rows.find((r) => r.dev === "Non assigné")?.total || 0;
 
   return (
     <>
       <div className="section-title">Développeurs
         <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {realDevs} développeur(s) · {totalTickets} ticket(s){dossier !== "Tous" ? ` · ${dossier}` : ""}
+          {" "}— {realDevs} développeur(s) · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}
         </span>
       </div>
 
@@ -59,8 +59,8 @@ export default function Developers({ issues = [], onTicket }) {
         ) : (
           <div className="dev-list">
             {rows.map((r) => (
-              <button className="dev-row" key={r.dev} onClick={() => setSelected(r.dev)} title="Voir la fiche du développeur">
-                <span className="dev-name">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
+              <button className={`dev-row ${delSet.has(r.dev) ? "del" : ""}`} key={r.dev} onClick={() => onDev && onDev(r.dev)} title="Voir la fiche du développeur">
+                <span className="dev-name dname">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}{delSet.has(r.dev) ? <span className="dev-del-tag">fiche supprimée</span> : null}</span>
                 <span className="dev-bar">
                   <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
                 </span>
@@ -82,17 +82,9 @@ export default function Developers({ issues = [], onTicket }) {
         Clique un développeur pour ouvrir sa fiche (tickets pris, activité du jour, répartition par mois).
         Légende : <span className="pill done">terminés</span> <span className="pill prog">en cours</span>
         <span className="pill todo">en recette</span>. Le volume reflète l'activité, pas une note de performance.
-        Les tickets sans personne assignée dans Jira apparaissent sous « Non assigné ⚠ ».
+        <br />
+        <b>Comment c'est compté :</b> un ticket est rattaché à la <b>personne assignée dans Jira</b> (à défaut, à un nom « (Prénom Nom) » écrit en fin de titre). Un développeur peut donc paraître « léger » si ses tickets ne lui sont pas assignés dans Jira — ils tombent alors dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici) ou sont au nom d'un autre. Le détail réel de qui a agi et quand reste visible dans chaque ticket (Historique &amp; temps).
       </p>
-
-      {selected && (
-        <DeveloperModal
-          devName={selected}
-          allIssues={issues}
-          onClose={() => setSelected(null)}
-          onTicket={(i) => { setSelected(null); onTicket && onTicket(i); }}
-        />
-      )}
     </>
   );
 }

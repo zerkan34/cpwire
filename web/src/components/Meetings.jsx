@@ -15,13 +15,14 @@ export default function Meetings() {
   const audioRef = useRef();
   const imgRef = useRef();
 
-  const generate = async () => {
+  const generate = async (regen = false) => {
     setBusy(true); setErr("");
     try {
       const fd = new FormData();
       fd.append("titre", titre);
       fd.append("participants", participants);
       fd.append("notes", notes);
+      if (regen) fd.append("regenerate", "1");
       if (transcript) fd.append("transcript", transcript);
       if (audio) fd.append("audio", audio);
       images.forEach((im) => fd.append("images", im));
@@ -73,8 +74,12 @@ export default function Meetings() {
         </div>
 
         <div className="row-actions">
-          <button className="btn-solid" onClick={generate} disabled={busy}>
+          <button className="btn-solid" onClick={() => generate(false)} disabled={busy}>
             {busy ? "Rédaction du compte rendu…" : "Générer le compte rendu"}
+          </button>
+          <button className="btn-line" onClick={() => generate(true)} disabled={busy || !notes.trim()}
+            title="Refait une passe IA à partir de tes notes pour un rendu plus clair et structuré">
+            ↻ Regénérer avec l'IA
           </button>
         </div>
         {err && <div className="warn-note">{err}</div>}
