@@ -1,14 +1,14 @@
 import React, { useMemo, useState } from "react";
+import DeveloperModal from "./DeveloperModal.jsx";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 const DONE = ["termine", "miseEnProd"];
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", "Terminé": "done" };
 
-// Onglet "Développeurs" : qui a combien de tickets, par dossier, + l'historique cliquable.
+// Onglet "Développeurs" : qui a combien de tickets ; clic sur un dev -> fiche (stats jour/mois).
 export default function Developers({ issues = [], onTicket }) {
   const [dossier, setDossier] = useState("Tous");
-  const [open, setOpen] = useState(null);
+  const [selected, setSelected] = useState(null); // ligne dev ouverte en fiche
 
   const dossiers = useMemo(
     () => ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()],
@@ -49,7 +49,7 @@ export default function Developers({ issues = [], onTicket }) {
           <span className="fg-lbl">Dossier</span>
           {dossiers.map((d) => (
             <button key={d} className={`fbtn ${dossier === d ? "active" : ""}`}
-              onClick={() => { setDossier(d); setOpen(null); }}>{d}</button>
+              onClick={() => setDossier(d)}>{d}</button>
           ))}
         </div>
         <div className="sep" />
@@ -59,47 +59,40 @@ export default function Developers({ issues = [], onTicket }) {
         ) : (
           <div className="dev-list">
             {rows.map((r) => (
-              <div className="dev-block" key={r.dev}>
-                <button className="dev-row" onClick={() => setOpen(open === r.dev ? null : r.dev)}>
-                  <span className="dev-name">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
-                  <span className="dev-bar">
-                    <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
-                  </span>
-                  <span className="dev-counts">
-                    <span className="dev-tot">{r.total}</span>
-                    <span className="pill done">{r.termine}</span>
-                    <span className="pill prog">{r.encours}</span>
-                    {r.recette ? <span className="pill todo">{r.recette}</span> : null}
-                    {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
-                    <span className="dev-caret">{open === r.dev ? "▾" : "▸"}</span>
-                  </span>
-                </button>
-                {open === r.dev && (
-                  <ul className="dev-items">
-                    {r.items
-                      .slice()
-                      .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")))
-                      .map((i) => (
-                        <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                          <span className="k">{i.cle}</span>
-                          <span style={{ flex: 1 }}>{i.resume}</span>
-                          <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>
-                        </li>
-                      ))}
-                  </ul>
-                )}
-              </div>
+              <button className="dev-row" key={r.dev} onClick={() => setSelected(r.dev)} title="Voir la fiche du développeur">
+                <span className="dev-name">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
+                <span className="dev-bar">
+                  <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
+                </span>
+                <span className="dev-counts">
+                  <span className="dev-tot">{r.total}</span>
+                  <span className="pill done">{r.termine}</span>
+                  <span className="pill prog">{r.encours}</span>
+                  {r.recette ? <span className="pill todo">{r.recette}</span> : null}
+                  {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
+                  <span className="dev-caret">›</span>
+                </span>
+              </button>
             ))}
           </div>
         )}
       </div>
 
       <p className="hint">
+        Clique un développeur pour ouvrir sa fiche (tickets pris, activité du jour, répartition par mois).
         Légende : <span className="pill done">terminés</span> <span className="pill prog">en cours</span>
-        <span className="pill todo">en recette</span>. Le volume (nombre de tickets) reflète l'activité, pas une
-        note de performance — un ticket peut être trivial ou très lourd. Les tickets sans personne assignée dans
-        Jira apparaissent sous « Non assigné ⚠ ».
+        <span className="pill todo">en recette</span>. Le volume reflète l'activité, pas une note de performance.
+        Les tickets sans personne assignée dans Jira apparaissent sous « Non assigné ⚠ ».
       </p>
+
+      {selected && (
+        <DeveloperModal
+          devName={selected}
+          allIssues={issues}
+          onClose={() => setSelected(null)}
+          onTicket={(i) => { setSelected(null); onTicket && onTicket(i); }}
+        />
+      )}
     </>
   );
 }
