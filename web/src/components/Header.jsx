@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 
 function Kpi({ lbl, val, cls }) {
   return (
@@ -18,9 +18,31 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
+
+  // ----- Recherche : suggestions en accordéon sous la barre -----
+  const [sFocus, setSFocus] = useState(false);
+  const [sRect, setSRect] = useState(null);
+  const searchRef = useRef();
+  const q = (query || "").trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    if (q.length < 2) return [];
+    const hit = (i) => `${i.cle} ${i.resume} ${i.dossier} ${(i.contributors || []).join(" ")} ${(i.labels || []).join(" ")} ${i.assigne || ""}`.toLowerCase().includes(q);
+    const arr = issues.filter(hit);
+    // les correspondances de clé d'abord
+    arr.sort((a, b) => (String(b.cle).toLowerCase().includes(q) ? 1 : 0) - (String(a.cle).toLowerCase().includes(q) ? 1 : 0));
+    return arr.slice(0, 8);
+  }, [issues, q]);
+  const showSuggest = sFocus && q.length >= 2;
+  useEffect(() => {
+    if (!showSuggest) return;
+    const upd = () => { if (searchRef.current) { const r = searchRef.current.getBoundingClientRect(); setSRect({ left: r.left, top: r.bottom + 6, width: r.width }); } };
+    upd();
+    window.addEventListener("resize", upd); window.addEventListener("scroll", upd, true);
+    return () => { window.removeEventListener("resize", upd); window.removeEventListener("scroll", upd, true); };
+  }, [showSuggest, q]);
   const k = kpis || {};
   const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
 
@@ -52,11 +74,29 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <div className="hdr-actions">
           <div className="hdr-bar">
             {onQuery && (
-              <div className="hdr-search">
+              <div className="hdr-search" ref={searchRef}>
                 <span className="hs-ic">🔎</span>
                 <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
+                  onFocus={() => setSFocus(true)} onBlur={() => setTimeout(() => setSFocus(false), 160)}
                   placeholder="Rechercher un ticket, une personne, une clé…" />
                 {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
+                {showSuggest && sRect && (
+                  <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: sRect.width, zIndex: 2000 }}>
+                    {suggestions.length === 0 ? (
+                      <div className="ss-empty">Aucun résultat pour « {query} »</div>
+                    ) : suggestions.map((i) => (
+                      <button className="ss-item" key={i.cle}
+                        onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
+                        <span className="ss-key">{i.cle}</span>
+                        <span className="ss-res">{i.resume}</span>
+                        <span className="ss-meta">
+                          {(i.contributors && i.contributors[0]) || i.assigne || ""}
+                          {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
             <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
@@ -96,6 +136,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
                               <span className="ni-dot" />
                               <span className="ni-body">
                                 <span className="ni-line"><b>{n.cle}</b> — {n.resume}</span>
+                                <span className="ni-expl">{n.who ? <b>{n.who}</b> : null}{n.who ? " · " : ""}{n.action || "Mis à jour"}</span>
                                 <span className="ni-meta">{n.statut ? <span className={`pill ${PILL[n.statut] || ""}`}>{n.statut}</span> : null}<span className="ni-time">{timeAgo(n.at)}</span></span>
                               </span>
                             </button>

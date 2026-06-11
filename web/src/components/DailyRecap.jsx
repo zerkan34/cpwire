@@ -55,12 +55,13 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
           const blocked = items.filter((i) => i.statut === "Bloqué").length;
           return (
             <div className="recap-card" key={dossier}>
-              <h3>
-                {dossier}
-                <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>
+              <div className="recap-hd">
+                <span className="recap-hd-name">{dossier}</span>
+                <span className="recap-hd-meta">
                   {done} fait{done > 1 ? "s" : ""}{blocked ? ` · ${blocked} bloqué${blocked > 1 ? "s" : ""}` : ""}
                 </span>
-              </h3>
+              </div>
+              <div className="recap-bd">
               <ul>
                 {items.slice(0, 6).map((i) => {
                   const dev = i.dev || i.assigne || "";
@@ -89,6 +90,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
               <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>
                 {busy === dossier ? "Rédaction du CR…" : `Formuler le CR journalier de ${dossier}`}
               </button>
+              </div>
             </div>
           );
         })}

@@ -39,6 +39,27 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
     }).sort((a, b) => b.active - a.active || b.blocked - a.blocked);
   }, [issues]);
 
+  const devsList = useMemo(() => {
+    const m = {};
+    issues.forEach((i) => {
+      const who = (i.contributors && i.contributors.length) ? i.contributors : [i.dev || i.assigne || "Non assigné"];
+      who.forEach((d) => {
+        (m[d] ||= { dev: d, total: 0, done: 0, active: 0, wait: 0, blocked: 0, activeItems: [] });
+        const x = m[d];
+        x.total += 1;
+        if (DONE.includes(i.categorie)) x.done += 1;
+        if (i.statut === "Bloqué") x.blocked += 1;
+        else if (ACTIVE.includes(i.categorie)) x.active += 1;
+        if (WAIT.includes(i.categorie)) x.wait += 1;
+        if (ACTIVE.includes(i.categorie) || i.statut === "Bloqué") x.activeItems.push(i);
+      });
+    });
+    return Object.values(m)
+      .map((x) => { x.avancement = x.total ? Math.round((x.done / x.total) * 100) : 0; x.activeItems.sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))); return x; })
+      .filter((x) => x.dev !== "Non assigné" && (x.active > 0 || x.blocked > 0))
+      .sort((a, b) => (b.active + b.blocked) - (a.active + a.blocked));
+  }, [issues]);
+
   const totalActive = clients.reduce((s, c) => s + c.active, 0);
   const totalBlocked = clients.reduce((s, c) => s + c.blocked, 0);
 
@@ -102,6 +123,49 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
           </div>
         ))}
       </div>
+
+      <div className="section-title" style={{ marginTop: 28 }}>Par développeur — qui fait quoi en ce moment
+        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
+          {" "}— {devsList.length} en activité · clique un nom pour ses heures &amp; son activité
+        </span>
+      </div>
+      {devsList.length === 0 ? (
+        <div className="panel empty">Aucun développeur avec un ticket actif en ce moment.</div>
+      ) : (
+        <div className="enc-grid">
+          {devsList.map((d) => (
+            <div className="enc-card" key={d.dev}>
+              <div className="enc-hd">
+                <span className={`enc-name clk ${delSet.has(d.dev) ? "del" : ""}`} title="Voir sa fiche (heures, depuis quand, activité)"
+                  onClick={() => onDev && onDev(d.dev)}>{d.dev}</span>
+                <span className="enc-pct">{d.active + d.blocked} actif(s)</span>
+              </div>
+              <div className="enc-bd">
+                <div className="enc-gauge"><span style={{ width: `${d.avancement}%` }} /></div>
+                <div className="enc-chips">
+                  <span className="pill done">{d.done} terminés</span>
+                  <span className="pill prog">{d.active} en cours</span>
+                  {d.wait ? <span className="pill todo">{d.wait} en recette</span> : null}
+                  {d.blocked ? <span className="pill block">{d.blocked} bloqué(s)</span> : null}
+                </div>
+                <div className="enc-sub">Sur quoi il travaille</div>
+                <ul className="enc-tix">
+                  {d.activeItems.slice(0, 7).map((i) => (
+                    <li key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                      <span className="k">{i.cle}</span>
+                      <span className="tag">{i.dossier}</span>
+                      <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</span>
+                      <span className={`pill ${PILL[i.statut]}`}>{CAT_LABEL[i.categorie] || i.statutJira || i.statut}</span>
+                    </li>
+                  ))}
+                  {d.activeItems.length > 7 && <li className="muted" style={{ cursor: "default" }}>+ {d.activeItems.length - 7} autre(s)…</li>}
+                </ul>
+                <button className="btn-line sm" style={{ marginTop: 10 }} onClick={() => onDev && onDev(d.dev)}>Voir ses heures &amp; son activité</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

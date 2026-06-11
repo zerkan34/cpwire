@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
-import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche } from "./api.js";
+import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary } from "./api.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
@@ -111,16 +111,31 @@ export default function App() {
         } else {
           setChangedKeys(null);
         }
-        // Notifications : sur une actualisation auto (silencieuse), on ajoute une entrée
-        // par ticket modifié dans le panneau de la cloche (avec OS notification).
+        // Notifications : sur une actualisation auto (silencieuse), on explique CE QUI a changé
+        // (qui / quoi / quand), en lisant le changelog — la MÊME source que « Historique & temps ».
         if (silent && ch.length) {
           const byKey = new Map((p.issues || []).map((i) => [i.cle, i]));
-          const entries = ch.map((k) => {
-            const i = byKey.get(k) || {};
-            return { id: `${k}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, cle: k, resume: i.resume || "Ticket mis à jour", statut: i.statut || "", at: Date.now(), read: false };
-          });
-          setNotifs((prev) => [...entries, ...prev].slice(0, 60));
+          const prevByKey = new Map((data?.issues || []).map((i) => [i.cle, i]));
           notify(`🔔 ${ch.length} ticket(s) modifié(s) dans Jira`, ch.slice(0, 4).join(", "));
+          const mkId = (k) => `${k}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+          const fallback = (k) => {
+            const i = byKey.get(k) || {}; const old = prevByKey.get(k); let action = "Mis à jour";
+            if (old && old.statut !== i.statut) action = `Statut : ${old.statut} → ${i.statut}`;
+            else if (old && (old.assigne || "") !== (i.assigne || "")) action = `Réassigné à ${i.assigne || "Non assigné"}`;
+            return { id: mkId(k), cle: k, resume: i.resume || "Ticket", who: "", action, kind: "update", statut: i.statut || "", at: Date.now(), read: false };
+          };
+          fetchChangesSummary(ch)
+            .then((res) => {
+              if (res.configured === false || !(res.items || []).length) { setNotifs((prev) => [...ch.map(fallback), ...prev].slice(0, 60)); return; }
+              const sum = new Map(res.items.map((it) => [it.cle, it]));
+              const entries = ch.map((k) => {
+                const i = byKey.get(k) || {}; const s = sum.get(k);
+                if (!s || !s.action) return fallback(k);
+                return { id: mkId(k), cle: k, resume: i.resume || "Ticket", who: s.who || "", action: s.action, kind: s.kind || "update", statut: i.statut || "", at: s.at || Date.now(), read: false };
+              });
+              setNotifs((prev) => [...entries, ...prev].slice(0, 60));
+            })
+            .catch(() => setNotifs((prev) => [...ch.map(fallback), ...prev].slice(0, 60)));
         }
         const n = p.diagnostic?.totalImporte ?? (p.issues?.length || 0);
         if (full) {
@@ -216,7 +231,41 @@ export default function App() {
     });
   }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
-  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
+  // Compteurs des pastilles : reflètent la COMBINAISON de filtres en cours (sauf la dimension comptée),
+  // pour qu'un compteur ne contredise jamais le tableau (ex. plus de "26" alors que le tableau est vide).
+  const counts = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const workers = (i) => (i.contributors && i.contributors.length) ? i.contributors : [i.assigne || "Non assigné"];
+    const hay = (i) => `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${workers(i).join(" ")} ${(i.labels || []).join(" ")} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
+    const ok = (i, except) => {
+      if (except !== "dossier" && dossier !== "Tous" && i.dossier !== dossier) return false;
+      if (except !== "statut" && statut !== "Tous" && i.statut !== statut) return false;
+      if (except !== "late" && onlyLate && !i.enRetard) return false;
+      if (except !== "mine" && onlyMine && !i.mine) return false;
+      if (except !== "flagged" && onlyFlagged && !i.flagged) return false;
+      if (except !== "person" && person !== "Tous" && !workers(i).includes(person)) return false;
+      if (except !== "priorite" && priorite !== "Tous" && (i.priorite || "—") !== priorite) return false;
+      if (except !== "query" && q && !hay(i).includes(q)) return false;
+      return true;
+    };
+    const dossierC = {}, statutC = {}, prioriteC = {}, personC = {};
+    issues.forEach((i) => {
+      if (ok(i, "dossier")) dossierC[i.dossier] = (dossierC[i.dossier] || 0) + 1;
+      if (ok(i, "statut")) statutC[i.statut] = (statutC[i.statut] || 0) + 1;
+      if (ok(i, "priorite")) { const p = i.priorite || "—"; prioriteC[p] = (prioriteC[p] || 0) + 1; }
+      if (ok(i, "person")) workers(i).forEach((w) => { personC[w] = (personC[w] || 0) + 1; });
+    });
+    return {
+      dossier: dossierC, statut: statutC, priorite: prioriteC, person: personC,
+      dossierAll: issues.filter((i) => ok(i, "dossier")).length,
+      statutAll: issues.filter((i) => ok(i, "statut")).length,
+      personAll: issues.filter((i) => ok(i, "person")).length,
+      prioriteAll: issues.filter((i) => ok(i, "priorite")).length,
+      late: issues.filter((i) => ok(i, "late") && i.enRetard).length,
+      mine: issues.filter((i) => ok(i, "mine") && i.mine).length,
+      flagged: issues.filter((i) => ok(i, "flagged") && i.flagged).length,
+    };
+  }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
   const diag = data?.diagnostic;
 
@@ -227,7 +276,8 @@ export default function App() {
         onLogout={() => { clearToken(); setAuthed(false); }}
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
-        notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead} />
+        notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
+        issues={issues} onOpenTicket={setTicket} />
 
       <div className="tabs">
         {TABS.map((t) => (
@@ -271,7 +321,7 @@ export default function App() {
             </button>
           </div>
           <div className="panel">
-            <Filters issues={issues} statuts={STATUTS} dossier={dossier} statut={statut}
+            <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
               onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
               onDossier={setDossier} onStatut={setStatut}
               onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}

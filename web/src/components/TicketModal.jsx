@@ -13,6 +13,28 @@ function whenFmt(iso) {
     return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   } catch { return iso; }
 }
+function ago(iso) {
+  if (!iso) return "";
+  const t = new Date(iso).getTime(); if (isNaN(t)) return "";
+  const s = Math.max(1, Math.round((Date.now() - t) / 1000));
+  if (s < 60) return "à l'instant";
+  const m = Math.round(s / 60); if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60); if (h < 24) return `il y a ${h} h`;
+  const d = Math.round(h / 24); if (d < 30) return `il y a ${d} j`;
+  return `il y a ${Math.round(d / 30)} mois`;
+}
+// Dernier évènement réel (changement statut/assigné OU saisie de temps) — pour « Dernière mise à jour ».
+function lastEvent(activity) {
+  if (!activity) return null;
+  const tl = (activity.timeline && activity.timeline[0]) || null; // listes déjà triées du + récent au + ancien
+  const wl = (activity.worklogs && activity.worklogs[0]) || null;
+  const cand = [];
+  if (tl) cand.push({ kind: "change", date: tl.date, who: tl.who, text: `${tl.champ} : ${tl.from} → ${tl.to}` });
+  if (wl) cand.push({ kind: "time", date: wl.date, who: wl.who, text: `a saisi ${wl.time}${wl.comment ? ` — ${wl.comment}` : ""}` });
+  if (!cand.length) return null;
+  cand.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  return cand[0];
+}
 
 export default function TicketModal({ ticket, onClose, onPushed }) {
   const [note, setNote] = useState("");
@@ -82,15 +104,15 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
     if (explication) body += `<h2>Explication</h2><p>${esc(explication)}</p>`;
     if (note) body += `<h2>Note du chef de projet</h2><p>${esc(note)}</p>`;
     if (report) body += `<h2>Rapport</h2><p>${esc(report).replace(/\n/g, "<br>")}</p>`;
-    if (activity?.worklogs?.length) {
-      body += `<h2>Temps saisi${activity.totalSeconds > 0 ? ` — total ${esc(activity.totalTime)}` : ""}</h2>` +
-        `<table><tr><th>Quand</th><th>Qui</th><th>Durée &amp; détail</th></tr>` +
-        activity.worklogs.map((w) => `<tr><td>${esc(whenFmt(w.date))}</td><td>${esc(w.who)}</td><td><b>${esc(w.time)}</b>${w.comment ? ` — ${esc(w.comment)}` : ""}</td></tr>`).join("") + `</table>`;
-    }
     if (activity?.timeline?.length) {
       body += `<h2>Historique des changements</h2>` +
         `<table><tr><th>Quand</th><th>Qui</th><th>Action</th></tr>` +
         activity.timeline.map((t) => `<tr><td>${esc(whenFmt(t.date))}</td><td>${esc(t.who)}</td><td>${esc(t.champ)} : ${esc(t.from)} → <b>${esc(t.to)}</b></td></tr>`).join("") + `</table>`;
+    }
+    if (activity?.worklogs?.length) {
+      body += `<h2>Temps saisi${activity.totalSeconds > 0 ? ` — total ${esc(activity.totalTime)}` : ""}</h2>` +
+        `<table><tr><th>Quand</th><th>Qui</th><th>Durée &amp; détail</th></tr>` +
+        activity.worklogs.map((w) => `<tr><td>${esc(whenFmt(w.date))}</td><td>${esc(w.who)}</td><td><b>${esc(w.time)}</b>${w.comment ? ` — ${esc(w.comment)}` : ""}</td></tr>`).join("") + `</table>`;
     }
     if (!body) body = "<p class='muted'>Aucun détail complémentaire pour ce ticket.</p>";
     return buildSimpleDoc({ kicker: "Fiche ticket", title: `${ticket.cle} — ${ticket.resume}`, cartouche, bodyHtml: body });
@@ -144,36 +166,49 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
               <p className="act-empty">Aucun historique ni temps saisi pour ce ticket (ou Jira non connecté).</p>
             ) : (
               <>
-                {activity.totalSeconds > 0 && (
-                  <div className="worklog-total"><b>Temps saisi (total) :</b> {activity.totalTime}</div>
+                {(() => {
+                  const le = lastEvent(activity);
+                  return le ? (
+                    <div className="last-update">
+                      <span className="lu-tag">Dernière mise à jour</span>
+                      <span className="lu-body"><b>{le.who}</b>{le.kind === "change" ? " · " : " "}{le.text}</span>
+                      <span className="lu-when">{whenFmt(le.date)} · {ago(le.date)}</span>
+                    </div>
+                  ) : null;
+                })()}
+                {activity.timeline && activity.timeline.length > 0 && (
+                  <>
+                    <div className="act-sub">Historique des changements</div>
+                    <table className="act-tbl">
+                      <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
+                      <tbody>
+                        {activity.timeline.map((t, k) => (
+                          <tr key={k}>
+                            <td className="c-when">{whenFmt(t.date)}</td>
+                            <td className="c-who">{t.who}</td>
+                            <td className="c-act">{t.champ} : {t.from} → <b>{t.to}</b></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
                 {activity.worklogs && activity.worklogs.length > 0 && (
-                  <table className="act-tbl">
-                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
-                    <tbody>
-                      {activity.worklogs.map((w, k) => (
-                        <tr key={k}>
-                          <td className="c-when">{whenFmt(w.date)}</td>
-                          <td className="c-who">{w.who}</td>
-                          <td className="c-act"><b>{w.time}</b>{w.comment ? ` — ${w.comment}` : ""}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-                {activity.timeline && activity.timeline.length > 0 && (
-                  <table className="act-tbl">
-                    <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
-                    <tbody>
-                      {activity.timeline.map((t, k) => (
-                        <tr key={k}>
-                          <td className="c-when">{whenFmt(t.date)}</td>
-                          <td className="c-who">{t.who}</td>
-                          <td className="c-act">{t.champ} : {t.from} → <b>{t.to}</b></td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  <>
+                    <div className="act-sub">Temps saisi{activity.totalSeconds > 0 ? ` — total ${activity.totalTime}` : ""}</div>
+                    <table className="act-tbl">
+                      <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
+                      <tbody>
+                        {activity.worklogs.map((w, k) => (
+                          <tr key={k}>
+                            <td className="c-when">{whenFmt(w.date)}</td>
+                            <td className="c-who">{w.who}</td>
+                            <td className="c-act"><b>{w.time}</b>{w.comment ? ` — ${w.comment}` : ""}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </>
                 )}
               </>
             )}
