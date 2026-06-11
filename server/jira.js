@@ -85,6 +85,8 @@ export async function searchIssues(jql) {
   let nextPageToken;
   let guard = 0;
   const MAX_PAGES = 2000;
+  const t0 = Date.now();
+  console.log(`[import v2] début · jql="${String(jql).slice(0, 90)}"`);
 
   do {
     const body = { jql, maxResults: 100, fields };
@@ -102,15 +104,18 @@ export async function searchIssues(jql) {
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      console.error(`[import v2] ERREUR Jira ${res.status} à la page ${guard + 1} : ${text.slice(0, 200)}`);
       throw new Error(`Jira a répondu ${res.status} : ${text.slice(0, 300)}`);
     }
 
     const data = await res.json();
     (data.issues || []).forEach((it) => issues.push(normalize(it)));
-    nextPageToken = data.isLast ? undefined : data.nextPageToken;
     guard += 1;
+    console.log(`[import v2] page ${guard} · +${(data.issues || []).length} (total ${issues.length}) · isLast=${data.isLast === true}`);
+    nextPageToken = data.isLast ? undefined : data.nextPageToken;
   } while (nextPageToken && guard < MAX_PAGES);
 
+  console.log(`[import v2] TERMINÉ · ${issues.length} tickets · ${guard} page(s) · ${Date.now() - t0} ms`);
   return issues;
 }
 

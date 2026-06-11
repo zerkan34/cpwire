@@ -48,6 +48,29 @@ app.use(express.json({ limit: "8mb" }));
 // Photo persistante du portefeuille (chargée au démarrage si elle existe).
 let snap = loadSnapshot();                                   // { syncedAt, issues }
 let snapMap = new Map((snap.issues || []).map((i) => [i.cle, i]));
+let importing = false;       // un import complet tourne-t-il en arrière-plan ?
+let importError = null;      // dernière erreur d'import (affichée à l'utilisateur)
+
+// Import complet EN ARRIÈRE-PLAN : ne bloque jamais une requête HTTP (évite les coupures
+// proxy de Render sur requête longue, et donc le gel de la barre à 92 %).
+async function runFullImport() {
+  if (importing) return;
+  importing = true; importError = null;
+  const t0 = Date.now();
+  console.log("[import] arrière-plan : démarrage");
+  try {
+    const issues = await searchIssues(DEFAULT_JQL);
+    snapMap = new Map(issues.map((i) => [i.cle, i]));
+    snap = { syncedAt: new Date().toISOString(), issues };
+    saveSnapshot(snap);
+    console.log(`[import] arrière-plan : PRÊT — ${issues.length} tickets en ${Date.now() - t0} ms`);
+  } catch (e) {
+    importError = String(e.message || e);
+    console.error(`[import] arrière-plan : ÉCHEC — ${importError}`);
+  } finally {
+    importing = false;
+  }
+}
 
 function isToday(iso) {
   if (!iso) return false;
@@ -121,18 +144,25 @@ async function getIssues(arg, jqlArg) {
 
     const haveSnap = snapMap.size > 0 && snap.syncedAt;
     if (opts.full || !haveSnap) {
-      const issues = await searchIssues(DEFAULT_JQL);
-      snapMap = new Map(issues.map((i) => [i.cle, i]));
-      snap = { syncedAt: new Date().toISOString(), issues };
-      saveSnapshot(snap);
-      return { issues: withLate(issues), source: "Jira (complet)", changed: [] };
+      // Déclenche l'import EN ARRIÈRE-PLAN (réponse immédiate). On ne relance pas à chaque sondage :
+      //  - full demandé -> on force (re)l'import ;
+      //  - sinon, on ne lance que s'il n'y a ni import en cours ni erreur précédente (sinon on rapporte l'état).
+      if (opts.full || (!importing && !importError)) runFullImport();
+      return {
+        issues: withLate(snap.issues || []),
+        source: haveSnap ? "mémoire (réimport en cours)" : (importing ? "import initial en cours" : (importError ? "import en échec" : "import initial")),
+        changed: [],
+        importing,
+        importError,
+      };
     }
 
     if (!opts.refresh) {
-      return { issues: withLate(snap.issues), source: "mémoire", changed: [] };
+      return { issues: withLate(snap.issues), source: "mémoire", changed: [], importing, importError };
     }
 
     // Actualisation incrémentale.
+    console.log(`[getIssues] incrémental depuis ${snap.syncedAt}`);
     const updated = await searchIssues(incrementalJql(snap.syncedAt));
     const changed = [];
     for (const it of updated) {
@@ -146,6 +176,8 @@ async function getIssues(arg, jqlArg) {
       issues: withLate(snap.issues),
       source: `Jira (incrémental · ${updated.length} vérifié${updated.length > 1 ? "s" : ""})`,
       changed,
+      importing,
+      importError,
     };
   }
 
@@ -178,6 +210,8 @@ app.get("/api/portfolio", guard, async (req, res) => {
     const payload = aggregate(got.issues, got.source);
     payload.changed = got.changed || [];
     payload.syncedAt = snap.syncedAt || null;
+    payload.importing = Boolean(got.importing);
+    payload.importError = got.importError || null;
     res.json(payload);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
