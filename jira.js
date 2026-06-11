@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -16,6 +16,7 @@ import { dailyReport, morningReport, ticketReport, meetingReport, globalReport, 
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
+import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { sendMail, uploadToSharePoint, msConfigured } from "./microsoft.js";
 
@@ -249,6 +250,15 @@ app.post("/api/ticket/explain", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+// Historique (qui a fait quoi, quand) + heures saisies (worklogs) d'un ticket — à la demande.
+app.post("/api/ticket/activity", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, timeline: [], worklogs: [], totalTime: "0h" });
+    const out = await fetchIssueActivity(req.body.cle);
+    res.json({ configured: true, ...out });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
 
 // Rapport global : tous les clients, organisé par client.
 app.post("/api/cr/global", guard, async (_req, res) => {
@@ -334,6 +344,22 @@ app.post("/api/share/sharepoint", guard, async (req, res) => {
 });
 
 app.get("/api/history", guard, (_req, res) => res.json({ events: readHistory() }));
+
+// Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).
+app.get("/api/devs/deleted", guard, (_req, res) => res.json({ deleted: readDeleted() }));
+app.post("/api/devs/delete", guard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Nom manquant." });
+  const deleted = addDeleted(name);
+  logEvent("dev_delete", `Fiche développeur masquée : ${name}`);
+  res.json({ deleted });
+});
+app.post("/api/devs/restore", guard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  const deleted = removeDeleted(name);
+  logEvent("dev_restore", `Fiche développeur restaurée : ${name}`);
+  res.json({ deleted });
+});
 
 // ---- Sert l'interface (build) en production : un seul service à déployer ----
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
