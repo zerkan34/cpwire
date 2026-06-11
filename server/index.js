@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -274,6 +274,16 @@ app.post("/api/changes/summary", guard, async (req, res) => {
     const { keys } = req.body || {};
     const out = await fetchChangesSummary(Array.isArray(keys) ? keys : []);
     res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// CRA — Compte rendu d'activité : temps saisis consolidés par projet et par personne sur une période.
+app.post("/api/cra", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, byPerson: [], byProject: [], totalSeconds: 0, totalTime: "0h" });
+    const { start, end } = req.body || {};
+    const out = await fetchCRA({ start, end });
+    res.json({ configured: true, ...out });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
