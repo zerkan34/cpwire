@@ -53,7 +53,12 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         </span>
       </div>
 
-      <div className="panel">
+      <div className="panel dev-panel">
+        <div className="recap-hd">
+          <span className="recap-hd-name">Charge par développeur</span>
+          <span className="recap-hd-meta">{realDevs} dev{realDevs > 1 ? "s" : ""} · {totalTickets} ticket{totalTickets > 1 ? "s" : ""}</span>
+        </div>
+        <div className="dev-panel-bd">
         <div className="filters">
           <span className="fg-lbl">Dossier</span>
           {dossiers.map((d) => (
@@ -67,7 +72,7 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
           <div className="empty">Aucun ticket pour ce périmètre.</div>
         ) : (
           <div className="dev-list">
-            {rows.filter((r) => showHidden || !hidden.has(r.dev)).map((r) => {
+            {rows.filter((r) => showHidden || (!hidden.has(r.dev) && !delSet.has(r.dev))).map((r) => {
               const isDel = delSet.has(r.dev);
               const isHidden = hidden.has(r.dev);
               return (
@@ -93,13 +98,14 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
             })}
           </div>
         )}
-        {hidden.size > 0 && (
+        {rows.some((r) => hidden.has(r.dev) || delSet.has(r.dev)) && (
           <div className="dev-hidden-bar">
             <button className="btn-line sm" onClick={() => setShowHidden((s) => !s)}>
-              {showHidden ? "Cacher les masqués" : `Afficher les masqués (${hidden.size})`}
+              {showHidden ? "Cacher les inactifs / masqués" : `Afficher les inactifs / masqués (${rows.filter((r) => hidden.has(r.dev) || delSet.has(r.dev)).length})`}
             </button>
           </div>
         )}
+        </div>
       </div>
 
       <p className="hint">
