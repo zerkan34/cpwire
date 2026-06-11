@@ -44,6 +44,7 @@ export default function App() {
   const [deletedDevs, setDeletedDevs] = useState([]);
   const [error, setError] = useState("");
   const [needsConfig, setNeedsConfig] = useState(false);
+  const [bootMsg, setBootMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [dossier, setDossier] = useState("Tous");
   const [statut, setStatut] = useState("Tous");
@@ -100,8 +101,20 @@ export default function App() {
     if (!silent) setLoading(true); // un rafraîchissement silencieux (sondage notifs en fond) ne doit PAS afficher la barre
     setError(""); setNeedsConfig(false);
     try {
-      const [p, d] = await Promise.all([fetchPortfolio({ refresh, full }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
+      const d = await fetchDossiers().catch(() => ({ dossiers: {} }));
+      let p = await fetchPortfolio({ refresh, full });
+      // Import en arrière-plan : on sonde rapidement jusqu'à ce qu'il soit prêt.
+      // Chaque requête est instantanée (pas de requête longue), donc la barre ne peut plus geler.
+      let waited = 0;
+      if (p && p.importing) setBootMsg("⏳ Import des tickets en cours… l'appli s'affiche dès que c'est prêt (~1 min au premier démarrage).");
+      while (p && p.importing && !p.importError && waited < 180000) {
+        await new Promise((r) => setTimeout(r, 3000));
+        waited += 3000;
+        p = await fetchPortfolio({});
+      }
+      setBootMsg("");
       setData(p); setDossiers(d.dossiers || {});
+      if (p && p.importError && !(p.issues && p.issues.length)) setError(`Import impossible : ${p.importError}`);
       if (refresh || full) {
         const ch = Array.isArray(p.changed) ? p.changed : [];
         if (ch.length) {
@@ -293,6 +306,7 @@ export default function App() {
           <b> JIRA_API_TOKEN</b> dans <b>server/.env</b>, puis relance le serveur. Aucune donnée fictive n'est affichée.
         </div>
       )}
+      {bootMsg && <div className="banner" style={{ background: "var(--hd-grad)", color: "#fff", borderColor: "transparent" }}>{bootMsg}</div>}
       {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
 
       {diag && diag.projetsSansTicket?.length > 0 && (

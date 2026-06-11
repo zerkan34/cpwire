@@ -681,3 +681,6 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .cra-proj { display: flex; flex-wrap: wrap; gap: 5px; }
 .cra-proj .tag { font-size: 11px; }
 @media (max-width: 720px) { .cra-kpi-row { grid-template-columns: 1fr 1fr; } }
+
+/* Badge de version (pour vérifier d'un coup d'œil que le bon code est en ligne) */
+.hdr-build { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: #2c2429; font-weight: 800; font-size: 10px; letter-spacing: .04em; vertical-align: middle; }
