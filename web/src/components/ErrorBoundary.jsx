@@ -7,15 +7,22 @@ export default class ErrorBoundary extends React.Component {
   static getDerivedStateFromError(error) { return { error }; }
   componentDidCatch(error, info) { try { console.error("cp|WIRE error:", error, info); } catch { /* */ } }
 
-  reload = () => { window.location.reload(); };
-  hardReload = () => {
+  reload = () => { try { window.location.reload(); } catch { /* */ } };
+  hardReload = async () => {
+    // Efface service workers ET caches, puis recharge depuis le réseau.
     try {
       if ("serviceWorker" in navigator) {
-        navigator.serviceWorker.getRegistrations().then((rs) => { rs.forEach((r) => r.unregister()); window.location.reload(); }).catch(() => window.location.reload());
-        return;
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
       }
     } catch { /* */ }
-    window.location.reload();
+    try {
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+      }
+    } catch { /* */ }
+    try { window.location.reload(); } catch { /* */ }
   };
 
   render() {

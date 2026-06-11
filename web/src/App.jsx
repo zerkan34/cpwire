@@ -65,6 +65,9 @@ export default function App() {
   const inFlight = useRef(false);
   const prevFlagged = useRef(null);
 
+  // Déclaré tôt : utilisé par des callbacks plus bas (évite une erreur d'initialisation au rendu).
+  const issues = data?.issues || [];
+
   const resetFilters = useCallback(() => {
     setDossier("Tous"); setStatut("Tous"); setOnlyLate(false); setOnlyMine(false); setOnlyFlagged(false);
     setQuery(""); setPerson("Tous"); setPriorite("Tous");
@@ -191,7 +194,6 @@ export default function App() {
     catch (e) { showToast("Échec : " + e.message); }
   }, [showToast]);
 
-  const issues = data?.issues || [];
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return issues.filter((i) => {
