@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { printHtml } from "../utils.js";
+import ExportBar from "./ExportBar.jsx";
 import { useModalBack, backOut } from "../modalNav.js";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
@@ -51,7 +52,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   };
 
   const items = useMemo(
-    () => allIssues.filter((i) => (i.dev || i.assigne || "Non assigné") === devName),
+    () => allIssues.filter((i) => (Array.isArray(i.contributors) && i.contributors.length)
+      ? i.contributors.includes(devName)
+      : ((i.dev || i.assigne || "Non assigné") === devName)),
     [allIssues, devName]
   );
 
@@ -102,14 +105,14 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     try { await navigator.clipboard.writeText(L.join("\n")); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* ignore */ }
   };
 
-  const exportPdf = () => {
-    const css = `body{font-family:Arial,Helvetica,sans-serif;color:#2a2937;font-size:12px;padding:26px;} h1{font-size:20px;color:#c95f1c;margin:0 0 2px;} .sub{color:#666;margin-bottom:14px;font-size:12px;} h2{font-size:13px;color:#2c2945;border-bottom:2px solid #eee;padding-bottom:4px;margin:16px 0 6px;} table{width:100%;border-collapse:collapse;margin:6px 0;font-size:11.5px;} th{background:#f4f2fb;text-align:left;padding:6px 8px;border:1px solid #e2def2;font-size:10px;text-transform:uppercase;letter-spacing:.03em;} td{padding:6px 8px;border:1px solid #eee;vertical-align:top;} tr{break-inside:avoid;} .foot{margin-top:16px;color:#999;font-size:10px;}`;
+  const buildDevHtml = () => {
+    const css = `body{font-family:Arial,Helvetica,sans-serif;color:#2a2937;font-size:12px;padding:26px;} h1{font-size:20px;color:#c95f1c;margin:0 0 2px;} .sub{color:#666;margin-bottom:14px;font-size:12px;} h2{font-size:13px;color:#2c2945;border-bottom:2px solid #eee;padding-bottom:4px;margin:16px 0 6px;} table{width:100%;border-collapse:collapse;margin:6px 0;font-size:11.5px;} th{background:#f4f2fb;text-align:left;padding:6px 8px;border:1px solid #e2def2;font-size:10px;text-transform:uppercase;letter-spacing:.03em;} td{padding:6px 8px;border:1px solid #eee;vertical-align:top;} tr{break-inside:avoid;} .foot{margin-top:16px;color:#999;font-size:10px;} @page{margin:14mm 13mm;}`;
     const proj = per.projets.map((p) => `<tr><td>${esc(p.dossier)}</td><td>${p.touched}</td><td>${p.done || "—"}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
     const det = per.list.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.dossier)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${fr(i.maj)}</td><td>${esc(i.statutJira || i.statut)}${per.doneInPeriod(i) ? " ✓" : ""}</td></tr>`).join("") || "<tr><td colspan='5'>—</td></tr>";
     const mois = months.arr.map((m) => `<tr><td>${m.label}</td><td>${m.done}</td></tr>`).join("");
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${css}</style><title>Fiche ${esc(devName)}</title></head><body>
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${css}</style><title> </title></head><body>
       <h1>Fiche développeur — ${esc(devName)}</h1>
-      <div class="sub">Période : <b>${esc(periodLabel)}</b> · ${per.touched} ticket(s) travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s)</div>
+      <div class="sub">Période : <b>${esc(periodLabel)}</b> · ${per.touched} ticket(s) travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s) · équipe Armonie · Chef de projet : Nicolas Durand</div>
       <h2>Vue d'ensemble</h2>
       <table><tr><th>Tickets pris</th><th>Terminés</th><th>En cours</th><th>En recette</th><th>En retard</th><th>Flaggés</th></tr>
       <tr><td>${g.total}</td><td>${g.termine}</td><td>${g.encours}</td><td>${g.recette}</td><td>${g.retard}</td><td>${g.flagged}</td></tr></table>
@@ -121,8 +124,8 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
       <table><tr><th>Mois</th><th>Terminés</th></tr>${mois}</table>
       <div class="foot">Généré par cp|WIRE — ${new Date().toLocaleString("fr-FR")}</div>
     </body></html>`;
-    printHtml(html);
   };
+  const exportPdf = () => printHtml(buildDevHtml());
 
   return (
     <div className="overlay" onClick={backOut}>
@@ -162,10 +165,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
 
           <p className="period-sum">
             <b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)
-            <button className="btn-line sm" style={{ marginLeft: 10 }} onClick={copyRecap}>{copied ? "✓ Copié" : "Copier le récap"}</button>
-            <button className="btn-line sm" style={{ marginLeft: 6 }} onClick={exportPdf}>Exporter PDF</button>
-            {!deleted && <button className="btn-line sm" style={{ marginLeft: 6, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
+            {!deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
           </p>
+          <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
 
           {per.projets.length > 0 ? (
             <table className="proj-tbl">

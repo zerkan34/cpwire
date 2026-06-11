@@ -352,20 +352,29 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .flag-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; background: var(--orange-deep); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
 
 /* Tableaux alignés dans les fiches (colonnes fixes -> tout aligné) */
-.fiche-tbl, .act-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 4px 0 8px; font-size: 13px; }
-.fiche-tbl th, .act-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 7px 8px; border-bottom: 2px solid var(--line); }
-.fiche-tbl td, .act-tbl td { padding: 7px 8px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
+.fiche-tbl, .act-tbl { width: 100%; border-collapse: collapse; table-layout: fixed; margin: 6px 0 10px; font-size: 13px; }
+.fiche-tbl th, .act-tbl th { text-align: left; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding: 8px 10px; border-bottom: 2px solid var(--line); }
+.fiche-tbl td, .act-tbl td { padding: 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; line-height: 1.45; }
 .fiche-tbl tbody tr { cursor: pointer; }
 .fiche-tbl tbody tr:hover td { background: var(--purple-soft); }
+.fiche-tbl tbody tr:nth-child(even) td, .act-tbl tbody tr:nth-child(even) td { background: var(--zebra, rgba(110,92,196,.035)); }
+.fiche-tbl tbody tr:nth-child(even):hover td { background: var(--purple-soft); }
+/* Les colonnes à contenu variable PEUVENT passer à la ligne (sinon débordement = chevauchement). */
 .fiche-tbl .c-cle { width: 92px; white-space: nowrap; }
-.fiche-tbl .c-proj { width: 96px; white-space: nowrap; }
-.fiche-tbl .c-date { width: 86px; white-space: nowrap; color: var(--muted); font-size: 12px; }
-.fiche-tbl .c-stat { width: 120px; white-space: nowrap; }
+.fiche-tbl .c-proj { width: 116px; white-space: normal; word-break: break-word; }
+.fiche-tbl .c-date { width: 84px; white-space: nowrap; color: var(--muted); font-size: 12px; }
+.fiche-tbl .c-stat { width: 134px; white-space: normal; }
 .fiche-tbl .c-res { white-space: normal; word-break: break-word; }
-.act-tbl .c-when { width: 128px; white-space: nowrap; color: var(--muted); font-size: 12px; }
-.act-tbl .c-who { width: 128px; font-weight: 600; white-space: nowrap; }
+.act-tbl .c-when { width: 116px; white-space: normal; color: var(--muted); font-size: 12px; }
+.act-tbl .c-who { width: 128px; font-weight: 600; white-space: normal; word-break: break-word; }
 .act-tbl .c-act { white-space: normal; word-break: break-word; }
+/* Dans ces tableaux denses, les pastilles de statut peuvent se mettre sur 2 lignes. */
+.fiche-tbl .pill, .act-tbl .pill { white-space: normal; line-height: 1.25; }
 .worklog-total { background: var(--orange-soft); border: 1px solid #f3d6bd; border-radius: 10px; padding: 9px 13px; font-size: 14px; color: var(--ink); margin: 4px 0 10px; }
+
+/* Barre d'export / partage (présente dans chaque modale) */
+.export-bar { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 10px; padding: 8px 12px; margin: 2px 0 14px; }
+.eb-lbl { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--purple); margin-right: 2px; }
 .act-empty { color: var(--muted); font-size: 13px; padding: 6px 0; }
 
 /* Récap par client (historique) */

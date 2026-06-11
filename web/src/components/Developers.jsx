@@ -18,21 +18,24 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
     const scope = issues.filter((i) => dossier === "Tous" || i.dossier === dossier);
     const m = {};
     scope.forEach((i) => {
-      const d = i.dev || i.assigne || "Non assigné";
-      (m[d] ||= { dev: d, total: 0, termine: 0, encours: 0, recette: 0, retard: 0, items: [] });
-      const r = m[d];
-      r.total += 1;
-      if (DONE.includes(i.categorie)) r.termine += 1;
-      else if (ACTIVE.includes(i.categorie)) r.encours += 1;
-      else if (WAIT.includes(i.categorie)) r.recette += 1;
-      if (i.enRetard) r.retard += 1;
-      r.items.push(i);
+      // Un ticket compte pour CHAQUE contributeur (assigné + nom en titre + initiales en étiquette).
+      const devs = (Array.isArray(i.contributors) && i.contributors.length) ? i.contributors : [i.dev || i.assigne || "Non assigné"];
+      devs.forEach((d) => {
+        (m[d] ||= { dev: d, total: 0, termine: 0, encours: 0, recette: 0, retard: 0, items: [] });
+        const r = m[d];
+        r.total += 1;
+        if (DONE.includes(i.categorie)) r.termine += 1;
+        else if (ACTIVE.includes(i.categorie)) r.encours += 1;
+        else if (WAIT.includes(i.categorie)) r.recette += 1;
+        if (i.enRetard) r.retard += 1;
+        r.items.push(i);
+      });
     });
     return Object.values(m).sort((a, b) => b.total - a.total);
   }, [issues, dossier]);
 
   const maxTotal = rows.reduce((m, r) => Math.max(m, r.total), 0) || 1;
-  const totalTickets = rows.reduce((s, r) => s + r.total, 0);
+  const totalTickets = issues.filter((i) => dossier === "Tous" || i.dossier === dossier).length;
   const realDevs = rows.filter((r) => r.dev !== "Non assigné").length;
   const nonAssigne = rows.find((r) => r.dev === "Non assigné")?.total || 0;
 
@@ -83,7 +86,7 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         Légende : <span className="pill done">terminés</span> <span className="pill prog">en cours</span>
         <span className="pill todo">en recette</span>. Le volume reflète l'activité, pas une note de performance.
         <br />
-        <b>Comment c'est compté :</b> un ticket est rattaché à la <b>personne assignée dans Jira</b> (à défaut, à un nom « (Prénom Nom) » écrit en fin de titre). Un développeur peut donc paraître « léger » si ses tickets ne lui sont pas assignés dans Jira — ils tombent alors dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici) ou sont au nom d'un autre. Le détail réel de qui a agi et quand reste visible dans chaque ticket (Historique &amp; temps).
+        <b>Comment c'est compté :</b> un ticket est rattaché à <b>toutes</b> les personnes qui y ont contribué — la personne <b>assignée</b> dans Jira (auto-assignation comprise), un nom « (Prénom Nom) » écrit en fin de titre, et les <b>initiales en étiquette</b> (ex. « HRE » → Hamza). Un même ticket peut donc compter pour deux personnes. S'il reste des tickets sans personne, ils tombent dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici). Le détail réel de qui a agi et quand est dans chaque ticket (Historique &amp; temps).
       </p>
     </>
   );

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
 import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
-import { frDate } from "../utils.js";
+import { frDate, esc, buildSimpleDoc } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import ExportBar from "./ExportBar.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
@@ -67,6 +68,32 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
 
   const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
 
+  const buildTicketHtml = () => {
+    const metaRows = [
+      ["Dossier", ticket.dossier],
+      ["Statut", `${ticket.statut}${ticket.flagged ? " · 🚩 flaggé" : ""}${ticket.enRetard ? " · en retard" : ""}`],
+      ["Assigné", ticket.assigne],
+      ["Priorité", ticket.priorite || "—"],
+      ["Échéance", ticket.echeance || "—"],
+      ["Mise à jour", frDate(ticket.maj)],
+    ].map(([k, v]) => `<tr><th style="width:150px">${esc(k)}</th><td>${esc(v)}</td></tr>`).join("");
+    let body = `<h2>Informations</h2><table>${metaRows}</table>`;
+    if (explication) body += `<h2>Explication</h2><p>${esc(explication)}</p>`;
+    if (note) body += `<h2>Note du chef de projet</h2><p>${esc(note)}</p>`;
+    if (report) body += `<h2>Rapport</h2><p>${esc(report).replace(/\n/g, "<br>")}</p>`;
+    if (activity?.worklogs?.length) {
+      body += `<h2>Temps saisi${activity.totalSeconds > 0 ? ` — total ${esc(activity.totalTime)}` : ""}</h2>` +
+        `<table><tr><th>Quand</th><th>Qui</th><th>Durée &amp; détail</th></tr>` +
+        activity.worklogs.map((w) => `<tr><td>${esc(whenFmt(w.date))}</td><td>${esc(w.who)}</td><td><b>${esc(w.time)}</b>${w.comment ? ` — ${esc(w.comment)}` : ""}</td></tr>`).join("") + `</table>`;
+    }
+    if (activity?.timeline?.length) {
+      body += `<h2>Historique des changements</h2>` +
+        `<table><tr><th>Quand</th><th>Qui</th><th>Action</th></tr>` +
+        activity.timeline.map((t) => `<tr><td>${esc(whenFmt(t.date))}</td><td>${esc(t.who)}</td><td>${esc(t.champ)} : ${esc(t.from)} → <b>${esc(t.to)}</b></td></tr>`).join("") + `</table>`;
+    }
+    return buildSimpleDoc({ title: `${ticket.cle} — ${ticket.resume}`, subtitle: `${ticket.dossier} — équipe Armonie · Chef de projet : Nicolas Durand`, bodyHtml: body });
+  };
+
   return (
     <div className="overlay" onClick={backOut}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
@@ -90,6 +117,8 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
             <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer">Ouvrir le ticket dans Jira ↗</a>
           )}
 
+          <ExportBar buildHtml={buildTicketHtml} filename={`${ticket.cle}.html`} subject={`${ticket.cle} — ${ticket.resume}`} />
+
           <div className="expl">
             <div className="expl-h">Explication simple</div>
             {explLoading ? (
@@ -104,6 +133,9 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
           {/* Historique & temps : qui a fait quoi, quand, et heures saisies */}
           <div className="expl">
             <div className="expl-h">Historique &amp; temps</div>
+            <p className="hint" style={{ marginTop: -2 }}>
+              Tout ce qui a bougé sur <b>ce ticket précis</b> dans Jira : changements de statut et de personne assignée (qui l'a pris, à qui il a été passé), et le temps saisi par chacun. C'est la trace réelle des intervenants et de leurs actions.
+            </p>
             {actLoading ? (
               <p className="hint">Chargement de l'historique…</p>
             ) : !hasActivity ? (
