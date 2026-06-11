@@ -9,11 +9,21 @@ export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 function authHeaders() { const t = getToken(); return t ? { "x-access-token": t } : {}; }
 
 async function req(path, opts = {}) {
-  const res = await fetch(`${BASE}${path}`, { ...opts, headers: { ...authHeaders(), ...(opts.headers || {}) } });
-  if (res.status === 401) { clearToken(); window.dispatchEvent(new Event("cpwire-logout")); throw new Error("Session expirée — reconnecte-toi."); }
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) { const e = new Error(data.error || `Erreur ${res.status}`); e.needsConfig = data.needsConfig; throw e; }
-  return data;
+  const { timeoutMs, ...rest } = opts;
+  let ctrl, timer;
+  if (timeoutMs) { ctrl = new AbortController(); timer = setTimeout(() => ctrl.abort(), timeoutMs); }
+  try {
+    const res = await fetch(`${BASE}${path}`, { ...rest, signal: ctrl ? ctrl.signal : undefined, headers: { ...authHeaders(), ...(rest.headers || {}) } });
+    if (res.status === 401) { clearToken(); window.dispatchEvent(new Event("cpwire-logout")); throw new Error("Session expirée — reconnecte-toi."); }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) { const e = new Error(data.error || `Erreur ${res.status}`); e.needsConfig = data.needsConfig; throw e; }
+    return data;
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error("Le serveur n'a pas répondu à temps (import trop long ou bloqué). Réessaie « Tout recharger ».");
+    throw e;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 const post = (path, body) => req(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -27,7 +37,7 @@ export async function login(email, password) {
 }
 
 export const fetchPortfolio = ({ refresh = false, full = false } = {}) =>
-  req(`/api/portfolio${full ? "?full=1" : refresh ? "?refresh=1" : ""}`);
+  req(`/api/portfolio${full ? "?full=1" : refresh ? "?refresh=1" : ""}`, { timeoutMs: 180000 });
 export const fetchRecap = () => req(`/api/recap`);
 export const fetchHistory = () => req(`/api/history`);
 export const fetchDossiers = () => req(`/api/dossiers`);

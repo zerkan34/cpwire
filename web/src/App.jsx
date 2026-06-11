@@ -97,8 +97,7 @@ export default function App() {
   const load = useCallback(async (refresh = false, full = false, silent = false) => {
     if (inFlight.current) return;
     inFlight.current = true;
-    if (!silent) setLoading(true);
-    else setLoading(true);
+    if (!silent) setLoading(true); // un rafraîchissement silencieux (sondage notifs en fond) ne doit PAS afficher la barre
     setError(""); setNeedsConfig(false);
     try {
       const [p, d] = await Promise.all([fetchPortfolio({ refresh, full }), fetchDossiers().catch(() => ({ dossiers: {} }))]);
