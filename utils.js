@@ -1,5 +1,7 @@
-import React, { useMemo, useState } from "react";
-import { printHtml } from "../utils.js";
+import React, { useMemo, useState, useEffect } from "react";
+import { printHtml, buildSimpleDoc } from "../utils.js";
+import ExportBar from "./ExportBar.jsx";
+import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
@@ -36,10 +38,12 @@ function inRange(iso, range) {
 }
 function ymKey(iso) { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
+function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (isNaN(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
+function agoTxt(iso) { const d = daysSince(iso); if (d === null) return ""; if (d <= 0) return "aujourd'hui"; if (d === 1) return "hier"; if (d < 30) return `il y a ${d} j`; const m = Math.floor(d / 30); return `il y a ${m} mois`; }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 
 export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
-  const [period, setPeriod] = useState("semaine");
+  const [period, setPeriod] = useState("tout");
   const [copied, setCopied] = useState(false);
   useModalBack(onClose);
 
@@ -51,7 +55,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   };
 
   const items = useMemo(
-    () => allIssues.filter((i) => (i.dev || i.assigne || "Non assigné") === devName),
+    () => allIssues.filter((i) => (Array.isArray(i.contributors) && i.contributors.length)
+      ? i.contributors.includes(devName)
+      : ((i.dev || i.assigne || "Non assigné") === devName)),
     [allIssues, devName]
   );
 
@@ -63,6 +69,34 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     retard: items.filter((i) => i.enRetard).length,
     flagged: items.filter((i) => i.flagged).length,
   }), [items]);
+
+  const email = useMemo(() => {
+    const hit = items.find((i) => i.assigne === devName && i.assigneEmail);
+    return hit ? hit.assigneEmail : "";
+  }, [items, devName]);
+
+  // Tickets ACTIFS (en cours / recette) — "sur quoi il travaille en ce moment", indépendant de la période.
+  const activeItems = useMemo(
+    () => items.filter((i) => ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie))
+      .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))),
+    [items]
+  );
+
+  const [work, setWork] = useState({});         // { cle: {heuresDev, depuisAssigne, derniereActivite, ...} }
+  const [workLoading, setWorkLoading] = useState(false);
+  const [workConfigured, setWorkConfigured] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    setWork({}); setWorkConfigured(true);
+    const keys = activeItems.slice(0, 10).map((i) => i.cle);
+    if (!keys.length) return;
+    setWorkLoading(true);
+    fetchDevWork(devName, keys)
+      .then((r) => { if (!alive) return; setWorkConfigured(r.configured !== false); const m = {}; (r.items || []).forEach((it) => { m[it.cle] = it; }); setWork(m); })
+      .catch(() => { if (alive) setWorkConfigured(true); })
+      .finally(() => { if (alive) setWorkLoading(false); });
+    return () => { alive = false; };
+  }, [devName, activeItems]);
 
   const months = useMemo(() => {
     const now = new Date(); const arr = [];
@@ -102,14 +136,11 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     try { await navigator.clipboard.writeText(L.join("\n")); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* ignore */ }
   };
 
-  const exportPdf = () => {
-    const css = `body{font-family:Arial,Helvetica,sans-serif;color:#2a2937;font-size:12px;padding:26px;} h1{font-size:20px;color:#c95f1c;margin:0 0 2px;} .sub{color:#666;margin-bottom:14px;font-size:12px;} h2{font-size:13px;color:#2c2945;border-bottom:2px solid #eee;padding-bottom:4px;margin:16px 0 6px;} table{width:100%;border-collapse:collapse;margin:6px 0;font-size:11.5px;} th{background:#f4f2fb;text-align:left;padding:6px 8px;border:1px solid #e2def2;font-size:10px;text-transform:uppercase;letter-spacing:.03em;} td{padding:6px 8px;border:1px solid #eee;vertical-align:top;} tr{break-inside:avoid;} .foot{margin-top:16px;color:#999;font-size:10px;}`;
+  const buildDevHtml = () => {
     const proj = per.projets.map((p) => `<tr><td>${esc(p.dossier)}</td><td>${p.touched}</td><td>${p.done || "—"}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
     const det = per.list.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.dossier)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${fr(i.maj)}</td><td>${esc(i.statutJira || i.statut)}${per.doneInPeriod(i) ? " ✓" : ""}</td></tr>`).join("") || "<tr><td colspan='5'>—</td></tr>";
     const mois = months.arr.map((m) => `<tr><td>${m.label}</td><td>${m.done}</td></tr>`).join("");
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>${css}</style><title>Fiche ${esc(devName)}</title></head><body>
-      <h1>Fiche développeur — ${esc(devName)}</h1>
-      <div class="sub">Période : <b>${esc(periodLabel)}</b> · ${per.touched} ticket(s) travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s)</div>
+    const body = `
       <h2>Vue d'ensemble</h2>
       <table><tr><th>Tickets pris</th><th>Terminés</th><th>En cours</th><th>En recette</th><th>En retard</th><th>Flaggés</th></tr>
       <tr><td>${g.total}</td><td>${g.termine}</td><td>${g.encours}</td><td>${g.recette}</td><td>${g.retard}</td><td>${g.flagged}</td></tr></table>
@@ -118,11 +149,17 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
       <h2>Ce qu'il a fait — ${esc(periodLabel)}</h2>
       <table><tr><th>Clé</th><th>Projet</th><th>Résumé</th><th>Date</th><th>Statut</th></tr>${det}</table>
       <h2>Terminés par mois (6 derniers mois)</h2>
-      <table><tr><th>Mois</th><th>Terminés</th></tr>${mois}</table>
-      <div class="foot">Généré par cp|WIRE — ${new Date().toLocaleString("fr-FR")}</div>
-    </body></html>`;
-    printHtml(html);
+      <table><tr><th>Mois</th><th>Terminés</th></tr>${mois}</table>`;
+    const cartouche = [
+      ["Développeur", devName],
+      ["Période", periodLabel],
+      ["Équipe", "Armonie"],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Synthèse", `${per.touched} travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s)`],
+    ];
+    return buildSimpleDoc({ kicker: "Fiche développeur", title: `Fiche développeur — ${devName}`, cartouche, bodyHtml: body });
   };
+  const exportPdf = () => printHtml(buildDevHtml());
 
   return (
     <div className="overlay" onClick={backOut}>
@@ -132,6 +169,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           <button className="x" onClick={backOut}>×</button>
           <div className="k">Fiche développeur</div>
           <h3>{devName}</h3>
+          {email
+            ? <a className="dm-email" href={`mailto:${email}`} title="Écrire un e-mail">{email}</a>
+            : <span className="dm-email muted">E-mail non exposé par Jira</span>}
         </div>
         <div className="modal-bd">
 
@@ -151,6 +191,46 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
             <div className="dstat flagged"><div className="v">{g.flagged}</div><div className="l">🚩 Flaggés</div></div>
           </div>
 
+          <div className="dev-sec-h">Sur quoi il travaille en ce moment ({activeItems.length})</div>
+          {activeItems.length === 0 ? (
+            <div className="empty">Aucun ticket actif (en cours / recette) en ce moment.</div>
+          ) : (
+            <table className="fiche-tbl work-tbl">
+              <thead><tr>
+                <th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th>
+                <th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th>
+              </tr></thead>
+              <tbody>
+                {activeItems.slice(0, 10).map((i) => {
+                  const w = work[i.cle];
+                  const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
+                  let badge;
+                  if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
+                  else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
+                  else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
+                  else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
+                  else badge = <span className="wk wk-off">aucune saisie de temps</span>;
+                  return (
+                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                      <td className="c-cle"><span className="k">{i.cle}</span></td>
+                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                      <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
+                      <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
+                      <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
+                      <td className="c-act">{badge}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {!workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
+          {workConfigured && activeItems.length > 0 && (
+            <p className="hint" style={{ marginTop: 6 }}>
+              « Heures (lui) » = temps qu'<b>il</b> a saisi sur le ticket dans Jira. « Pris le » = dernière fois où le ticket lui a été assigné. « Travaille dessus ? » se base sur sa dernière saisie de temps : <b>actif</b> = activité de moins de 10 jours. Sans saisie de temps dans Jira, impossible de le confirmer.
+            </p>
+          )}
+
           <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <span>Activité —</span>
             <div className="filters" style={{ margin: 0 }}>
@@ -162,10 +242,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
 
           <p className="period-sum">
             <b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)
-            <button className="btn-line sm" style={{ marginLeft: 10 }} onClick={copyRecap}>{copied ? "✓ Copié" : "Copier le récap"}</button>
-            <button className="btn-line sm" style={{ marginLeft: 6 }} onClick={exportPdf}>Exporter PDF</button>
-            {!deleted && <button className="btn-line sm" style={{ marginLeft: 6, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
+            {!deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
           </p>
+          <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
 
           {per.projets.length > 0 ? (
             <table className="proj-tbl">

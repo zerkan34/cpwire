@@ -1,99 +1,47 @@
-import React, { useEffect, useState } from "react";
-import { fetchRecap, genDailyCR, genGlobalCR } from "../api.js";
-import DocPreview from "./DocPreview.jsx";
+import React from "react";
 
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+// Filet de sécurité : si un composant plante, on affiche un écran de reprise
+// avec un bouton « Relancer » plutôt qu'une page blanche figée.
+export default class ErrorBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { error: null }; }
+  static getDerivedStateFromError(error) { return { error }; }
+  componentDidCatch(error, info) { try { console.error("cp|WIRE error:", error, info); } catch { /* */ } }
 
-export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
-  const [recap, setRecap] = useState(null);
-  const [err, setErr] = useState("");
-  const [busy, setBusy] = useState("");
-  const [doc, setDoc] = useState(null);
-  const delSet = new Set(deletedDevs);
-
-  useEffect(() => {
-    fetchRecap().then(setRecap).catch((e) => setErr(e.message));
-  }, []);
-
-  const makeCR = async (dossier) => {
-    setBusy(dossier); setErr("");
+  reload = () => { try { window.location.reload(); } catch { /* */ } };
+  hardReload = async () => {
+    // Efface service workers ET caches, puis recharge depuis le réseau.
     try {
-      const { html } = await genDailyCR(dossier);
-      setDoc({ title: `CR journalier — ${dossier}`, html, dossier, filename: `CR_journalier_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(""); }
+      if ("serviceWorker" in navigator) {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.unregister().catch(() => {})));
+      }
+    } catch { /* */ }
+    try {
+      if (window.caches && caches.keys) {
+        const keys = await caches.keys();
+        await Promise.all(keys.map((k) => caches.delete(k).catch(() => {})));
+      }
+    } catch { /* */ }
+    try { window.location.reload(); } catch { /* */ }
   };
 
-  const makeGlobal = async () => {
-    setBusy("__global__"); setErr("");
-    try {
-      const { html } = await genGlobalCR();
-      setDoc({ title: "Rapport journalier global", html, filename: `CR_global_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(""); }
-  };
-
-  if (err) return <div className="banner">Erreur : {err}</div>;
-  if (!recap) return <div className="panel empty">Chargement du récap…</div>;
-
-  const entries = Object.entries(recap.byDossier).sort((a, b) => b[1].length - a[1].length);
-
-  return (
-    <>
-      <div className="section-title">Récap de la journée</div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Base : {recap.basis}. Clique sur un ticket pour le détailler, ou génère le compte rendu journalier d'un client.
-      </p>
-      <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={makeGlobal} disabled={busy === "__global__"}>
-          {busy === "__global__" ? "Génération…" : "Rapport global (tous les clients)"}
-        </button>
-      </div>
-      <div className="recap-grid">
-        {entries.map(([dossier, items]) => {
-          const done = items.filter((i) => i.statut === "Terminé").length;
-          const blocked = items.filter((i) => i.statut === "Bloqué").length;
-          return (
-            <div className="recap-card" key={dossier}>
-              <h3>
-                {dossier}
-                <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>
-                  {done} fait{done > 1 ? "s" : ""}{blocked ? ` · ${blocked} bloqué${blocked > 1 ? "s" : ""}` : ""}
-                </span>
-              </h3>
-              <ul>
-                {items.slice(0, 6).map((i) => {
-                  const dev = i.dev || i.assigne || "";
-                  const showDev = dev && dev !== "Non assigné";
-                  const isDel = delSet.has(dev);
-                  return (
-                    <li key={i.cle} className="ri" onClick={() => onTicket(i)}>
-                      <div className="ri-top">
-                        <span className="k">{i.cle}</span>
-                        <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
-                      </div>
-                      <div className="ri-res">{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
-                      {showDev && (
-                        <div className="ri-dev">
-                          <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"
-                            onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>
-                            {dev}{isDel ? <span className="dev-del-tag">supprimé</span> : null}
-                          </span>
-                        </div>
-                      )}
-                    </li>
-                  );
-                })}
-                {items.length > 6 && <li className="ri-more" style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
-              </ul>
-              <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>
-                {busy === dossier ? "Rédaction du CR…" : `Formuler le CR journalier de ${dossier}`}
-              </button>
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="crash">
+          <div className="crash-card">
+            <img src="/cpwire-logo.png" alt="cp|WIRE" className="crash-logo" />
+            <h2>Une erreur est survenue</h2>
+            <p>L'application a rencontré un problème. Tes données ne sont pas perdues — relance simplement l'application.</p>
+            <div className="crash-actions">
+              <button className="btn-solid" onClick={this.reload}>⟳ Relancer l'application</button>
+              <button className="btn-line" onClick={this.hardReload}>Vider le cache et relancer</button>
             </div>
-          );
-        })}
-      </div>
-      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
-    </>
-  );
+            <p className="crash-hint">Si le problème persiste après relance, signale-le (capture d'écran utile).</p>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
 }

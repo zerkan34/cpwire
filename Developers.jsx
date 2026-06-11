@@ -1,58 +1,101 @@
 import React, { useEffect, useState } from "react";
+import { fetchRecap, genDailyCR, genGlobalCR } from "../api.js";
+import DocPreview from "./DocPreview.jsx";
 
-// Bouton discret pour installer CPwire sur l'écran d'accueil.
-// Android/Chrome : utilise l'invite native. iPhone/Safari : affiche la marche à suivre.
-export default function InstallPWA() {
-  const [deferred, setDeferred] = useState(null);
-  const [iosHelp, setIosHelp] = useState(false);
+const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-  const isStandalone =
-    (typeof window !== "undefined" &&
-      (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone)) || false;
-  const isIos = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
+export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
+  const [recap, setRecap] = useState(null);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState("");
+  const [doc, setDoc] = useState(null);
+  const delSet = new Set(deletedDevs);
 
   useEffect(() => {
-    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
-    const onInstalled = () => setDeferred(null);
-    window.addEventListener("beforeinstallprompt", onPrompt);
-    window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onPrompt);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+    fetchRecap().then(setRecap).catch((e) => setErr(e.message));
   }, []);
 
-  if (isStandalone) return null;            // déjà installée
-  if (!deferred && !isIos) return null;     // navigateur sans installation possible
-
-  const click = async () => {
-    if (deferred) {
-      deferred.prompt();
-      try { await deferred.userChoice; } catch {}
-      setDeferred(null);
-    } else {
-      setIosHelp((v) => !v);
-    }
+  const makeCR = async (dossier) => {
+    setBusy(dossier); setErr("");
+    try {
+      const { html } = await genDailyCR(dossier);
+      setDoc({ title: `CR journalier — ${dossier}`, html, dossier, filename: `CR_journalier_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(""); }
   };
+
+  const makeGlobal = async () => {
+    setBusy("__global__"); setErr("");
+    try {
+      const { html } = await genGlobalCR();
+      setDoc({ title: "Rapport journalier global", html, filename: `CR_global_${new Date().toISOString().slice(0, 10)}.html` });
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(""); }
+  };
+
+  if (err) return <div className="banner">Erreur : {err}</div>;
+  if (!recap) return <div className="panel empty">Chargement du récap…</div>;
+
+  const entries = Object.entries(recap.byDossier).sort((a, b) => b[1].length - a[1].length);
 
   return (
     <>
-      <button className="install-fab" onClick={click} aria-label="Installer l'application">
-        ⬇ Installer l'appli
-      </button>
-      {iosHelp && (
-        <div className="install-ios" onClick={() => setIosHelp(false)}>
-          <div className="install-ios-box" onClick={(e) => e.stopPropagation()}>
-            <b>Installer CPwire sur ton iPhone</b>
-            <ol>
-              <li>Appuie sur le bouton <b>Partager</b> <span aria-hidden>􀈂</span> (en bas de Safari).</li>
-              <li>Choisis <b>« Sur l'écran d'accueil »</b>.</li>
-              <li>Appuie sur <b>Ajouter</b> — l'icône Armonie apparaît sur ton écran.</li>
-            </ol>
-            <button className="btn-solid" onClick={() => setIosHelp(false)}>Compris</button>
-          </div>
-        </div>
-      )}
+      <div className="section-title">Récap de la journée</div>
+      <p className="hint" style={{ marginTop: -6 }}>
+        Base : {recap.basis}. Clique sur un ticket pour le détailler, ou génère le compte rendu journalier d'un client.
+      </p>
+      <div className="row-actions" style={{ marginBottom: 16 }}>
+        <button className="btn-solid" onClick={makeGlobal} disabled={busy === "__global__"}>
+          {busy === "__global__" ? "Génération…" : "Rapport global (tous les clients)"}
+        </button>
+      </div>
+      <div className="recap-grid">
+        {entries.map(([dossier, items]) => {
+          const done = items.filter((i) => i.statut === "Terminé").length;
+          const blocked = items.filter((i) => i.statut === "Bloqué").length;
+          return (
+            <div className="recap-card" key={dossier}>
+              <div className="recap-hd">
+                <span className="recap-hd-name">{dossier}</span>
+                <span className="recap-hd-meta">
+                  {done} fait{done > 1 ? "s" : ""}{blocked ? ` · ${blocked} bloqué${blocked > 1 ? "s" : ""}` : ""}
+                </span>
+              </div>
+              <div className="recap-bd">
+              <ul>
+                {items.slice(0, 6).map((i) => {
+                  const dev = i.dev || i.assigne || "";
+                  const showDev = dev && dev !== "Non assigné";
+                  const isDel = delSet.has(dev);
+                  return (
+                    <li key={i.cle} className="ri" onClick={() => onTicket(i)}>
+                      <div className="ri-top">
+                        <span className="k">{i.cle}</span>
+                        <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
+                      </div>
+                      <div className="ri-res">{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
+                      {showDev && (
+                        <div className="ri-dev">
+                          <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"
+                            onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>
+                            {dev}{isDel ? <span className="dev-del-tag">supprimé</span> : null}
+                          </span>
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+                {items.length > 6 && <li className="ri-more" style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
+              </ul>
+              <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>
+                {busy === dossier ? "Rédaction du CR…" : `Formuler le CR journalier de ${dossier}`}
+              </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
     </>
   );
 }

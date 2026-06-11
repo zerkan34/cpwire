@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import { saveDossier } from "../api.js";
+import { buildSimpleDoc, esc } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import ExportBar from "./ExportBar.jsx";
 
 const blank = () => ({ nom: "", poste: "", email: "", statut: "Actif", cote: "Armonie" });
 
@@ -30,6 +32,21 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
   const client = team.filter((m) => m.cote === "Client");
   const armonie = team.filter((m) => m.cote === "Armonie");
 
+  const buildDossierHtml = () => {
+    const techList = tech.split(",").map((s) => s.trim()).filter(Boolean);
+    const rows = team.map((m) => `<tr><td>${esc(m.nom)}</td><td>${esc(m.poste)}</td><td>${esc(m.email)}</td><td>${esc(m.statut)}</td><td>${esc(m.cote)}</td></tr>`).join("");
+    let body = `<h2>Présentation</h2><p>${esc(desc) || "<span class='muted'>—</span>"}</p>`;
+    body += `<h2>Technologies</h2><p>${techList.length ? esc(techList.join(", ")) : "<span class='muted'>—</span>"}</p>`;
+    body += `<h2>Équipe &amp; contacts</h2>` +
+      `<table><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th></tr>${rows || "<tr><td colspan='5'>—</td></tr>"}</table>`;
+    const cartouche = [
+      ["Dossier", `${nom} — équipe Armonie`],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Équipe", `${team.length} personne(s) · Armonie ${armonie.length} · Client ${client.length}`],
+    ];
+    return buildSimpleDoc({ kicker: "Fiche dossier", title: `Fiche dossier — ${nom}`, cartouche, bodyHtml: body });
+  };
+
   return (
     <div className="overlay" onClick={backOut}>
       <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
@@ -40,6 +57,7 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
           <h3>{nom}</h3>
         </div>
         <div className="modal-bd">
+          <ExportBar buildHtml={buildDossierHtml} filename={`fiche-${nom}.html`} subject={`Fiche dossier — ${nom}`} />
           <div className="field">
             <label>Historique court / ce que fait le dossier</label>
             <textarea className="ta" value={desc} onChange={(e) => setDesc(e.target.value)} />
