@@ -36,8 +36,12 @@ export const genDailyCR = (dossier) => post(`/api/cr/daily`, { dossier });
 export const genTicketReport = (cle, note, resume) => post(`/api/ticket/report`, { cle, note, resume });
 export const pushTicket = (cle, comment, markDone) => post(`/api/ticket/push`, { cle, comment, markDone });
 export const explainTicket = (cle) => post(`/api/ticket/explain`, { cle });
+export const fetchTicketActivity = (cle) => post(`/api/ticket/activity`, { cle });
 export const genGlobalCR = () => post(`/api/cr/global`, {});
 export const genMorningCR = (dossier) => post(`/api/cr/morning`, { dossier });
+export const fetchDeletedDevs = () => req(`/api/devs/deleted`);
+export const deleteDevFiche = (name) => post(`/api/devs/delete`, { name });
+export const restoreDevFiche = (name) => post(`/api/devs/restore`, { name });
 export const shareMail = (to, subject, html) => post(`/api/share/mail`, { to, subject, html });
 export const shareSharePoint = (folderPath, filename, html) => post(`/api/share/sharepoint`, { folderPath, filename, html });
 
