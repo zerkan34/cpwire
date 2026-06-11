@@ -53,16 +53,20 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState("");
   const [period, setPeriod] = useState("hier");
+  const [client, setClient] = useState("Tous");
   const delSet = new Set(deletedDevs);
 
   useEffect(() => { fetchHistory().then((d) => setEvents(d.events)).catch((e) => setErr(e.message)); }, []);
+
+  const allClients = useMemo(() => Array.from(new Set(issues.map((i) => i.dossier).filter(Boolean))).sort(), [issues]);
 
   const dayOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 31; k++) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - k); a.push({ v: dayValue(d), label: d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" }) }); } return a; }, []);
   const monthOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 12; k++) { const d = new Date(now.getFullYear(), now.getMonth() - k, 1); a.push({ v: monthValue(d), label: `${MOIS[d.getMonth()]} ${d.getFullYear()}` }); } return a; }, []);
 
   const data = useMemo(() => {
     const range = periodRange(period);
-    const touched = issues.filter((i) => inRange(i.maj, range) || inRange(i.resolu, range));
+    const all = issues.filter((i) => inRange(i.maj, range) || inRange(i.resolu, range));
+    const touched = client === "Tous" ? all : all.filter((i) => i.dossier === client);
     const doneIn = (i) => DONE.includes(i.categorie) && inRange(i.resolu || i.maj, range);
 
     const byClient = {}; const byDev = {}; const byProj = {};
@@ -87,7 +91,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
     const projets = Object.values(byProj).sort((a, b) => b.touched - a.touched);
     const totalDone = touched.filter(doneIn).length;
     return { touched: touched.length, totalDone, clients, devs, projets };
-  }, [issues, period]);
+  }, [issues, period, client]);
 
   const label = periodLabel(period);
 
@@ -116,8 +120,15 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
     <>
       <div className="section-title">Historique des récaps par client</div>
       <p className="hint" style={{ marginTop: -6 }}>
-        Choisis un jour ou un mois : le récap par client est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF.
+        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF.
       </p>
+
+      <div className="ctabs">
+        <button className={`ctab ${client === "Tous" ? "active" : ""}`} onClick={() => setClient("Tous")}>Tous</button>
+        {allClients.map((c) => (
+          <button key={c} className={`ctab ${client === c ? "active" : ""}`} onClick={() => setClient(c)}>{c}</button>
+        ))}
+      </div>
 
       <div className="panel">
         <div className="filters" style={{ marginBottom: 8 }}>

@@ -13,8 +13,10 @@ export function printHtml(html) {
   if (!w) return;
   w.document.write(html);
   w.document.close();
+  // Titre vide -> l'en-tête d'impression du navigateur n'affiche plus le nom du document.
+  try { w.document.title = " "; } catch { /* ignore */ }
   w.focus();
-  setTimeout(() => w.print(), 400);
+  setTimeout(() => { try { w.document.title = " "; } catch { /* */ } w.print(); }, 400);
 }
 
 export function frDate(iso) {

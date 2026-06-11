@@ -55,6 +55,7 @@ export default function App() {
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [showTop, setShowTop] = useState(false);
+  const [notifCount, setNotifCount] = useState(0);
   const [notifOn, setNotifOn] = useState(() => { try { return localStorage.getItem("cpwire_notif") === "1"; } catch { return false; } });
   const toastTimer = useRef(null);
   const highlightTimer = useRef(null);
@@ -103,6 +104,13 @@ export default function App() {
           highlightTimer.current = setTimeout(() => setChangedKeys(null), 30000);
         } else {
           setChangedKeys(null);
+        }
+        // Pastille de notifications : on incrémente sur une actualisation auto (silencieuse),
+        // on remet à zéro quand l'utilisateur actualise lui-même (il voit les données fraîches).
+        if (!silent) setNotifCount(0);
+        if (silent && ch.length) {
+          setNotifCount((c) => c + ch.length);
+          notify(`🔔 ${ch.length} ticket(s) modifié(s) dans Jira`, ch.slice(0, 4).join(", "));
         }
         const n = p.diagnostic?.totalImporte ?? (p.issues?.length || 0);
         if (full) {
@@ -160,6 +168,11 @@ export default function App() {
     }
   }, [notifOn, showToast]);
 
+  const onBell = useCallback(() => {
+    if (notifCount > 0) { setNotifCount(0); return; } // acquitter la pastille
+    notifToggle();
+  }, [notifCount, notifToggle]);
+
   const removeDev = useCallback(async (name) => {
     try { const r = await deleteDevFiche(name); setDeletedDevs(r.deleted || []); showToast(`Fiche de ${name} masquée. Restaurable depuis la fiche.`); }
     catch (e) { showToast("Échec : " + e.message); }
@@ -198,7 +211,7 @@ export default function App() {
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
         query={query} onQuery={setQuery}
-        notifOn={notifOn} onToggleNotif={notifToggle} />
+        notifOn={notifOn} onToggleNotif={onBell} notifCount={notifCount} />
 
       <div className="tabs">
         {TABS.map((t) => (

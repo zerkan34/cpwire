@@ -67,20 +67,24 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                   const showDev = dev && dev !== "Non assigné";
                   const isDel = delSet.has(dev);
                   return (
-                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                      <span className="k">{i.cle}</span>
-                      <span style={{ flex: 1 }}>{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</span>
+                    <li key={i.cle} className="ri" onClick={() => onTicket(i)}>
+                      <div className="ri-top">
+                        <span className="k">{i.cle}</span>
+                        <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
+                      </div>
+                      <div className="ri-res">{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
                       {showDev && (
-                        <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"
-                          onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>
-                          {dev}{isDel ? <span className="dev-del-tag">supprimé</span> : null}
-                        </span>
+                        <div className="ri-dev">
+                          <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"
+                            onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>
+                            {dev}{isDel ? <span className="dev-del-tag">supprimé</span> : null}
+                          </span>
+                        </div>
                       )}
-                      <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
                     </li>
                   );
                 })}
-                {items.length > 6 && <li style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
+                {items.length > 6 && <li className="ri-more" style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
               </ul>
               <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>
                 {busy === dossier ? "Rédaction du CR…" : `Formuler le CR journalier de ${dossier}`}

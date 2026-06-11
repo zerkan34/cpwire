@@ -9,7 +9,7 @@ function Kpi({ lbl, val, cls }) {
   );
 }
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, query, onQuery, notifOn, onToggleNotif }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, query, onQuery, notifOn, onToggleNotif, notifCount = 0 }) {
   const k = kpis || {};
   const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
 
@@ -31,23 +31,32 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
   return (
     <header className="hdr">
       <div className="hdr-row">
-        <div>
+        <div className="hdr-left">
           <span className="hdr-brand">
             <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
             <span className="eyebrow">Cockpit de pilotage</span>
           </span>
-          <h1>Welcome to the jungle !</h1>
+          <h1 className="hdr-title">Welcome to the jungle !</h1>
         </div>
         <div className="hdr-actions">
-          <div style={{ display: "flex", gap: 8 }}>
+          <div className="hdr-bar">
+            {onQuery && (
+              <div className="hdr-search">
+                <span className="hs-ic">🔎</span>
+                <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
+                  placeholder="Rechercher un ticket, une personne, une clé…" />
+                {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
+              </div>
+            )}
             <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
               <span className="gauge-fill" style={{ width: `${prog}%` }} />
               <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
             </button>
             {onToggleNotif && (
               <button className={`btn bell ${notifOn ? "on" : "ghost"}`} onClick={onToggleNotif}
-                title={notifOn ? "Notifications activées (actualisation auto)" : "Activer les notifications + actualisation auto"}>
+                title={notifOn ? "Notifications activées (actualisation auto). Clic pour acquitter / couper." : "Activer les notifications + actualisation auto"}>
                 {notifOn ? "🔔" : "🔕"}
+                {notifCount > 0 && <span className="bell-badge">{notifCount > 99 ? "99+" : notifCount}</span>}
               </button>
             )}
             <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
@@ -59,15 +68,6 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           </div>
         </div>
       </div>
-
-      {onQuery && (
-        <div className="hdr-search">
-          <span className="hs-ic">🔎</span>
-          <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
-            placeholder="Rechercher un ticket, une personne, une clé, un mot…" />
-          {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
-        </div>
-      )}
 
       <div className="kpis">
         <Kpi lbl="Total" val={k.total} />
