@@ -106,10 +106,11 @@ export default function App() {
       // Import en arrière-plan : on sonde rapidement jusqu'à ce qu'il soit prêt.
       // Chaque requête est instantanée (pas de requête longue), donc la barre ne peut plus geler.
       let waited = 0;
-      if (p && p.importing) setBootMsg("⏳ Import des tickets en cours… l'appli s'affiche dès que c'est prêt (~1 min au premier démarrage).");
+      if (p && p.importing) setBootMsg("⏳ Premier import de tes tickets en cours… (≈20–30 s, uniquement au démarrage)");
       while (p && p.importing && !p.importError && waited < 180000) {
-        await new Promise((r) => setTimeout(r, 3000));
-        waited += 3000;
+        await new Promise((r) => setTimeout(r, 2000));
+        waited += 2000;
+        setBootMsg(`⏳ Import des tickets en cours… ${Math.round(waited / 1000)} s (≈20–30 s au démarrage, ne ferme pas la page)`);
         p = await fetchPortfolio({});
       }
       setBootMsg("");
@@ -281,6 +282,10 @@ export default function App() {
   }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
   const diag = data?.diagnostic;
+
+  // Garde-fou d'authentification : sans jeton valide, on affiche l'écran de connexion
+  // (au lieu de rester bloqué sur la barre de chargement sans rien proposer).
+  if (!authed) return <Login onSuccess={() => setAuthed(true)} />;
 
   return (
     <div className="wrap">
