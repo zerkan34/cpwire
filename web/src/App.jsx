@@ -106,11 +106,10 @@ export default function App() {
       // Import en arrière-plan : on sonde rapidement jusqu'à ce qu'il soit prêt.
       // Chaque requête est instantanée (pas de requête longue), donc la barre ne peut plus geler.
       let waited = 0;
-      if (p && p.importing) setBootMsg("⏳ Premier import de tes tickets en cours… (≈20–30 s, uniquement au démarrage)");
+      if (p && p.importing) setBootMsg("⏳ Import des tickets en cours… l'appli s'affiche dès que c'est prêt (~1 min au premier démarrage).");
       while (p && p.importing && !p.importError && waited < 180000) {
-        await new Promise((r) => setTimeout(r, 2000));
-        waited += 2000;
-        setBootMsg(`⏳ Import des tickets en cours… ${Math.round(waited / 1000)} s (≈20–30 s au démarrage, ne ferme pas la page)`);
+        await new Promise((r) => setTimeout(r, 3000));
+        waited += 3000;
         p = await fetchPortfolio({});
       }
       setBootMsg("");
