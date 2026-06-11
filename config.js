@@ -354,3 +354,115 @@ Sections attendues : Objet, Participants, Points abordés, Décisions (numérot�
   });
   return { html, generatedBy: aiAvailable() ? "Claude" : "gabarit" };
 }
+
+
+// ---------- Préparation de réunion ----------
+// Document orienté pilotage : d'abord le CONTEXTE (point, qui travaille dessus, où on en est,
+// points de friction), puis l'ordre du jour structuré à partir des notes / d'un fichier importé.
+const WAIT_CATS = ["recetteArmonie", "recetteClient", "attenteClient"];
+
+export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", importedText = "", issues = [], clientNames = new Set() }) {
+  const isClient = (i) => { const d = (i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "")).trim().toLowerCase(); return d && clientNames.has(d); };
+
+  const done = issues.filter((i) => DONE_CATS.includes(i.categorie));
+  const active = issues.filter((i) => ACTIVE_CATS.includes(i.categorie));
+  const recette = issues.filter((i) => WAIT_CATS.includes(i.categorie));
+  const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
+  const retard = issues.filter((i) => i.enRetard);
+  const recentDone = done.filter((i) => i.maj).sort(byMajDesc).slice(0, 8);
+  const avancement = issues.length ? Math.round((done.length / issues.length) * 100) : 0;
+
+  const byDev = {};
+  active.forEach((i) => { if (isClient(i)) return; const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné"); byDev[d] = (byDev[d] || 0) + 1; });
+  const persons = Object.entries(byDev).sort((a, b) => b[1] - a[1]);
+  const chargeTbl = persons.length
+    ? `<table class="data"><tr><th>Personne</th><th>Tickets actifs</th></tr>` + persons.map(([d, n]) => `<tr><td><span class="who">${esc(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
+    : `<p>Aucun intervenant Armonie actif identifié sur ce périmètre.</p>`;
+
+  // CONTEXTE (façon chef de projet senior).
+  let contexte = "";
+  if (aiAvailable()) {
+    try {
+      const top = persons.slice(0, 6).map(([d, n]) => `${d} (${n})`).join(", ");
+      const fric = bloquants.slice(0, 8).map((i) => `${i.cle} ${i.resume}`).join(" ; ");
+      const prompt = `Tu es chef de projet senior. Rédige le CONTEXTE de préparation d'une réunion sur le dossier "${dossier}", équipe Armonie. ` +
+        `En 4 à 6 phrases claires, orientées pilotage : où en est le projet, ce qui avance, qui travaille dessus, et les points de friction/risques à surveiller. Reste factuel, ne réinvente pas de chiffres.\n` +
+        `Données : ${issues.length} tickets (${avancement}% terminés). ${active.length} en cours, ${recette.length} en recette/attente, ${bloquants.length} bloquant(s)/flaggé(s), ${retard.length} en retard. Charge par personne : ${top || "—"}. Points de friction : ${fric || "aucun"}.\n` +
+        `Réponds UNIQUEMENT en HTML <p>…</p>, sans titre.`;
+      contexte = await callClaude(STYLE, prompt);
+    } catch { contexte = ""; }
+  }
+  if (!contexte) {
+    const bits = [];
+    bits.push(`Dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${avancement}%</b> terminé (${done.length}/${issues.length}), <b>${active.length}</b> ticket(s) en cours, <b>${recette.length}</b> en recette ou attente.`);
+    if (persons.length) bits.push(`Travaillent dessus : ${esc(persons.slice(0, 4).map(([d]) => d).join(", "))}.`);
+    if (bloquants.length) bits.push(`<b>Points de friction :</b> ${bloquants.length} bloquant(s)/flaggé(s)${retard.length ? ` et ${retard.length} en retard` : ""} à arbitrer en réunion.`);
+    else if (retard.length) bits.push(`<b>Point d'attention :</b> ${retard.length} ticket(s) en retard.`);
+    else bits.push(`Pas de blocage majeur identifié à ce stade.`);
+    contexte = `<p>${bits.join(" ")}</p>`;
+  }
+
+  // ORDRE DU JOUR (à partir des notes + fichier importé).
+  const matiere = [notes, importedText].filter(Boolean).join("\n\n");
+  let agenda = "";
+  if (matiere.trim()) {
+    if (aiAvailable()) {
+      try {
+        const prompt = `Tu es chef de projet senior. À partir des éléments bruts ci-dessous, structure l'ORDRE DU JOUR d'une réunion "${sujet || type || "point projet"}" pour le client "${dossier}". ` +
+          `Produis : les objectifs, les points à aborder (puces), les questions ouvertes, et les décisions / actions attendues. Clair, concis, professionnel.\n` +
+          `Éléments bruts :\n${matiere.slice(0, 6000)}\n` +
+          `Réponds UNIQUEMENT en HTML avec <h3>, <p>, <ul><li>. Pas de <h1> ni <h2>.`;
+        agenda = await callClaude(STYLE, prompt);
+      } catch { agenda = ""; }
+    }
+    if (!agenda) {
+      const lines = matiere.split(/\n+/).map((s) => s.trim()).filter(Boolean);
+      agenda = `<h3>Points à aborder</h3><ul>${lines.slice(0, 40).map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+    }
+  } else {
+    agenda = `<p class="indic">Ajoute des notes ou importe un fichier pour générer l'ordre du jour. Le contexte ci-dessus est déjà prêt pour démarrer la réunion.</p>`;
+  }
+
+  const kpis = `<div class="kpi-row">
+    <div class="kpi"><div class="v">${avancement}%</div><div class="l">Avancement</div></div>
+    <div class="kpi"><div class="v">${active.length}</div><div class="l">En cours</div></div>
+    <div class="kpi"><div class="v">${recette.length}</div><div class="l">En recette</div></div>
+    <div class="kpi"><div class="v">${bloquants.length}</div><div class="l">Bloquants</div></div>
+    <div class="kpi"><div class="v">${retard.length}</div><div class="l">En retard</div></div>
+  </div>`;
+
+  const body =
+    `<h2>Point &amp; contexte</h2>${kpis}${contexte}` +
+    `<h3>Qui travaille dessus</h3>${chargeTbl}` +
+    `<h3>Où on en est — derniers livrables</h3>${recentDone.length ? catList(recentDone) : "<p>Aucun ticket récemment terminé.</p>"}` +
+    `<h3>⚠ Points de friction</h3>${bloquants.length ? catList(bloquants, { showStatus: true, cap: 40 }) : "<p>Aucun blocage signalé à ce jour.</p>"}` +
+    `<h2>Réunion — ${esc(sujet || type || "Point projet")}</h2>${agenda}`;
+
+  const html = buildDoc({
+    kicker: "Préparation de réunion",
+    title: `Préparation — ${dossier}`,
+    subtitle: `${sujet || type || "Point projet"} · équipe Armonie`,
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Sujet", sujet || type || "Point projet"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    bodyHtml: body,
+    etabliPar: process.env.ME || "Nicolas Durand",
+  });
+  const agendaText = String(agenda)
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<\/(p|h2|h3|li|ul)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n").trim();
+  return {
+    html,
+    generatedBy: aiAvailable() ? "Claude + données" : "données",
+    data: {
+      dossier,
+      sujet: sujet || type || "Point projet",
+      avancement, active: active.length, recette: recette.length, bloquants: bloquants.length, retard: retard.length,
+      contextText: String(contexte).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(),
+      agendaText,
+      who: persons.map(([name, count]) => ({ name, count })),
+      deliverables: recentDone.map((i) => ({ cle: i.cle, resume: i.resume, dossier: i.dossier })),
+      frictions: bloquants.slice(0, 40).map((i) => ({ cle: i.cle, resume: i.resume, statut: i.statut || "" })),
+    },
+  };
+}

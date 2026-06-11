@@ -1,7 +1,7 @@
 // jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
-import { dossierFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, ME } from "./config.js";
+import { dossierFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
 
 const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
 const EMAIL = process.env.JIRA_EMAIL || "";
@@ -55,6 +55,21 @@ function isFlagged(f) {
 }
 
 // Appelle l'endpoint de recherche enrichie et suit la pagination jusqu'au bout.
+// fetch avec délai maximum : évite qu'une requête Jira qui ne répond pas bloque l'import à l'infini
+// (sinon l'actualisation reste figée, la barre simulée parquée à ~92 %).
+async function fetchWithTimeout(url, opts = {}, ms = 30000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal });
+  } catch (e) {
+    if (e && e.name === "AbortError") throw new Error(`Jira n'a pas répondu sous ${Math.round(ms / 1000)} s (page d'import interrompue). Réessaie « Tout recharger ».`);
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function searchIssues(jql) {
   if (!isConfigured()) {
     throw new Error(
@@ -70,12 +85,14 @@ export async function searchIssues(jql) {
   let nextPageToken;
   let guard = 0;
   const MAX_PAGES = 2000;
+  const t0 = Date.now();
+  console.log(`[import v2] début · jql="${String(jql).slice(0, 90)}"`);
 
   do {
     const body = { jql, maxResults: 100, fields };
     if (nextPageToken) body.nextPageToken = nextPageToken;
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       method: "POST",
       headers: {
         Authorization: authHeader(),
@@ -83,19 +100,22 @@ export async function searchIssues(jql) {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
-    });
+    }, 30000);
 
     if (!res.ok) {
       const text = await res.text().catch(() => "");
+      console.error(`[import v2] ERREUR Jira ${res.status} à la page ${guard + 1} : ${text.slice(0, 200)}`);
       throw new Error(`Jira a répondu ${res.status} : ${text.slice(0, 300)}`);
     }
 
     const data = await res.json();
     (data.issues || []).forEach((it) => issues.push(normalize(it)));
-    nextPageToken = data.isLast ? undefined : data.nextPageToken;
     guard += 1;
+    console.log(`[import v2] page ${guard} · +${(data.issues || []).length} (total ${issues.length}) · isLast=${data.isLast === true}`);
+    nextPageToken = data.isLast ? undefined : data.nextPageToken;
   } while (nextPageToken && guard < MAX_PAGES);
 
+  console.log(`[import v2] TERMINÉ · ${issues.length} tickets · ${guard} page(s) · ${Date.now() - t0} ms`);
   return issues;
 }
 
@@ -134,7 +154,10 @@ function normalize(it) {
     dossier: dossierFromKey(it.key),
     resume: summary,
     assigne,
-    dev: devFromIssue(assigne, summary), // dév responsable (assigné, sinon nom en fin de titre)
+    assigneEmail: f.assignee?.emailAddress || "", // souvent masqué par Jira (vie privée)
+    dev: devFromIssue(assigne, summary, labels), // dév principal (assigné, sinon titre, sinon étiquette)
+    contributors: contributorsFromIssue(assigne, summary, labels), // tous les intervenants (assigné + titre + étiquettes)
+    labels,
     priorite: f.priority?.name || "",
     statutJira: statusName,
     statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)
@@ -232,4 +255,135 @@ export async function fetchIssueDescription(key) {
   } catch {
     return "";
   }
+}
+
+// Pour la fiche développeur : sur ses tickets ACTIFS, combien d'heures CE dev a saisi,
+// depuis quand il en est assigné, et sa dernière activité réelle. Appels à la demande.
+export async function fetchDevWork(devName, keys = []) {
+  if (!isConfigured() || !devName || !keys.length) return { configured: isConfigured(), items: [] };
+  const dn = String(devName).trim().toLowerCase();
+  const out = [];
+  for (const key of keys.slice(0, 10)) {
+    try {
+      const a = await fetchIssueActivity(key);
+      let sec = 0, lastWork = null;
+      (a.worklogs || []).forEach((w) => {
+        if (String(w.who || "").trim().toLowerCase() === dn) {
+          sec += w.seconds || 0;
+          if (w.date && (!lastWork || String(w.date) > String(lastWork))) lastWork = w.date;
+        }
+      });
+      let since = null;
+      (a.timeline || []).forEach((t) => {
+        if (t.champ === "Assigné" && String(t.to || "").trim().toLowerCase() === dn) {
+          if (!since || String(t.date) > String(since)) since = t.date;
+        }
+      });
+      out.push({ cle: key, heuresDevSec: sec, heuresDev: fmtSeconds(sec), depuisAssigne: since, derniereActivite: lastWork, totalTime: a.totalTime });
+    } catch {
+      out.push({ cle: key, heuresDevSec: 0, heuresDev: "0h", depuisAssigne: null, derniereActivite: null, totalTime: "0h" });
+    }
+  }
+  return { configured: true, items: out };
+}
+
+// Pour les NOTIFICATIONS : sur les tickets modifiés, renvoie le dernier évènement réel
+// (qui a changé quoi, ou qui a saisi du temps, et quand) — même source que "Historique & temps".
+export async function fetchChangesSummary(keys = []) {
+  if (!isConfigured() || !keys.length) return { configured: isConfigured(), items: [] };
+  const out = [];
+  for (const key of keys.slice(0, 8)) {
+    try {
+      const a = await fetchIssueActivity(key);
+      const tl = (a.timeline && a.timeline[0]) || null;
+      const wl = (a.worklogs && a.worklogs[0]) || null;
+      const cand = [];
+      if (tl) cand.push({ kind: "change", date: tl.date, who: tl.who, text: `${tl.champ} : ${tl.from} → ${tl.to}` });
+      if (wl) cand.push({ kind: "time", date: wl.date, who: wl.who, text: `a saisi ${wl.time}` });
+      cand.sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
+      const e = cand[0];
+      out.push(e
+        ? { cle: key, who: e.who, action: e.text, kind: e.kind, at: e.date }
+        : { cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
+    } catch {
+      out.push({ cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
+    }
+  }
+  return { configured: true, items: out };
+}
+
+// CRA — Compte rendu d'activité : consolide les temps saisis (worklogs Jira) sur une période,
+// par projet/client ET par personne. C'est la matière du « qui a fait quoi, sur quel projet, combien de temps ».
+// Honnêteté : ne reflète QUE les temps réellement saisis dans Jira (pas de temps inventé).
+async function mapLimit(items, limit, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const res = await Promise.all(items.slice(i, i + limit).map(fn));
+    out.push(...res);
+  }
+  return out;
+}
+
+export async function fetchCRA({ start, end } = {}) {
+  if (!isConfigured()) throw new Error("Jira non configuré : renseigne JIRA_BASE_URL, JIRA_EMAIL et JIRA_API_TOKEN.");
+  if (!start || !end) return { start, end, byPerson: [], byProject: [], totalSeconds: 0, totalTime: "0h", scanned: 0, total: 0, capped: false };
+
+  // 1) Tickets ayant AU MOINS un temps saisi dans la période (JQL worklogDate).
+  const jql = `worklogDate >= "${start}" AND worklogDate <= "${end}" ORDER BY updated DESC`;
+  const issues = await searchIssues(jql); // déjà normalisés (cle, dossier, resume, statut, categorie…)
+  const CAP = 150; // garde-fou : on plafonne le nombre de tickets scannés pour le détail des worklogs
+  const capped = issues.length > CAP;
+  const scan = issues.slice(0, CAP);
+
+  // 2) Pour chaque ticket, on récupère ses worklogs (en parallèle par lots) et on ne garde que ceux de la période.
+  const headers = { Authorization: authHeader(), Accept: "application/json" };
+  const inRange = (iso) => { if (!iso) return false; const d = String(iso).slice(0, 10); return d >= start && d <= end; };
+  const rows = await mapLimit(scan, 8, async (it) => {
+    let data = null;
+    try { const r = await fetch(`${BASE_URL}/rest/api/3/issue/${encodeURIComponent(it.cle)}/worklog`, { headers }); if (r.ok) data = await r.json(); } catch { /* ignore */ }
+    const wls = ((data && data.worklogs) || [])
+      .filter((w) => inRange(w.started || w.created))
+      .map((w) => ({ who: w.author?.displayName || "—", seconds: w.timeSpentSeconds || 0, date: w.started || w.created || null }))
+      .filter((w) => w.seconds > 0);
+    return { it, wls };
+  });
+
+  // 3) Agrégation par personne et par projet.
+  const personMap = {}; // who -> { who, seconds, projects: { dossier: { dossier, seconds, tickets: {cle:{...}} } } }
+  const projectMap = {}; // dossier -> { dossier, seconds, persons: {who:sec}, tickets: {cle:{...}} }
+  let totalSeconds = 0;
+  for (const { it, wls } of rows) {
+    const dossier = it.dossier || it.projet || "Autre";
+    for (const w of wls) {
+      totalSeconds += w.seconds;
+      // par personne
+      const P = (personMap[w.who] ||= { who: w.who, seconds: 0, projects: {} });
+      P.seconds += w.seconds;
+      const PP = (P.projects[dossier] ||= { dossier, seconds: 0, tickets: {} });
+      PP.seconds += w.seconds;
+      const PT = (PP.tickets[it.cle] ||= { cle: it.cle, resume: it.resume, statut: it.statut, statutJira: it.statutJira, done: DONE_CATS.includes(it.categorie), seconds: 0 });
+      PT.seconds += w.seconds;
+      // par projet
+      const J = (projectMap[dossier] ||= { dossier, seconds: 0, persons: {}, tickets: {} });
+      J.seconds += w.seconds;
+      J.persons[w.who] = (J.persons[w.who] || 0) + w.seconds;
+      const JT = (J.tickets[it.cle] ||= { cle: it.cle, resume: it.resume, statut: it.statut, statutJira: it.statutJira, done: DONE_CATS.includes(it.categorie), seconds: 0, who: {} });
+      JT.seconds += w.seconds;
+      JT.who[w.who] = (JT.who[w.who] || 0) + w.seconds;
+    }
+  }
+
+  const tList = (tk) => Object.values(tk).sort((a, b) => b.seconds - a.seconds).map((t) => ({ ...t, time: fmtSeconds(t.seconds), who: t.who ? Object.keys(t.who) : undefined }));
+  const byPerson = Object.values(personMap).map((p) => ({
+    who: p.who, seconds: p.seconds, time: fmtSeconds(p.seconds),
+    projects: Object.values(p.projects).sort((a, b) => b.seconds - a.seconds)
+      .map((pr) => ({ dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds), tickets: tList(pr.tickets) })),
+  })).sort((a, b) => b.seconds - a.seconds);
+  const byProject = Object.values(projectMap).map((pr) => ({
+    dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds),
+    persons: Object.entries(pr.persons).map(([who, sec]) => ({ who, seconds: sec, time: fmtSeconds(sec) })).sort((a, b) => b.seconds - a.seconds),
+    tickets: tList(pr.tickets),
+  })).sort((a, b) => b.seconds - a.seconds);
+
+  return { start, end, totalSeconds, totalTime: fmtSeconds(totalSeconds), byPerson, byProject, scanned: scan.length, total: issues.length, capped };
 }
