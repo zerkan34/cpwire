@@ -35,10 +35,16 @@ const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "";
 const AUTH_ENABLED = Boolean(AUTH_EMAIL && AUTH_PASSWORD);
 const sessions = new Set();
 
+// Jeton déterministe (dérivé des identifiants) : il reste valable même après
+// un redémarrage de Render, contrairement à l'ancien jeton aléatoire stocké en mémoire.
+function expectedToken() {
+  return crypto.createHash("sha256").update(`cpwire|${AUTH_EMAIL}|${AUTH_PASSWORD}`).digest("hex");
+}
+
 function guard(req, res, next) {
   if (!AUTH_ENABLED) return next();
   const t = req.headers["x-access-token"];
-  if (t && sessions.has(t)) return next();
+  if (t && (t === expectedToken() || sessions.has(t))) return next();
   return res.status(401).json({ error: "Authentification requise." });
 }
 
@@ -193,7 +199,7 @@ app.post("/api/login", (req, res) => {
     return res.json({ token: t, me: ME, note: "Auth non configurée côté serveur." });
   }
   if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-    const t = crypto.randomUUID(); sessions.add(t);
+    const t = expectedToken(); sessions.add(t);
     return res.json({ token: t, me: ME });
   }
   return res.status(401).json({ error: "Identifiants incorrects." });
