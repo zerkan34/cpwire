@@ -266,3 +266,28 @@ export async function fetchDevWork(devName, keys = []) {
   }
   return { configured: true, items: out };
 }
+
+// Pour les NOTIFICATIONS : sur les tickets modifiés, renvoie le dernier évènement réel
+// (qui a changé quoi, ou qui a saisi du temps, et quand) — même source que "Historique & temps".
+export async function fetchChangesSummary(keys = []) {
+  if (!isConfigured() || !keys.length) return { configured: isConfigured(), items: [] };
+  const out = [];
+  for (const key of keys.slice(0, 8)) {
+    try {
+      const a = await fetchIssueActivity(key);
+      const tl = (a.timeline && a.timeline[0]) || null;
+      const wl = (a.worklogs && a.worklogs[0]) || null;
+      const cand = [];
+      if (tl) cand.push({ kind: "change", date: tl.date, who: tl.who, text: `${tl.champ} : ${tl.from} → ${tl.to}` });
+      if (wl) cand.push({ kind: "time", date: wl.date, who: wl.who, text: `a saisi ${wl.time}` });
+      cand.sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
+      const e = cand[0];
+      out.push(e
+        ? { cle: key, who: e.who, action: e.text, kind: e.kind, at: e.date }
+        : { cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
+    } catch {
+      out.push({ cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
+    }
+  }
+  return { configured: true, items: out };
+}

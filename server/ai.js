@@ -446,5 +446,23 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
-  return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
+  const agendaText = String(agenda)
+    .replace(/<li[^>]*>/gi, "• ")
+    .replace(/<\/(p|h2|h3|li|ul)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/\n{3,}/g, "\n\n").trim();
+  return {
+    html,
+    generatedBy: aiAvailable() ? "Claude + données" : "données",
+    data: {
+      dossier,
+      sujet: sujet || type || "Point projet",
+      avancement, active: active.length, recette: recette.length, bloquants: bloquants.length, retard: retard.length,
+      contextText: String(contexte).replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(),
+      agendaText,
+      who: persons.map(([name, count]) => ({ name, count })),
+      deliverables: recentDone.map((i) => ({ cle: i.cle, resume: i.resume, dossier: i.dossier })),
+      frictions: bloquants.slice(0, 40).map((i) => ({ cle: i.cle, resume: i.resume, statut: i.statut || "" })),
+    },
+  };
 }
