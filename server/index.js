@@ -34,6 +34,8 @@ const AUTH_EMAIL = process.env.AUTH_EMAIL || "";
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "";
 const AUTH_ENABLED = Boolean(AUTH_EMAIL && AUTH_PASSWORD);
 const sessions = new Set();
+// Secret de signature des liens d'invitation (dérivé du mot de passe : pas de config en plus).
+const SIGN_SECRET = AUTH_PASSWORD || "cpwire-invite-secret";
 
 // Jeton déterministe (dérivé des identifiants) : il reste valable même après
 // un redémarrage de Render, contrairement à l'ancien jeton aléatoire stocké en mémoire.
@@ -41,11 +43,46 @@ function expectedToken() {
   return crypto.createHash("sha256").update(`cpwire|${AUTH_EMAIL}|${AUTH_PASSWORD}`).digest("hex");
 }
 
+// ---- Invitation lecture seule : jeton "invité" signé, avec expiration ----
+// Format : g.<expirationMs>.<signature>  — auto-vérifiable, sans stockage (survit aux redémarrages).
+function sign(payload) {
+  return crypto.createHmac("sha256", SIGN_SECRET).update(payload).digest("hex");
+}
+function safeEqual(a, b) {
+  try {
+    const ba = Buffer.from(a || "", "utf8"), bb = Buffer.from(b || "", "utf8");
+    return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+  } catch { return false; }
+}
+function makeGuestToken(expMs) {
+  return `g.${expMs}.${sign(`guest|${expMs}`)}`;
+}
+function checkGuestToken(t) {
+  if (!t || typeof t !== "string" || !t.startsWith("g.")) return null;
+  const parts = t.split(".");
+  if (parts.length !== 3) return null;
+  const expMs = Number(parts[1]);
+  if (!Number.isFinite(expMs) || Date.now() > expMs) return null;       // expiré
+  if (!safeEqual(parts[2], sign(`guest|${expMs}`))) return null;        // signature invalide
+  return { expMs };
+}
+
+// Détermine le rôle de la requête : "owner" (accès total) ou "guest" (lecture seule).
 function guard(req, res, next) {
-  if (!AUTH_ENABLED) return next();
+  if (!AUTH_ENABLED) { req.role = "owner"; return next(); }
   const t = req.headers["x-access-token"];
-  if (t && (t === expectedToken() || sessions.has(t))) return next();
+  if (t && (t === expectedToken() || sessions.has(t))) { req.role = "owner"; return next(); }
+  if (checkGuestToken(t)) { req.role = "guest"; return next(); }
   return res.status(401).json({ error: "Authentification requise." });
+}
+
+// À placer APRÈS guard sur toute route qui modifie des données ou déclenche un envoi :
+// un invité (lecture seule) reçoit 403.
+function writeGuard(req, res, next) {
+  if (req.role === "guest") {
+    return res.status(403).json({ error: "Action non autorisée : accès invité en lecture seule." });
+  }
+  next();
 }
 
 app.use(cors());
@@ -205,6 +242,18 @@ app.post("/api/login", (req, res) => {
   return res.status(401).json({ error: "Identifiants incorrects." });
 });
 
+// Rôle de la session courante : l'interface s'en sert pour activer le mode lecture seule.
+app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: ME }));
+
+// Génère un lien d'invitation en lecture seule (réservé à l'owner). hours = durée de validité.
+app.post("/api/invite", guard, writeGuard, (req, res) => {
+  const raw = Number(req.body?.hours);
+  const hours = Math.min(Math.max(Number.isFinite(raw) ? raw : 24, 1), 720); // 1 h … 30 jours
+  const expMs = Date.now() + hours * 3600 * 1000;
+  const token = makeGuestToken(expMs);
+  res.json({ token, expiresAt: new Date(expMs).toISOString(), hours });
+});
+
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, app: "CPwire", authEnabled: AUTH_ENABLED, jiraConfigured: isConfigured(),
     ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), me: ME, projects: PROJECTS, allowDemo: ALLOW_DEMO }));
@@ -350,7 +399,7 @@ app.post("/api/ticket/report", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.post("/api/ticket/push", guard, async (req, res) => {
+app.post("/api/ticket/push", guard, writeGuard, async (req, res) => {
   try {
     const { cle, comment, markDone } = req.body;
     if (!isConfigured()) return res.status(409).json({ error: "Jira non configuré : impossible d'écrire dans le ticket." });
@@ -362,14 +411,14 @@ app.post("/api/ticket/push", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.post("/api/transcribe", guard, upload.single("audio"), async (req, res) => {
+app.post("/api/transcribe", guard, writeGuard, upload.single("audio"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: "Aucun fichier audio." });
     res.json({ text: await transcribe(req.file.buffer, req.file.originalname, req.file.mimetype) });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.post("/api/meeting/report", guard, upload.fields([{ name: "audio", maxCount: 1 }, { name: "images", maxCount: 8 }]), async (req, res) => {
+app.post("/api/meeting/report", guard, writeGuard, upload.fields([{ name: "audio", maxCount: 1 }, { name: "images", maxCount: 8 }]), async (req, res) => {
   try {
     const { titre, participants, notes } = req.body;
     let transcript = req.body.transcript || "";
@@ -404,7 +453,7 @@ app.post("/api/meeting/prep", guard, async (req, res) => {
 });
 
 app.get("/api/dossiers", guard, (_req, res) => res.json({ dossiers: readDossiers() }));
-app.put("/api/dossiers/:nom", guard, (req, res) => {
+app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
   try {
     const saved = saveDossier(req.params.nom, req.body || {});
     logEvent("fiche_dossier", `Fiche mise à jour - ${req.params.nom}`, {});
@@ -413,7 +462,7 @@ app.put("/api/dossiers/:nom", guard, (req, res) => {
 });
 
 // ---- Partage Microsoft 365 (optionnel, nécessite app Azure) ----
-app.post("/api/share/mail", guard, async (req, res) => {
+app.post("/api/share/mail", guard, writeGuard, async (req, res) => {
   try {
     const { to, subject, html } = req.body;
     const r = await sendMail({ to, subject, html });
@@ -422,7 +471,7 @@ app.post("/api/share/mail", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.post("/api/share/sharepoint", guard, async (req, res) => {
+app.post("/api/share/sharepoint", guard, writeGuard, async (req, res) => {
   try {
     const { folderPath, filename, html } = req.body;
     const r = await uploadToSharePoint({ folderPath, filename, html });
@@ -435,14 +484,14 @@ app.get("/api/history", guard, (_req, res) => res.json({ events: readHistory() }
 
 // Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).
 app.get("/api/devs/deleted", guard, (_req, res) => res.json({ deleted: readDeleted() }));
-app.post("/api/devs/delete", guard, (req, res) => {
+app.post("/api/devs/delete", guard, writeGuard, (req, res) => {
   const name = (req.body?.name || "").trim();
   if (!name) return res.status(400).json({ error: "Nom manquant." });
   const deleted = addDeleted(name);
   logEvent("dev_delete", `Fiche développeur masquée : ${name}`);
   res.json({ deleted });
 });
-app.post("/api/devs/restore", guard, (req, res) => {
+app.post("/api/devs/restore", guard, writeGuard, (req, res) => {
   const name = (req.body?.name || "").trim();
   const deleted = removeDeleted(name);
   logEvent("dev_restore", `Fiche développeur restaurée : ${name}`);
