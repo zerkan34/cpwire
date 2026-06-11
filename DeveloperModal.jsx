@@ -1,92 +1,106 @@
 import React, { useState } from "react";
-import { downloadHtml, printHtml } from "../utils.js";
-import { shareMail, shareSharePoint } from "../api.js";
+import { saveDossier } from "../api.js";
+import { buildSimpleDoc, esc } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import ExportBar from "./ExportBar.jsx";
 
-function htmlToText(html) {
-  const div = document.createElement("div");
-  div.innerHTML = html;
-  return (div.textContent || "").replace(/\n{3,}/g, "\n\n").trim().slice(0, 1500);
-}
+const blank = () => ({ nom: "", poste: "", email: "", statut: "Actif", cote: "Armonie" });
 
-export default function DocPreview({ title, html, filename, dossier, onClose }) {
+export default function DossierModal({ nom, fiche, onClose, onSaved }) {
   useModalBack(onClose);
+  const [desc, setDesc] = useState(fiche?.description || "");
+  const [tech, setTech] = useState((fiche?.tech || []).join(", "));
+  const [team, setTeam] = useState((fiche?.team || []).map((m) => ({ ...m })));
+  const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
-  const [busy, setBusy] = useState("");
 
-  const mailtoShare = () => {
-    const subject = encodeURIComponent(title);
-    const body = encodeURIComponent(
-      `Bonjour,\n\nVeuillez trouver ci-dessous le rapport « ${title} ».\n(Le document mis en forme est téléchargé pour pouvoir l'y joindre.)\n\n` +
-      htmlToText(html) + `\n\n— Envoyé depuis CPwire`
-    );
-    downloadHtml(html, filename);
-    window.location.href = `mailto:?subject=${subject}&body=${body}`;
-  };
+  const upd = (i, k, v) => setTeam((t) => t.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
+  const add = () => setTeam((t) => [...t, blank()]);
+  const remove = (i) => setTeam((t) => t.filter((_, j) => j !== i));
 
-  // Fallback sans application mail : ouvre Outlook sur le web avec le brouillon pré-rempli.
-  const outlookWebShare = () => {
-    const subject = encodeURIComponent(title);
-    const body = encodeURIComponent(
-      `Bonjour,\n\nRapport « ${title} ».\n\n` + htmlToText(html) + `\n\n— Envoyé depuis CPwire`
-    );
-    downloadHtml(html, filename);
-    window.open(`https://outlook.office.com/mail/deeplink/compose?subject=${subject}&body=${body}`, "_blank", "noopener");
-  };
-
-  const copyText = async () => {
-    const txt = `${title}\n\n` + htmlToText(html);
+  const save = async () => {
+    setBusy(true); setMsg(null);
     try {
-      await navigator.clipboard.writeText(txt);
-      setMsg({ t: "ok", m: "Texte du rapport copié — colle-le dans ton e-mail." });
-    } catch {
-      setMsg({ t: "warn", m: "Copie impossible sur ce navigateur — utilise « Télécharger »." });
-    }
+      const payload = { description: desc, tech: tech.split(",").map((s) => s.trim()).filter(Boolean), team };
+      const { fiche: saved } = await saveDossier(nom, payload);
+      setMsg({ type: "ok", text: "Fiche enregistrée." });
+      onSaved && onSaved(nom, saved);
+    } catch (e) { setMsg({ type: "warn", text: e.message }); }
+    finally { setBusy(false); }
   };
 
-  const apiMail = async () => {
-    const to = window.prompt("Destinataire(s), séparés par des virgules :", "");
-    if (!to) return;
-    setBusy("mail"); setMsg(null);
-    try { await shareMail(to.split(",").map((s) => s.trim()), title, html); setMsg({ t: "ok", m: "E-mail envoyé via Outlook." }); }
-    catch (e) { setMsg({ t: "warn", m: e.message }); }
-    finally { setBusy(""); }
+  const client = team.filter((m) => m.cote === "Client");
+  const armonie = team.filter((m) => m.cote === "Armonie");
+
+  const buildDossierHtml = () => {
+    const techList = tech.split(",").map((s) => s.trim()).filter(Boolean);
+    const rows = team.map((m) => `<tr><td>${esc(m.nom)}</td><td>${esc(m.poste)}</td><td>${esc(m.email)}</td><td>${esc(m.statut)}</td><td>${esc(m.cote)}</td></tr>`).join("");
+    let body = `<h2>Présentation</h2><p>${esc(desc) || "<span class='muted'>—</span>"}</p>`;
+    body += `<h2>Technologies</h2><p>${techList.length ? esc(techList.join(", ")) : "<span class='muted'>—</span>"}</p>`;
+    body += `<h2>Équipe &amp; contacts</h2>` +
+      `<table><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th></tr>${rows || "<tr><td colspan='5'>—</td></tr>"}</table>`;
+    const cartouche = [
+      ["Dossier", `${nom} — équipe Armonie`],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Équipe", `${team.length} personne(s) · Armonie ${armonie.length} · Client ${client.length}`],
+    ];
+    return buildSimpleDoc({ kicker: "Fiche dossier", title: `Fiche dossier — ${nom}`, cartouche, bodyHtml: body });
   };
 
-  const toSharePoint = async () => {
-    const folder = window.prompt("Dossier SharePoint :", `Clients/${dossier || ""}/Rapports`);
-    if (!folder) return;
-    setBusy("sp"); setMsg(null);
-    try {
-      const r = await shareSharePoint(folder, filename, html);
-      setMsg({ t: "ok", m: "Déposé sur SharePoint." + (r.webUrl ? " " + r.webUrl : "") });
-    } catch (e) { setMsg({ t: "warn", m: e.message }); }
-    finally { setBusy(""); }
-  };
-
-  if (!html) return null;
   return (
     <div className="overlay" onClick={backOut}>
-      <div className="modal" style={{ maxWidth: 880 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
         <div className="modal-hd">
           <button className="modal-back" onClick={backOut} title="Retour">←</button>
           <button className="x" onClick={backOut}>×</button>
-          <div className="k">Document généré</div>
-          <h3>{title}</h3>
+          <div className="k">Fiche dossier</div>
+          <h3>{nom}</h3>
         </div>
         <div className="modal-bd">
-          <iframe className="doc-frame" srcDoc={html} title="aperçu" />
-          <div className="row-actions">
-            <button className="btn-solid gold" onClick={() => downloadHtml(html, filename)}>Télécharger</button>
-            <button className="btn-line" onClick={() => printHtml(html)}>Imprimer / PDF</button>
-            <button className="btn-line" onClick={copyText}>Copier le texte</button>
-            <button className="btn-line" onClick={outlookWebShare}>Outlook (web)</button>
-            <button className="btn-line" onClick={mailtoShare}>Outlook (appli)</button>
-            {dossier && <button className="btn-line" onClick={toSharePoint} disabled={busy === "sp"}>{busy === "sp" ? "Dépôt…" : "Déposer sur SharePoint"}</button>}
-            <button className="btn-line" onClick={apiMail} disabled={busy === "mail"}>{busy === "mail" ? "Envoi…" : "Envoyer via Outlook (auto)"}</button>
+          <ExportBar buildHtml={buildDossierHtml} filename={`fiche-${nom}.html`} subject={`Fiche dossier — ${nom}`} />
+          <div className="field">
+            <label>Historique court / ce que fait le dossier</label>
+            <textarea className="ta" value={desc} onChange={(e) => setDesc(e.target.value)} />
           </div>
-          {msg && <div className={msg.t === "ok" ? "ok-note" : "warn-note"}>{msg.m}</div>}
-          <div className="hint">Sans appli mail installée, utilise « Outlook (web) » ou « Copier le texte ». « Envoyer via Outlook (auto) » et « SharePoint » nécessitent Microsoft 365 (voir README).</div>
+          <div className="field">
+            <label>Technologies utilisées (séparées par des virgules)</label>
+            <input type="text" value={tech} onChange={(e) => setTech(e.target.value)} placeholder="IBM i, RPG, eMage…" />
+          </div>
+
+          <div className="field">
+            <label>Équipe & contacts <span style={{ color: "var(--muted)", fontWeight: 400 }}>({team.length})</span></label>
+            <table className="edit-tbl">
+              <thead><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th><th></th></tr></thead>
+              <tbody>
+                {team.map((m, i) => (
+                  <tr key={i}>
+                    <td><input value={m.nom} onChange={(e) => upd(i, "nom", e.target.value)} placeholder="Nom" /></td>
+                    <td><input value={m.poste} onChange={(e) => upd(i, "poste", e.target.value)} placeholder="Poste" /></td>
+                    <td><input value={m.email} onChange={(e) => upd(i, "email", e.target.value)} placeholder="email@…" /></td>
+                    <td>
+                      <select value={m.statut} onChange={(e) => upd(i, "statut", e.target.value)}>
+                        <option>Actif</option><option>Inactif</option><option>À confirmer</option>
+                      </select>
+                    </td>
+                    <td>
+                      <select value={m.cote} onChange={(e) => upd(i, "cote", e.target.value)}>
+                        <option>Armonie</option><option>Client</option>
+                      </select>
+                    </td>
+                    <td><button className="x-row" onClick={() => remove(i)} title="Retirer">×</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <button className="btn-line" style={{ marginTop: 10 }} onClick={add}>+ Ajouter une personne</button>
+            <div className="hint">Côté Armonie : {armonie.length} · Côté client : {client.length}</div>
+          </div>
+
+          <div className="row-actions">
+            <button className="btn-solid gold" onClick={save} disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer la fiche"}</button>
+            <button className="btn-line" onClick={backOut}>Fermer</button>
+          </div>
+          {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
         </div>
       </div>
     </div>
