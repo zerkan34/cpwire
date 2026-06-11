@@ -9,6 +9,12 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
   const [dossier, setDossier] = useState("Tous");
   const delSet = new Set(deletedDevs);
 
+  const [hidden, setHidden] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem("cpwire_hidden_devs") || "[]")); } catch { return new Set(); } });
+  const [showHidden, setShowHidden] = useState(false);
+  const persistHidden = (s) => { try { localStorage.setItem("cpwire_hidden_devs", JSON.stringify([...s])); } catch { /* */ } };
+  const hide = (name) => setHidden((prev) => { const n = new Set(prev); n.add(name); persistHidden(n); return n; });
+  const unhide = (name) => setHidden((prev) => { const n = new Set(prev); n.delete(name); persistHidden(n); return n; });
+
   const dossiers = useMemo(
     () => ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()],
     [issues]
@@ -61,22 +67,37 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
           <div className="empty">Aucun ticket pour ce périmètre.</div>
         ) : (
           <div className="dev-list">
-            {rows.map((r) => (
-              <button className={`dev-row ${delSet.has(r.dev) ? "del" : ""}`} key={r.dev} onClick={() => onDev && onDev(r.dev)} title="Voir la fiche du développeur">
-                <span className="dev-name dname">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}{delSet.has(r.dev) ? <span className="dev-del-tag">fiche supprimée</span> : null}</span>
-                <span className="dev-bar">
-                  <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
-                </span>
-                <span className="dev-counts">
-                  <span className="dev-tot">{r.total}</span>
-                  <span className="pill done">{r.termine}</span>
-                  <span className="pill prog">{r.encours}</span>
-                  {r.recette ? <span className="pill todo">{r.recette}</span> : null}
-                  {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
-                  <span className="dev-caret">›</span>
-                </span>
-              </button>
-            ))}
+            {rows.filter((r) => showHidden || !hidden.has(r.dev)).map((r) => {
+              const isDel = delSet.has(r.dev);
+              const isHidden = hidden.has(r.dev);
+              return (
+                <div className={`dev-row ${isDel ? "del" : ""} ${isHidden ? "hid" : ""}`} key={r.dev} role="button" tabIndex={0}
+                  onClick={() => onDev && onDev(r.dev)} title="Voir la fiche du développeur">
+                  <span className="dev-name dname">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}{isDel ? <span className="dev-del-tag">inactif</span> : null}</span>
+                  <span className="dev-bar">
+                    <span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} />
+                  </span>
+                  <span className="dev-counts">
+                    <span className="dev-tot">{r.total}</span>
+                    <span className="pill done">{r.termine}</span>
+                    <span className="pill prog">{r.encours}</span>
+                    {r.recette ? <span className="pill todo">{r.recette}</span> : null}
+                    {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
+                    {isHidden
+                      ? <button className="dev-hide" title="Réafficher dans la liste" onClick={(e) => { e.stopPropagation(); unhide(r.dev); }}>Réafficher</button>
+                      : (isDel ? <button className="dev-hide" title="Masquer de la liste" onClick={(e) => { e.stopPropagation(); hide(r.dev); }}>Masquer</button> : null)}
+                    <span className="dev-caret">›</span>
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {hidden.size > 0 && (
+          <div className="dev-hidden-bar">
+            <button className="btn-line sm" onClick={() => setShowHidden((s) => !s)}>
+              {showHidden ? "Cacher les masqués" : `Afficher les masqués (${hidden.size})`}
+            </button>
           </div>
         )}
       </div>

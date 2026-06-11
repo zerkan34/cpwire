@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { printHtml, buildSimpleDoc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
+import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
@@ -37,10 +38,12 @@ function inRange(iso, range) {
 }
 function ymKey(iso) { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
+function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (isNaN(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
+function agoTxt(iso) { const d = daysSince(iso); if (d === null) return ""; if (d <= 0) return "aujourd'hui"; if (d === 1) return "hier"; if (d < 30) return `il y a ${d} j`; const m = Math.floor(d / 30); return `il y a ${m} mois`; }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 
 export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
-  const [period, setPeriod] = useState("semaine");
+  const [period, setPeriod] = useState("tout");
   const [copied, setCopied] = useState(false);
   useModalBack(onClose);
 
@@ -66,6 +69,34 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     retard: items.filter((i) => i.enRetard).length,
     flagged: items.filter((i) => i.flagged).length,
   }), [items]);
+
+  const email = useMemo(() => {
+    const hit = items.find((i) => i.assigne === devName && i.assigneEmail);
+    return hit ? hit.assigneEmail : "";
+  }, [items, devName]);
+
+  // Tickets ACTIFS (en cours / recette) — "sur quoi il travaille en ce moment", indépendant de la période.
+  const activeItems = useMemo(
+    () => items.filter((i) => ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie))
+      .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))),
+    [items]
+  );
+
+  const [work, setWork] = useState({});         // { cle: {heuresDev, depuisAssigne, derniereActivite, ...} }
+  const [workLoading, setWorkLoading] = useState(false);
+  const [workConfigured, setWorkConfigured] = useState(true);
+  useEffect(() => {
+    let alive = true;
+    setWork({}); setWorkConfigured(true);
+    const keys = activeItems.slice(0, 10).map((i) => i.cle);
+    if (!keys.length) return;
+    setWorkLoading(true);
+    fetchDevWork(devName, keys)
+      .then((r) => { if (!alive) return; setWorkConfigured(r.configured !== false); const m = {}; (r.items || []).forEach((it) => { m[it.cle] = it; }); setWork(m); })
+      .catch(() => { if (alive) setWorkConfigured(true); })
+      .finally(() => { if (alive) setWorkLoading(false); });
+    return () => { alive = false; };
+  }, [devName, activeItems]);
 
   const months = useMemo(() => {
     const now = new Date(); const arr = [];
@@ -138,6 +169,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           <button className="x" onClick={backOut}>×</button>
           <div className="k">Fiche développeur</div>
           <h3>{devName}</h3>
+          {email
+            ? <a className="dm-email" href={`mailto:${email}`} title="Écrire un e-mail">{email}</a>
+            : <span className="dm-email muted">E-mail non exposé par Jira</span>}
         </div>
         <div className="modal-bd">
 
@@ -156,6 +190,46 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
             <div className="dstat block"><div className="v">{g.retard}</div><div className="l">En retard</div></div>
             <div className="dstat flagged"><div className="v">{g.flagged}</div><div className="l">🚩 Flaggés</div></div>
           </div>
+
+          <div className="dev-sec-h">Sur quoi il travaille en ce moment ({activeItems.length})</div>
+          {activeItems.length === 0 ? (
+            <div className="empty">Aucun ticket actif (en cours / recette) en ce moment.</div>
+          ) : (
+            <table className="fiche-tbl work-tbl">
+              <thead><tr>
+                <th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th>
+                <th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th>
+              </tr></thead>
+              <tbody>
+                {activeItems.slice(0, 10).map((i) => {
+                  const w = work[i.cle];
+                  const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
+                  let badge;
+                  if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
+                  else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
+                  else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
+                  else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
+                  else badge = <span className="wk wk-off">aucune saisie de temps</span>;
+                  return (
+                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                      <td className="c-cle"><span className="k">{i.cle}</span></td>
+                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                      <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
+                      <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
+                      <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
+                      <td className="c-act">{badge}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+          {!workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
+          {workConfigured && activeItems.length > 0 && (
+            <p className="hint" style={{ marginTop: 6 }}>
+              « Heures (lui) » = temps qu'<b>il</b> a saisi sur le ticket dans Jira. « Pris le » = dernière fois où le ticket lui a été assigné. « Travaille dessus ? » se base sur sa dernière saisie de temps : <b>actif</b> = activité de moins de 10 jours. Sans saisie de temps dans Jira, impossible de le confirmer.
+            </p>
+          )}
 
           <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             <span>Activité —</span>

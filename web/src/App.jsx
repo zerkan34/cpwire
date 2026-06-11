@@ -138,6 +138,9 @@ export default function App() {
   useEffect(() => { if (authed) load(false); }, [authed, load]);
   useEffect(() => { if (authed) fetchDeletedDevs().then((r) => setDeletedDevs(r.deleted || [])).catch(() => {}); }, [authed]);
 
+  // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
+  useEffect(() => { if (query.trim() && tab !== "cockpit") setTab("cockpit"); /* eslint-disable-next-line */ }, [query]);
+
   // Actualisation automatique (toutes les 90 s) quand les notifications sont activées.
   useEffect(() => {
     if (!authed || !notifOn) return;
@@ -202,10 +205,11 @@ export default function App() {
       if (onlyLate && !i.enRetard) return false;
       if (onlyMine && !i.mine) return false;
       if (onlyFlagged && !i.flagged) return false;
-      if (person !== "Tous" && (i.assigne || "Non assigné") !== person) return false;
+      const workers = (i.contributors && i.contributors.length) ? i.contributors : [i.assigne || "Non assigné"];
+      if (person !== "Tous" && !workers.includes(person)) return false;
       if (priorite !== "Tous" && (i.priorite || "—") !== priorite) return false;
       if (q) {
-        const hay = `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
+        const hay = `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${workers.join(" ")} ${(i.labels || []).join(" ")} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
         if (!hay.includes(q)) return false;
       }
       return true;

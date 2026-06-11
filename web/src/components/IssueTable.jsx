@@ -21,7 +21,7 @@ const COLS = [
   { key: "cle", label: "Clé", get: (r) => r.cle, type: "text" },
   { key: "dossier", label: "Dossier", get: (r) => r.dossier, type: "text" },
   { key: "resume", label: "Résumé", get: (r) => r.resume, type: "text" },
-  { key: "assigne", label: "Assigné", get: (r) => r.assigne || "", type: "text" },
+  { key: "assigne", label: "Sur le ticket", get: (r) => (r.contributors && r.contributors.length ? r.contributors[0] : r.assigne || ""), type: "text" },
   { key: "echeance", label: "Échéance", get: (r) => r.echeance || "", type: "date" },
   { key: "statut", label: "Statut", get: (r) => STATUT_ORDER[r.statut] ?? 99, type: "num" },
 ];
@@ -84,9 +84,16 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
               <td><span className="k">{r.cle}</span></td>
               <td><span className="tag">{r.dossier}</span></td>
               <td><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}</td>
-              <td>{r.assigne && r.assigne !== "Non assigné" && onDev
-                ? <span className="assignee-link" title="Voir la fiche du développeur" onClick={(e) => { e.stopPropagation(); onDev(r.assigne); }}>{r.assigne}</span>
-                : r.assigne}</td>
+              <td>{(r.contributors && r.contributors.length) ? (
+                r.contributors.map((c, idx) => (
+                  <span key={c}>
+                    {idx > 0 && <span className="who-sep">, </span>}
+                    {onDev
+                      ? <span className="assignee-link" title="Voir la fiche du développeur" onClick={(e) => { e.stopPropagation(); onDev(c); }}>{c}</span>
+                      : c}
+                  </span>
+                ))
+              ) : <span className="who-none">Non assigné</span>}</td>
               <td>{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
               <td><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
             </tr>

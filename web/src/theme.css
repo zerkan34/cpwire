@@ -584,3 +584,29 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   /* Champs et selects bien au doigt */
   input[type="text"], textarea, select, .fselect { font-size: 16px; } /* >=16px évite le zoom auto iOS */
 }
+
+/* ===== Intervenants (tableau) + e-mail (fiche dev) ===== */
+.who-sep { color: var(--muted); }
+.who-none { color: var(--muted); font-style: italic; }
+.dm-email { display: inline-block; margin-top: 4px; font-size: 13px; font-weight: 600; color: #fff; text-decoration: none; opacity: .92; }
+.dm-email:hover { text-decoration: underline; }
+.dm-email.muted { color: rgba(255,255,255,.7); font-weight: 500; font-style: italic; }
+
+/* ===== Fiche dev : "sur quoi il travaille" + activité réelle ===== */
+.work-tbl .c-h, .work-tbl .c-since, .work-tbl .c-act { white-space: nowrap; }
+.work-tbl .c-h { width: 96px; }
+.work-tbl .c-since { width: 104px; color: var(--body); }
+.work-tbl .c-act { width: 168px; }
+.wk { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.wk-on { background: #e7f6ec; color: #1f8f4d; }
+.wk-warn { background: #fbf0dc; color: #9a6a12; }
+.wk-off { background: #f1eff7; color: var(--muted); font-weight: 600; }
+.wk-load { background: #f1eff7; color: var(--muted); }
+
+/* ===== Développeurs : masquer / réafficher ===== */
+.dev-row { width: 100%; text-align: left; cursor: pointer; }
+.dev-row.hid { opacity: .55; }
+.dev-hide { border: 1px solid var(--line); background: #fff; color: var(--muted); font-size: 11px; font-weight: 700; border-radius: 99px; padding: 3px 10px; cursor: pointer; }
+.dev-hide:hover { background: var(--purple-soft); color: var(--purple-strong); border-color: var(--purple-line); }
+.dev-hidden-bar { display: flex; justify-content: center; padding: 12px 0 2px; }
+.dev-del-tag { margin-left: 8px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: #b23; background: #fdeef0; padding: 2px 7px; border-radius: 99px; }

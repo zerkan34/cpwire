@@ -5,7 +5,7 @@ export default function Filters({
   onDossier, onStatut, onToggleLate, onToggleMine, onToggleFlagged, onQuery, onPerson, onPriorite, onReset,
 }) {
   const dossiers = ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()];
-  const persons = ["Tous", ...Array.from(new Set(issues.map((i) => i.assigne || "Non assigné"))).sort((a, b) => a.localeCompare(b))];
+  const persons = ["Tous", ...Array.from(new Set(issues.flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [i.assigne || "Non assigné"])))).sort((a, b) => a.localeCompare(b))];
   const priorites = ["Tous", ...Array.from(new Set(issues.map((i) => i.priorite || "—"))).sort()];
   const count = (key, val) => (val === "Tous" ? issues.length : issues.filter((i) => i[key] === val).length);
   const nbFlagged = issues.filter((i) => i.flagged).length;
