@@ -18,7 +18,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -62,14 +62,16 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
   }, [loading]);
 
   return (
-    <header className="hdr">
+    <header className={`hdr ${tab === "cockpit" ? "is-dash" : "is-sub"}`}>
       <div className="hdr-row">
+        <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
         <div className="hdr-left">
           <span className="hdr-brand">
             <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v11</span></span>
+            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v14</span></span>
           </span>
           <h1 className="hdr-title">Welcome to the jungle !</h1>
+          <div className="hdr-page">{pageLabel || ""}</div>
         </div>
         <div className="hdr-actions">
           <div className="hdr-bar">
