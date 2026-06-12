@@ -8,6 +8,8 @@ const CAT_LABEL = {
   encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
   recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
 };
+const slug = (s) => "enc-" + String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+const scrollToClient = (name) => { const el = document.getElementById(slug(name)); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
 // Onglet « En cours » : avancement par client (jauge) + qui travaille sur quoi, en temps réel.
 export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = [] }) {
@@ -76,9 +78,17 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
         Jauge d'avancement par client (terminés / total) et qui travaille sur quoi. Reflète la dernière synchronisation Jira — clique un ticket pour l'ouvrir.
       </p>
 
+      <div className="enc-clienttabs" aria-label="Accès rapide aux clients">
+        {clients.map((c) => (
+          <button key={c.client} className="enc-ctab" onClick={() => scrollToClient(c.client)} title={`Aller à ${c.client}`}>
+            {c.client}{c.active + c.blocked ? <span className="enc-ctab-n">{c.active + c.blocked}</span> : null}
+          </button>
+        ))}
+      </div>
+
       <div className="enc-grid">
         {clients.map((c) => (
-          <div className="enc-card" key={c.client}>
+          <div className="enc-card" id={slug(c.client)} key={c.client}>
             <div className="enc-hd">
               <span className="enc-name">{c.client}</span>
               <span className="enc-pct">{c.avancement}%</span>

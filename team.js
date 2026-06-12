@@ -196,7 +196,7 @@ table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 th { text-align: left; font-weight: 700; font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); padding: 9px 10px; border-bottom: 2px solid var(--line); }
 td { padding: 10px; border-bottom: 1px solid var(--line-soft); vertical-align: top; }
 tr:hover td { background: var(--row-alt); }
-.k { font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none; }
+.k { font-family: "JetBrains Mono", monospace; font-size: 12px; font-weight: 600; color: var(--ink); text-decoration: none; white-space: nowrap; }
 .k:hover { color: var(--purple-strong); text-decoration: underline; }
 .tag { font-weight: 600; font-size: 11px; color: var(--purple-strong); background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
 .pill { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11.5px; padding: 4px 10px; border-radius: 99px; white-space: nowrap; }
@@ -208,6 +208,13 @@ tr:hover td { background: var(--row-alt); }
 .late { color: var(--red); font-weight: 600; font-size: 11px; }
 .empty { padding: 30px; text-align: center; color: var(--muted); }
 .banner { padding: 12px 16px; border-radius: 12px; background: var(--amber-bg); color: var(--amber); font-size: 13px; margin-top: 14px; border: 1px solid #f0dcc0; }
+
+/* Accès invité / lecture seule */
+.ro-banner { margin-top: 12px; padding: 10px 16px; border-radius: 12px; background: var(--purple-soft); color: var(--indigo-deep); border: 1px solid #d9d2f3; font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 8px; }
+.owner-bar { margin-top: 12px; display: flex; justify-content: flex-end; }
+.invite-btn { font-size: 12.5px; }
+.invite-note { background: var(--purple-soft); border: 1px solid #d9d2f3; border-radius: 12px; padding: 12px 14px; font-size: 13px; line-height: 1.5; color: var(--ink); margin: 4px 0 16px; }
+.invite-badge { display: inline-block; background: var(--indigo); color: #fff; font-family: "Poppins", sans-serif; font-size: 10.5px; letter-spacing: .05em; text-transform: uppercase; font-weight: 700; padding: 3px 9px; border-radius: 999px; margin-bottom: 8px; }
 .foot { margin-top: 30px; text-align: center; color: var(--muted); font-size: 12px; }
 
 @media (max-width: 800px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
@@ -261,6 +268,9 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .recap-hd-name { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; letter-spacing: .02em; }
 .recap-hd-meta { font-size: 12px; color: rgba(255,255,255,.85); font-weight: 500; white-space: nowrap; }
 .recap-bd { padding: 12px 16px 15px; }
+.recap-desc { font-size: 12.5px; line-height: 1.55; color: var(--ink); background: var(--purple-soft); border-left: 3px solid var(--indigo); border-radius: 8px; padding: 9px 12px; margin: 2px 0 12px; }
+.recap-desc b { color: var(--indigo-deep); font-weight: 600; }
+.recap-desc .rd-label { display: block; font-family: "Poppins", sans-serif; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--indigo); font-weight: 700; margin-bottom: 3px; }
 .recap-card ul { margin: 10px 0; padding-left: 0; list-style: none; }
 .recap-card li { font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); display: flex; gap: 8px; align-items: baseline; }
 .recap-card li .k { font-family: "JetBrains Mono"; font-size: 11.5px; color: var(--muted); min-width: 72px; }
@@ -314,6 +324,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .jira-link:hover { background: #e6e1f8; }
 .expl { background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 12px; padding: 14px 16px; margin: 4px 0 16px; }
 .expl-h { font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: 6px; }
+.expl p { white-space: pre-wrap; }
 .expl p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.55; }
 
 /* --- Onglet Développeurs --- */
@@ -450,7 +461,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 /* ===================== Optimisation mobile ===================== */
 @media (max-width: 768px) {
   html, body { max-width: 100%; overflow-x: hidden; }
-  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); max-width: 100%; box-sizing: border-box; }
+  .wrap { padding: max(14px, env(safe-area-inset-top)) max(13px, env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) max(13px, env(safe-area-inset-left)); max-width: 100%; box-sizing: border-box; }
   .hdr { padding: 20px 18px; border-radius: 18px; }
   .hdr h1 { font-size: 20px; letter-spacing: 0.06em; }
   .hdr .sub { font-size: 13px; }
@@ -474,14 +485,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   /* Boutons confortables au doigt */
   .btn, .btn-solid, .btn-line { min-height: 44px; }
 
-  /* Tableau des tickets : on garde l'essentiel (Clé, Résumé, Statut) */
-  .panel > table { font-size: 12.5px; }
-  .panel > table th, .panel > table td { padding: 8px 7px; }
-  .panel > table th:nth-child(2), .panel > table td:nth-child(2),  /* Dossier */
-  .panel > table th:nth-child(4), .panel > table td:nth-child(4),  /* Assigné */
-  .panel > table th:nth-child(5), .panel > table td:nth-child(5) { /* Échéance */
-    display: none;
-  }
+  /* Tableau des tickets : transformé en cartes (voir bloc « MOBILE — cartes & accordéons » en bas) */
 
   /* Modales plus larges */
   .overlay { padding: 14px 10px; }
@@ -622,10 +626,38 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .ni-expl b { color: var(--ink); }
 
 /* ===== Ticket : bannière "Dernière mise à jour" ===== */
-.last-update { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; }
-.lu-tag { font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; color: var(--purple-strong); background: #fff; border: 1px solid var(--purple-line); border-radius: 99px; padding: 3px 9px; }
-.lu-body { flex: 1; min-width: 180px; font-size: 13.5px; color: var(--ink); }
-.lu-when { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.last-update { background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 12px; padding: 11px 14px; margin-top: 14px; margin-bottom: 14px; }
+.lu-tag { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--purple-strong); margin-bottom: 5px; }
+.lu-body { font-size: 14px; color: var(--ink); line-height: 1.5; }
+.lu-who { font-weight: 700; }
+.lu-sep { color: var(--purple); font-weight: 700; }
+.lu-when { display: block; margin-top: 6px; font-size: 11.5px; color: var(--muted); }
+
+/* Transition de statut dans l'historique : ancien (barré) → nouveau (mis en avant) */
+.chg-field { display: inline-block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; margin-right: 7px; }
+.chg-from { color: var(--muted); text-decoration: line-through; text-decoration-color: rgba(0,0,0,.28); }
+.chg-arrow { color: var(--purple); margin: 0 7px; font-weight: 700; }
+.chg-to { font-weight: 700; color: var(--purple-strong); background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 6px; padding: 1px 8px; white-space: normal; }
+
+/* Panneau Développeurs : bandeau dégradé en tête (comme les autres) */
+.dev-panel { padding: 0; overflow: hidden; }
+.dev-panel .recap-hd { margin: 0; }
+.dev-panel-bd { padding: 16px 18px 14px; }
+
+/* Panneau Cockpit : même bandeau dégradé que les autres conteneurs */
+.cockpit-panel { padding: 0; overflow: hidden; }
+.cockpit-panel .recap-hd { margin: 0; }
+.cockpit-bd { padding: 14px 18px; }
+
+/* Boutons de génération de CR (détaillé + écrit) empilés */
+.cr-btns { display: flex; flex-direction: column; gap: 8px; }
+.cr-btns .btn-solid { width: 100%; }
+
+/* Historique (onglet) : sur écran étroit, on masque la colonne Dév. pour éviter
+   tout chevauchement entre Dév. / Statut / Date (l'info dev reste dans la fiche ticket). */
+@media (max-width: 680px) {
+  .cli-block .fiche-tbl .c-proj { display: none; }
+}
 
 /* ===== Recherche : suggestions en accordéon ===== */
 .search-suggest { background: #fff; border: 1px solid var(--line); border-radius: 12px; box-shadow: var(--shadow-lg); overflow: hidden; max-height: 60vh; overflow-y: auto; }
@@ -668,8 +700,8 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .cra-kpi { background: var(--card); border: 1px solid var(--line); border-radius: 13px; box-shadow: var(--shadow); padding: 13px 15px; }
 .cra-kpi-n { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 24px; line-height: 1.05; color: var(--indigo-deep); }
 .cra-kpi-l { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin-top: 4px; }
-.cra-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; margin-top: 16px; }
-.cra-card-h { background: var(--hd-grad); color: #fff; padding: 11px 16px; font-weight: 700; font-size: 14px; letter-spacing: .02em; box-shadow: inset 0 -2px 0 rgba(199,161,74,.6); display: flex; align-items: center; gap: 10px; }
+.cra-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); overflow: hidden; margin-top: 16px; }
+.cra-card-h { background: var(--hd-grad); color: #fff; padding: 12px 16px; font-weight: 700; font-size: 15px; letter-spacing: .02em; box-shadow: inset 0 -2px 0 rgba(199,161,74,.6); display: flex; align-items: center; gap: 10px; }
 .cra-card-meta { font-size: 12px; font-weight: 500; color: rgba(255,255,255,.82); }
 .cra-tbl { margin: 0; }
 .cra-tbl th.num, .cra-tbl td.num { text-align: right; white-space: nowrap; }
@@ -684,3 +716,274 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 
 /* Badge de version (pour vérifier d'un coup d'œil que le bon code est en ligne) */
 .hdr-build { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: #2c2429; font-weight: 800; font-size: 10px; letter-spacing: .04em; vertical-align: middle; }
+
+/* ===================== MOBILE — propre, sans wrap, logique de cartes/accordéons ===================== */
+@media (max-width: 768px) {
+  /* Barre de statut iOS (Dynamic Island) en fond sombre : heure/batterie restent lisibles
+     et le contenu ne passe plus dessous (combiné aux marges safe-area de .wrap). */
+  /* Zone de la Dynamic Island : en couleur de fond (plus de bandeau bleu). */
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--bg); z-index: 100; pointer-events: none;
+  }
+  /* Aucun débordement latéral possible. */
+  img, svg, pre, table { max-width: 100%; }
+  .notif-panel { top: calc(64px + env(safe-area-inset-top, 0px)); }
+
+  /* ---- Tableau cockpit → UNE CARTE PAR TICKET (aucune info masquée, aucun wrap) ---- */
+  .cockpit-bd > table,
+  .cockpit-bd > table > tbody,
+  .cockpit-bd > table > tbody > tr,
+  .cockpit-bd > table > tbody > tr > td { display: block; width: 100%; }
+  .cockpit-bd > table > thead { display: none; }
+  .cockpit-bd > table > tbody > tr {
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin: 0 0 10px; background: #fff; box-shadow: var(--shadow);
+  }
+  .cockpit-bd > table > tbody > tr.mine     { box-shadow: inset 4px 0 0 var(--gold-deep), var(--shadow); }
+  .cockpit-bd > table > tbody > tr.has-flag { box-shadow: inset 4px 0 0 var(--orange), var(--shadow); }
+  .cockpit-bd > table > tbody > tr.row-changed { border-color: var(--purple-line); }
+  .cockpit-bd > table > tbody > tr > td {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 4px 0; border: 0 !important; background: transparent !important;
+  }
+  .cockpit-bd > table > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 86px; font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  }
+  /* Résumé : pleine largeur, mis en avant (le titre de la carte). */
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"] {
+    display: block; font-size: 14.5px; font-weight: 600; color: var(--ink); padding: 2px 0 6px;
+  }
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]::before { display: block; margin-bottom: 3px; }
+  /* Pastilles / chips : jamais étirées, jamais coupées. */
+  .cockpit-bd > table > tbody > tr > td .pill,
+  .cockpit-bd > table > tbody > tr > td .tag,
+  .cockpit-bd > table > tbody > tr > td .k { white-space: nowrap; }
+
+  /* ---- Tableaux denses des modales (fiche / activité / worklog) → cartes empilées ---- */
+  .fiche-tbl > thead, .act-tbl > thead, .work-tbl > thead { display: none; }
+  .fiche-tbl, .fiche-tbl > tbody, .fiche-tbl > tbody > tr, .fiche-tbl > tbody > tr > td,
+  .act-tbl, .act-tbl > tbody, .act-tbl > tbody > tr, .act-tbl > tbody > tr > td,
+  .work-tbl, .work-tbl > tbody, .work-tbl > tbody > tr, .work-tbl > tbody > tr > td { display: block; width: auto; }
+  .fiche-tbl > tbody > tr, .act-tbl > tbody > tr, .work-tbl > tbody > tr {
+    border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 0 0 9px;
+  }
+  .fiche-tbl > tbody > tr:nth-child(even) td, .act-tbl > tbody > tr:nth-child(even) td,
+  .work-tbl > tbody > tr:nth-child(even) td { background: transparent; }
+  .fiche-tbl > tbody > tr > td, .act-tbl > tbody > tr > td, .work-tbl > tbody > tr > td {
+    border: 0 !important; padding: 2px 0 !important; width: auto !important;
+  }
+  .fiche-tbl .c-res, .act-tbl .c-act { font-weight: 600; color: var(--ink); }
+
+  /* Plein écran fiable malgré la barre dynamique de Safari iOS. */
+  .login-screen, .crash { min-height: 100dvh; }
+}
+
+/* Modales : démarrer sous la barre de statut (Dynamic Island) et au-dessus de l'indicateur d'accueil. */
+@media (max-width: 768px) {
+  .overlay { padding-top: calc(14px + env(safe-area-inset-top, 0px)); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); align-items: flex-start; }
+  .install-ios { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ===== CRA : encart récapitulatif d'import (Excel / CSV) ===== */
+.cra-import-note { border: 1px solid var(--purple-line); background: var(--purple-soft); border-radius: 12px; padding: 11px 14px; margin-top: 16px; font-size: 12.5px; color: var(--ink); }
+.cin-h { font-weight: 700; margin-bottom: 6px; }
+.cin-cols { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--body); }
+.cin-cols b { color: var(--purple-strong); }
+.cin-cols i { color: var(--muted); font-style: italic; }
+.cin-warn { margin: 8px 0 0; padding-left: 18px; color: var(--orange-deep); }
+.cin-warn li { margin: 3px 0; }
+
+/* ===== Développeurs inactifs (aucun ticket depuis 6 mois) ===== */
+.dev-row.inactive .dname { color: var(--muted); opacity: .75; }
+.dev-inactive-tag { font-size: 10px; font-weight: 600; color: var(--orange-deep); background: var(--orange-soft); border: 1px solid #f6d8be; border-radius: 99px; padding: 1px 8px; margin-left: 8px; font-style: normal; white-space: nowrap; }
+
+/* ===== Brief du matin : ligne d'état claire sous chaque ticket ===== */
+.mb-state { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.mb-state b { color: var(--ink); font-weight: 700; }
+.mb-state .late { color: var(--red); font-weight: 700; }
+
+/* ===================== Navigation MOBILE : barre du bas + tiroir burger ===================== */
+/* Cachés par défaut (ordinateur inchangé) ; activés sous 768px. */
+.mobile-tabbar, .hdr-burger, .drawer, .drawer-backdrop, .enc-clienttabs { display: none; }
+
+/* Styles du tiroir (le conteneur reste caché sur ordinateur via la règle ci-dessus). */
+.drawer-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; background: var(--hd-grad); color: #fff; font-weight: 700; font-size: 16px; box-shadow: inset 0 -2px 0 rgba(199,161,74,.6); }
+.drawer-x { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.drawer-nav { display: flex; flex-direction: column; padding: 10px; gap: 4px; }
+.drawer-item { display: flex; align-items: center; gap: 13px; border: 0; background: none; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink); padding: 14px; border-radius: 12px; cursor: pointer; }
+.drawer-item:active { background: var(--purple-soft); }
+.drawer-item.active { background: var(--purple-soft); color: var(--purple-strong); }
+.di-ic { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.drawer-item.active .di-ic { color: var(--purple-strong); }
+.di-ic svg { width: 21px; height: 21px; }
+.drawer-foot { margin-top: auto; padding: 16px 18px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+
+@media (max-width: 768px) {
+  /* La barre d'onglets du haut laisse place à la barre du bas + au burger. */
+  .tabs { display: none; }
+  .wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  /* On remonte les boutons flottants au-dessus de la barre du bas. */
+  .to-top, .install-fab { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
+
+  /* ---- Burger (en-tête) ---- */
+  .hdr-burger { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    width: 42px; height: 42px; margin-right: 11px; border: 1px solid rgba(255,255,255,.42);
+    background: rgba(255,255,255,.18); color: #fff; border-radius: 11px; font-size: 20px; line-height: 1;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(20,18,40,.18); touch-action: manipulation; }
+  .hdr-burger:active { background: rgba(255,255,255,.30); }
+
+  /* ---- Barre du bas (4 onglets principaux) — bleue comme le header ---- */
+  .mobile-tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: var(--indigo-deep); border-top: 1px solid rgba(255,255,255,.10);
+    padding: 5px 4px calc(5px + env(safe-area-inset-bottom));
+    justify-content: space-around; align-items: stretch; box-shadow: 0 -6px 22px rgba(20,18,40,.30); }
+  .mtab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border: 0; background: none; color: rgba(255,255,255,.60); font-size: 11px; font-weight: 600;
+    padding: 8px 2px 4px; border-radius: 12px; cursor: pointer; position: relative; min-height: 52px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .mtab-ic { width: 23px; height: 23px; display: inline-flex; }
+  .mtab-ic svg { width: 100%; height: 100%; }
+  .mtab.active { color: #fff; }
+  .mtab.active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold); }
+  .mtab-badge { position: absolute; top: 4px; left: calc(50% + 6px); background: var(--gold); color: var(--indigo-deep);
+    font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px var(--indigo-deep); }
+
+  /* ---- Tiroir (glisse de la gauche) ---- */
+  .drawer-backdrop { display: block; position: fixed; inset: 0; z-index: 199; background: rgba(20,18,40,.42);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  .drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+  .drawer { display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 200;
+    width: 80%; max-width: 320px; background: #fff; box-shadow: 6px 0 34px rgba(20,18,40,.32);
+    transform: translateX(-100%); transition: transform .27s ease;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .drawer.open { transform: translateX(0); }
+
+  /* ---- En cours : onglets clients (accès rapide + scroll auto) ---- */
+  .enc-clienttabs { display: flex; gap: 7px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding: 2px 0 10px; margin-top: 2px; }
+  .enc-clienttabs::-webkit-scrollbar { display: none; }
+  .enc-ctab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--purple-line); background: var(--card); color: var(--ink);
+    font-weight: 700; font-size: 13px; padding: 8px 13px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+  .enc-ctab:active { background: var(--purple-soft); }
+  .enc-ctab-n { font-size: 11px; font-weight: 800; color: #fff; background: var(--indigo);
+    border-radius: 99px; padding: 0 7px; min-width: 18px; text-align: center; }
+  .enc-card { scroll-margin-top: 14px; }
+
+  /* ---- Développeurs : « Charge par développeur » sur 2 lignes claires ---- */
+  .dev-list { gap: 10px; }
+  .dev-row { flex-wrap: wrap; align-items: center; row-gap: 8px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 12px; }
+  .dev-name { flex: 1 1 100%; min-width: 0; font-size: 14px; }
+  .dev-bar { display: none; }
+  .dev-counts { flex: 1 1 100%; justify-content: flex-start; gap: 6px; flex-wrap: wrap; }
+  .dev-counts .dev-hide, .dev-counts .dev-caret { flex: 0 0 auto; }
+  .dev-caret { margin-left: auto; }
+}
+
+/* ===== En-tête : nom de page (caché par défaut → ordinateur & dashboard inchangés) ===== */
+.hdr-page { display: none; }
+
+@media (max-width: 768px) {
+  /* Sous-pages mobile : header compact qui s'arrête sous la ligne « Données au … ».
+     On masque les indicateurs (Total / À faire / En cours / Bloqués / En retard / Terminés)
+     + la barre d'avancement + le gros titre, et on affiche le NOM DE LA PAGE. */
+  .hdr.is-sub .kpis,
+  .hdr.is-sub .progress { display: none; }
+  .hdr.is-sub .hdr-title { display: none; }
+  .hdr.is-sub .hdr-page { display: block; font-size: 21px; font-weight: 800; color: #fff; letter-spacing: .01em; margin-top: 4px; }
+  .hdr.is-sub { padding-bottom: 14px; }
+
+  /* ===== Fluidité mobile : supprime le délai de tap + ne peint que ce qui est visible ===== */
+  button, a, .tab, .mtab, .drawer-item, .enc-ctab, [role="button"] { touch-action: manipulation; }
+  .cockpit-bd > table > tbody > tr { content-visibility: auto; contain-intrinsic-size: auto 150px; }
+  .enc-card { content-visibility: auto; contain-intrinsic-size: auto 320px; }
+  .dev-row { content-visibility: auto; contain-intrinsic-size: auto 84px; }
+  .recap-card, .pcard { content-visibility: auto; contain-intrinsic-size: auto 260px; }
+}
+
+/* ===================== Vue Recette (reste à recetter / à retravailler) ===================== */
+.rec-card { background: var(--card, #fff); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.rec-hd { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.rec-name { font-size: 17px; font-weight: 800; color: var(--ink); }
+.rec-metrics { display: flex; gap: 18px; flex-wrap: wrap; }
+.rec-m { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.rec-m b { font-size: 22px; font-weight: 800; color: var(--ink); }
+.rec-m small { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.rec-m.rec-big b { color: var(--purple-strong); }
+.rec-m.rec-rew b { color: var(--orange-deep); }
+.rec-m.rec-done b { color: #1f7a44; }
+.rec-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.rec-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: #f1f0f6; color: var(--ink); border: 1px solid var(--line); }
+.rec-chip b { font-weight: 800; }
+.rec-chip.cat-encours { background: #eef0ff; color: #3a3d9e; border-color: #dcdcfb; }
+.rec-chip.cat-retourTest, .rec-chip.cat-retourProd { background: var(--orange-soft); color: var(--orange-deep); border-color: #f6d8be; }
+.rec-chip.cat-recetteArmonie, .rec-chip.cat-recetteClient { background: #fbf2dc; color: #8a6a1e; border-color: #efe0b8; }
+.rec-chip.cat-attenteClient { background: #fff4e6; color: #9a5a12; border-color: #f6dcb8; }
+.rec-chip.cat-miseEnProd, .rec-chip.cat-termine { background: #e3f6ea; color: #1f7a44; border-color: #c7ecd5; }
+.rec-chip.cat-annule { background: #f3f3f5; color: #9a98a8; border-color: var(--line); text-decoration: line-through; }
+.rec-rework { margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.rec-rew-tg { border: 0; background: none; color: var(--orange-deep); font-weight: 700; font-size: 13px; cursor: pointer; padding: 2px 0; }
+.rec-rew-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rec-rew-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: #fff; }
+.rec-rew-list li:hover { background: var(--purple-soft); }
+.rr-res { flex: 1; min-width: 120px; font-size: 13px; color: var(--ink); }
+
+/* ===================== Fiche ticket : chaîne de statuts ===================== */
+.status-chain { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; padding: 11px 14px; margin: 0 0 12px; }
+.sc-h { font-size: 12px; font-weight: 700; color: var(--purple-strong); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.sc-flag { font-size: 10px; font-weight: 800; color: var(--orange-deep); background: var(--orange-soft); border: 1px solid #f6d8be; border-radius: 99px; padding: 1px 8px; }
+.sc-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sc-seg { display: inline-flex; align-items: center; gap: 6px; }
+.sc-arrow { color: var(--muted); font-weight: 700; }
+.sc-step { font-size: 12px; font-weight: 600; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+.sc-step.is-retour { background: var(--orange-soft); color: var(--orange-deep); border-color: #f6d8be; }
+.sc-step.is-now { box-shadow: 0 0 0 2px var(--purple-line); font-weight: 800; }
+.sc-note { font-size: 11.5px; color: var(--orange-deep); margin-top: 8px; }
+
+@media (max-width: 768px) { .rec-card { content-visibility: auto; contain-intrinsic-size: auto 230px; } }
+
+/* Chaîne de statuts — durées + clés « où ça a coincé » */
+.sc-step .sc-dur { margin-left: 6px; font-size: 10px; font-weight: 700; color: var(--muted); }
+.sc-step.is-retour .sc-dur { color: var(--orange-deep); }
+.sc-clues { margin-top: 10px; border-top: 1px dashed var(--purple-line); padding-top: 8px; }
+.scc-h { font-size: 11px; font-weight: 800; color: var(--orange-deep); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+.scc-line { font-size: 12.5px; color: var(--ink); margin: 3px 0; }
+.scc-dot { color: var(--orange-deep); font-weight: 800; margin-right: 4px; }
+.scc-tip { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 6px; }
+
+/* ===== KPI du header cliquables (ordinateur) — apparence IDENTIQUE à l'origine, simplement cliquable ===== */
+button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
+
+/* Sous-titre du header (plus petit que « Welcome to the jungle ! ») */
+.hdr-tagline { font-size: .5em; font-weight: 600; opacity: .82; margin-left: .15em; letter-spacing: .01em; white-space: nowrap; }
+
+/* Badge d'engagement client : TMA / Projet / mixte */
+.eng-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
+.eng-badge.is-tma { background: var(--purple-soft); color: var(--purple-strong); border: 1px solid var(--purple-line); }
+.eng-badge.is-projet { background: var(--orange-soft); color: var(--orange-deep); border: 1px solid #f0d2b0; }
+.eng-badge.is-mix { background: #eef3ff; color: #3a5bd0; border: 1px solid #d4e0ff; }
+.pcard .eng-badge { margin-top: 3px; }
+.rec-hd .eng-badge { margin-left: 8px; }
+
+/* ===== Bouton + modale « CR du jour » ===== */
+.owner-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.cr-day-btn { font-weight: 700; }
+.cr-modal { max-width: 980px; width: 96vw; }
+.cr-modal .cr-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.cr-body { padding: 16px 20px 20px; }
+.cr-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.cr-hint { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+.cr-msg { background: var(--purple-soft); border: 1px solid var(--purple-line); color: var(--purple-strong); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+.cr-preview-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.cr-preview { width: 100%; height: 460px; border: 0; display: block; background: #fff; }
+@media (max-width: 768px) { .cr-preview { height: 58vh; } .cr-modal { width: 100vw; } }
+.cr-pick { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cr-pick label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.cr-pick select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }

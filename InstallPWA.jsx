@@ -9,6 +9,14 @@ const ORDER = [
   ["retourTest", "Retour test", "todo"],
 ];
 
+// Phrase d'état claire (langage courant) pour chaque ticket du brief.
+function etatLabel(i) {
+  if (i.statut === "Bloqué" || i.flagged) return "bloqué";
+  if (i.categorie === "encours") return "en cours de réalisation";
+  if (i.categorie === "retourTest") return "renvoyé en test";
+  return (i.statut || "en cours").toLowerCase();
+}
+
 export default function Morning({ issues = [], onTicket }) {
   const [busy, setBusy] = useState("");
   const [doc, setDoc] = useState(null);
@@ -60,10 +68,11 @@ export default function Morning({ issues = [], onTicket }) {
             const open = openD === dossier;
             return (
               <div className="recap-card" key={dossier}>
-                <h3>
-                  {dossier}
-                  <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>{items.length} actif{items.length > 1 ? "s" : ""}</span>
-                </h3>
+                <div className="recap-hd">
+                  <span className="recap-hd-name">{dossier}</span>
+                  <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
+                </div>
+                <div className="recap-bd">
                 <div className="filters" style={{ marginBottom: 8 }}>
                   {ORDER.map(([c, label, pill]) => count(c) ? (
                     <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
@@ -71,10 +80,15 @@ export default function Morning({ issues = [], onTicket }) {
                 </div>
                 <ul>
                   {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                      <span className="k">{i.cle}</span>
-                      <span style={{ flex: 1 }}>{i.resume}</span>
-                      {i.dev && i.dev !== "Non assigné" ? <span className="tag">{i.dev}</span> : null}
+                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer", display: "block" }}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span className="k">{i.cle}</span>
+                        <span style={{ flex: 1 }}>{i.resume}</span>
+                      </div>
+                      <div className="mb-state">
+                        {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}
+                        <b>{etatLabel(i)}</b>{i.enRetard ? <span className="late"> · en retard ⚠</span> : null}
+                      </div>
                     </li>
                   ))}
                   {items.length > 5 && (
@@ -86,6 +100,7 @@ export default function Morning({ issues = [], onTicket }) {
                 <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => make(dossier)} disabled={busy === dossier}>
                   {busy === dossier ? "Préparation…" : `Préparer le brief de ${dossier}`}
                 </button>
+                </div>
               </div>
             );
           })}

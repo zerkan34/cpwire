@@ -1,278 +1,237 @@
-import React, { useState } from "react";
-import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
-import { frDate, esc, buildSimpleDoc } from "../utils.js";
-import { useModalBack, backOut } from "../modalNav.js";
-import { useReadOnly } from "../readonly.js";
-import ExportBar from "./ExportBar.jsx";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchHistory } from "../api.js";
+import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
 
+const LABELS = { cr_journalier: "CR journalier", cr_reunion: "CR réunion", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
+const DONE = ["termine", "miseEnProd"];
+const ACTIVE = ["encours", "retourTest", "retourProd"];
+
+const PRESETS = [
+  { id: "auj", label: "Aujourd'hui" },
+  { id: "hier", label: "Hier" },
+  { id: "semaine", label: "Cette semaine" },
+  { id: "mois", label: "Ce mois" },
+  { id: "moisdernier", label: "Mois dernier" },
+  { id: "tout", label: "Tout" },
+];
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
+
+function pad(n) { return String(n).padStart(2, "0"); }
+function dayValue(d) { return `day:${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function monthValue(d) { return `month:${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+
+function periodRange(period) {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); const s = new Date(y, m - 1, d); const e = new Date(y, m - 1, d + 1); return [s, e]; }
+  if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return [new Date(y, m - 1, 1), new Date(y, m, 1)]; }
+  if (period === "auj") return [startToday, null];
+  if (period === "hier") { const y = new Date(startToday); y.setDate(y.getDate() - 1); return [y, startToday]; }
+  if (period === "semaine") { const d = new Date(startToday); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return [d, null]; }
+  if (period === "mois") return [new Date(now.getFullYear(), now.getMonth(), 1), null];
+  if (period === "moisdernier") return [new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 1)];
+  return [null, null];
+}
+function periodLabel(period) {
+  if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); return `${pad(d)} ${MOIS[m - 1]} ${y}`; }
+  if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return `${MOIS[m - 1]} ${y}`; }
+  return PRESETS.find((p) => p.id === period)?.label || "";
+}
+function inRange(iso, range) {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return false;
+  if (range[0] && t < range[0].getTime()) return false;
+  if (range[1] && t >= range[1].getTime()) return false;
+  return true;
+}
+function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-function whenFmt(iso) {
-  if (!iso) return "—";
-  try {
-    const d = new Date(iso);
-    return d.toLocaleDateString("fr-FR") + " " + d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-  } catch { return iso; }
-}
-function ago(iso) {
-  if (!iso) return "";
-  const t = new Date(iso).getTime(); if (isNaN(t)) return "";
-  const s = Math.max(1, Math.round((Date.now() - t) / 1000));
-  if (s < 60) return "à l'instant";
-  const m = Math.round(s / 60); if (m < 60) return `il y a ${m} min`;
-  const h = Math.round(m / 60); if (h < 24) return `il y a ${h} h`;
-  const d = Math.round(h / 24); if (d < 30) return `il y a ${d} j`;
-  return `il y a ${Math.round(d / 30)} mois`;
-}
-// Dernier évènement réel (changement statut/assigné OU saisie de temps) — pour « Dernière mise à jour ».
-function lastEvent(activity) {
-  if (!activity) return null;
-  const tl = (activity.timeline && activity.timeline[0]) || null; // listes déjà triées du + récent au + ancien
-  const wl = (activity.worklogs && activity.worklogs[0]) || null;
-  const cand = [];
-  if (tl) cand.push({ kind: "change", date: tl.date, who: tl.who, text: `${tl.champ} : ${tl.from} → ${tl.to}` });
-  if (wl) cand.push({ kind: "time", date: wl.date, who: wl.who, text: `a saisi ${wl.time}${wl.comment ? ` — ${wl.comment}` : ""}` });
-  if (!cand.length) return null;
-  cand.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-  return cand[0];
-}
+export default function History({ issues = [], onTicket, onDev, deletedDevs = [] }) {
+  const [events, setEvents] = useState(null);
+  const [err, setErr] = useState("");
+  const [period, setPeriod] = useState("hier");
+  const [client, setClient] = useState("Tous");
+  const delSet = new Set(deletedDevs);
 
-export default function TicketModal({ ticket, onClose, onPushed }) {
-  const [note, setNote] = useState("");
-  const [report, setReport] = useState("");
-  const [markDone, setMarkDone] = useState(true);
-  const [busy, setBusy] = useState("");
-  const ro = useReadOnly();
-  const [msg, setMsg] = useState(null);
-  const [explication, setExplication] = useState("");
-  const [explLoading, setExplLoading] = useState(false);
-  const [activity, setActivity] = useState(null);
-  const [actLoading, setActLoading] = useState(false);
+  useEffect(() => { fetchHistory().then((d) => setEvents(d.events)).catch((e) => setErr(e.message)); }, []);
 
-  useModalBack(onClose);
+  const allClients = useMemo(() => Array.from(new Set(issues.map((i) => i.dossier).filter(Boolean))).sort(), [issues]);
 
-  React.useEffect(() => {
-    let alive = true;
-    if (ticket?.cle && ticket.url && ticket.url !== "#") {
-      setExplication(""); setExplLoading(true);
-      explainTicket(ticket.cle)
-        .then((r) => { if (alive) setExplication(r.explication); })
-        .catch(() => { if (alive) setExplication(""); })
-        .finally(() => { if (alive) setExplLoading(false); });
+  const dayOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 31; k++) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - k); a.push({ v: dayValue(d), label: d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" }) }); } return a; }, []);
+  const monthOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 12; k++) { const d = new Date(now.getFullYear(), now.getMonth() - k, 1); a.push({ v: monthValue(d), label: `${MOIS[d.getMonth()]} ${d.getFullYear()}` }); } return a; }, []);
 
-      setActivity(null); setActLoading(true);
-      fetchTicketActivity(ticket.cle)
-        .then((r) => { if (alive) setActivity(r); })
-        .catch(() => { if (alive) setActivity(null); })
-        .finally(() => { if (alive) setActLoading(false); });
-    }
-    return () => { alive = false; };
-  }, [ticket?.cle]);
+  const data = useMemo(() => {
+    const range = periodRange(period);
+    const all = issues.filter((i) => inRange(i.maj, range) || inRange(i.resolu, range));
+    const touched = client === "Tous" ? all : all.filter((i) => i.dossier === client);
+    const doneIn = (i) => DONE.includes(i.categorie) && inRange(i.resolu || i.maj, range);
 
-  if (!ticket) return null;
+    const byClient = {}; const byDev = {}; const byProj = {};
+    touched.forEach((i) => {
+      const cli = i.dossier || "Autre";
+      (byClient[cli] ||= { client: cli, items: [], done: 0, active: 0, blocked: 0 });
+      const c = byClient[cli];
+      c.items.push(i);
+      if (doneIn(i)) c.done += 1;
+      else if (i.statut === "Bloqué") c.blocked += 1;
+      else if (ACTIVE.includes(i.categorie)) c.active += 1;
 
-  const draft = async () => {
-    setBusy("draft"); setMsg(null);
-    try { const { text } = await genTicketReport(ticket.cle, note, ticket.resume); setReport(text); }
-    catch (e) { setMsg({ type: "warn", text: e.message }); }
-    finally { setBusy(""); }
-  };
+      const dev = i.dev || i.assigne || "Non assigné";
+      (byDev[dev] ||= { dev, touched: 0, done: 0 });
+      byDev[dev].touched += 1; if (doneIn(i)) byDev[dev].done += 1;
+      (byProj[cli] ||= { dossier: cli, touched: 0, done: 0 });
+      byProj[cli].touched += 1; if (doneIn(i)) byProj[cli].done += 1;
+    });
+    Object.values(byClient).forEach((c) => c.items.sort((a, b) => String(b.resolu || b.maj || "").localeCompare(String(a.resolu || a.maj || ""))));
+    const clients = Object.values(byClient).sort((a, b) => b.items.length - a.items.length);
+    const devs = Object.values(byDev).filter((d) => d.dev !== "Non assigné").sort((a, b) => b.done - a.done || b.touched - a.touched);
+    const projets = Object.values(byProj).sort((a, b) => b.touched - a.touched);
+    const totalDone = touched.filter(doneIn).length;
+    return { touched: touched.length, totalDone, clients, devs, projets };
+  }, [issues, period, client]);
 
-  const push = async () => {
-    if (!report.trim()) { setMsg({ type: "warn", text: "Rédige d'abord le rapport." }); return; }
-    if (!window.confirm(`Envoyer ce rapport dans Jira sur ${ticket.cle}${markDone ? " et passer le ticket à « Terminé »" : ""} ?`)) return;
-    setBusy("push"); setMsg(null);
-    try {
-      const r = await pushTicket(ticket.cle, report, markDone);
-      setMsg({ type: "ok", text: r.simulated ? "Mode démo : envoi simulé et journalisé." : `Envoyé dans Jira${r.transition?.applied ? " · statut : " + r.transition.applied : ""}.` });
-      onPushed && onPushed();
-    } catch (e) { setMsg({ type: "warn", text: e.message }); }
-    finally { setBusy(""); }
-  };
+  const label = periodLabel(period);
 
-  const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
-
-  const buildTicketHtml = () => {
+  const exportPdf = () => {
+    let clientsHtml = "";
+    data.clients.forEach((c) => {
+      const rows = c.items.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${esc(i.dev || i.assigne || "")}</td><td>${esc(i.statutJira || i.statut)}</td><td>${fr(i.resolu || i.maj)}</td></tr>`).join("");
+      clientsHtml += `<h3>${esc(c.client)} — ${c.done} terminé(s) · ${c.active} en cours · ${c.blocked} bloqué(s)</h3>
+        <table><tr><th>Clé</th><th>Résumé</th><th>Dév.</th><th>Statut</th><th>Date</th></tr>${rows}</table>`;
+    });
+    const devRows = data.devs.map((d) => `<tr><td>${esc(d.dev)}${delSet.has(d.dev) ? " (supprimé)" : ""}</td><td>${d.done}</td><td>${d.touched}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
+    const body = `<h2>Par client</h2>${clientsHtml || "<p class='muted'>Aucune activité sur la période.</p>"}
+      <h2>Synthèse par développeur</h2>
+      <table><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr>${devRows}</table>`;
     const cartouche = [
-      ["Clé", ticket.cle],
-      ["Client / dossier", `${ticket.dossier} — équipe Armonie`],
+      ["Client", client === "Tous" ? "Tous les clients" : client],
+      ["Période", label],
+      ["Équipe", "Armonie"],
       ["Chef de projet", "Nicolas Durand"],
-      ["Statut", `${ticket.statut}${ticket.flagged ? " · 🚩 flaggé" : ""}${ticket.enRetard ? " · en retard" : ""}`],
-      ["Assigné", ticket.assigne],
-      ["Priorité", ticket.priorite || "—"],
-      ["Échéance", ticket.echeance || "—"],
+      ["Synthèse", `${data.totalDone} terminé(s) · ${data.touched} avec activité · ${data.clients.length} client(s)`],
     ];
-    let body = "";
-    if (explication) body += `<h2>Explication</h2><p>${esc(explication)}</p>`;
-    if (note) body += `<h2>Note du chef de projet</h2><p>${esc(note)}</p>`;
-    if (report) body += `<h2>Rapport</h2><p>${esc(report).replace(/\n/g, "<br>")}</p>`;
-    if (activity?.timeline?.length) {
-      body += `<h2>Historique des changements</h2>` +
-        `<table><tr><th>Quand</th><th>Qui</th><th>Action</th></tr>` +
-        activity.timeline.map((t) => `<tr><td>${esc(whenFmt(t.date))}</td><td>${esc(t.who)}</td><td>${esc(t.champ)} : ${esc(t.from)} → <b>${esc(t.to)}</b></td></tr>`).join("") + `</table>`;
-    }
-    if (activity?.worklogs?.length) {
-      body += `<h2>Temps saisi${activity.totalSeconds > 0 ? ` — total ${esc(activity.totalTime)}` : ""}</h2>` +
-        `<table><tr><th>Quand</th><th>Qui</th><th>Durée &amp; détail</th></tr>` +
-        activity.worklogs.map((w) => `<tr><td>${esc(whenFmt(w.date))}</td><td>${esc(w.who)}</td><td><b>${esc(w.time)}</b>${w.comment ? ` — ${esc(w.comment)}` : ""}</td></tr>`).join("") + `</table>`;
-    }
-    if (!body) body = "<p class='muted'>Aucun détail complémentaire pour ce ticket.</p>";
-    return buildSimpleDoc({ kicker: "Fiche ticket", title: `${ticket.cle} — ${ticket.resume}`, cartouche, bodyHtml: body });
+    printHtml(buildSimpleDoc({ kicker: "Récap par client", title: `Récap — ${label}`, cartouche, bodyHtml: body }));
   };
 
   return (
-    <div className="overlay" onClick={backOut}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-hd">
-          <button className="modal-back" onClick={backOut} title="Retour">←</button>
-          <button className="x" onClick={backOut}>×</button>
-          <div className="k">{ticket.cle}{ticket.mine ? "  ·  pour moi" : ""}</div>
-          <h3>{ticket.resume}</h3>
-        </div>
-        <div className="modal-bd">
-          <div className="meta-grid">
-            <div className="cell"><div className="l">Dossier</div><div className="v">{ticket.dossier}</div></div>
-            <div className="cell"><div className="l">Statut</div><div className="v"><span className={`pill ${PILL[ticket.statut]}`}>{ticket.statut}</span>{ticket.flagged ? <span className="flag-badge">🚩 FLAGGÉ</span> : null}{ticket.enRetard ? <span className="late"> · en retard</span> : null}</div></div>
-            <div className="cell"><div className="l">Assigné</div><div className="v">{ticket.assigne}</div></div>
-            <div className="cell"><div className="l">Priorité</div><div className="v">{ticket.priorite || "—"}</div></div>
-            <div className="cell"><div className="l">Échéance</div><div className="v">{ticket.echeance || "—"}</div></div>
-            <div className="cell"><div className="l">Mise à jour</div><div className="v">{frDate(ticket.maj)}</div></div>
-          </div>
+    <>
+      <div className="section-title">Historique des récaps par client</div>
+      <p className="hint" style={{ marginTop: -6 }}>
+        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF.
+      </p>
 
-          {ticket.url && ticket.url !== "#" && (
-            <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer">Ouvrir le ticket dans Jira ↗</a>
-          )}
-
-          <ExportBar buildHtml={buildTicketHtml} filename={`${ticket.cle}.html`} subject={`${ticket.cle} — ${ticket.resume}`} />
-
-          <div className="expl">
-            <div className="expl-h">Explication simple</div>
-            {explLoading ? (
-              <p className="hint">Analyse du ticket en cours…</p>
-            ) : explication ? (
-              <p>{explication}</p>
-            ) : (
-              <p className="hint">Disponible une fois connecté à Jira (et avec la clé IA pour une explication détaillée).</p>
-            )}
-          </div>
-
-          {/* Historique & temps : qui a fait quoi, quand, et heures saisies */}
-          <div className="expl">
-            <div className="expl-h">Historique &amp; temps</div>
-            <p className="hint" style={{ marginTop: -2 }}>
-              Tout ce qui a bougé sur <b>ce ticket précis</b> dans Jira : changements de statut et de personne assignée (qui l'a pris, à qui il a été passé), et le temps saisi par chacun. C'est la trace réelle des intervenants et de leurs actions.
-            </p>
-            {actLoading ? (
-              <p className="hint">Chargement de l'historique…</p>
-            ) : !hasActivity ? (
-              <p className="act-empty">Aucun historique ni temps saisi pour ce ticket (ou Jira non connecté).</p>
-            ) : (
-              <>
-                {(() => {
-                  const le = lastEvent(activity);
-                  return le ? (
-                    <div className="last-update">
-                      <div className="lu-tag">Dernière mise à jour</div>
-                      <div className="lu-body"><span className="lu-who">{le.who}</span>{le.kind === "change" ? <span className="lu-sep"> · </span> : " "}{le.text}</div>
-                      <div className="lu-when">{whenFmt(le.date)} · {ago(le.date)}</div>
-                    </div>
-                  ) : null;
-                })()}
-                {(() => {
-                  const st = (activity.timeline || []).filter((t) => t.champ === "Statut").slice().reverse(); // chronologique
-                  if (st.length < 1) return null;
-                  const chain = [st[0].from || "?"]; st.forEach((t) => chain.push(t.to || "?"));
-                  const hasRetour = chain.some((s) => /retour/i.test(s));
-                  return (
-                    <div className="status-chain">
-                      <div className="sc-h">Chaîne de statuts {hasRetour ? <span className="sc-flag">↩ retour</span> : null}</div>
-                      <div className="sc-path">
-                        {chain.map((s, i) => (
-                          <span key={i} className="sc-seg">
-                            {i > 0 ? <span className="sc-arrow">→</span> : null}
-                            <span className={`sc-step${/retour/i.test(s) ? " is-retour" : ""}${i === chain.length - 1 ? " is-now" : ""}`}>{s}</span>
-                          </span>
-                        ))}
-                      </div>
-                      {hasRetour ? <div className="sc-note">Ce programme est revenu en arrière (retour) — à retravailler.</div> : null}
-                    </div>
-                  );
-                })()}
-                {activity.timeline && activity.timeline.length > 0 && (
-                  <>
-                    <div className="act-sub">Historique des changements</div>
-                    <table className="act-tbl">
-                      <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
-                      <tbody>
-                        {activity.timeline.map((t, k) => (
-                          <tr key={k}>
-                            <td className="c-when">{whenFmt(t.date)}</td>
-                            <td className="c-who">{t.who}</td>
-                            <td className="c-act"><span className="chg-field">{t.champ}</span> <span className="chg-from">{t.from || "—"}</span><span className="chg-arrow">→</span><span className="chg-to">{t.to || "—"}</span></td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-                {activity.worklogs && activity.worklogs.length > 0 && (
-                  <>
-                    <div className="act-sub">Temps saisi{activity.totalSeconds > 0 ? ` — total ${activity.totalTime}` : ""}</div>
-                    <table className="act-tbl">
-                      <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
-                      <tbody>
-                        {activity.worklogs.map((w, k) => (
-                          <tr key={k}>
-                            <td className="c-when">{whenFmt(w.date)}</td>
-                            <td className="c-who">{w.who}</td>
-                            <td className="c-act"><b>{w.time}</b>{w.comment ? ` — ${w.comment}` : ""}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </>
-                )}
-              </>
-            )}
-          </div>
-
-          <div className="field">
-            <label>Ce que j'ai fait (note rapide)</label>
-            <textarea className="ta" style={{ minHeight: 60 }} value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder="Ex. Développement terminé, testé en recette, livré." />
-          </div>
-
-          <div className="row-actions">
-            <button className="btn-line" onClick={draft} disabled={busy === "draft"}>
-              {busy === "draft" ? "Rédaction…" : "Rédiger le rapport (IA)"}
-            </button>
-          </div>
-
-          <div className="field" style={{ marginTop: 14 }}>
-            <label>Rapport (modifiable avant envoi)</label>
-            <textarea className="ta" value={report} onChange={(e) => setReport(e.target.value)}
-              placeholder="Le rapport généré apparaît ici — ajuste-le librement." />
-          </div>
-
-          {!ro && (
-            <label style={{ display: "flex", gap: 8, alignItems: "center", fontSize: 13.5, margin: "4px 0 10px" }}>
-              <input type="checkbox" checked={markDone} onChange={(e) => setMarkDone(e.target.checked)} />
-              Marquer le ticket comme « Terminé » dans Jira
-            </label>
-          )}
-
-          <div className="row-actions">
-            {!ro && (
-              <button className="btn-solid gold" onClick={push} disabled={busy === "push"}>
-                {busy === "push" ? "Envoi…" : "Envoyer dans Jira"}
-              </button>
-            )}
-            <button className="btn-line" onClick={backOut}>Fermer</button>
-          </div>
-
-          {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
-        </div>
+      <div className="ctabs">
+        <button className={`ctab ${client === "Tous" ? "active" : ""}`} onClick={() => setClient("Tous")}>Tous</button>
+        {allClients.map((c) => (
+          <button key={c} className={`ctab ${client === c ? "active" : ""}`} onClick={() => setClient(c)}>{c}</button>
+        ))}
       </div>
-    </div>
+
+      <div className="panel">
+        <div className="filters" style={{ marginBottom: 8 }}>
+          <span className="fg-lbl">Période</span>
+          {PRESETS.map((p) => (
+            <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
+          ))}
+        </div>
+        <div className="filters" style={{ marginBottom: 4, gap: 14 }}>
+          <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            Jour précis
+            <select value={period.startsWith("day:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+              <option value="">—</option>
+              {dayOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+            </select>
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            Mois précis
+            <select value={period.startsWith("month:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+              <option value="">—</option>
+              {monthOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <p className="period-sum">
+          <b>{label}</b> : <b>{data.totalDone}</b> terminé(s) · <b>{data.touched}</b> avec activité · <b>{data.clients.length}</b> client(s)
+          <button className="btn-line sm" style={{ marginLeft: 10 }} onClick={exportPdf}>Exporter PDF</button>
+        </p>
+
+        {data.clients.length === 0 ? (
+          <div className="empty">Aucune activité sur cette période.</div>
+        ) : (
+          data.clients.map((c) => (
+            <div key={c.client} className="cli-block">
+              <div className="cli-h">
+                <span className="tag">{c.client}</span>
+                <span className="cli-meta">{c.done} terminé(s){c.active ? ` · ${c.active} en cours` : ""}{c.blocked ? ` · ${c.blocked} bloqué(s)` : ""} · {c.items.length} ticket(s)</span>
+              </div>
+              <table className="fiche-tbl">
+                <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-proj">Dév.</th><th className="c-stat">Statut</th><th className="c-date">Date</th></tr></thead>
+                <tbody>
+                  {c.items.slice(0, 40).map((i) => {
+                    const dev = i.dev || i.assigne || "";
+                    return (
+                      <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                        <td className="c-cle"><span className="k">{i.cle}</span></td>
+                        <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                        <td className="c-proj">{dev && dev !== "Non assigné"
+                          ? <span className={`dev-chip ${delSet.has(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
+                          : (dev || "—")}</td>
+                        <td className="c-stat"><span className={`pill ${PILL[i.statut]}`}>{i.statutJira || i.statut}</span></td>
+                        <td className="c-date">{fr(i.resolu || i.maj)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {c.items.length > 40 && <p className="hint">+ {c.items.length - 40} autre(s)…</p>}
+            </div>
+          ))
+        )}
+      </div>
+
+      {data.devs.length > 0 && (
+        <>
+          <div className="section-title" style={{ marginTop: 22 }}>Synthèse par développeur — {label}</div>
+          <div className="panel">
+            <table className="proj-tbl">
+              <thead><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr></thead>
+              <tbody>
+                {data.devs.map((d) => (
+                  <tr key={d.dev} style={{ cursor: onDev ? "pointer" : "default" }} onClick={() => onDev && onDev(d.dev)}>
+                    <td><span className={delSet.has(d.dev) ? "dev-chip del" : "dev-chip"}>{d.dev}{delSet.has(d.dev) ? <span className="dev-del-tag">supprimé</span> : null}</span></td>
+                    <td><b>{d.done}</b></td>
+                    <td>{d.touched}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <div className="section-title" style={{ marginTop: 22 }}>Journal de l'application</div>
+      <p className="hint" style={{ marginTop: -6 }}>Tout ce qui a été produit ou poussé depuis l'application.</p>
+      {err ? (
+        <div className="banner">Erreur : {err}</div>
+      ) : !events ? (
+        <div className="panel empty">Chargement…</div>
+      ) : events.length === 0 ? (
+        <div className="panel empty">Rien pour l'instant. Génère un CR ou pousse un ticket pour démarrer le journal.</div>
+      ) : (
+        <div className="hist">
+          {events.map((e) => (
+            <div className="hist-row" key={e.id}>
+              <span className="when">{frDate(e.at)}</span>
+              <span className="type">{LABELS[e.type] || e.type}</span>
+              <span style={{ flex: 1 }}>{e.label}{e.meta?.simulated ? " (simulé)" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

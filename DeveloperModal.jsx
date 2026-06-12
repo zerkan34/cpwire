@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { saveDossier } from "../api.js";
 import { buildSimpleDoc, esc } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
+import { useReadOnly } from "../readonly.js";
 import ExportBar from "./ExportBar.jsx";
 
 const blank = () => ({ nom: "", poste: "", email: "", statut: "Actif", cote: "Armonie" });
@@ -13,6 +14,7 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
   const [team, setTeam] = useState((fiche?.team || []).map((m) => ({ ...m })));
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
+  const ro = useReadOnly();
 
   const upd = (i, k, v) => setTeam((t) => t.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
   const add = () => setTeam((t) => [...t, blank()]);
@@ -60,11 +62,11 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
           <ExportBar buildHtml={buildDossierHtml} filename={`fiche-${nom}.html`} subject={`Fiche dossier — ${nom}`} />
           <div className="field">
             <label>Historique court / ce que fait le dossier</label>
-            <textarea className="ta" value={desc} onChange={(e) => setDesc(e.target.value)} />
+            <textarea className="ta" value={desc} onChange={(e) => setDesc(e.target.value)} readOnly={ro} />
           </div>
           <div className="field">
             <label>Technologies utilisées (séparées par des virgules)</label>
-            <input type="text" value={tech} onChange={(e) => setTech(e.target.value)} placeholder="IBM i, RPG, eMage…" />
+            <input type="text" value={tech} onChange={(e) => setTech(e.target.value)} placeholder="IBM i, RPG, eMage…" readOnly={ro} />
           </div>
 
           <div className="field">
@@ -74,30 +76,30 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
               <tbody>
                 {team.map((m, i) => (
                   <tr key={i}>
-                    <td><input value={m.nom} onChange={(e) => upd(i, "nom", e.target.value)} placeholder="Nom" /></td>
-                    <td><input value={m.poste} onChange={(e) => upd(i, "poste", e.target.value)} placeholder="Poste" /></td>
-                    <td><input value={m.email} onChange={(e) => upd(i, "email", e.target.value)} placeholder="email@…" /></td>
+                    <td><input value={m.nom} onChange={(e) => upd(i, "nom", e.target.value)} placeholder="Nom" readOnly={ro} /></td>
+                    <td><input value={m.poste} onChange={(e) => upd(i, "poste", e.target.value)} placeholder="Poste" readOnly={ro} /></td>
+                    <td><input value={m.email} onChange={(e) => upd(i, "email", e.target.value)} placeholder="email@…" readOnly={ro} /></td>
                     <td>
-                      <select value={m.statut} onChange={(e) => upd(i, "statut", e.target.value)}>
+                      <select value={m.statut} onChange={(e) => upd(i, "statut", e.target.value)} disabled={ro}>
                         <option>Actif</option><option>Inactif</option><option>À confirmer</option>
                       </select>
                     </td>
                     <td>
-                      <select value={m.cote} onChange={(e) => upd(i, "cote", e.target.value)}>
+                      <select value={m.cote} onChange={(e) => upd(i, "cote", e.target.value)} disabled={ro}>
                         <option>Armonie</option><option>Client</option>
                       </select>
                     </td>
-                    <td><button className="x-row" onClick={() => remove(i)} title="Retirer">×</button></td>
+                    <td>{!ro && <button className="x-row" onClick={() => remove(i)} title="Retirer">×</button>}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-            <button className="btn-line" style={{ marginTop: 10 }} onClick={add}>+ Ajouter une personne</button>
+            {!ro && <button className="btn-line" style={{ marginTop: 10 }} onClick={add}>+ Ajouter une personne</button>}
             <div className="hint">Côté Armonie : {armonie.length} · Côté client : {client.length}</div>
           </div>
 
           <div className="row-actions">
-            <button className="btn-solid gold" onClick={save} disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer la fiche"}</button>
+            {!ro && <button className="btn-solid gold" onClick={save} disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer la fiche"}</button>}
             <button className="btn-line" onClick={backOut}>Fermer</button>
           </div>
           {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
