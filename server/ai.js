@@ -410,9 +410,9 @@ Dis juste, sans jargon : de quoi il s'agit, et à quoi ça sert. Phrases courtes
       prompt
     );
   }
-  // Repli sans clé IA : une phrase simple à partir des infos disponibles.
+  // Repli sans clé IA : on affiche le résumé puis la description COMPLÈTE (non tronquée).
   if (ticket.descriptionText) {
-    return `En clair : ${ticket.resume}. ${ticket.descriptionText.slice(0, 220).trim()}…`;
+    return `En clair : ${ticket.resume}.\n\n${ticket.descriptionText.trim()}`;
   }
   return `En clair : ce ticket concerne « ${ticket.resume} ».`;
 }
@@ -468,14 +468,28 @@ export async function globalReport(byDossier) {
 }
 
 // ---------- Compte rendu de réunion ----------
+// Découpe un texte collé en liste à puces (une puce par ligne non vide).
+function linesToList(text) {
+  const items = String(text || "").split(/\r?\n/).map((l) => l.trim().replace(/^[-*•·]\s*/, "")).filter(Boolean);
+  if (!items.length) return "";
+  return `<ul>${items.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+}
+// Découpe un texte en paragraphes (séparés par des lignes vides).
+function paras(text) {
+  const blocks = String(text || "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
+  if (!blocks.length) return "";
+  return blocks.map((b) => `<p>${esc(b).replace(/\r?\n/g, "<br>")}</p>`).join("");
+}
+
 function templateMeeting({ titre, participants, notes, transcript }) {
-  const corps = [notes, transcript].filter(Boolean).join("\n");
+  const pointsHtml = notes ? (linesToList(notes) || `<p>${esc(notes)}</p>`) : "<p>—</p>";
   return `<h2>Objet</h2><p>${esc(titre || "Réunion")}</p>
     <h2>Participants</h2><p>${esc(participants || "—")}</p>
-    <h2>Points abordés</h2>${notes ? `<p>${esc(notes).replace(/\n/g, "<br>")}</p>` : "<p>—</p>"}
-    ${transcript ? `<h2>Transcription (brut)</h2><p>${esc(transcript).slice(0, 4000).replace(/\n/g, "<br>")}</p>` : ""}
+    <h2>Points abordés</h2>${pointsHtml}
+    ${transcript ? `<h2>Transcription / notes de séance</h2>${paras(transcript.slice(0, 8000)) || `<p>${esc(transcript.slice(0, 8000))}</p>`}` : ""}
     <h2>Décisions</h2><ul><li>À compléter.</li></ul>
-    <h2>Actions</h2><table class="data"><tr><th>Action</th><th>Responsable</th><th>Échéance</th></tr><tr><td>À compléter</td><td>—</td><td>—</td></tr></table>`;
+    <h2>Actions</h2><table class="data"><tr><th>Action</th><th>Responsable</th><th>Échéance</th></tr><tr><td>À compléter</td><td>—</td><td>—</td></tr></table>
+    <p class="muted" style="margin-top:16px;font-size:12px;">Note : sans clé IA, ce compte rendu reprend vos notes telles quelles (mises en liste sous chaque titre). Pour un CR <b>rédigé et synthétisé automatiquement</b> — décisions et actions extraites, points regroupés par thème — ajoutez la clé <b>ANTHROPIC_API_KEY</b> dans Render.</p>`;
 }
 
 export async function meetingReport({ titre, participants, notes, transcript, images = [] }) {

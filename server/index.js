@@ -271,12 +271,21 @@ app.get("/api/portfolio", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+// Exclut les tickets dont le développeur (ou l'assigné) a été supprimé/masqué :
+// ces personnes ne doivent plus apparaître dans les récaps ni les comptes rendus.
+function withoutDeletedDevs(issues) {
+  const del = new Set(readDeleted());
+  if (!del.size) return issues;
+  return issues.filter((i) => !del.has(i.dev) && !del.has(i.assigne));
+}
+
 app.get("/api/recap", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
-    const useToday = got.issues.some((i) => isToday(i.maj));
-    const todays = useToday ? got.issues.filter((i) => isToday(i.maj)) : got.issues;
+    const visible = withoutDeletedDevs(got.issues);
+    const useToday = visible.some((i) => isToday(i.maj));
+    const todays = useToday ? visible.filter((i) => isToday(i.maj)) : visible;
     const byDossier = {};
     todays.forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
     res.json({ generatedAt: new Date().toISOString(), basis: useToday ? "aujourd'hui" : "tout l'historique", byDossier });
@@ -288,7 +297,7 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const dossier = req.body.dossier;
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    const sub = got.issues.filter((i) => i.dossier === dossier);
+    const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
     const out = await dailyReport(dossier, sub);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
     res.json(out);
@@ -300,7 +309,7 @@ app.post("/api/cr/written", guard, async (req, res) => {
     const dossier = req.body.dossier;
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    const sub = got.issues.filter((i) => i.dossier === dossier);
+    const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
     const out = await writtenDailyReport(dossier, sub);
     logEvent("cr_ecrit", `CR écrit - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
     res.json(out);
@@ -395,7 +404,7 @@ app.post("/api/cr/global", guard, async (_req, res) => {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const byDossier = {};
-    got.issues.forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
+    withoutDeletedDevs(got.issues).forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
     const out = await globalReport(byDossier);
     logEvent("cr_global", "Rapport journalier global", { clients: Object.keys(byDossier).length });
     res.json(out);
