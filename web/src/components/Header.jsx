@@ -1,6 +1,14 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 
-function Kpi({ lbl, val, cls }) {
+function Kpi({ lbl, val, cls, onClick, active }) {
+  if (onClick) {
+    return (
+      <button type="button" className={`kpi ${cls || ""} clickable ${active ? "active" : ""}`} onClick={onClick} title={`Voir : ${lbl}`}>
+        <div className="lbl">{lbl}</div>
+        <div className="val">{val ?? "—"}</div>
+      </button>
+    );
+  }
   return (
     <div className={`kpi ${cls || ""}`}>
       <div className="lbl">{lbl}</div>
@@ -18,7 +26,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -68,9 +76,9 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <div className="hdr-left">
           <span className="hdr-brand">
             <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v14</span></span>
+            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v18</span></span>
           </span>
-          <h1 className="hdr-title">Welcome to the jungle !</h1>
+          <h1 className="hdr-title">Welcome to the jungle !<span className="hdr-tagline">, we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
         <div className="hdr-actions">
@@ -161,12 +169,12 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
       </div>
 
       <div className="kpis">
-        <Kpi lbl="Total" val={k.total} />
-        <Kpi lbl="À faire" val={k["À faire"]} cls="todo" />
-        <Kpi lbl="En cours" val={k["En cours"]} cls="prog" />
-        <Kpi lbl="Bloqués" val={k["Bloqué"]} cls="block" />
-        <Kpi lbl="En retard" val={k.enRetard} cls="late" />
-        <Kpi lbl="Terminés" val={k["Terminé"]} cls="done" />
+        <Kpi lbl="Total" val={k.total} onClick={onKpi && (() => onKpi("total"))} active={activeKpi === "total"} />
+        <Kpi lbl="À faire" val={k["À faire"]} cls="todo" onClick={onKpi && (() => onKpi("À faire"))} active={activeKpi === "À faire"} />
+        <Kpi lbl="En cours" val={k["En cours"]} cls="prog" onClick={onKpi && (() => onKpi("En cours"))} active={activeKpi === "En cours"} />
+        <Kpi lbl="Bloqués" val={k["Bloqué"]} cls="block" onClick={onKpi && (() => onKpi("Bloqué"))} active={activeKpi === "Bloqué"} />
+        <Kpi lbl="En retard" val={k.enRetard} cls="late" onClick={onKpi && (() => onKpi("late"))} active={activeKpi === "late"} />
+        <Kpi lbl="Terminés" val={k["Terminé"]} cls="done" onClick={onKpi && (() => onKpi("Terminé"))} active={activeKpi === "Terminé"} />
       </div>
 
       <div className="progress">
