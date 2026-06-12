@@ -170,6 +170,54 @@ async function detailedTicketsHtml(tickets) {
 }
 
 
+// État clair + prochaine étape déduits de la catégorie (mapping factuel, pas d'invention).
+function plainEtatNext(i) {
+  if (i.statut === "Bloqué" || i.flagged) return { etat: "bloqué", next: "Lever le blocage en priorité." };
+  switch (i.categorie) {
+    case "encours": return { etat: "en cours de réalisation", next: "Poursuivre puis finaliser." };
+    case "retourTest": return { etat: "renvoyé en test", next: "À tester, puis valider." };
+    case "recetteArmonie": return { etat: "en cours de vérification côté Armonie", next: "Valider avant de livrer au client." };
+    case "recetteClient": return { etat: "en cours de vérification côté client", next: "En attente du retour du client." };
+    case "miseEnProd": return { etat: "en mise en service", next: "Confirmer la mise en service." };
+    case "termine": return { etat: "terminé", next: "Clôturer le ticket." };
+    case "afaire": return { etat: "pas encore démarré", next: "À planifier." };
+    default: return { etat: (CATEGORY_LABEL[i.categorie] || i.statut || "en cours").toLowerCase(), next: "À suivre." };
+  }
+}
+
+// « Ce qui a avancé » — accordéon SIMPLE et clair (langage courant, éléments en gras).
+// Une carte repliable par ticket : où ça en est, ce qui a été fait, ce qu'il reste à faire.
+async function progressHtml(tickets) {
+  if (!tickets || !tickets.length) return "<p>Aucun ticket à passer en revue ce matin.</p>";
+  const cap = tickets.slice(0, 14);
+  const enriched = await mapLimit(cap, 5, async (i) => {
+    const act = await fetchIssueActivity(i.cle).catch(() => ({ timeline: [], worklogs: [] }));
+    return { i, act };
+  });
+  return enriched.map(({ i, act }) => {
+    const statut = CATEGORY_LABEL[i.categorie] || i.statut || "—";
+    const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "");
+    const { etat, next } = plainEtatNext(i);
+    const lastT = (act.timeline || []).find((t) => t.champ === "Statut");
+    const mouvement = lastT ? ` Le statut est récemment passé de <b>${esc(lastT.from)}</b> à <b>${esc(lastT.to)}</b>.` : "";
+    const etatLine = `Ce sujet est <b>${esc(etat)}</b>${who ? `, suivi par <b>${esc(who)}</b>` : ""}.${mouvement}`;
+    const works = (act.worklogs || []).filter((w) => w.comment).slice(0, 4)
+      .map((w) => `<li>${esc(w.comment)} <span class="cr-meta">— ${esc(w.who)}${w.time ? ", " + esc(w.time) : ""}</span></li>`);
+    const fait = works.length
+      ? `<ul class="cr-works">${works.join("")}</ul>`
+      : `<span class="cr-none">Pas encore de détail noté dans Jira — à voir avec ${esc(who || "la personne concernée")}.</span>`;
+    return `<details class="cr-tk">
+      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-st">${esc(statut)}</span></summary>
+      <div class="cr-tk-bd">
+        <p class="cr-row"><span class="cr-lbl">Où ça en est</span>${etatLine}</p>
+        <div class="cr-row"><span class="cr-lbl">Ce qui a déjà été fait</span>${fait}</div>
+        <p class="cr-row"><span class="cr-lbl">À faire ensuite</span><b>${esc(next)}</b></p>
+      </div>
+    </details>`;
+  }).join("");
+}
+
+
 function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
   const inCat = (c) => issues.filter((i) => i.categorie === c);
   const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
@@ -429,11 +477,19 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
     synthese = `<p>${bits.join(" ")}</p>`;
   }
 
+  const enCoursTk = active.filter((i) => i.categorie === "encours");
+  const retourTk = active.filter((i) => i.categorie === "retourTest");
+  const avanceBloc = `<h2>Ce qui a avancé (${enCoursTk.length})</h2>` +
+    `<p style="font-size:12px;color:#74718a;margin-top:-2px;">Chaque sujet en cours, expliqué simplement. Cliquez sur un sujet pour déplier le détail.</p>` +
+    (await progressHtml(enCoursTk));
+  const retourBloc = `<h2>Retour test (${retourTk.length})</h2>` +
+    (retourTk.length ? (await progressHtml(retourTk)) : "<p>Aucun ticket en retour test.</p>");
+
   const body = kpis +
     `<h2>État des lieux</h2>${synthese}` +
     charge +
-    sec("encours", "En cours") +
-    sec("retourTest", "Retour test");
+    avanceBloc +
+    retourBloc;
 
   const html = buildDoc({
     kicker: "Brief de réunion matinale",
