@@ -721,10 +721,11 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 @media (max-width: 768px) {
   /* Barre de statut iOS (Dynamic Island) en fond sombre : heure/batterie restent lisibles
      et le contenu ne passe plus dessous (combiné aux marges safe-area de .wrap). */
+  /* Zone de la Dynamic Island : en couleur de fond (plus de bandeau bleu). */
   body::before {
     content: ""; position: fixed; top: 0; left: 0; right: 0;
     height: env(safe-area-inset-top, 0px);
-    background: var(--indigo-deep); z-index: 100; pointer-events: none;
+    background: var(--bg); z-index: 100; pointer-events: none;
   }
   /* Aucun débordement latéral possible. */
   img, svg, pre, table { max-width: 100%; }
@@ -785,4 +786,99 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 @media (max-width: 768px) {
   .overlay { padding-top: calc(14px + env(safe-area-inset-top, 0px)); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); align-items: flex-start; }
   .install-ios { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}
+
+/* ===== CRA : encart récapitulatif d'import (Excel / CSV) ===== */
+.cra-import-note { border: 1px solid var(--purple-line); background: var(--purple-soft); border-radius: 12px; padding: 11px 14px; margin-top: 16px; font-size: 12.5px; color: var(--ink); }
+.cin-h { font-weight: 700; margin-bottom: 6px; }
+.cin-cols { display: flex; flex-wrap: wrap; gap: 6px 16px; color: var(--body); }
+.cin-cols b { color: var(--purple-strong); }
+.cin-cols i { color: var(--muted); font-style: italic; }
+.cin-warn { margin: 8px 0 0; padding-left: 18px; color: var(--orange-deep); }
+.cin-warn li { margin: 3px 0; }
+
+/* ===== Développeurs inactifs (aucun ticket depuis 6 mois) ===== */
+.dev-row.inactive .dname { color: var(--muted); opacity: .75; }
+.dev-inactive-tag { font-size: 10px; font-weight: 600; color: var(--orange-deep); background: var(--orange-soft); border: 1px solid #f6d8be; border-radius: 99px; padding: 1px 8px; margin-left: 8px; font-style: normal; white-space: nowrap; }
+
+/* ===== Brief du matin : ligne d'état claire sous chaque ticket ===== */
+.mb-state { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.mb-state b { color: var(--ink); font-weight: 700; }
+.mb-state .late { color: var(--red); font-weight: 700; }
+
+/* ===================== Navigation MOBILE : barre du bas + tiroir burger ===================== */
+/* Cachés par défaut (ordinateur inchangé) ; activés sous 768px. */
+.mobile-tabbar, .hdr-burger, .drawer, .drawer-backdrop, .enc-clienttabs { display: none; }
+
+/* Styles du tiroir (le conteneur reste caché sur ordinateur via la règle ci-dessus). */
+.drawer-hd { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; background: var(--hd-grad); color: #fff; font-weight: 700; font-size: 16px; box-shadow: inset 0 -2px 0 rgba(199,161,74,.6); }
+.drawer-x { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 32px; height: 32px; border-radius: 8px; font-size: 14px; cursor: pointer; }
+.drawer-nav { display: flex; flex-direction: column; padding: 10px; gap: 4px; }
+.drawer-item { display: flex; align-items: center; gap: 13px; border: 0; background: none; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink); padding: 14px; border-radius: 12px; cursor: pointer; }
+.drawer-item:active { background: var(--purple-soft); }
+.drawer-item.active { background: var(--purple-soft); color: var(--purple-strong); }
+.di-ic { font-size: 19px; width: 24px; text-align: center; }
+.drawer-foot { margin-top: auto; padding: 16px 18px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
+
+@media (max-width: 768px) {
+  /* La barre d'onglets du haut laisse place à la barre du bas + au burger. */
+  .tabs { display: none; }
+  .wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  /* On remonte les boutons flottants au-dessus de la barre du bas. */
+  .to-top, .install-fab { bottom: calc(86px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(92px + env(safe-area-inset-bottom)); }
+
+  /* ---- Burger (en-tête) ---- */
+  .hdr-burger { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
+    width: 42px; height: 42px; margin-right: 10px; border: 1px solid rgba(255,255,255,.28);
+    background: rgba(255,255,255,.12); color: #fff; border-radius: 11px; font-size: 19px; line-height: 1; cursor: pointer; }
+  .hdr-burger:active { background: rgba(255,255,255,.22); }
+
+  /* ---- Barre du bas (4 onglets principaux) ---- */
+  .mobile-tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
+    background: #fff; border-top: 1px solid var(--line);
+    padding: 5px 4px calc(5px + env(safe-area-inset-bottom));
+    justify-content: space-around; align-items: stretch; box-shadow: 0 -6px 22px rgba(40,30,80,.07); }
+  .mtab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+    border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 600;
+    padding: 6px 2px 4px; border-radius: 12px; cursor: pointer; position: relative; min-height: 50px; }
+  .mtab-ic { font-size: 20px; line-height: 1; filter: grayscale(.4) opacity(.7); }
+  .mtab.active { color: var(--indigo); }
+  .mtab.active .mtab-ic { filter: none; }
+  .mtab.active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 26px; height: 3px; border-radius: 0 0 3px 3px; background: var(--indigo); }
+  .mtab-badge { position: absolute; top: 3px; left: calc(50% + 5px); background: var(--gold-deep); color: #fff;
+    font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 9px;
+    display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px #fff; }
+
+  /* ---- Tiroir (glisse de la gauche) ---- */
+  .drawer-backdrop { display: block; position: fixed; inset: 0; z-index: 199; background: rgba(20,18,40,.42);
+    opacity: 0; pointer-events: none; transition: opacity .25s ease; }
+  .drawer-backdrop.show { opacity: 1; pointer-events: auto; }
+  .drawer { display: flex; flex-direction: column; position: fixed; top: 0; bottom: 0; left: 0; z-index: 200;
+    width: 80%; max-width: 320px; background: #fff; box-shadow: 6px 0 34px rgba(20,18,40,.32);
+    transform: translateX(-100%); transition: transform .27s ease;
+    padding-top: env(safe-area-inset-top); padding-bottom: env(safe-area-inset-bottom); }
+  .drawer.open { transform: translateX(0); }
+
+  /* ---- En cours : onglets clients (accès rapide + scroll auto) ---- */
+  .enc-clienttabs { display: flex; gap: 7px; overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; padding: 2px 0 10px; margin-top: 2px; }
+  .enc-clienttabs::-webkit-scrollbar { display: none; }
+  .enc-ctab { flex: 0 0 auto; display: inline-flex; align-items: center; gap: 6px;
+    border: 1px solid var(--purple-line); background: var(--card); color: var(--ink);
+    font-weight: 700; font-size: 13px; padding: 8px 13px; border-radius: 99px; cursor: pointer; white-space: nowrap; }
+  .enc-ctab:active { background: var(--purple-soft); }
+  .enc-ctab-n { font-size: 11px; font-weight: 800; color: #fff; background: var(--indigo);
+    border-radius: 99px; padding: 0 7px; min-width: 18px; text-align: center; }
+  .enc-card { scroll-margin-top: 14px; }
+
+  /* ---- Développeurs : « Charge par développeur » sur 2 lignes claires ---- */
+  .dev-list { gap: 10px; }
+  .dev-row { flex-wrap: wrap; align-items: center; row-gap: 8px; padding: 12px; border: 1px solid var(--line-soft); border-radius: 12px; }
+  .dev-name { flex: 1 1 100%; min-width: 0; font-size: 14px; }
+  .dev-bar { display: none; }
+  .dev-counts { flex: 1 1 100%; justify-content: flex-start; gap: 6px; flex-wrap: wrap; }
+  .dev-counts .dev-hide, .dev-counts .dev-caret { flex: 0 0 auto; }
+  .dev-caret { margin-left: auto; }
 }

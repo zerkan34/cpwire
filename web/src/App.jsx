@@ -29,6 +29,12 @@ const TABS = [
   { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
 ];
 
+// Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
+const PRIMARY = ["cockpit", "encours", "recap", "morning"];
+const SECONDARY = ["devs", "meetings", "cra", "history"];
+const TAB_ICON = { cockpit: "🎯", encours: "🔄", recap: "📋", morning: "🌅", devs: "👥", meetings: "🗓️", cra: "⏱️", history: "🕘" };
+const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
+
 function notify(title, body) {
   try {
     if ("Notification" in window && Notification.permission === "granted") {
@@ -43,6 +49,7 @@ export default function App() {
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
+  const [drawer, setDrawer] = useState(false);
   const [data, setData] = useState(null);
   const [dossiers, setDossiers] = useState({});
   const [deletedDevs, setDeletedDevs] = useState([]);
@@ -332,7 +339,7 @@ export default function App() {
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
-        issues={issues} onOpenTicket={setTicket} />
+        issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)} />
 
       {readOnly ? (
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation, génération de comptes rendus et export uniquement ; aucune modification n'est possible.</div>
@@ -426,6 +433,36 @@ export default function App() {
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
       <InstallPWA />
+
+      {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}
+      <nav className="mobile-tabbar" aria-label="Navigation principale">
+        {PRIMARY.map((id) => (
+          <button key={id} className={`mtab ${tab === id ? "active" : ""}`}
+            onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}>
+            <span className="mtab-ic" aria-hidden="true">{TAB_ICON[id]}</span>
+            <span className="mtab-lb">{TAB_SHORT[id]}</span>
+            {id === "cockpit" && data?.kpis?.mine ? <span className="mtab-badge">{data.kpis.mine}</span> : null}
+          </button>
+        ))}
+      </nav>
+
+      {/* ---- Tiroir (burger) : sections secondaires, glisse de la gauche ---- */}
+      <div className={`drawer-backdrop ${drawer ? "show" : ""}`} onClick={() => setDrawer(false)} />
+      <aside className={`drawer ${drawer ? "open" : ""}`} role="dialog" aria-label="Menu" aria-hidden={!drawer}>
+        <div className="drawer-hd"><span>Menu</span><button className="drawer-x" aria-label="Fermer" onClick={() => setDrawer(false)}>✕</button></div>
+        <nav className="drawer-nav">
+          {SECONDARY.map((id) => {
+            const t = TABS.find((x) => x.id === id);
+            return (
+              <button key={id} className={`drawer-item ${tab === id ? "active" : ""}`}
+                onClick={() => { setTab(id); setDrawer(false); window.scrollTo({ top: 0 }); }}>
+                <span className="di-ic" aria-hidden="true">{TAB_ICON[id]}</span>{t.label}
+              </button>
+            );
+          })}
+        </nav>
+        <div className="drawer-foot">cp|WIRE — Armonie Group</div>
+      </aside>
     </div>
     </ReadOnlyContext.Provider>
   );
