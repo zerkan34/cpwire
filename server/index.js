@@ -18,6 +18,7 @@ import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
 import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
+import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured } from "./microsoft.js";
 
 const app = express();
@@ -395,6 +396,17 @@ app.post("/api/cra", guard, async (req, res) => {
     const out = await fetchCRA({ start, end });
     res.json({ configured: true, ...out });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// CRA depuis un fichier Excel/CSV importé (sans Jira). Renvoie la même structure que /api/cra.
+app.post("/api/cra/import", guard, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
+    const basis = Number(req.body?.basis) || 7;
+    const out = parseCraXlsx(req.file.buffer, { basis });
+    logEvent("cra_import", "CRA importé depuis Excel", { lignes: out.scanned, fichier: req.file.originalname });
+    res.json(out);
+  } catch (err) { res.status(400).json({ error: String(err.message || err) }); }
 });
 
 

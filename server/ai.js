@@ -5,18 +5,32 @@ import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS } from "./config.js"
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
-const GROQ_KEY = process.env.GROQ_API_KEY || "";
-// Modèle : Anthropic si clé Anthropic, sinon modèle Groq gratuit par défaut.
-const MODEL = process.env.AI_MODEL || (ANTHROPIC_KEY ? "claude-sonnet-4-6" : "llama-3.3-70b-versatile");
+const MISTRAL_KEY = process.env.MISTRAL_API_KEY || "";   // gratuit, UE, compatible OpenAI (recommandé)
+const GROQ_KEY = process.env.GROQ_API_KEY || "";          // gratuit mais bloque les IP cloud (ne marche pas sur Render)
+const AI_API_KEY = process.env.AI_API_KEY || "";          // fournisseur générique compatible OpenAI
+const AI_BASE_URL = (process.env.AI_BASE_URL || "").replace(/\/$/, ""); // ex. https://api.mistral.ai/v1
 
-export function aiAvailable() { return Boolean(ANTHROPIC_KEY || GROQ_KEY); }
+// Modèle par défaut selon le fournisseur présent (surchargé par AI_MODEL).
+function defaultModel() {
+  if (process.env.AI_MODEL) return process.env.AI_MODEL;
+  if (ANTHROPIC_KEY) return "claude-sonnet-4-6";
+  if (MISTRAL_KEY) return "mistral-small-latest";
+  if (GROQ_KEY) return "llama-3.3-70b-versatile";
+  return "gpt-4o-mini";
+}
+const MODEL = defaultModel();
 
-// Aiguilleur d'appel IA. Priorité : Anthropic (payant, données privées) si présent ;
-// sinon Groq (gratuit, sans carte bancaire, compatible OpenAI) ; sinon erreur (→ gabarit).
+export function aiAvailable() {
+  return Boolean(ANTHROPIC_KEY || MISTRAL_KEY || GROQ_KEY || (AI_API_KEY && AI_BASE_URL));
+}
+
+// Aiguilleur d'appel IA. Priorité : Anthropic (privé) → Mistral (gratuit, UE) → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
 async function callClaude(system, userText, images = [], maxTokens = 2000) {
   if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens);
-  if (GROQ_KEY) return callGroq(system, userText, maxTokens);
+  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens);
+  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens);
+  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens);
   throw new Error("Aucune clé IA configurée.");
 }
 
@@ -34,17 +48,17 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000) {
   return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
 }
 
-// Groq : API gratuite compatible OpenAI. Texte uniquement (les images sont ignorées).
-async function callGroq(system, userText, maxTokens = 2000) {
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+// Fournisseur compatible OpenAI (Mistral, Groq, OpenRouter, etc.). Texte uniquement (images ignorées).
+async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000) {
+  const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${GROQ_KEY}`, "content-type": "application/json" },
+    headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: MODEL, max_tokens: maxTokens, temperature: 0.4,
       messages: [{ role: "system", content: system }, { role: "user", content: userText }],
     }),
   });
-  if (!res.ok) throw new Error(`API Groq ${res.status} : ${(await res.text()).slice(0, 200)}`);
+  if (!res.ok) throw new Error(`API IA ${res.status} : ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return (data.choices?.[0]?.message?.content || "").trim();
 }
@@ -276,10 +290,10 @@ export async function dailyReport(dossier, issues) {
 // Sans clé IA : rédaction déterministe, factuelle, regroupée par statut.
 function shorten(s, n = 70) { s = String(s || "").trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s; }
 function devOf(i) { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || ""); return d && d !== "Non assigné" ? d : ""; }
-function exTicket(i) { const d = devOf(i); return `<b>${esc(i.cle)}</b> (${esc(shorten(i.resume, 60))}${d ? ", " + esc(d) : ""})`; }
+function exTicket(i) { const d = devOf(i); return `${esc(shorten(i.resume, 80) || "sujet non précisé")}${d ? " — " + esc(d) : ""}`; }
 function exList(arr, max = 4) {
-  let s = arr.slice(0, max).map(exTicket).join(", ");
-  if (arr.length > max) s += `, parmi ${arr.length} au total`;
+  let s = arr.slice(0, max).map(exTicket).join(" ; ");
+  if (arr.length > max) s += ` ; et ${arr.length - max} autre(s)`;
   return s;
 }
 
@@ -295,27 +309,27 @@ function writtenTemplate(dossier, issues) {
   dayDone.forEach((i) => { const d = devOf(i) || "Non assigné"; whoDone[d] = (whoDone[d] || 0) + 1; });
   const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([d, n]) => `${esc(d)} (${n})`).join(", ");
 
-  const enBref = `<p>Sur la journée, <b>${dayDone.length}</b> ticket(s) terminé(s), <b>${dayActive.length}</b> en cours${bloquants.length ? ` et <b>${bloquants.length}</b> à surveiller` : ""}.${topWho ? ` Contributions principales : ${topWho}.` : ""}</p>`;
+  const enBref = `<p>Aujourd'hui, l'équipe a terminé <b>${dayDone.length}</b> sujet(s) et fait avancer <b>${dayActive.length}</b> autre(s)${bloquants.length ? `, avec <b>${bloquants.length}</b> point(s) à surveiller` : ""}.${topWho ? ` Principales contributions : ${topWho}.` : ""}</p>`;
   const sTermine = dayDone.length
-    ? `<p>${dayDone.length} ticket(s) clôturé(s) aujourd'hui. Notamment ${exList(dayDone)}.</p>`
-    : `<p>Aucun ticket clôturé aujourd'hui.</p>`;
+    ? `<p>${dayDone.length} sujet(s) ont été finalisés aujourd'hui : ${exList(dayDone)}.</p>`
+    : `<p>Aucun sujet n'a été finalisé aujourd'hui.</p>`;
   const sEnCours = dayActive.length
-    ? `<p>${dayActive.length} ticket(s) en cours de traitement. Exemples : ${exList(dayActive)}.</p>`
-    : `<p>Aucun ticket travaillé aujourd'hui.</p>`;
+    ? `<p>Le travail s'est poursuivi sur ${dayActive.length} sujet(s) : ${exList(dayActive)}.</p>`
+    : `<p>Aucun sujet n'a avancé aujourd'hui.</p>`;
   const sRecette = recTot
-    ? `<p>${recTot} ticket(s) en attente de recette (${recArmonie.length} côté Armonie, ${recClient.length} côté client). ${exList([...recArmonie, ...recClient], 3)}.</p>`
+    ? `<p>${recTot} sujet(s) sont en cours de validation avant mise en service — ${recArmonie.length} à vérifier en interne (Armonie) et ${recClient.length} côté client : ${exList([...recArmonie, ...recClient], 3)}.</p>`
     : "";
   const sBloq = bloquants.length
-    ? `<p>${bloquants.length} point(s) à surveiller : ${exList(bloquants)}.</p>`
-    : `<p>Aucun point bloquant signalé à ce jour.</p>`;
-  const sChiffres = `<p>${dayDone.length} terminé(s) · ${dayActive.length} en cours · ${recTot} en recette · ${bloquants.length} à surveiller · ${issues.length} au total sur le dossier.</p>`;
+    ? `<p>${bloquants.length} sujet(s) demandent une attention particulière : ${exList(bloquants)}.</p>`
+    : `<p>Aucun blocage n'est signalé à ce jour.</p>`;
+  const sChiffres = `<p>${dayDone.length} terminé(s) · ${dayActive.length} en cours · ${recTot} en validation · ${bloquants.length} à surveiller · ${issues.length} sujet(s) suivis au total sur le dossier.</p>`;
 
   return `<h2>En bref</h2>${enBref}
     <h2>Ce qui a été terminé</h2>${sTermine}
-    <h2>En cours</h2>${sEnCours}
-    ${recTot ? `<h2>En recette</h2>${sRecette}` : ""}
+    <h2>Ce qui avance</h2>${sEnCours}
+    ${recTot ? `<h2>En cours de validation</h2>${sRecette}` : ""}
     <h2>Points d'attention</h2>${sBloq}
-    <h2>Chiffres</h2>${sChiffres}`;
+    <h2>En résumé</h2>${sChiffres}`;
 }
 
 export async function writtenDailyReport(dossier, issues) {
@@ -326,10 +340,14 @@ export async function writtenDailyReport(dossier, issues) {
       const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj));
       const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
       const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
-      const prompt = `Rédige un COMPTE RENDU ÉCRIT de la journée pour le dossier "${dossier}", en français, SANS bla-bla : phrases courtes, factuelles, aucun remplissage ni formule de politesse.\n` +
-        `Structure en sections avec des titres HTML <h2> : "En bref" (2 à 3 phrases), "Ce qui a été terminé", "En cours", "Points d'attention", "Chiffres".\n` +
-        `Dans chaque section, cite des EXEMPLES de tickets : clé en gras (<b>CLE</b>) suivie d'un mot sur le sujet. Si un regroupement par thème est pertinent, utilise des sous-titres <h3>.\n` +
-        `Ne réinvente AUCUN chiffre ni statut ; appuie-toi uniquement sur les données ci-dessous. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
+      const prompt = `Rédige un COMPTE RENDU ÉCRIT de la journée pour le dossier "${dossier}", en français, destiné à un lecteur NON technique (par exemple un responsable côté client).\n` +
+        `RÈGLES DE CLARTÉ (importantes) :\n` +
+        `- Langage simple et concret, phrases courtes. Pas de jargon informatique.\n` +
+        `- N'affiche PAS de références de tickets (pas de "ABC-123") : décris le travail en mots compréhensibles.\n` +
+        `- Reformule les intitulés techniques en langage courant. Si un terme technique est indispensable, explique-le en quelques mots (ex. « recette » = phase de vérification avant mise en service).\n` +
+        `- Pas de formules de politesse ni de remplissage.\n` +
+        `Structure en sections avec des titres HTML <h2> : "En bref" (2 à 3 phrases), "Ce qui a été terminé", "Ce qui avance", "En cours de validation", "Points d'attention", "En résumé" (les chiffres clés en une phrase).\n` +
+        `N'invente AUCUN chiffre ni statut ; appuie-toi uniquement sur les données ci-dessous. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
         `Terminés aujourd'hui (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
         `En cours aujourd'hui (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
         `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
