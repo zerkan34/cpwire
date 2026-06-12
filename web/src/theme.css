@@ -907,3 +907,44 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   .dev-row { content-visibility: auto; contain-intrinsic-size: auto 84px; }
   .recap-card, .pcard { content-visibility: auto; contain-intrinsic-size: auto 260px; }
 }
+
+/* ===================== Vue Recette (reste à recetter / à retravailler) ===================== */
+.rec-card { background: var(--card, #fff); border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; margin-bottom: 14px; box-shadow: var(--shadow); }
+.rec-hd { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.rec-name { font-size: 17px; font-weight: 800; color: var(--ink); }
+.rec-metrics { display: flex; gap: 18px; flex-wrap: wrap; }
+.rec-m { display: flex; flex-direction: column; align-items: center; line-height: 1.05; }
+.rec-m b { font-size: 22px; font-weight: 800; color: var(--ink); }
+.rec-m small { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; margin-top: 2px; }
+.rec-m.rec-big b { color: var(--purple-strong); }
+.rec-m.rec-rew b { color: var(--orange-deep); }
+.rec-m.rec-done b { color: #1f7a44; }
+.rec-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 14px; }
+.rec-chip { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 600; padding: 3px 9px; border-radius: 99px; background: #f1f0f6; color: var(--ink); border: 1px solid var(--line); }
+.rec-chip b { font-weight: 800; }
+.rec-chip.cat-encours { background: #eef0ff; color: #3a3d9e; border-color: #dcdcfb; }
+.rec-chip.cat-retourTest, .rec-chip.cat-retourProd { background: var(--orange-soft); color: var(--orange-deep); border-color: #f6d8be; }
+.rec-chip.cat-recetteArmonie, .rec-chip.cat-recetteClient { background: #fbf2dc; color: #8a6a1e; border-color: #efe0b8; }
+.rec-chip.cat-attenteClient { background: #fff4e6; color: #9a5a12; border-color: #f6dcb8; }
+.rec-chip.cat-miseEnProd, .rec-chip.cat-termine { background: #e3f6ea; color: #1f7a44; border-color: #c7ecd5; }
+.rec-chip.cat-annule { background: #f3f3f5; color: #9a98a8; border-color: var(--line); text-decoration: line-through; }
+.rec-rework { margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 10px; }
+.rec-rew-tg { border: 0; background: none; color: var(--orange-deep); font-weight: 700; font-size: 13px; cursor: pointer; padding: 2px 0; }
+.rec-rew-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.rec-rew-list li { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: #fff; }
+.rec-rew-list li:hover { background: var(--purple-soft); }
+.rr-res { flex: 1; min-width: 120px; font-size: 13px; color: var(--ink); }
+
+/* ===================== Fiche ticket : chaîne de statuts ===================== */
+.status-chain { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; padding: 11px 14px; margin: 0 0 12px; }
+.sc-h { font-size: 12px; font-weight: 700; color: var(--purple-strong); margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.sc-flag { font-size: 10px; font-weight: 800; color: var(--orange-deep); background: var(--orange-soft); border: 1px solid #f6d8be; border-radius: 99px; padding: 1px 8px; }
+.sc-path { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.sc-seg { display: inline-flex; align-items: center; gap: 6px; }
+.sc-arrow { color: var(--muted); font-weight: 700; }
+.sc-step { font-size: 12px; font-weight: 600; color: var(--ink); background: #fff; border: 1px solid var(--line); border-radius: 99px; padding: 3px 10px; white-space: nowrap; }
+.sc-step.is-retour { background: var(--orange-soft); color: var(--orange-deep); border-color: #f6d8be; }
+.sc-step.is-now { box-shadow: 0 0 0 2px var(--purple-line); font-weight: 800; }
+.sc-note { font-size: 11.5px; color: var(--orange-deep); margin-top: 8px; }
+
+@media (max-width: 768px) { .rec-card { content-visibility: auto; contain-intrinsic-size: auto 230px; } }
