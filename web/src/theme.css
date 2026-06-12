@@ -461,7 +461,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 /* ===================== Optimisation mobile ===================== */
 @media (max-width: 768px) {
   html, body { max-width: 100%; overflow-x: hidden; }
-  .wrap { padding: 14px 13px calc(80px + env(safe-area-inset-bottom, 0px)); max-width: 100%; box-sizing: border-box; }
+  .wrap { padding: max(14px, env(safe-area-inset-top)) max(13px, env(safe-area-inset-right)) calc(80px + env(safe-area-inset-bottom)) max(13px, env(safe-area-inset-left)); max-width: 100%; box-sizing: border-box; }
   .hdr { padding: 20px 18px; border-radius: 18px; }
   .hdr h1 { font-size: 20px; letter-spacing: 0.06em; }
   .hdr .sub { font-size: 13px; }
@@ -485,14 +485,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   /* Boutons confortables au doigt */
   .btn, .btn-solid, .btn-line { min-height: 44px; }
 
-  /* Tableau des tickets : on garde l'essentiel (Clé, Résumé, Statut) */
-  .cockpit-bd > table { font-size: 12.5px; }
-  .cockpit-bd > table th, .cockpit-bd > table td { padding: 8px 7px; }
-  .cockpit-bd > table th:nth-child(2), .cockpit-bd > table td:nth-child(2),  /* Dossier */
-  .cockpit-bd > table th:nth-child(4), .cockpit-bd > table td:nth-child(4),  /* Assigné */
-  .cockpit-bd > table th:nth-child(5), .cockpit-bd > table td:nth-child(5) { /* Échéance */
-    display: none;
-  }
+  /* Tableau des tickets : transformé en cartes (voir bloc « MOBILE — cartes & accordéons » en bas) */
 
   /* Modales plus larges */
   .overlay { padding: 14px 10px; }
@@ -723,3 +716,73 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 
 /* Badge de version (pour vérifier d'un coup d'œil que le bon code est en ligne) */
 .hdr-build { display: inline-block; margin-left: 8px; padding: 1px 8px; border-radius: 99px; background: var(--gold); color: #2c2429; font-weight: 800; font-size: 10px; letter-spacing: .04em; vertical-align: middle; }
+
+/* ===================== MOBILE — propre, sans wrap, logique de cartes/accordéons ===================== */
+@media (max-width: 768px) {
+  /* Barre de statut iOS (Dynamic Island) en fond sombre : heure/batterie restent lisibles
+     et le contenu ne passe plus dessous (combiné aux marges safe-area de .wrap). */
+  body::before {
+    content: ""; position: fixed; top: 0; left: 0; right: 0;
+    height: env(safe-area-inset-top, 0px);
+    background: var(--indigo-deep); z-index: 100; pointer-events: none;
+  }
+  /* Aucun débordement latéral possible. */
+  img, svg, pre, table { max-width: 100%; }
+  .notif-panel { top: calc(64px + env(safe-area-inset-top, 0px)); }
+
+  /* ---- Tableau cockpit → UNE CARTE PAR TICKET (aucune info masquée, aucun wrap) ---- */
+  .cockpit-bd > table,
+  .cockpit-bd > table > tbody,
+  .cockpit-bd > table > tbody > tr,
+  .cockpit-bd > table > tbody > tr > td { display: block; width: 100%; }
+  .cockpit-bd > table > thead { display: none; }
+  .cockpit-bd > table > tbody > tr {
+    border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin: 0 0 10px; background: #fff; box-shadow: var(--shadow);
+  }
+  .cockpit-bd > table > tbody > tr.mine     { box-shadow: inset 4px 0 0 var(--gold-deep), var(--shadow); }
+  .cockpit-bd > table > tbody > tr.has-flag { box-shadow: inset 4px 0 0 var(--orange), var(--shadow); }
+  .cockpit-bd > table > tbody > tr.row-changed { border-color: var(--purple-line); }
+  .cockpit-bd > table > tbody > tr > td {
+    display: flex; align-items: baseline; gap: 10px;
+    padding: 4px 0; border: 0 !important; background: transparent !important;
+  }
+  .cockpit-bd > table > tbody > tr > td::before {
+    content: attr(data-label);
+    flex: 0 0 86px; font-size: 10.5px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+  }
+  /* Résumé : pleine largeur, mis en avant (le titre de la carte). */
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"] {
+    display: block; font-size: 14.5px; font-weight: 600; color: var(--ink); padding: 2px 0 6px;
+  }
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]::before { display: block; margin-bottom: 3px; }
+  /* Pastilles / chips : jamais étirées, jamais coupées. */
+  .cockpit-bd > table > tbody > tr > td .pill,
+  .cockpit-bd > table > tbody > tr > td .tag,
+  .cockpit-bd > table > tbody > tr > td .k { white-space: nowrap; }
+
+  /* ---- Tableaux denses des modales (fiche / activité / worklog) → cartes empilées ---- */
+  .fiche-tbl > thead, .act-tbl > thead, .work-tbl > thead { display: none; }
+  .fiche-tbl, .fiche-tbl > tbody, .fiche-tbl > tbody > tr, .fiche-tbl > tbody > tr > td,
+  .act-tbl, .act-tbl > tbody, .act-tbl > tbody > tr, .act-tbl > tbody > tr > td,
+  .work-tbl, .work-tbl > tbody, .work-tbl > tbody > tr, .work-tbl > tbody > tr > td { display: block; width: auto; }
+  .fiche-tbl > tbody > tr, .act-tbl > tbody > tr, .work-tbl > tbody > tr {
+    border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 0 0 9px;
+  }
+  .fiche-tbl > tbody > tr:nth-child(even) td, .act-tbl > tbody > tr:nth-child(even) td,
+  .work-tbl > tbody > tr:nth-child(even) td { background: transparent; }
+  .fiche-tbl > tbody > tr > td, .act-tbl > tbody > tr > td, .work-tbl > tbody > tr > td {
+    border: 0 !important; padding: 2px 0 !important; width: auto !important;
+  }
+  .fiche-tbl .c-res, .act-tbl .c-act { font-weight: 600; color: var(--ink); }
+
+  /* Plein écran fiable malgré la barre dynamique de Safari iOS. */
+  .login-screen, .crash { min-height: 100dvh; }
+}
+
+/* Modales : démarrer sous la barre de statut (Dynamic Island) et au-dessus de l'indicateur d'accueil. */
+@media (max-width: 768px) {
+  .overlay { padding-top: calc(14px + env(safe-area-inset-top, 0px)); padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); align-items: flex-start; }
+  .install-ios { padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px)); }
+}
