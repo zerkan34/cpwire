@@ -7,6 +7,11 @@ import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
+import Recette from "./components/Recette.jsx";
+import ExportBar from "./components/ExportBar.jsx";
+import DailyCRModal from "./components/DailyCRModal.jsx";
+
+const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 import TicketModal from "./components/TicketModal.jsx";
 import DossierModal from "./components/DossierModal.jsx";
 import DeveloperModal from "./components/DeveloperModal.jsx";
@@ -27,11 +32,12 @@ const TABS = [
   { id: "morning", label: "Brief matin" },
   { id: "devs", label: "Développeurs" },
   { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
+  { id: "recette", label: "Recette" },
 ];
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
 const PRIMARY = ["cockpit", "encours", "recap", "morning"];
-const SECONDARY = ["devs", "meetings", "cra", "history"];
+const SECONDARY = ["recette", "devs", "meetings", "cra", "history"];
 const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
 
 // Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
@@ -46,6 +52,7 @@ function NavIcon({ id }) {
     case "meetings": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="9.5" x2="21" y2="9.5" /><line x1="8" y1="3" x2="8" y2="6" /><line x1="16" y1="3" x2="16" y2="6" /></svg>);
     case "cra": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 2.5h5M12 2.5v2" /></svg>);
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
+    case "recette": return (<svg viewBox="0 0 24 24" {...p}><path d="M9 11.5l2.2 2.2L15 9.5" /><path d="M12 3l7 3v5c0 4.2-2.8 7.7-7 9-4.2-1.3-7-4.8-7-9V6l7-3z" /></svg>);
     default: return null;
   }
 }
@@ -100,6 +107,26 @@ export default function App() {
     setDossier("Tous"); setStatut("Tous"); setOnlyLate(false); setOnlyMine(false); setOnlyFlagged(false);
     setQuery(""); setPerson("Tous"); setPriorite("Tous");
   }, []);
+
+  // KPI du header (Total / À faire / En cours / Bloqués / En retard / Terminés) cliquables :
+  // on remet les filtres à zéro, on applique le filtre demandé et on bascule sur le cockpit.
+  const applyKpi = useCallback((kind) => {
+    resetFilters();
+    if (kind === "late") setOnlyLate(true);
+    else if (kind !== "total") setStatut(kind);
+    setTab("cockpit");
+    window.scrollTo({ top: 0 });
+  }, [resetFilters]);
+
+  // Bouton « CR du jour » : visible uniquement en semaine (lundi→vendredi) à partir de 17h30.
+  // Une minuterie réévalue chaque minute pour qu'il apparaisse tout seul, sans recharger.
+  const [dailyCrOpen, setDailyCrOpen] = useState(false);
+  const [nowTick, setNowTick] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
+  const showDailyCr = useMemo(() => {
+    const d = new Date(nowTick); const day = d.getDay(); const mins = d.getHours() * 60 + d.getMinutes();
+    return day >= 1 && day <= 5 && mins >= 17 * 60 + 30; // lun(1)→ven(5), ≥ 17:30
+  }, [nowTick]);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -295,7 +322,35 @@ export default function App() {
     });
   }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
-  // Compteurs des pastilles : reflètent la COMBINAISON de filtres en cours (sauf la dimension comptée),
+  // Libellé clair du filtre courant (titre d'export + en-tête du cockpit).
+  const cockpitFilterLabel = useMemo(() => {
+    const parts = [];
+    if (statut !== "Tous") parts.push(statut);
+    if (onlyLate) parts.push("en retard");
+    if (onlyMine) parts.push("pour moi");
+    if (onlyFlagged) parts.push("flaggés");
+    if (dossier !== "Tous") parts.push(dossier);
+    if (person !== "Tous") parts.push(person);
+    if (priorite !== "Tous") parts.push("priorité " + priorite);
+    if (query.trim()) parts.push(`« ${query.trim()} »`);
+    return parts.length ? parts.join(" · ") : "Tous les tickets";
+  }, [statut, onlyLate, onlyMine, onlyFlagged, dossier, person, priorite, query]);
+
+  // Document HTML de la liste filtrée (pour l'export PDF / téléchargement / e-mail / copie).
+  const buildCockpitHtml = useCallback(() => {
+    const rows = filtered.map((i) => `<tr><td>${escHtml(i.cle)}</td><td>${escHtml(i.dossier || "")}</td><td>${escHtml(i.resume || "")}</td><td>${escHtml((i.contributors && i.contributors.join(", ")) || i.dev || i.assigne || "")}</td><td>${escHtml(i.echeance || "")}</td><td>${escHtml(i.statutJira || i.statut || "")}${i.enRetard ? " ⚠" : ""}</td></tr>`).join("");
+    const title = `Tickets — ${cockpitFilterLabel}`;
+    return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${escHtml(title)}</title><style>body{font-family:Arial,Helvetica,sans-serif;color:#1f1d2b;margin:24px}h1{font-size:18px;margin:0 0 2px}small{color:#666}table{border-collapse:collapse;width:100%;margin-top:14px;font-size:12px}th,td{border:1px solid #ddd;padding:6px 8px;text-align:left;vertical-align:top}th{background:#2c2945;color:#fff}tr:nth-child(even) td{background:#f7f6fb}</style></head><body><h1>${escHtml(title)}</h1><small>${filtered.length} ticket(s) · cp|WIRE · ${new Date().toLocaleString("fr-FR")}</small><table><thead><tr><th>Clé</th><th>Dossier</th><th>Résumé</th><th>Sur le ticket</th><th>Échéance</th><th>Statut</th></tr></thead><tbody>${rows}</tbody></table></body></html>`;
+  }, [filtered, cockpitFilterLabel]);
+
+  // Engagement par client (déduit des clés Jira des tickets) : "TMA", "Projet" ou "TMA + Projet".
+  const engagementByDossier = useMemo(() => {
+    const m = {};
+    issues.forEach((i) => { const d = i.dossier || "Autre"; (m[d] ||= new Set()).add(i.engagement || "—"); });
+    const out = {};
+    Object.entries(m).forEach(([d, set]) => { set.delete("—"); const a = [...set]; out[d] = a.length === 0 ? "" : a.length === 1 ? a[0] : "TMA + Projet"; });
+    return out;
+  }, [issues]);
   // pour qu'un compteur ne contredise jamais le tableau (ex. plus de "26" alors que le tableau est vide).
   const counts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -355,12 +410,16 @@ export default function App() {
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
         issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
-        tab={tab} pageLabel={(TABS.find((t) => t.id === tab) || {}).label} />
+        tab={tab} pageLabel={(TABS.find((t) => t.id === tab) || {}).label}
+        onKpi={applyKpi} activeKpi={tab === "cockpit" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
       {readOnly ? (
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation, génération de comptes rendus et export uniquement ; aucune modification n'est possible.</div>
       ) : (
         <div className="owner-bar">
+          {showDailyCr && (
+            <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
+          )}
           <button className="btn-line invite-btn" onClick={makeInvite} title="Créer un lien d'accès en lecture seule, à partager">🔗 Inviter (lien lecture seule)</button>
         </div>
       )}
@@ -397,7 +456,7 @@ export default function App() {
             </p>
           )}
           <div className="section-title">Portefeuille <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
-          <Portfolio parDossier={data?.parDossier} onOpen={(d) => setFiche({ nom: d })} />
+          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={(d) => setFiche({ nom: d })} />
 
           <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
@@ -406,10 +465,11 @@ export default function App() {
               <span className="reload-ico">⟳</span>
               <span className="reload-txt">Tout recharger</span>
             </button>
+            <ExportBar buildHtml={buildCockpitHtml} filename={`tickets_${cockpitFilterLabel.replace(/[^a-z0-9]+/gi, "_").slice(0, 40) || "liste"}.html`} subject={`Tickets — ${cockpitFilterLabel}`} />
           </div>
           <div className="panel cockpit-panel">
             <div className="recap-hd">
-              <span className="recap-hd-name">Tous les tickets</span>
+              <span className="recap-hd-name">{cockpitFilterLabel}</span>
               <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
             </div>
             <div className="cockpit-bd">
@@ -433,6 +493,7 @@ export default function App() {
       {tab === "meetings" && <Meetings issues={issues} />}
       {tab === "cra" && <CRA onTicket={setTicket} />}
       {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "recette" && <Recette issues={issues} onTicket={setTicket} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
 
@@ -445,6 +506,7 @@ export default function App() {
       {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
       {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
+      {dailyCrOpen && <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />}
 
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
