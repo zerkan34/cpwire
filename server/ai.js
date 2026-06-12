@@ -4,30 +4,58 @@ import { buildDoc } from "./docgen.js";
 import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
-const KEY = process.env.ANTHROPIC_API_KEY || "";
-const MODEL = process.env.AI_MODEL || "claude-sonnet-4-6";
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
+const GROQ_KEY = process.env.GROQ_API_KEY || "";
+// Modèle : Anthropic si clé Anthropic, sinon modèle Groq gratuit par défaut.
+const MODEL = process.env.AI_MODEL || (ANTHROPIC_KEY ? "claude-sonnet-4-6" : "llama-3.3-70b-versatile");
 
-export function aiAvailable() { return Boolean(KEY); }
+export function aiAvailable() { return Boolean(ANTHROPIC_KEY || GROQ_KEY); }
 
-// Appel générique. `images` = [{media_type, dataBase64}]. Renvoie du texte.
-async function callClaude(system, userText, images = []) {
+// Aiguilleur d'appel IA. Priorité : Anthropic (payant, données privées) si présent ;
+// sinon Groq (gratuit, sans carte bancaire, compatible OpenAI) ; sinon erreur (→ gabarit).
+// `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
+async function callClaude(system, userText, images = [], maxTokens = 2000) {
+  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens);
+  if (GROQ_KEY) return callGroq(system, userText, maxTokens);
+  throw new Error("Aucune clé IA configurée.");
+}
+
+async function callAnthropic(system, userText, images = [], maxTokens = 2000) {
   const content = [];
   for (const im of images) content.push({ type: "image", source: { type: "base64", media_type: im.media_type, data: im.dataBase64 } });
   content.push({ type: "text", text: userText });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
-    headers: { "x-api-key": KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: 2000, system, messages: [{ role: "user", content }] }),
+    headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) throw new Error(`API Claude ${res.status} : ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
   return (data.content || []).filter((b) => b.type === "text").map((b) => b.text).join("\n").trim();
 }
 
+// Groq : API gratuite compatible OpenAI. Texte uniquement (les images sont ignorées).
+async function callGroq(system, userText, maxTokens = 2000) {
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${GROQ_KEY}`, "content-type": "application/json" },
+    body: JSON.stringify({
+      model: MODEL, max_tokens: maxTokens, temperature: 0.4,
+      messages: [{ role: "system", content: system }, { role: "user", content: userText }],
+    }),
+  });
+  if (!res.ok) throw new Error(`API Groq ${res.status} : ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  return (data.choices?.[0]?.message?.content || "").trim();
+}
+
 const STYLE = `Tu es l'assistant d'un chef de projet senior d'Armonie Group (centre de services IBM i).
 Tu rédiges en français, ton professionnel, clair, concis et rigoureux — comme un compte rendu Armonie.
-Tu renvoies UNIQUEMENT un fragment HTML (pas de <html>, <head> ni <body>), en utilisant
-seulement <h2>, <h3>, <p>, <ul><li>, et <table class="data"> avec <th>/<td>. Pas de style inline.`;
+Tu renvoies UNIQUEMENT un fragment HTML (pas de <html>, <head> ni <body>), sans style inline. Éléments autorisés :
+<h2> et <h3> (titres), <p>, <ul><li>, <b>, <table class="data"> avec <th>/<td>, et ces classes de la charte :
+<span class="tk"> (clé de ticket), <span class="who"> (nom de personne),
+<span class="pill done|prog|todo|block"> (statut : done=résolu/clôturé, prog=en cours, todo=à faire/en attente, block=bloqué),
+<div class="indic"> (encadré pour un point marquant), et <div class="opt"><div class="ot">Option 1</div>…</div> (présenter des options).`;
 
 // ---------- CR journalier par client ----------
 function buckets(issues) {
@@ -196,14 +224,16 @@ export async function dailyReport(dossier, issues) {
   let analyseHtml = "";
   if (aiAvailable()) {
     try {
-      const liste = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : ""}`).join("\n");
-      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE de la journée pour le dossier "${dossier}", ` +
-        `en 3 à 5 phrases, claire, précise et pertinente : ce qui a été accompli, les points saillants, ` +
-        `un éventuel point d'attention. Reste factuel, ne réinvente pas de chiffres.\n` +
-        `Données réelles : ${dayDone.length} ticket(s) terminé(s) aujourd'hui, ${dayActive.length} en cours dans la journée, ` +
-        `${recA} en attente de recette Armonie. Réparti par personne : ${topWho || "—"}.\n` +
-        `Tickets terminés aujourd'hui :\n${liste || "(aucun)"}\n` +
-        `Réponds UNIQUEMENT par un ou deux paragraphes HTML <p>…</p>, sans titre.`;
+      const dev = (i) => (i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : (i.assigne && i.assigne !== "Non assigné" ? " [" + i.assigne + "]" : ""));
+      const doneList = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)}`).join("\n");
+      const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
+      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée de la journée pour le dossier "${dossier}", ` +
+        `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
+        `en citant les personnes par leur nom et les tickets par leur clé. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
+        `Données réelles : ${dayDone.length} terminé(s) aujourd'hui, ${dayActive.length} en cours dans la journée, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
+        `Tickets terminés aujourd'hui :\n${doneList || "(aucun)"}\n` +
+        `Tickets en cours aujourd'hui :\n${activeList || "(aucun)"}\n` +
+        `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
       analyseHtml = await callClaude(STYLE, prompt);
     } catch { analyseHtml = ""; }
   }
@@ -468,41 +498,75 @@ export async function globalReport(byDossier) {
 }
 
 // ---------- Compte rendu de réunion ----------
-// Découpe un texte collé en liste à puces (une puce par ligne non vide).
-function linesToList(text) {
-  const items = String(text || "").split(/\r?\n/).map((l) => l.trim().replace(/^[-*•·]\s*/, "")).filter(Boolean);
-  if (!items.length) return "";
-  return `<ul>${items.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+// Détecte et nettoie des participants collés en vrac (sauts de ligne, virgules,
+// points-virgules, « et », « & », puces, numéros). Renvoie des noms propres dédoublonnés.
+function parseParticipants(str) {
+  if (!str) return [];
+  const parts = String(str)
+    .split(/\r?\n|,|;|·|•|\u2022|\s+et\s+|\s+&\s+|\s\/\s/i)
+    .map((s) => s.replace(/^[-*•·\d.\)\s]+/, "").trim())
+    .filter((s) => s.length > 1);
+  const seen = new Set(); const out = [];
+  for (const p of parts) { const k = p.toLowerCase(); if (!seen.has(k)) { seen.add(k); out.push(p); } }
+  return out;
 }
-// Découpe un texte en paragraphes (séparés par des lignes vides).
-function paras(text) {
-  const blocks = String(text || "").split(/\n\s*\n/).map((b) => b.trim()).filter(Boolean);
-  if (!blocks.length) return "";
-  return blocks.map((b) => `<p>${esc(b).replace(/\r?\n/g, "<br>")}</p>`).join("");
+
+// Structure un texte collé sans IA : « 1. » → sous-titre, « Label : » → libellé en gras,
+// puces et lignes → liste. Préserve l'ordre. Bien mieux qu'un bloc empilé.
+function structureNotes(text) {
+  const lines = String(text || "").split(/\r?\n/);
+  let html = ""; let inList = false;
+  const closeList = () => { if (inList) { html += "</ul>"; inList = false; } };
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) { closeList(); continue; }
+    const numbered = line.match(/^(\d+)[.\)]\s+(.+)$/);
+    const bullet = line.match(/^[-*•·]\s+(.+)$/);
+    const labelColon = line.match(/^([^:]{2,40}):\s*(.*)$/);
+    if (numbered) { closeList(); html += `<h3>${esc(numbered[2])}</h3>`; }
+    else if (bullet) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${esc(bullet[1])}</li>`; }
+    else if (labelColon && labelColon[2]) { closeList(); html += `<p><b>${esc(labelColon[1].trim())} :</b> ${esc(labelColon[2])}</p>`; }
+    else if (labelColon && !labelColon[2]) { closeList(); html += `<p><b>${esc(labelColon[1].trim())}</b></p>`; }
+    else { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${esc(line)}</li>`; }
+  }
+  closeList();
+  return html || "<p>—</p>";
 }
 
 function templateMeeting({ titre, participants, notes, transcript }) {
-  const pointsHtml = notes ? (linesToList(notes) || `<p>${esc(notes)}</p>`) : "<p>—</p>";
+  const parts = parseParticipants(participants);
+  const partHtml = parts.length ? `<ul>${parts.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : "<p>—</p>";
+  const corps = [notes, transcript].filter(Boolean).join("\n\n");
+  const pointsHtml = corps ? structureNotes(corps) : "<p>—</p>";
   return `<h2>Objet</h2><p>${esc(titre || "Réunion")}</p>
-    <h2>Participants</h2><p>${esc(participants || "—")}</p>
+    <h2>Participants</h2>${partHtml}
     <h2>Points abordés</h2>${pointsHtml}
-    ${transcript ? `<h2>Transcription / notes de séance</h2>${paras(transcript.slice(0, 8000)) || `<p>${esc(transcript.slice(0, 8000))}</p>`}` : ""}
     <h2>Décisions</h2><ul><li>À compléter.</li></ul>
     <h2>Actions</h2><table class="data"><tr><th>Action</th><th>Responsable</th><th>Échéance</th></tr><tr><td>À compléter</td><td>—</td><td>—</td></tr></table>
-    <p class="muted" style="margin-top:16px;font-size:12px;">Note : sans clé IA, ce compte rendu reprend vos notes telles quelles (mises en liste sous chaque titre). Pour un CR <b>rédigé et synthétisé automatiquement</b> — décisions et actions extraites, points regroupés par thème — ajoutez la clé <b>ANTHROPIC_API_KEY</b> dans Render.</p>`;
+    <p class="muted" style="margin-top:16px;font-size:12px;">Note : sans clé IA, ce compte rendu reprend vos notes (structurées au mieux : titres, libellés, puces). Pour un CR <b>rédigé, synthétisé et remis en page automatiquement</b> — décisions et actions extraites — ajoutez une clé IA (Groq gratuit ou Anthropic) dans Render.</p>`;
 }
 
 export async function meetingReport({ titre, participants, notes, transcript, images = [] }) {
+  const parts = parseParticipants(participants);
+  const partLine = parts.length ? parts.join(", ") : "non précisés";
   let body;
   if (aiAvailable()) {
-    const prompt = `Rédige un compte rendu de réunion structuré à partir des éléments suivants.
+    const prompt = `À partir des éléments ci-dessous, rédige un COMPTE RENDU DE RÉUNION complet, clair et bien mis en page, en français, style CR professionnel Armonie. Sois fidèle aux éléments, n'invente rien, attribue chaque sujet à la bonne personne, et ne perds aucun sujet.
+
+STRUCTURE ATTENDUE :
+- <h2>Synthèse générale</h2> : un paragraphe de synthèse, suivi d'un <div class="indic"> qui met en avant LE point marquant (un départ, un risque, une échéance clé).
+- Puis UNE SECTION <h2> NUMÉROTÉE PAR SUJET (ex. <h2>1. Continuité opérationnelle</h2>). Si un sujet porte un numéro de ticket : <h2>4. <span class="tk">Ticket 792</span> — Libellé</h2>. À l'intérieur : des <h3> si utile, des <p>, des listes <ul><li>, les personnes en <span class="who">Nom</span>, et le statut en <span class="pill done|prog|todo|block">…</span> (done=résolu/clôturé, prog=en cours, todo=à faire/en attente, block=bloqué).
+- Si plusieurs solutions/options sont évoquées : <div class="opt"><div class="ot">Option 1</div>texte de l'option</div> (une boîte par option).
+- <h2>Plan d'actions</h2> : un <table class="data"> avec les colonnes Action / Responsable / Échéance (responsables en <span class="who">).
+- <h2>Conclusion</h2> : 2 à 3 phrases.
+
+ÉLÉMENTS :
 Titre : ${titre || "Réunion"}
-Participants : ${participants || "non précisés"}
-Notes du chef de projet :\n${notes || "(aucune)"}
-${transcript ? "Transcription audio :\n" + transcript.slice(0, 8000) : ""}
+Participants : ${partLine}
+${notes ? "Notes / résumé :\n" + notes + "\n" : ""}${transcript ? "Transcription / notes de séance :\n" + transcript.slice(0, 12000) : ""}
 ${images.length ? "Des images (tableau blanc / slides) sont jointes : intègre ce qu'elles montrent." : ""}
-Sections attendues : Objet, Participants, Points abordés, Décisions (numérotées D1, D2…), Actions (table : Action / Responsable / Échéance), Prochaines étapes.`;
-    body = await callClaude(STYLE, prompt, images);
+Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
+    body = await callClaude(STYLE, prompt, images, 4000);
   } else {
     body = templateMeeting({ titre, participants, notes, transcript });
   }
@@ -510,7 +574,7 @@ Sections attendues : Objet, Participants, Points abordés, Décisions (numérot�
     kicker: "Compte rendu de réunion",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
-    cartouche: [["Objet", esc(titre || "Réunion")], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(participants || "—")], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Objet", esc(titre || "Réunion")], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });

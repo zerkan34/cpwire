@@ -28,9 +28,12 @@ const CSS = `
   table.data{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0;}
   table.data th{background:#3a3658;color:#fff;text-align:left;padding:8px 10px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;}
   table.data td{border-bottom:1px solid #f0eef7;padding:8px 10px;}
-  .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;}
+  .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;white-space:nowrap;}
   .pill.done{background:#e2f3ea;color:#1f8a5f;} .pill.prog{background:#e6effb;color:#2f5fa8;}
   .pill.todo{background:#fbf0e2;color:#b07423;} .pill.block{background:#fbe6e3;color:#c0392b;}
+  .tk{font-family:monospace;font-weight:700;color:#5a48b0;font-size:12px;}
+  .opt{border:1px solid #e7e5f1;border-radius:10px;padding:10px 13px;margin:8px 0;}
+  .opt .ot{font-weight:700;font-size:12px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px;color:#6e5cc4;}
   .kpi-row{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0;}
   .kpi{flex:1;min-width:90px;border:1px solid #e7e5f1;border-radius:10px;padding:10px 12px;}
   .kpi .v{font-family:'Poppins';font-weight:800;font-size:24px;color:#2c2945;}
