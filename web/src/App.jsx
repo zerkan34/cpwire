@@ -32,8 +32,23 @@ const TABS = [
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
 const PRIMARY = ["cockpit", "encours", "recap", "morning"];
 const SECONDARY = ["devs", "meetings", "cra", "history"];
-const TAB_ICON = { cockpit: "🎯", encours: "🔄", recap: "📋", morning: "🌅", devs: "👥", meetings: "🗓️", cra: "⏱️", history: "🕘" };
 const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
+
+// Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
+function NavIcon({ id }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
+  switch (id) {
+    case "cockpit": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>);
+    case "encours": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>);
+    case "recap": return (<svg viewBox="0 0 24 24" {...p}><line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" /><circle cx="4" cy="6" r="0.7" /><circle cx="4" cy="12" r="0.7" /><circle cx="4" cy="18" r="0.7" /></svg>);
+    case "morning": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>);
+    case "devs": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>);
+    case "meetings": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="9.5" x2="21" y2="9.5" /><line x1="8" y1="3" x2="8" y2="6" /><line x1="16" y1="3" x2="16" y2="6" /></svg>);
+    case "cra": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 2.5h5M12 2.5v2" /></svg>);
+    case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
+    default: return null;
+  }
+}
 
 function notify(title, body) {
   try {
@@ -339,7 +354,8 @@ export default function App() {
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
-        issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)} />
+        issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
+        tab={tab} pageLabel={(TABS.find((t) => t.id === tab) || {}).label} />
 
       {readOnly ? (
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation, génération de comptes rendus et export uniquement ; aucune modification n'est possible.</div>
@@ -439,7 +455,7 @@ export default function App() {
         {PRIMARY.map((id) => (
           <button key={id} className={`mtab ${tab === id ? "active" : ""}`}
             onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}>
-            <span className="mtab-ic" aria-hidden="true">{TAB_ICON[id]}</span>
+            <span className="mtab-ic" aria-hidden="true"><NavIcon id={id} /></span>
             <span className="mtab-lb">{TAB_SHORT[id]}</span>
             {id === "cockpit" && data?.kpis?.mine ? <span className="mtab-badge">{data.kpis.mine}</span> : null}
           </button>
@@ -456,7 +472,7 @@ export default function App() {
             return (
               <button key={id} className={`drawer-item ${tab === id ? "active" : ""}`}
                 onClick={() => { setTab(id); setDrawer(false); window.scrollTo({ top: 0 }); }}>
-                <span className="di-ic" aria-hidden="true">{TAB_ICON[id]}</span>{t.label}
+                <span className="di-ic" aria-hidden="true"><NavIcon id={id} /></span>{t.label}
               </button>
             );
           })}

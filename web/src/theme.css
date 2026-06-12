@@ -817,7 +817,9 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .drawer-item { display: flex; align-items: center; gap: 13px; border: 0; background: none; text-align: left; width: 100%; font-size: 15px; font-weight: 600; color: var(--ink); padding: 14px; border-radius: 12px; cursor: pointer; }
 .drawer-item:active { background: var(--purple-soft); }
 .drawer-item.active { background: var(--purple-soft); color: var(--purple-strong); }
-.di-ic { font-size: 19px; width: 24px; text-align: center; }
+.di-ic { width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); }
+.drawer-item.active .di-ic { color: var(--purple-strong); }
+.di-ic svg { width: 21px; height: 21px; }
 .drawer-foot { margin-top: auto; padding: 16px 18px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--line); }
 
 @media (max-width: 768px) {
@@ -830,26 +832,28 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 
   /* ---- Burger (en-tête) ---- */
   .hdr-burger { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto;
-    width: 42px; height: 42px; margin-right: 10px; border: 1px solid rgba(255,255,255,.28);
-    background: rgba(255,255,255,.12); color: #fff; border-radius: 11px; font-size: 19px; line-height: 1; cursor: pointer; }
-  .hdr-burger:active { background: rgba(255,255,255,.22); }
+    width: 42px; height: 42px; margin-right: 11px; border: 1px solid rgba(255,255,255,.42);
+    background: rgba(255,255,255,.18); color: #fff; border-radius: 11px; font-size: 20px; line-height: 1;
+    cursor: pointer; box-shadow: 0 2px 8px rgba(20,18,40,.18); touch-action: manipulation; }
+  .hdr-burger:active { background: rgba(255,255,255,.30); }
 
-  /* ---- Barre du bas (4 onglets principaux) ---- */
+  /* ---- Barre du bas (4 onglets principaux) — bleue comme le header ---- */
   .mobile-tabbar { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 40;
-    background: #fff; border-top: 1px solid var(--line);
+    background: var(--indigo-deep); border-top: 1px solid rgba(255,255,255,.10);
     padding: 5px 4px calc(5px + env(safe-area-inset-bottom));
-    justify-content: space-around; align-items: stretch; box-shadow: 0 -6px 22px rgba(40,30,80,.07); }
-  .mtab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-    border: 0; background: none; color: var(--muted); font-size: 11px; font-weight: 600;
-    padding: 6px 2px 4px; border-radius: 12px; cursor: pointer; position: relative; min-height: 50px; }
-  .mtab-ic { font-size: 20px; line-height: 1; filter: grayscale(.4) opacity(.7); }
-  .mtab.active { color: var(--indigo); }
-  .mtab.active .mtab-ic { filter: none; }
+    justify-content: space-around; align-items: stretch; box-shadow: 0 -6px 22px rgba(20,18,40,.30); }
+  .mtab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border: 0; background: none; color: rgba(255,255,255,.60); font-size: 11px; font-weight: 600;
+    padding: 8px 2px 4px; border-radius: 12px; cursor: pointer; position: relative; min-height: 52px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .mtab-ic { width: 23px; height: 23px; display: inline-flex; }
+  .mtab-ic svg { width: 100%; height: 100%; }
+  .mtab.active { color: #fff; }
   .mtab.active::before { content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-    width: 26px; height: 3px; border-radius: 0 0 3px 3px; background: var(--indigo); }
-  .mtab-badge { position: absolute; top: 3px; left: calc(50% + 5px); background: var(--gold-deep); color: #fff;
+    width: 28px; height: 3px; border-radius: 0 0 3px 3px; background: var(--gold); }
+  .mtab-badge { position: absolute; top: 4px; left: calc(50% + 6px); background: var(--gold); color: var(--indigo-deep);
     font-size: 9px; font-weight: 800; min-width: 16px; height: 16px; border-radius: 9px;
-    display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px #fff; }
+    display: inline-flex; align-items: center; justify-content: center; padding: 0 4px; box-shadow: 0 0 0 2px var(--indigo-deep); }
 
   /* ---- Tiroir (glisse de la gauche) ---- */
   .drawer-backdrop { display: block; position: fixed; inset: 0; z-index: 199; background: rgba(20,18,40,.42);
@@ -881,4 +885,25 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   .dev-counts { flex: 1 1 100%; justify-content: flex-start; gap: 6px; flex-wrap: wrap; }
   .dev-counts .dev-hide, .dev-counts .dev-caret { flex: 0 0 auto; }
   .dev-caret { margin-left: auto; }
+}
+
+/* ===== En-tête : nom de page (caché par défaut → ordinateur & dashboard inchangés) ===== */
+.hdr-page { display: none; }
+
+@media (max-width: 768px) {
+  /* Sous-pages mobile : header compact qui s'arrête sous la ligne « Données au … ».
+     On masque les indicateurs (Total / À faire / En cours / Bloqués / En retard / Terminés)
+     + la barre d'avancement + le gros titre, et on affiche le NOM DE LA PAGE. */
+  .hdr.is-sub .kpis,
+  .hdr.is-sub .progress { display: none; }
+  .hdr.is-sub .hdr-title { display: none; }
+  .hdr.is-sub .hdr-page { display: block; font-size: 21px; font-weight: 800; color: #fff; letter-spacing: .01em; margin-top: 4px; }
+  .hdr.is-sub { padding-bottom: 14px; }
+
+  /* ===== Fluidité mobile : supprime le délai de tap + ne peint que ce qui est visible ===== */
+  button, a, .tab, .mtab, .drawer-item, .enc-ctab, [role="button"] { touch-action: manipulation; }
+  .cockpit-bd > table > tbody > tr { content-visibility: auto; contain-intrinsic-size: auto 150px; }
+  .enc-card { content-visibility: auto; contain-intrinsic-size: auto 320px; }
+  .dev-row { content-visibility: auto; contain-intrinsic-size: auto 84px; }
+  .recap-card, .pcard { content-visibility: auto; contain-intrinsic-size: auto 260px; }
 }
