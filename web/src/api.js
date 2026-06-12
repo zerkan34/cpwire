@@ -72,6 +72,12 @@ export const fetchTicketActivity = (cle) => post(`/api/ticket/activity`, { cle }
 export const fetchDevWork = (dev, keys) => post(`/api/dev/work`, { dev, keys });
 export const fetchChangesSummary = (keys) => post(`/api/changes/summary`, { keys });
 export const fetchCRA = (start, end) => post(`/api/cra`, { start, end });
+export function importCRA(file, basis = 7) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("basis", String(basis));
+  return req(`/api/cra/import`, { method: "POST", body: fd, timeoutMs: 60000 });
+}
 export const genGlobalCR = () => post(`/api/cr/global`, {});
 export const genMorningCR = (dossier) => post(`/api/cr/morning`, { dossier });
 export const genMeetingPrep = (payload) => post(`/api/meeting/prep`, payload);
