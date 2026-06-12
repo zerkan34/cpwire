@@ -26,22 +26,22 @@ export function aiAvailable() {
 
 // Aiguilleur d'appel IA. Priorité : Anthropic (privé) → Mistral (gratuit, UE) → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
-async function callClaude(system, userText, images = [], maxTokens = 2000) {
-  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens);
-  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens);
-  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens);
-  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens);
+async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.4) {
+  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature);
+  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature);
+  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature);
+  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens, temperature);
   throw new Error("Aucune clé IA configurée.");
 }
 
-async function callAnthropic(system, userText, images = [], maxTokens = 2000) {
+async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.4) {
   const content = [];
   for (const im of images) content.push({ type: "image", source: { type: "base64", media_type: im.media_type, data: im.dataBase64 } });
   content.push({ type: "text", text: userText });
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, system, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, temperature, system, messages: [{ role: "user", content }] }),
   });
   if (!res.ok) throw new Error(`API Claude ${res.status} : ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -49,12 +49,12 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000) {
 }
 
 // Fournisseur compatible OpenAI (Mistral, Groq, OpenRouter, etc.). Texte uniquement (images ignorées).
-async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000) {
+async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.4) {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify({
-      model: MODEL, max_tokens: maxTokens, temperature: 0.4,
+      model: MODEL, max_tokens: maxTokens, temperature,
       messages: [{ role: "system", content: system }, { role: "user", content: userText }],
     }),
   });
@@ -625,22 +625,30 @@ export async function meetingReport({ titre, participants, notes, transcript, im
   const partLine = parts.length ? parts.join(", ") : "non précisés";
   let body;
   if (aiAvailable()) {
-    const prompt = `À partir des éléments ci-dessous, rédige un COMPTE RENDU DE RÉUNION complet, clair et bien mis en page, en français, style CR professionnel Armonie. Sois fidèle aux éléments, n'invente rien, attribue chaque sujet à la bonne personne, et ne perds aucun sujet.
+    const prompt = `À partir des éléments ci-dessous, rédige un COMPTE RENDU DE RÉUNION complet, clair et bien mis en page, en français, style CR professionnel Armonie.
+
+RÈGLES DE FIDÉLITÉ (PRIORITAIRES — ne jamais enfreindre) :
+- N'utilise QUE les informations présentes dans les notes / la transcription. N'invente AUCUN fait, chiffre, date, nom, ticket, option ni décision.
+- NUMÉROS DE TICKETS : recopie-les EXACTEMENT depuis la source. Ne devine pas, ne transpose pas un numéro (ex. ne transforme pas 773 en 713). Si un numéro est incertain ou absent, écris « (numéro à confirmer) » — n'en invente jamais un.
+- OPTIONS / SOLUTIONS : ne liste que les options réellement évoquées. Ne les multiplie pas, ne les fractionne pas, n'en ajoute pas pour « remplir la mise en page ». Si deux options ont été discutées, n'en mets que deux.
+- ATTRIBUTION : rattache chaque fait (qui a fait quoi, mise en pré-production, livraison, analyse…) au BON ticket et à la BONNE personne. Ne fusionne JAMAIS deux tickets et ne déplace pas une action d'un ticket vers un autre. Un ticket = une section distincte.
+- PÉRIMÈTRE / ÉQUIPE : parle de « l'équipe TMA Armonie ». Ne restreins jamais le périmètre à des dossiers précis (ex. « Dataware / MCS ») sauf si la source le dit explicitement.
+- Quand une information manque, écris-le clairement (« non précisé », « à confirmer ») plutôt que de combler le vide par une supposition.
 
 STRUCTURE ATTENDUE :
-- <h2>Synthèse générale</h2> : un paragraphe de synthèse, suivi d'un <div class="indic"> qui met en avant LE point marquant (un départ, un risque, une échéance clé).
+- <h2>Synthèse générale</h2> : un paragraphe de synthèse, suivi d'un <div class="indic"> qui met en avant LE point marquant (un départ, un risque, une échéance clé) — uniquement s'il ressort de la source.
 - Puis UNE SECTION <h2> NUMÉROTÉE PAR SUJET (ex. <h2>1. Continuité opérationnelle</h2>). Si un sujet porte un numéro de ticket : <h2>4. <span class="tk">Ticket 792</span> — Libellé</h2>. À l'intérieur : des <h3> si utile, des <p>, des listes <ul><li>, les personnes en <span class="who">Nom</span>, et le statut en <span class="pill done|prog|todo|block">…</span> (done=résolu/clôturé, prog=en cours, todo=à faire/en attente, block=bloqué).
-- Si plusieurs solutions/options sont évoquées : <div class="opt"><div class="ot">Option 1</div>texte de l'option</div> (une boîte par option).
-- <h2>Plan d'actions</h2> : un <table class="data"> avec les colonnes Action / Responsable / Échéance (responsables en <span class="who">).
+- Si plusieurs solutions/options sont évoquées : <div class="opt"><div class="ot">Option 1</div>texte de l'option</div> (une boîte par option réellement discutée), puis une ligne <p><b>Décision :</b> …</p>.
+- <h2>Plan d'actions</h2> : un <table class="data"> avec les colonnes Action / Responsable / Échéance (responsables en <span class="who">). Chaque action doit citer le bon numéro de ticket quand il y en a un.
 - <h2>Conclusion</h2> : 2 à 3 phrases.
 
 ÉLÉMENTS :
 Titre : ${titre || "Réunion"}
 Participants : ${partLine}
 ${notes ? "Notes / résumé :\n" + notes + "\n" : ""}${transcript ? "Transcription / notes de séance :\n" + transcript.slice(0, 12000) : ""}
-${images.length ? "Des images (tableau blanc / slides) sont jointes : intègre ce qu'elles montrent." : ""}
+${images.length ? "Des images (tableau blanc / slides) sont jointes : intègre ce qu'elles montrent, sans rien inventer au-delà." : ""}
 Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
-    body = await callClaude(STYLE, prompt, images, 4000);
+    body = await callClaude(STYLE, prompt, images, 4000, 0.2);
   } else {
     body = templateMeeting({ titre, participants, notes, transcript });
   }
@@ -648,7 +656,7 @@ Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
     kicker: "Compte rendu de réunion",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
-    cartouche: [["Objet", esc(titre || "Réunion")], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Objet", esc(titre || "Réunion")], ["Équipe", process.env.TEAM_LABEL || "TMA Armonie"], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
