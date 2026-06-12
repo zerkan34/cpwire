@@ -1,266 +1,180 @@
-import React, { useMemo, useState } from "react";
-import { fetchCRA } from "../api.js";
-import { buildSimpleDoc, esc } from "../utils.js";
-import ExportBar from "./ExportBar.jsx";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 
-const ME = "Nicolas Durand";
-function pillCls(s) { return s === "Bloqué" ? "block" : s === "En cours" ? "prog" : s === "Terminé" ? "done" : "todo"; }
-const iso = (d) => d.toISOString().slice(0, 10);
-function startOfWeek(d) { const x = new Date(d); const day = (x.getDay() + 6) % 7; x.setDate(x.getDate() - day); x.setHours(0, 0, 0, 0); return x; }
-function presets() {
-  const today = new Date();
-  const sow = startOfWeek(today); const eow = new Date(sow); eow.setDate(sow.getDate() + 6);
-  const lws = new Date(sow); lws.setDate(sow.getDate() - 7); const lwe = new Date(sow); lwe.setDate(sow.getDate() - 1);
-  const som = new Date(today.getFullYear(), today.getMonth(), 1); const eom = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-  const lms = new Date(today.getFullYear(), today.getMonth() - 1, 1); const lme = new Date(today.getFullYear(), today.getMonth(), 0);
-  const d7 = new Date(today); d7.setDate(today.getDate() - 6);
-  return {
-    week: { label: "Cette semaine", start: iso(sow), end: iso(eow) },
-    lastweek: { label: "Semaine dernière", start: iso(lws), end: iso(lwe) },
-    month: { label: "Ce mois", start: iso(som), end: iso(eom) },
-    lastmonth: { label: "Mois dernier", start: iso(lms), end: iso(lme) },
-    last7: { label: "7 derniers jours", start: iso(d7), end: iso(today) },
-  };
+function Kpi({ lbl, val, cls }) {
+  return (
+    <div className={`kpi ${cls || ""}`}>
+      <div className="lbl">{lbl}</div>
+      <div className="val">{val ?? "—"}</div>
+    </div>
+  );
 }
-const frDate = (s) => { try { return new Date(s + "T00:00:00").toLocaleDateString("fr-FR"); } catch { return s; } };
-const hDec = (sec) => (sec / 3600);
 
-export default function CRA({ onTicket }) {
-  const PRE = useMemo(presets, []);
-  const [presetId, setPresetId] = useState("week");
-  const [start, setStart] = useState(PRE.week.start);
-  const [end, setEnd] = useState(PRE.week.end);
-  const [basis, setBasis] = useState(7); // heures par jour pour l'équivalent jours
-  const [person, setPerson] = useState("Tous");
-  const [cra, setCra] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+function timeAgo(ts) {
+  const s = Math.max(1, Math.round((Date.now() - ts) / 1000));
+  if (s < 60) return "à l'instant";
+  const m = Math.round(s / 60); if (m < 60) return `il y a ${m} min`;
+  const h = Math.round(m / 60); if (h < 24) return `il y a ${h} h`;
+  const d = Math.round(h / 24); return `il y a ${d} j`;
+}
+const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-  const applyPreset = (id) => { setPresetId(id); if (PRE[id]) { setStart(PRE[id].start); setEnd(PRE[id].end); } };
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger }) {
+  const [notifOpen, setNotifOpen] = useState(false);
+  const unread = notifs.filter((n) => !n.read).length;
 
-  const generate = async () => {
-    if (!start || !end || start > end) { setErr("Choisis une période valide (début avant fin)."); return; }
-    setBusy(true); setErr(""); setCra(null);
-    try {
-      const r = await fetchCRA(start, end);
-      if (r && r.configured === false) { setErr("Jira n'est pas connecté côté serveur — aucun temps à consolider."); }
-      else { setCra(r); setPerson("Tous"); }
-    } catch (e) { setErr(String(e.message || e)); }
-    finally { setBusy(false); }
-  };
+  // ----- Recherche : suggestions en accordéon sous la barre -----
+  const [sFocus, setSFocus] = useState(false);
+  const [sRect, setSRect] = useState(null);
+  const searchRef = useRef();
+  const q = (query || "").trim().toLowerCase();
+  const suggestions = useMemo(() => {
+    if (q.length < 2) return [];
+    const hit = (i) => `${i.cle} ${i.resume} ${i.dossier} ${(i.contributors || []).join(" ")} ${(i.labels || []).join(" ")} ${i.assigne || ""}`.toLowerCase().includes(q);
+    const arr = issues.filter(hit);
+    // les correspondances de clé d'abord
+    arr.sort((a, b) => (String(b.cle).toLowerCase().includes(q) ? 1 : 0) - (String(a.cle).toLowerCase().includes(q) ? 1 : 0));
+    return arr.slice(0, 8);
+  }, [issues, q]);
+  const showSuggest = sFocus && q.length >= 2;
+  useEffect(() => {
+    if (!showSuggest) return;
+    const upd = () => { if (searchRef.current) { const r = searchRef.current.getBoundingClientRect(); setSRect({ left: r.left, top: r.bottom + 6, width: r.width }); } };
+    upd();
+    window.addEventListener("resize", upd); window.addEventListener("scroll", upd, true);
+    return () => { window.removeEventListener("resize", upd); window.removeEventListener("scroll", upd, true); };
+  }, [showSuggest, q]);
+  const k = kpis || {};
+  const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
 
-  // Vue filtrée par périmètre (Tous ou une personne)
-  const view = useMemo(() => {
-    if (!cra) return null;
-    if (person === "Tous") {
-      return { total: cra.totalSeconds, projects: cra.byProject, persons: cra.byPerson };
-    }
-    const P = (cra.byPerson || []).find((p) => p.who === person);
-    return { total: P ? P.seconds : 0, projects: P ? P.projects : [], persons: null };
-  }, [cra, person]);
-
-  // Réalisations : tickets travaillés dans le périmètre (dédoublonnés)
-  const realisations = useMemo(() => {
-    if (!view) return [];
-    const m = {};
-    view.projects.forEach((pr) => (pr.tickets || []).forEach((t) => {
-      const cur = m[t.cle] || { cle: t.cle, resume: t.resume, statut: t.statut, statutJira: t.statutJira, done: t.done, dossier: pr.dossier, seconds: 0 };
-      cur.seconds += t.seconds;
-      m[t.cle] = cur;
-    }));
-    return Object.values(m).sort((a, b) => b.seconds - a.seconds);
-  }, [view]);
-
-  const fmtH = (sec) => { const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60); return m ? `${h}h ${String(m).padStart(2, "0")}` : `${h}h`; };
-  const totalSec = view ? view.total : 0;
-  const nbDone = realisations.filter((r) => r.done).length;
-
-  // ---- Export PDF (charte Armonie) ----
-  const buildDocHtml = () => {
-    const part = totalSec ? (s) => `${Math.round((s / totalSec) * 100)}%` : () => "—";
-    let body = "";
-    body += `<p><b>Total saisi :</b> ${fmtH(totalSec)} · <b>≈ ${hDec(totalSec).toFixed(1)} h</b> · <b>${(totalSec / 3600 / basis).toFixed(2)} j</b> (base ${basis} h/j) · ${view.projects.length} projet(s) · ${realisations.length} ticket(s) dont ${nbDone} terminé(s).</p>`;
-    body += `<h2>Temps par projet</h2><table><tr><th>Projet</th><th>Temps</th><th>Heures</th><th>Part</th><th>Tickets</th><th>Terminés</th></tr>` +
-      view.projects.map((pr) => {
-        const done = (pr.tickets || []).filter((t) => t.done).length;
-        return `<tr><td><b>${esc(pr.dossier)}</b></td><td>${esc(pr.time)}</td><td>${hDec(pr.seconds).toFixed(2)}</td><td>${part(pr.seconds)}</td><td>${(pr.tickets || []).length}</td><td>${done}</td></tr>`;
-      }).join("") +
-      `<tr><td><b>Total</b></td><td><b>${fmtH(totalSec)}</b></td><td><b>${hDec(totalSec).toFixed(2)}</b></td><td>100%</td><td>${realisations.length}</td><td>${nbDone}</td></tr></table>`;
-
-    if (person === "Tous" && view.persons && view.persons.length) {
-      body += `<h2>Détail par personne</h2><table><tr><th>Personne</th><th>Temps</th><th>Heures</th><th>Part</th><th>Projets</th></tr>` +
-        view.persons.map((p) => `<tr><td>${esc(p.who)}</td><td>${esc(p.time)}</td><td>${hDec(p.seconds).toFixed(2)}</td><td>${part(p.seconds)}</td><td>${esc(p.projects.map((pr) => `${pr.dossier} (${pr.time})`).join(", "))}</td></tr>`).join("") +
-        `</table>`;
-    }
-
-    body += `<h2>Réalisations de la période</h2><table><tr><th>Clé</th><th>Projet</th><th>Résumé</th><th>Temps</th><th>Statut</th></tr>` +
-      realisations.map((r) => `<tr><td>${esc(r.cle)}</td><td>${esc(r.dossier)}</td><td>${esc(r.resume)}</td><td>${fmtH(r.seconds)}</td><td><span class="pill ${pillCls(r.statut)}">${esc(r.statutJira || r.statut)}</span></td></tr>`).join("") +
-      `</table>`;
-
-    return buildSimpleDoc({
-      kicker: "Compte rendu d'activité",
-      title: `CRA — ${frDate(start)} au ${frDate(end)}`,
-      subtitle: person === "Tous" ? "Tous les intervenants" : person,
-      cartouche: [
-        ["Chef de projet", ME],
-        ["Période", `${frDate(start)} → ${frDate(end)}`],
-        ["Périmètre", person === "Tous" ? "Tous les intervenants" : person],
-        ["Source", "Temps saisis dans Jira"],
-      ],
-      bodyHtml: body,
-    });
-  };
-
-  // ---- Export CSV (consolidation Projet × Personne pour Excel) ----
-  const downloadCsv = () => {
-    const rows = [["Projet", "Personne", "Temps (h:m)", "Heures (décimal)"]];
-    if (person === "Tous") {
-      view.projects.forEach((pr) => {
-        // reconstitue le temps par personne sur ce projet via cra.byProject.persons
-        const src = (cra.byProject.find((x) => x.dossier === pr.dossier) || {}).persons || [];
-        src.forEach((pp) => rows.push([pr.dossier, pp.who, pp.time, hDec(pp.seconds).toFixed(2)]));
-      });
+  // Jauge de chargement (simulée : progresse vers ~92 %, puis 100 % à la fin).
+  const [prog, setProg] = useState(0);
+  useEffect(() => {
+    let id;
+    if (loading) {
+      setProg((p) => (p > 0 && p < 92 ? p : 8));
+      id = setInterval(() => setProg((p) => (p < 92 ? p + Math.max(1, (92 - p) * 0.07) : p)), 320);
+      return () => clearInterval(id);
     } else {
-      view.projects.forEach((pr) => rows.push([pr.dossier, person, pr.time, hDec(pr.seconds).toFixed(2)]));
+      setProg((p) => (p > 0 ? 100 : 0));
+      const t = setTimeout(() => setProg(0), 550);
+      return () => clearTimeout(t);
     }
-    rows.push(["TOTAL", person === "Tous" ? "(tous)" : person, fmtH(totalSec), hDec(totalSec).toFixed(2)]);
-    const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(blob);
-    a.download = `CRA_${start}_${end}${person === "Tous" ? "" : "_" + person.replace(/\s+/g, "_")}.csv`;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  };
+  }, [loading]);
 
   return (
-    <>
-      <div className="section-title">CRA — Compte rendu d'activité
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— consolide les temps saisis dans Jira : quoi, sur quel projet, combien de temps.
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Choisis une période et un périmètre, puis « Générer ». Le CRA agrège le <b>temps réellement saisi dans Jira</b> par projet et par personne — utile pour consolider les temps, suivre la charge et justifier l'affectation.
-      </p>
-
-      <div className="panel">
-        <div className="filter-box-hd" style={{ borderRadius: "12px 12px 0 0" }}>Période &amp; périmètre</div>
-        <div style={{ padding: 14 }}>
-          <div className="filters" style={{ marginBottom: 10 }}>
-            {Object.entries(PRE).map(([id, p]) => (
-              <button key={id} className={`fbtn ${presetId === id ? "active" : ""}`} onClick={() => applyPreset(id)}>{p.label}</button>
-            ))}
+    <header className="hdr">
+      <div className="hdr-row">
+        <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
+        <div className="hdr-left">
+          <span className="hdr-brand">
+            <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
+            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v13</span></span>
+          </span>
+          <h1 className="hdr-title">Welcome to the jungle !</h1>
+        </div>
+        <div className="hdr-actions">
+          <div className="hdr-bar">
+            {onQuery && (
+              <div className="hdr-search" ref={searchRef}>
+                <span className="hs-ic">🔎</span>
+                <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
+                  onFocus={() => setSFocus(true)} onBlur={() => setTimeout(() => setSFocus(false), 160)}
+                  placeholder="Rechercher un ticket, une personne, une clé…" />
+                {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
+                {showSuggest && sRect && (
+                  <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: sRect.width, zIndex: 2000 }}>
+                    {suggestions.length === 0 ? (
+                      <div className="ss-empty">Aucun résultat pour « {query} »</div>
+                    ) : suggestions.map((i) => (
+                      <button className="ss-item" key={i.cle}
+                        onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
+                        <span className="ss-key">{i.cle}</span>
+                        <span className="ss-res">{i.resume}</span>
+                        <span className="ss-meta">
+                          {(i.contributors && i.contributors[0]) || i.assigne || ""}
+                          {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
+              <span className="gauge-fill" style={{ width: `${prog}%` }} />
+              <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
+            </button>
+            {onOpenNotif && (
+              <div className="bell-wrap">
+                <button className={`btn bell ${notifOn ? "on" : "ghost"}`} onClick={() => setNotifOpen((o) => !o)}
+                  title="Notifications">
+                  🔔{unread > 0 && <span className="bell-badge">{unread > 99 ? "99+" : unread}</span>}
+                </button>
+                {notifOpen && (
+                  <>
+                    <div className="notif-backdrop" onClick={() => setNotifOpen(false)} />
+                    <div className="notif-panel" role="dialog">
+                      <div className="notif-hd">
+                        <span className="notif-title">Notifications</span>
+                        <label className="notif-toggle" title="Détection automatique des changements Jira">
+                          <input type="checkbox" checked={notifOn} onChange={onToggleNotifOn} /> Auto
+                        </label>
+                      </div>
+                      <div className="notif-sub">
+                        <span>{notifs.length} récente(s){unread ? ` · ${unread} non lue(s)` : ""}</span>
+                        {notifs.length > 0 && <button className="notif-clear" onClick={onMarkAllRead}>Tout marquer comme lu</button>}
+                      </div>
+                      <div className="notif-list">
+                        {notifs.length === 0 ? (
+                          <div className="notif-empty">
+                            Aucune notification.<br />
+                            {notifOn ? "Les tickets Jira modifiés apparaîtront ici." : "Active « Auto » pour détecter les changements."}
+                          </div>
+                        ) : (
+                          notifs.slice(0, 30).map((n) => (
+                            <button className={`notif-item ${n.read ? "" : "unread"}`} key={n.id}
+                              onClick={() => { onOpenNotif(n.cle); setNotifOpen(false); }}>
+                              <span className="ni-dot" />
+                              <span className="ni-body">
+                                <span className="ni-line"><b>{n.cle}</b> — {n.resume}</span>
+                                <span className="ni-expl">{n.who ? <b>{n.who}</b> : null}{n.who ? " · " : ""}{n.action || "Mis à jour"}</span>
+                                <span className="ni-meta">{n.statut ? <span className={`pill ${PILL[n.statut] || ""}`}>{n.statut}</span> : null}<span className="ni-time">{timeAgo(n.at)}</span></span>
+                              </span>
+                            </button>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
           </div>
-          <div className="cra-form">
-            <label>Du <input type="date" value={start} onChange={(e) => { setStart(e.target.value); setPresetId("custom"); }} /></label>
-            <label>au <input type="date" value={end} onChange={(e) => { setEnd(e.target.value); setPresetId("custom"); }} /></label>
-            <label>Base <select value={basis} onChange={(e) => setBasis(Number(e.target.value))}>
-              <option value={7}>7 h/j</option><option value={7.5}>7,5 h/j</option><option value={8}>8 h/j</option>
-            </select></label>
-            <button className="btn-solid" onClick={generate} disabled={busy}>{busy ? "Consolidation…" : "Générer le CRA"}</button>
+          <div className="src">
+            {source ? `Source : ${source}` : "Chargement…"}
+            <br />
+            Données au {when}
           </div>
-          {busy && <p className="hint" style={{ margin: "8px 0 0" }}>Lecture des temps saisis dans Jira sur la période… (peut prendre quelques secondes selon le volume)</p>}
-          {err && <p className="eb-err" style={{ marginTop: 8 }}>{err}</p>}
         </div>
       </div>
 
-      {cra && view && (
-        <>
-          {totalSec === 0 ? (
-            <div className="panel empty" style={{ marginTop: 16 }}>
-              Aucun temps saisi dans Jira sur cette période{cra.total ? ` (${cra.total} ticket(s) consultés)` : ""}. Un CRA n'affiche que ce qui a été réellement enregistré dans les worklogs Jira.
-            </div>
-          ) : (
-            <>
-              <div className="cra-kpi-row" style={{ marginTop: 16 }}>
-                <div className="cra-kpi"><span className="cra-kpi-n">{fmtH(totalSec)}</span><span className="cra-kpi-l">temps saisi</span></div>
-                <div className="cra-kpi"><span className="cra-kpi-n">{(totalSec / 3600 / basis).toFixed(2)}</span><span className="cra-kpi-l">jours (base {basis} h)</span></div>
-                <div className="cra-kpi"><span className="cra-kpi-n">{view.projects.length}</span><span className="cra-kpi-l">projet(s)</span></div>
-                <div className="cra-kpi"><span className="cra-kpi-n">{realisations.length}</span><span className="cra-kpi-l">ticket(s) · {nbDone} terminé(s)</span></div>
-              </div>
+      <div className="kpis">
+        <Kpi lbl="Total" val={k.total} />
+        <Kpi lbl="À faire" val={k["À faire"]} cls="todo" />
+        <Kpi lbl="En cours" val={k["En cours"]} cls="prog" />
+        <Kpi lbl="Bloqués" val={k["Bloqué"]} cls="block" />
+        <Kpi lbl="En retard" val={k.enRetard} cls="late" />
+        <Kpi lbl="Terminés" val={k["Terminé"]} cls="done" />
+      </div>
 
-              <div className="filters" style={{ margin: "14px 0 4px", alignItems: "center" }}>
-                <span className="fg-lbl">Périmètre</span>
-                <select className="fselect" value={person} onChange={(e) => setPerson(e.target.value)}>
-                  <option value="Tous">Tous les intervenants</option>
-                  {(cra.byPerson || []).some((p) => p.who === ME) && <option value={ME}>Moi ({ME})</option>}
-                  {(cra.byPerson || []).map((p) => p.who).filter((w) => w !== ME).map((w) => <option key={w} value={w}>{w}</option>)}
-                </select>
-                <span className="hint" style={{ margin: 0 }}>{frDate(start)} → {frDate(end)}{cra.capped ? ` · ⚠ ${cra.scanned}/${cra.total} tickets analysés (volume plafonné)` : ""}</span>
-              </div>
-
-              <div className="cra-card">
-                <div className="cra-card-h">Temps par projet</div>
-                <table className="fiche-tbl cra-tbl">
-                  <thead><tr><th>Projet</th><th className="num">Temps</th><th className="num">Part</th><th className="num">Tickets</th><th className="num">Terminés</th></tr></thead>
-                  <tbody>
-                    {view.projects.map((pr) => {
-                      const done = (pr.tickets || []).filter((t) => t.done).length;
-                      const pct = totalSec ? Math.round((pr.seconds / totalSec) * 100) : 0;
-                      return (
-                        <tr key={pr.dossier}>
-                          <td><b>{pr.dossier}</b></td>
-                          <td className="num">{pr.time}</td>
-                          <td className="num"><span className="cra-bar"><span style={{ width: `${pct}%` }} /></span>{pct}%</td>
-                          <td className="num">{(pr.tickets || []).length}</td>
-                          <td className="num">{done}</td>
-                        </tr>
-                      );
-                    })}
-                    <tr className="cra-total"><td><b>Total</b></td><td className="num"><b>{fmtH(totalSec)}</b></td><td className="num">100%</td><td className="num">{realisations.length}</td><td className="num">{nbDone}</td></tr>
-                  </tbody>
-                </table>
-              </div>
-
-              {person === "Tous" && view.persons && view.persons.length > 0 && (
-                <div className="cra-card">
-                  <div className="cra-card-h">Détail par personne</div>
-                  <table className="fiche-tbl cra-tbl">
-                    <thead><tr><th>Personne</th><th className="num">Temps</th><th className="num">Part</th><th>Projets</th></tr></thead>
-                    <tbody>
-                      {view.persons.map((p) => {
-                        const pct = totalSec ? Math.round((p.seconds / totalSec) * 100) : 0;
-                        return (
-                          <tr key={p.who}>
-                            <td>{p.who}</td>
-                            <td className="num">{p.time}</td>
-                            <td className="num">{pct}%</td>
-                            <td className="cra-proj">{p.projects.map((pr) => <span key={pr.dossier} className="tag">{pr.dossier} · {pr.time}</span>)}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-
-              <div className="cra-card">
-                <div className="cra-card-h">Réalisations de la période <span className="cra-card-meta">ce qui a été fait, par ticket</span></div>
-                <table className="fiche-tbl cra-tbl">
-                  <thead><tr><th>Clé</th><th>Projet</th><th>Résumé</th><th className="num">Temps</th><th>Statut</th></tr></thead>
-                  <tbody>
-                    {realisations.map((r) => (
-                      <tr key={r.cle} className="clk" onClick={() => onTicket && onTicket({ cle: r.cle, resume: r.resume, statut: r.statut, statutJira: r.statutJira, dossier: r.dossier })}>
-                        <td><span className="k">{r.cle}</span></td>
-                        <td><span className="tag">{r.dossier}</span></td>
-                        <td>{r.resume}</td>
-                        <td className="num">{fmtH(r.seconds)}</td>
-                        <td><span className={`pill ${pillCls(r.statut)}`}>{r.statutJira || r.statut}</span></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="row-actions" style={{ marginTop: 12, gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <button className="btn-line sm" onClick={downloadCsv} title="Télécharger un CSV (s'ouvre dans Excel) — temps par projet et par personne">⬇ CSV pour Excel</button>
-                <ExportBar buildHtml={buildDocHtml} filename={`CRA_${start}_${end}.html`} subject={`CRA — ${frDate(start)} au ${frDate(end)}`} />
-              </div>
-            </>
-          )}
-        </>
-      )}
-    </>
+      <div className="progress">
+        <span>Avancement ({k["Terminé"] ?? 0} terminés sur {k.total ?? 0})</span>
+        <span className="bar">
+          <span style={{ width: `${k.avancement || 0}%` }} />
+        </span>
+        <b>{k.avancement || 0}&nbsp;%</b>
+      </div>
+    </header>
   );
 }
