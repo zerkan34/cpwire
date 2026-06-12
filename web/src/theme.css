@@ -948,3 +948,44 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .sc-note { font-size: 11.5px; color: var(--orange-deep); margin-top: 8px; }
 
 @media (max-width: 768px) { .rec-card { content-visibility: auto; contain-intrinsic-size: auto 230px; } }
+
+/* Chaîne de statuts — durées + clés « où ça a coincé » */
+.sc-step .sc-dur { margin-left: 6px; font-size: 10px; font-weight: 700; color: var(--muted); }
+.sc-step.is-retour .sc-dur { color: var(--orange-deep); }
+.sc-clues { margin-top: 10px; border-top: 1px dashed var(--purple-line); padding-top: 8px; }
+.scc-h { font-size: 11px; font-weight: 800; color: var(--orange-deep); text-transform: uppercase; letter-spacing: .04em; margin-bottom: 5px; }
+.scc-line { font-size: 12.5px; color: var(--ink); margin: 3px 0; }
+.scc-dot { color: var(--orange-deep); font-weight: 800; margin-right: 4px; }
+.scc-tip { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 6px; }
+
+/* ===== KPI du header cliquables (ordinateur) ===== */
+button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: inherit; text-align: left; width: 100%; }
+.kpi.clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
+.kpi.clickable:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-2px); }
+.kpi.clickable:active { transform: translateY(0); }
+.kpi.clickable.active { box-shadow: 0 0 0 2px var(--gold); background: rgba(255, 255, 255, 0.18); }
+.kpi.clickable:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+
+/* Sous-titre du header (plus petit que « Welcome to the jungle ! ») */
+.hdr-tagline { font-size: .5em; font-weight: 600; opacity: .82; margin-left: .15em; letter-spacing: .01em; white-space: nowrap; }
+
+/* Badge d'engagement client : TMA / Projet / mixte */
+.eng-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
+.eng-badge.is-tma { background: var(--purple-soft); color: var(--purple-strong); border: 1px solid var(--purple-line); }
+.eng-badge.is-projet { background: var(--orange-soft); color: var(--orange-deep); border: 1px solid #f0d2b0; }
+.eng-badge.is-mix { background: #eef3ff; color: #3a5bd0; border: 1px solid #d4e0ff; }
+.pcard .eng-badge { margin-top: 3px; }
+.rec-hd .eng-badge { margin-left: 8px; }
+
+/* ===== Bouton + modale « CR du jour » ===== */
+.owner-bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.cr-day-btn { font-weight: 700; }
+.cr-modal { max-width: 980px; width: 96vw; }
+.cr-modal .cr-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.cr-body { padding: 16px 20px 20px; }
+.cr-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 10px; }
+.cr-hint { font-size: 12.5px; color: var(--muted); margin: 0 0 10px; line-height: 1.5; }
+.cr-msg { background: var(--purple-soft); border: 1px solid var(--purple-line); color: var(--purple-strong); border-radius: 10px; padding: 8px 12px; font-size: 13px; margin-bottom: 10px; }
+.cr-preview-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
+.cr-preview { width: 100%; height: 460px; border: 0; display: block; background: #fff; }
+@media (max-width: 768px) { .cr-preview { height: 58vh; } .cr-modal { width: 100vw; } }
