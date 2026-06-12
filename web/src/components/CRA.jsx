@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { fetchCRA } from "../api.js";
+import React, { useMemo, useState, useRef } from "react";
+import { fetchCRA, importCRA } from "../api.js";
 import { buildSimpleDoc, esc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 
@@ -37,6 +37,19 @@ export default function CRA({ onTicket }) {
   const [err, setErr] = useState("");
 
   const applyPreset = (id) => { setPresetId(id); if (PRE[id]) { setStart(PRE[id].start); setEnd(PRE[id].end); } };
+
+  const fileRef = useRef(null);
+  const onImportFile = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (e.target) e.target.value = ""; // permet de réimporter le même fichier
+    if (!file) return;
+    setBusy(true); setErr(""); setCra(null);
+    try {
+      const r = await importCRA(file, basis);
+      setCra(r); setPerson("Tous");
+    } catch (er) { setErr(String(er.message || er)); }
+    finally { setBusy(false); }
+  };
 
   const generate = async () => {
     if (!start || !end || start > end) { setErr("Choisis une période valide (début avant fin)."); return; }
@@ -105,7 +118,7 @@ export default function CRA({ onTicket }) {
         ["Chef de projet", ME],
         ["Période", `${frDate(start)} → ${frDate(end)}`],
         ["Périmètre", person === "Tous" ? "Tous les intervenants" : person],
-        ["Source", "Temps saisis dans Jira"],
+        ["Source", cra && cra.source === "excel" ? "Fichier Excel importé" : "Temps saisis dans Jira"],
       ],
       bodyHtml: body,
     });
@@ -141,7 +154,7 @@ export default function CRA({ onTicket }) {
         </span>
       </div>
       <p className="hint" style={{ marginTop: -6 }}>
-        Choisis une période et un périmètre, puis « Générer ». Le CRA agrège le <b>temps réellement saisi dans Jira</b> par projet et par personne — utile pour consolider les temps, suivre la charge et justifier l'affectation.
+        Choisis une période et un périmètre, puis « Générer » : le CRA agrège le <b>temps réellement saisi dans Jira</b> par projet et par personne. Pas de temps dans Jira ? Clique <b>« Importer un Excel »</b> pour construire le CRA depuis un fichier (colonnes reconnues : <i>Projet/Dossier, Intervenant, Clé, Résumé, Temps (ou Heures/Durée/Jours), Statut</i> — l'ordre et les libellés exacts n'ont pas d'importance).
       </p>
 
       <div className="panel">
@@ -159,6 +172,8 @@ export default function CRA({ onTicket }) {
               <option value={7}>7 h/j</option><option value={7.5}>7,5 h/j</option><option value={8}>8 h/j</option>
             </select></label>
             <button className="btn-solid" onClick={generate} disabled={busy}>{busy ? "Consolidation…" : "Générer le CRA"}</button>
+            <button className="btn-line" type="button" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy} title="Construire le CRA à partir d'un fichier Excel ou CSV exporté (Jira, tableur, etc.)">Importer un Excel</button>
+            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={onImportFile} />
           </div>
           {busy && <p className="hint" style={{ margin: "8px 0 0" }}>Lecture des temps saisis dans Jira sur la période… (peut prendre quelques secondes selon le volume)</p>}
           {err && <p className="eb-err" style={{ marginTop: 8 }}>{err}</p>}
