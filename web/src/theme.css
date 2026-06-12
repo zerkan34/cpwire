@@ -324,6 +324,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .jira-link:hover { background: #e6e1f8; }
 .expl { background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 12px; padding: 14px 16px; margin: 4px 0 16px; }
 .expl-h { font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: 6px; }
+.expl p { white-space: pre-wrap; }
 .expl p { margin: 0; color: var(--ink); font-size: 14px; line-height: 1.55; }
 
 /* --- Onglet Développeurs --- */
@@ -632,7 +633,7 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .ni-expl b { color: var(--ink); }
 
 /* ===== Ticket : bannière "Dernière mise à jour" ===== */
-.last-update { background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 12px; padding: 11px 14px; margin-bottom: 14px; }
+.last-update { background: linear-gradient(135deg, var(--purple-soft), #fff); border: 1px solid var(--purple-line); border-left: 4px solid var(--purple); border-radius: 12px; padding: 11px 14px; margin-top: 14px; margin-bottom: 14px; }
 .lu-tag { display: inline-block; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .07em; color: var(--purple-strong); margin-bottom: 5px; }
 .lu-body { font-size: 14px; color: var(--ink); line-height: 1.5; }
 .lu-who { font-weight: 700; }
