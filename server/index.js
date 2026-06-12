@@ -12,7 +12,7 @@ import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, 
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
-import { dailyReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { dailyReport, writtenDailyReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -291,6 +291,18 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const sub = got.issues.filter((i) => i.dossier === dossier);
     const out = await dailyReport(dossier, sub);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/written", guard, async (req, res) => {
+  try {
+    const dossier = req.body.dossier;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = got.issues.filter((i) => i.dossier === dossier);
+    const out = await writtenDailyReport(dossier, sub);
+    logEvent("cr_ecrit", `CR écrit - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });

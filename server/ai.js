@@ -241,7 +241,83 @@ export async function dailyReport(dossier, issues) {
 }
 
 
-// ---------- Brief de réunion matinale (état des lieux) ----------
+// ---------- Compte rendu ÉCRIT (narratif, sans bla-bla, exportable) ----------
+// Texte + titres + sous-titres + exemples de tickets cités au fil de l'eau.
+// Sans clé IA : rédaction déterministe, factuelle, regroupée par statut.
+function shorten(s, n = 70) { s = String(s || "").trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s; }
+function devOf(i) { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || ""); return d && d !== "Non assigné" ? d : ""; }
+function exTicket(i) { const d = devOf(i); return `<b>${esc(i.cle)}</b> (${esc(shorten(i.resume, 60))}${d ? ", " + esc(d) : ""})`; }
+function exList(arr, max = 4) {
+  let s = arr.slice(0, max).map(exTicket).join(", ");
+  if (arr.length > max) s += `, parmi ${arr.length} au total`;
+  return s;
+}
+
+function writtenTemplate(dossier, issues) {
+  const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const recArmonie = issues.filter((i) => i.categorie === "recetteArmonie");
+  const recClient = issues.filter((i) => i.categorie === "recetteClient");
+  const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
+  const recTot = recArmonie.length + recClient.length;
+
+  const whoDone = {};
+  dayDone.forEach((i) => { const d = devOf(i) || "Non assigné"; whoDone[d] = (whoDone[d] || 0) + 1; });
+  const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([d, n]) => `${esc(d)} (${n})`).join(", ");
+
+  const enBref = `<p>Sur la journée, <b>${dayDone.length}</b> ticket(s) terminé(s), <b>${dayActive.length}</b> en cours${bloquants.length ? ` et <b>${bloquants.length}</b> à surveiller` : ""}.${topWho ? ` Contributions principales : ${topWho}.` : ""}</p>`;
+  const sTermine = dayDone.length
+    ? `<p>${dayDone.length} ticket(s) clôturé(s) aujourd'hui. Notamment ${exList(dayDone)}.</p>`
+    : `<p>Aucun ticket clôturé aujourd'hui.</p>`;
+  const sEnCours = dayActive.length
+    ? `<p>${dayActive.length} ticket(s) en cours de traitement. Exemples : ${exList(dayActive)}.</p>`
+    : `<p>Aucun ticket travaillé aujourd'hui.</p>`;
+  const sRecette = recTot
+    ? `<p>${recTot} ticket(s) en attente de recette (${recArmonie.length} côté Armonie, ${recClient.length} côté client). ${exList([...recArmonie, ...recClient], 3)}.</p>`
+    : "";
+  const sBloq = bloquants.length
+    ? `<p>${bloquants.length} point(s) à surveiller : ${exList(bloquants)}.</p>`
+    : `<p>Aucun point bloquant signalé à ce jour.</p>`;
+  const sChiffres = `<p>${dayDone.length} terminé(s) · ${dayActive.length} en cours · ${recTot} en recette · ${bloquants.length} à surveiller · ${issues.length} au total sur le dossier.</p>`;
+
+  return `<h2>En bref</h2>${enBref}
+    <h2>Ce qui a été terminé</h2>${sTermine}
+    <h2>En cours</h2>${sEnCours}
+    ${recTot ? `<h2>En recette</h2>${sRecette}` : ""}
+    <h2>Points d'attention</h2>${sBloq}
+    <h2>Chiffres</h2>${sChiffres}`;
+}
+
+export async function writtenDailyReport(dossier, issues) {
+  let body = "";
+  if (aiAvailable()) {
+    try {
+      const pick = (arr) => arr.slice(0, 20).map((i) => `- ${i.cle} : ${i.resume}${devOf(i) ? " [" + devOf(i) + "]" : ""} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
+      const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj));
+      const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
+      const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
+      const prompt = `Rédige un COMPTE RENDU ÉCRIT de la journée pour le dossier "${dossier}", en français, SANS bla-bla : phrases courtes, factuelles, aucun remplissage ni formule de politesse.\n` +
+        `Structure en sections avec des titres HTML <h2> : "En bref" (2 à 3 phrases), "Ce qui a été terminé", "En cours", "Points d'attention", "Chiffres".\n` +
+        `Dans chaque section, cite des EXEMPLES de tickets : clé en gras (<b>CLE</b>) suivie d'un mot sur le sujet. Si un regroupement par thème est pertinent, utilise des sous-titres <h3>.\n` +
+        `Ne réinvente AUCUN chiffre ni statut ; appuie-toi uniquement sur les données ci-dessous. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
+        `Terminés aujourd'hui (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
+        `En cours aujourd'hui (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
+        `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
+      body = await callClaude(STYLE, prompt);
+    } catch { body = ""; }
+  }
+  if (!body) body = writtenTemplate(dossier, issues);
+
+  const html = buildDoc({
+    kicker: "Compte rendu écrit",
+    title: `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
+    subtitle: `Dossier ${dossier} — équipe Armonie`,
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR écrit"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    bodyHtml: body,
+    etabliPar: process.env.ME || "Nicolas Durand",
+  });
+  return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
+}
 // Ne garde que les gens d'ARMONIE (les contacts client sont exclus via clientNames).
 // Périmètre : ce qui est en mouvement (En cours + Retour test).
 export async function morningReport(dossier, issues, clientNames = new Set()) {
