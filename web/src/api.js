@@ -64,6 +64,7 @@ export const fetchHistory = () => req(`/api/history`);
 export const fetchDossiers = () => req(`/api/dossiers`);
 export const saveDossier = (nom, fiche) => put(`/api/dossiers/${encodeURIComponent(nom)}`, fiche);
 export const genDailyCR = (dossier) => post(`/api/cr/daily`, { dossier });
+export const genWrittenCR = (dossier) => post(`/api/cr/written`, { dossier });
 export const genTicketReport = (cle, note, resume) => post(`/api/ticket/report`, { cle, note, resume });
 export const pushTicket = (cle, comment, markDone) => post(`/api/ticket/push`, { cle, comment, markDone });
 export const explainTicket = (cle) => post(`/api/ticket/explain`, { cle });

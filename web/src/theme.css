@@ -655,6 +655,10 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .cockpit-panel .recap-hd { margin: 0; }
 .cockpit-bd { padding: 14px 18px; }
 
+/* Boutons de génération de CR (détaillé + écrit) empilés */
+.cr-btns { display: flex; flex-direction: column; gap: 8px; }
+.cr-btns .btn-solid { width: 100%; }
+
 /* Historique (onglet) : sur écran étroit, on masque la colonne Dév. pour éviter
    tout chevauchement entre Dév. / Statut / Date (l'info dev reste dans la fiche ticket). */
 @media (max-width: 680px) {
