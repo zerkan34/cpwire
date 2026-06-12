@@ -1,8 +1,43 @@
 import React, { useEffect, useState } from "react";
-import { fetchRecap, genDailyCR, genGlobalCR } from "../api.js";
+import { fetchRecap, genDailyCR, genWrittenCR, genGlobalCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+
+function shorten(s, n = 72) {
+  s = (s || "").trim();
+  return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s;
+}
+
+// Produit un paragraphe explicatif, factuel et structuré, de ce qui a avancé pour un client.
+function describeDossier(items) {
+  const n = items.length;
+  if (!n) return "Aucune activité enregistrée aujourd'hui.";
+  const by = (st) => items.filter((i) => i.statut === st);
+  const done = by("Terminé"), prog = by("En cours"), todo = by("À faire"), blocked = by("Bloqué");
+
+  const bits = [];
+  if (done.length) bits.push(`${done.length} terminé${done.length > 1 ? "s" : ""}`);
+  if (prog.length) bits.push(`${prog.length} en cours`);
+  if (todo.length) bits.push(`${todo.length} à faire`);
+  if (blocked.length) bits.push(`${blocked.length} bloqué${blocked.length > 1 ? "s" : ""}`);
+
+  let p = `${n} sujet${n > 1 ? "s ont" : " a"} avancé aujourd'hui`;
+  p += bits.length ? ` — ${bits.join(", ")}.` : ".";
+
+  if (done.length) {
+    const t = done.slice(0, 2).map((i) => `« ${shorten(i.resume)} »`).join(", ");
+    const reste = done.length - 2;
+    p += ` Livré : ${t}${reste > 0 ? `, plus ${reste} autre${reste > 1 ? "s" : ""}` : ""}.`;
+  }
+  if (blocked.length) {
+    const reste = blocked.length - 1;
+    p += ` À débloquer en priorité : « ${shorten(blocked[0].resume)} »${reste > 0 ? ` (et ${reste} autre${reste > 1 ? "s" : ""})` : ""}.`;
+  } else if (prog.length && !done.length) {
+    p += ` Travaux en cours, rien de bloquant à ce stade.`;
+  }
+  return p;
+}
 
 export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
   const [recap, setRecap] = useState(null);
@@ -20,6 +55,15 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     try {
       const { html } = await genDailyCR(dossier);
       setDoc({ title: `CR journalier — ${dossier}`, html, dossier, filename: `CR_journalier_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(""); }
+  };
+
+  const makeWritten = async (dossier) => {
+    setBusy(dossier + "::w"); setErr("");
+    try {
+      const { html } = await genWrittenCR(dossier);
+      setDoc({ title: `Compte rendu écrit — ${dossier}`, html, dossier, filename: `CR_ecrit_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }
   };
@@ -62,6 +106,10 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                 </span>
               </div>
               <div className="recap-bd">
+              <p className="recap-desc">
+                <span className="rd-label">Ce qui a avancé</span>
+                {describeDossier(items)}
+              </p>
               <ul>
                 {items.slice(0, 6).map((i) => {
                   const dev = i.dev || i.assigne || "";
@@ -87,9 +135,14 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                 })}
                 {items.length > 6 && <li className="ri-more" style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
               </ul>
-              <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => makeCR(dossier)} disabled={busy === dossier}>
-                {busy === dossier ? "Rédaction du CR…" : `Formuler le CR journalier de ${dossier}`}
-              </button>
+              <div className="cr-btns">
+                <button className="btn-solid gold" onClick={() => makeCR(dossier)} disabled={busy === dossier}>
+                  {busy === dossier ? "Rédaction…" : "CR journalier détaillé"}
+                </button>
+                <button className="btn-solid" onClick={() => makeWritten(dossier)} disabled={busy === dossier + "::w"}>
+                  {busy === dossier + "::w" ? "Rédaction…" : "Compte rendu écrit"}
+                </button>
+              </div>
               </div>
             </div>
           );
