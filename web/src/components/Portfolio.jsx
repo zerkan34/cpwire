@@ -7,7 +7,7 @@ function health(stats) {
   return ["green", "Conforme"];
 }
 
-function Card({ dossier, stats, onClick }) {
+function Card({ dossier, stats, eng, onClick }) {
   const total = stats.total || 0;
   const done = stats["Terminé"] || 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -16,6 +16,7 @@ function Card({ dossier, stats, onClick }) {
     <div className="pcard" onClick={onClick}>
       <span className={`health ${hCls}`}>{hLbl}</span>
       <h3>{dossier}</h3>
+      {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
       <div className="meta">{total} ticket{total > 1 ? "s" : ""} · {pct}% terminé</div>
       <div className="pbar"><span style={{ width: `${pct}%` }} /></div>
       <div className="stats">
@@ -28,13 +29,13 @@ function Card({ dossier, stats, onClick }) {
   );
 }
 
-export default function Portfolio({ parDossier, onOpen }) {
+export default function Portfolio({ parDossier, engagement = {}, onOpen }) {
   const entries = Object.entries(parDossier || {}).sort((a, b) => b[1].total - a[1].total);
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
   return (
     <div className="cards">
       {entries.map(([dossier, stats]) => (
-        <Card key={dossier} dossier={dossier} stats={stats} onClick={() => onOpen(dossier)} />
+        <Card key={dossier} dossier={dossier} stats={stats} eng={engagement[dossier]} onClick={() => onOpen(dossier)} />
       ))}
     </div>
   );

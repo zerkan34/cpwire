@@ -31,6 +31,8 @@ export default function Recette({ issues = [], onTicket }) {
       r.retours = RETOUR.reduce((s, k) => s + (r.cats[k] || 0), 0);
       r.reworkItems = r.items.filter((i) => RETOUR.includes(i.categorie))
         .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+      const engs = new Set(r.items.map((i) => i.engagement).filter((e) => e && e !== "—"));
+      r.engagement = engs.size === 0 ? "" : engs.size === 1 ? [...engs][0] : "TMA + Projet";
       return r;
     }).sort((a, b) => b.reste - a.reste);
   }, [issues]);
@@ -57,6 +59,7 @@ export default function Recette({ issues = [], onTicket }) {
         <div className="rec-card" key={r.dossier}>
           <div className="rec-hd">
             <span className="rec-name">{r.dossier}</span>
+            {r.engagement ? <span className={`eng-badge ${r.engagement === "Projet" ? "is-projet" : r.engagement === "TMA" ? "is-tma" : "is-mix"}`}>{r.engagement}</span> : null}
             <span className="rec-metrics">
               <span className="rec-m rec-big"><b>{r.reste}</b><small>à recetter</small></span>
               <span className="rec-m"><b>{r.enRecette}</b><small>en recette</small></span>

@@ -76,7 +76,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <div className="hdr-left">
           <span className="hdr-brand">
             <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v18</span></span>
+            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v20</span></span>
           </span>
           <h1 className="hdr-title">Welcome to the jungle !<span className="hdr-tagline">, we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>

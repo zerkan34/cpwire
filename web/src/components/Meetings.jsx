@@ -259,6 +259,7 @@ function ResultPanel({ doc, busy, onRegen }) {
 
 function CompteRendu() {
   const [titre, setTitre] = useState("");
+  const [equipe, setEquipe] = useState("TMA Armonie");
   const [participants, setParticipants] = useState("");
   const [notes, setNotes] = useState("");
   const [transcript, setTranscript] = useState("");
@@ -275,6 +276,7 @@ function CompteRendu() {
     try {
       const fd = new FormData();
       fd.append("titre", titre); fd.append("participants", participants); fd.append("notes", notes);
+      fd.append("equipe", equipe);
       if (regen) fd.append("regenerate", "1");
       if (transcript) fd.append("transcript", transcript);
       if (audio) fd.append("audio", audio);
@@ -296,6 +298,8 @@ function CompteRendu() {
           <div className="field"><label>Participants</label>
             <input type="text" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="Ex. M. Barteldt (DIAPAR), M. Senebier (Armonie)…" /></div>
         </div>
+        <div className="field"><label>Équipe / périmètre — modifiable (ex. « Projet Armonie » pour Tafanel, qui n'est pas de la TMA)</label>
+          <input type="text" value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Ex. TMA Armonie" /></div>
         <div className="field"><label>Notes prises en séance</label>
           <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tes notes brutes : points évoqués, décisions, actions…" /></div>
         <div className="field"><label>Enregistrement (dictaphone) — transcrit si configuré</label>

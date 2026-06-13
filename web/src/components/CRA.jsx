@@ -51,6 +51,22 @@ export default function CRA({ onTicket }) {
     finally { setBusy(false); }
   };
 
+  // Modèle CSV (séparateur « ; », BOM pour Excel FR) pour montrer le format attendu.
+  const downloadTemplate = () => {
+    const rows = [
+      ["Projet", "Intervenant", "Clé", "Résumé", "Temps", "Statut"],
+      ["Dataware", "Ludovic Sagnal", "DW-736", "Export comptable mensuel", "3,5", "En cours"],
+      ["MCS", "Océane Aimes", "MCS-805", "Correction affichage tableau de bord", "1h45", "Terminé"],
+      ["Dataware", "Joshua Vegas", "DW-792", "Réintégration de données", "2:30", "Terminé"],
+    ];
+    const csv = "\uFEFF" + rows.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = "modele_CRA.csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  };
+
   const generate = async () => {
     if (!start || !end || start > end) { setErr("Choisis une période valide (début avant fin)."); return; }
     setBusy(true); setErr(""); setCra(null);
@@ -174,6 +190,7 @@ export default function CRA({ onTicket }) {
             <button className="btn-solid" onClick={generate} disabled={busy}>{busy ? "Consolidation…" : "Générer le CRA"}</button>
             <button className="btn-line" type="button" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy} title="Construire le CRA à partir d'un fichier Excel ou CSV exporté (Jira, tableur, etc.)">Importer un Excel</button>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: "none" }} onChange={onImportFile} />
+            <button className="btn-line" type="button" onClick={downloadTemplate} title="Télécharger un fichier d'exemple à remplir" style={{ fontWeight: 600 }}>↓ Modèle CSV</button>
           </div>
           {busy && <p className="hint" style={{ margin: "8px 0 0" }}>Lecture des temps saisis dans Jira sur la période… (peut prendre quelques secondes selon le volume)</p>}
           {err && <p className="eb-err" style={{ marginTop: 8 }}>{err}</p>}
@@ -188,6 +205,22 @@ export default function CRA({ onTicket }) {
             </div>
           ) : (
             <>
+              {cra.source === "excel" && (
+                <div className="cra-import-note">
+                  <div className="cin-h">📄 Importé depuis {cra.fileKind === "csv" ? `un CSV (séparateur « ${cra.delimiter === "\t" ? "tabulation" : cra.delimiter} »)` : "un fichier Excel"} · {cra.scanned} ligne(s) prise(s) en compte{cra.ignored ? ` · ${cra.ignored} ignorée(s) (sans temps)` : ""}.</div>
+                  <div className="cin-cols">
+                    {cra.columns.projet && <span><b>Projet</b> : {cra.columns.projet}</span>}
+                    {cra.columns.personne && <span><b>Intervenant</b> : {cra.columns.personne}</span>}
+                    <span><b>Temps</b> : {cra.columns.temps} <i>({cra.columns.unite === "days" ? "lu en jours" : "lu en heures"})</i></span>
+                    {cra.columns.statut && <span><b>Statut</b> : {cra.columns.statut}</span>}
+                    {cra.columns.cle && <span><b>Clé</b> : {cra.columns.cle}</span>}
+                    {cra.columns.resume && <span><b>Résumé</b> : {cra.columns.resume}</span>}
+                  </div>
+                  {(cra.warnings || []).length > 0 && (
+                    <ul className="cin-warn">{cra.warnings.map((w, i) => <li key={i}>{w}</li>)}</ul>
+                  )}
+                </div>
+              )}
               <div className="cra-kpi-row" style={{ marginTop: 16 }}>
                 <div className="cra-kpi"><span className="cra-kpi-n">{fmtH(totalSec)}</span><span className="cra-kpi-l">temps saisi</span></div>
                 <div className="cra-kpi"><span className="cra-kpi-n">{(totalSec / 3600 / basis).toFixed(2)}</span><span className="cra-kpi-l">jours (base {basis} h)</span></div>

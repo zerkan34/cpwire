@@ -178,6 +178,45 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                     </div>
                   ) : null;
                 })()}
+                {(() => {
+                  const st = (activity.timeline || []).filter((t) => t.champ === "Statut").slice().reverse(); // chrono : ancien → récent
+                  if (st.length < 1) return null;
+                  const steps = [{ name: st[0].from || "?", at: st[0]?.date || null }];
+                  st.forEach((t) => steps.push({ name: t.to || "?", at: t.date, who: t.who, from: t.from }));
+                  for (let i = 0; i < steps.length; i++) {
+                    const start = steps[i].at;
+                    const end = i < steps.length - 1 ? steps[i + 1].at : Date.now();
+                    steps[i].days = start ? Math.max(0, Math.round((new Date(end) - new Date(start)) / 86400000)) : null;
+                  }
+                  const retours = st.filter((t) => /retour/i.test(t.to || "")).map((t) => ({ from: t.from || "?", date: t.date, who: t.who }));
+                  const hasRetour = retours.length > 0;
+                  return (
+                    <div className="status-chain">
+                      <div className="sc-h">Chaîne de statuts {hasRetour ? <span className="sc-flag">↩ {retours.length} retour{retours.length > 1 ? "s" : ""}</span> : null}</div>
+                      <div className="sc-path">
+                        {steps.map((s, i) => (
+                          <span key={i} className="sc-seg">
+                            {i > 0 ? <span className="sc-arrow">→</span> : null}
+                            <span className={`sc-step${/retour/i.test(s.name) ? " is-retour" : ""}${i === steps.length - 1 ? " is-now" : ""}`}>
+                              {s.name}{s.days != null ? <span className="sc-dur">{s.days} j</span> : null}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                      {hasRetour && (
+                        <div className="sc-clues">
+                          <div className="scc-h">Où ça a coincé</div>
+                          {retours.map((r, i) => (
+                            <div className="scc-line" key={i}>
+                              <span className="scc-dot">↩</span> Rejeté depuis <b>{r.from}</b>{r.who && r.who !== "—" ? <> par {r.who}</> : null}{r.date ? <> · {whenFmt(r.date)}</> : null}
+                            </div>
+                          ))}
+                          <div className="scc-tip">Astuce : regarde l'historique et le temps saisi ci-dessous autour de ces dates pour comprendre la cause du retour.</div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
                 {activity.timeline && activity.timeline.length > 0 && (
                   <>
                     <div className="act-sub">Historique des changements</div>
