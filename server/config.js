@@ -20,6 +20,30 @@ export function dossierFromKey(key = "") {
   return (m && DOSSIERS[m[0]]) || "Autre";
 }
 
+// Type d'engagement par préfixe de projet Jira : "TMA" (projets T…) ou "Projet" (projets P…).
+// C'est la convention Armonie par défaut. Les exceptions connues sont déclarées ici
+// (ex. Tafanel = mode Projet) et on peut tout corriger via la variable d'environnement
+// ENGAGEMENT_MAP="TMT:Projet,PEM:TMA,…" sans toucher au code.
+export const ENGAGEMENT_BY_PREFIX = {
+  TMT: "Projet", PTAF: "Projet", // Tafanel : mode Projet (ce n'est pas de la TMA)
+};
+(function () {
+  String(process.env.ENGAGEMENT_MAP || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((pair) => {
+    const i = pair.indexOf(":");
+    if (i > 0) { const p = pair.slice(0, i).trim().toUpperCase(); const v = pair.slice(i + 1).trim(); if (p && v) ENGAGEMENT_BY_PREFIX[p] = v; }
+  });
+})();
+
+// Déduit l'engagement d'un ticket depuis sa clé : exception explicite d'abord (préfixe le plus
+// long en premier), sinon convention P…→Projet, T…→TMA.
+export function engagementFromKey(key = "") {
+  const k = String(key).toUpperCase();
+  for (const p of Object.keys(ENGAGEMENT_BY_PREFIX).sort((a, b) => b.length - a.length)) if (k.startsWith(p)) return ENGAGEMENT_BY_PREFIX[p];
+  if (/^P/.test(k)) return "Projet";
+  if (/^T/.test(k)) return "TMA";
+  return "—";
+}
+
 // --- Normalisation des statuts Jira -------------------------------------
 // Enlève accents + minuscule, pour comparer sans se soucier de la casse.
 function norm(s) {

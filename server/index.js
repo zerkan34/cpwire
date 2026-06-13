@@ -453,12 +453,12 @@ app.post("/api/transcribe", guard, writeGuard, upload.single("audio"), async (re
 
 app.post("/api/meeting/report", guard, writeGuard, upload.fields([{ name: "audio", maxCount: 1 }, { name: "images", maxCount: 8 }]), async (req, res) => {
   try {
-    const { titre, participants, notes } = req.body;
+    const { titre, participants, notes, equipe } = req.body;
     let transcript = req.body.transcript || "";
     const audio = req.files?.audio?.[0];
     if (audio && !transcript && sttAvailable()) transcript = await transcribe(audio.buffer, audio.originalname, audio.mimetype);
     const images = (req.files?.images || []).map((f) => ({ media_type: f.mimetype, dataBase64: f.buffer.toString("base64") }));
-    const out = await meetingReport({ titre, participants, notes, transcript, images });
+    const out = await meetingReport({ titre, participants, notes, transcript, images, equipe });
     logEvent("cr_reunion", `CR reunion - ${titre || "sans titre"}`, { via: out.generatedBy, images: images.length, audio: !!audio });
     res.json({ ...out, transcript });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }

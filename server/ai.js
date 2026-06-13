@@ -620,9 +620,10 @@ function templateMeeting({ titre, participants, notes, transcript }) {
     <p class="muted" style="margin-top:16px;font-size:12px;">Note : sans clé IA, ce compte rendu reprend vos notes (structurées au mieux : titres, libellés, puces). Pour un CR <b>rédigé, synthétisé et remis en page automatiquement</b> — décisions et actions extraites — ajoutez une clé IA (Groq gratuit ou Anthropic) dans Render.</p>`;
 }
 
-export async function meetingReport({ titre, participants, notes, transcript, images = [] }) {
+export async function meetingReport({ titre, participants, notes, transcript, images = [], equipe }) {
   const parts = parseParticipants(participants);
   const partLine = parts.length ? parts.join(", ") : "non précisés";
+  const team = (equipe && String(equipe).trim()) || process.env.TEAM_LABEL || "TMA Armonie";
   let body;
   if (aiAvailable()) {
     const prompt = `À partir des éléments ci-dessous, rédige un COMPTE RENDU DE RÉUNION complet, clair et bien mis en page, en français, style CR professionnel Armonie.
@@ -632,7 +633,7 @@ RÈGLES DE FIDÉLITÉ (PRIORITAIRES — ne jamais enfreindre) :
 - NUMÉROS DE TICKETS : recopie-les EXACTEMENT depuis la source. Ne devine pas, ne transpose pas un numéro (ex. ne transforme pas 773 en 713). Si un numéro est incertain ou absent, écris « (numéro à confirmer) » — n'en invente jamais un.
 - OPTIONS / SOLUTIONS : ne liste que les options réellement évoquées. Ne les multiplie pas, ne les fractionne pas, n'en ajoute pas pour « remplir la mise en page ». Si deux options ont été discutées, n'en mets que deux.
 - ATTRIBUTION : rattache chaque fait (qui a fait quoi, mise en pré-production, livraison, analyse…) au BON ticket et à la BONNE personne. Ne fusionne JAMAIS deux tickets et ne déplace pas une action d'un ticket vers un autre. Un ticket = une section distincte.
-- PÉRIMÈTRE / ÉQUIPE : parle de « l'équipe TMA Armonie ». Ne restreins jamais le périmètre à des dossiers précis (ex. « Dataware / MCS ») sauf si la source le dit explicitement.
+- PÉRIMÈTRE / ÉQUIPE : l'équipe concernée est « ${team} » — emploie EXACTEMENT ce libellé et n'écris jamais « TMA » si ce n'est pas dans ce libellé. Ne restreins jamais le périmètre à des dossiers précis (ex. « Dataware / MCS ») sauf si la source le dit explicitement.
 - Quand une information manque, écris-le clairement (« non précisé », « à confirmer ») plutôt que de combler le vide par une supposition.
 
 STRUCTURE ATTENDUE :
@@ -656,7 +657,7 @@ Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
     kicker: "Compte rendu de réunion",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
-    cartouche: [["Objet", esc(titre || "Réunion")], ["Équipe", process.env.TEAM_LABEL || "TMA Armonie"], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Objet", esc(titre || "Réunion")], ["Équipe", esc(team)], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
@@ -677,6 +678,9 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
   const recette = issues.filter((i) => WAIT_CATS.includes(i.categorie));
   const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
   const retard = issues.filter((i) => i.enRetard);
+  const retours = issues.filter((i) => i.categorie === "retourTest" || i.categorie === "retourProd");
+  const enRecette = issues.filter((i) => i.categorie === "recetteArmonie" || i.categorie === "recetteClient");
+  const reste = issues.length - issues.filter((i) => DONE_CATS.includes(i.categorie) || i.categorie === "annule").length;
   const recentDone = done.filter((i) => i.maj).sort(byMajDesc).slice(0, 8);
   const avancement = issues.length ? Math.round((done.length / issues.length) * 100) : 0;
 
@@ -744,6 +748,9 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
     `<h3>Qui travaille dessus</h3>${chargeTbl}` +
     `<h3>Où on en est — derniers livrables</h3>${recentDone.length ? catList(recentDone) : "<p>Aucun ticket récemment terminé.</p>"}` +
     `<h3>⚠ Points de friction</h3>${bloquants.length ? catList(bloquants, { showStatus: true, cap: 40 }) : "<p>Aucun blocage signalé à ce jour.</p>"}` +
+    `<h2>Recette &amp; retours</h2>` +
+    `<div class="kpi-row"><div class="kpi"><div class="v">${reste}</div><div class="l">À recetter</div></div><div class="kpi"><div class="v">${enRecette.length}</div><div class="l">En recette</div></div><div class="kpi"><div class="v">${retours.length}</div><div class="l">À retravailler</div></div></div>` +
+    `<h3>↩ Programmes à retravailler (retours)</h3>${retours.length ? catList(retours, { showStatus: true, cap: 40 }) : "<p>Aucun retour de test/production en cours sur ce périmètre.</p>"}` +
     `<h2>Réunion — ${esc(sujet || type || "Point projet")}</h2>${agenda}`;
 
   const html = buildDoc({

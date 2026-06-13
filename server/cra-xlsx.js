@@ -41,12 +41,48 @@ function statutFrom(raw) {
   return { statut: "À faire", done: false, statutJira: raw };
 }
 
+// Parseur CSV minimal et robuste (gère les guillemets et le séparateur fourni).
+// Renvoie un tableau de lignes (chaque ligne = tableau de cellules, toutes en TEXTE).
+function parseCsvText(text, delim) {
+  const rows = []; let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === delim) { row.push(cur); cur = ""; }
+    else if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (ch !== "\r") cur += ch;
+  }
+  if (cur.length || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
 export function parseCraXlsx(buffer, { basis = 7 } = {}) {
-  const wb = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const sheet = wb.Sheets[wb.SheetNames[0]];
-  if (!sheet) throw new Error("Le fichier ne contient aucune feuille lisible.");
-  const data = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-  if (!data.length) throw new Error("La première feuille est vide (aucune ligne de données).");
+  // xlsx/xlsm = archive ZIP (« PK »). Sinon CSV/texte → on parse nous-mêmes (séparateur ; , tab ou |),
+  // ce qui évite que le moteur tableur ré-interprète « 3,5 » en 35 ou « 2:30 » en date.
+  const isZip = buffer.length > 1 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+  let data, delimiter = null;
+  if (isZip) {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) throw new Error("Le fichier ne contient aucune feuille lisible.");
+    data = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false }); // valeurs telles qu'affichées
+  } else {
+    let text = buffer.toString("utf8");
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // enlève le BOM
+    const line = text.split(/\r?\n/).find((l) => l.trim()) || "";
+    const counts = { ";": (line.match(/;/g) || []).length, ",": (line.match(/,/g) || []).length, "\t": (line.match(/\t/g) || []).length, "|": (line.match(/\|/g) || []).length };
+    delimiter = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    const rows = parseCsvText(text, delimiter);
+    if (rows.length < 2) throw new Error("Le fichier CSV semble vide ou ne contient qu'une ligne d'en-tête.");
+    const heads = rows[0].map((h) => String(h).trim());
+    data = rows.slice(1)
+      .filter((r) => r.some((c) => String(c).trim() !== ""))
+      .map((r) => { const o = {}; heads.forEach((h, i) => { o[h] = r[i] != null ? r[i] : ""; }); return o; });
+  }
+  if (!data.length) throw new Error("Aucune ligne de données trouvée dans le fichier.");
 
   const headers = Object.keys(data[0]);
   const cProj = pickCol(headers, ["projet", "dossier", "client", "project", "application", "appli"]);
@@ -63,17 +99,19 @@ export function parseCraXlsx(buffer, { basis = 7 } = {}) {
 
   const personMap = {}; // who -> { who, seconds, projects:{dossier:{dossier,seconds,tickets:{cle:{...}}}} }
   const projectMap = {}; // dossier -> { dossier, seconds, persons:{who:sec}, tickets:{cle:{...}} }
-  let totalSeconds = 0, used = 0;
+  let totalSeconds = 0, used = 0, ignored = 0;
 
   data.forEach((row, idx) => {
-    const hours = parseHours(row[cTime], unit, basis);
-    const seconds = Math.round(hours * 3600);
     const dossier = (cProj && String(row[cProj]).trim()) || "Sans projet";
     const who = (cWho && String(row[cWho]).trim()) || "Non précisé";
+    // Ignore les lignes de total / sous-total / cumul d'un export tableur.
+    if (/^(total|totaux|sous.?total|cumul|somme)\b/.test(norm(dossier)) || /^(total|totaux)\b/.test(norm(who))) return;
+    const hours = parseHours(row[cTime], unit, basis);
+    const seconds = Math.round(hours * 3600);
     const resume = (cSum && String(row[cSum]).trim()) || "";
     const cle = (cKey && String(row[cKey]).trim()) || (resume ? resume.slice(0, 40) : `Ligne ${idx + 2}`);
     const { statut, done, statutJira } = statutFrom(cStat ? row[cStat] : "");
-    if (seconds <= 0) return; // on ignore les lignes sans temps (vides/titres)
+    if (seconds <= 0) { ignored += 1; return; } // ligne sans temps valide (vide, titre, total…)
     used += 1;
     totalSeconds += seconds;
 
@@ -107,9 +145,16 @@ export function parseCraXlsx(buffer, { basis = 7 } = {}) {
     tickets: tList(pr.tickets),
   })).sort((a, b) => b.seconds - a.seconds);
 
+  const warnings = [];
+  if (!cProj) warnings.push("Aucune colonne « Projet / Dossier » détectée — tout est regroupé sous « Sans projet ».");
+  if (!cWho) warnings.push("Aucune colonne « Intervenant » détectée — tout est regroupé sous « Non précisé ».");
+  if (!cStat) warnings.push("Aucune colonne « Statut » détectée — les statuts ne sont pas affichés.");
+
   return {
     source: "excel", configured: true, totalSeconds, totalTime: fmtSeconds(totalSeconds),
-    byPerson, byProject, scanned: used, total: used, capped: false,
+    byPerson, byProject, scanned: used, total: used, ignored, capped: false,
+    fileKind: isZip ? "xlsx" : "csv", delimiter,
     columns: { projet: cProj, personne: cWho, cle: cKey, resume: cSum, temps: cTime, statut: cStat, unite: unit },
+    warnings,
   };
 }
