@@ -402,7 +402,7 @@ export default function App() {
 
   return (
     <ReadOnlyContext.Provider value={readOnly}>
-    <div className="wrap">
+    <div className={`wrap tab-${tab}`}>
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
@@ -442,7 +442,7 @@ export default function App() {
       {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
 
       {diag && diag.projetsSansTicket?.length > 0 && (
-        <div className="banner">
+        <div className="banner import-warning">
           Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
           <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
         </div>

@@ -1096,3 +1096,18 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 @media (min-width: 769px) and (max-width: 1100px) {
   .hdr-build { display: none; }
 }
+
+/* ============================================================
+   MOBILE UNIQUEMENT — « Inviter » et le bandeau d'import orange
+   ne s'affichent que sur la page Cockpit.
+   (Desktop totalement inchangé : tout est sous @media max-width:768px.)
+   ============================================================ */
+@media (max-width: 768px) {
+  .owner-bar { margin-top: 0; }                                /* pas d'espace vide en haut sur mobile */
+  /* masqués par défaut sur mobile (toutes les pages) */
+  .invite-btn { display: none; }
+  .import-warning { display: none; }
+  /* réaffichés uniquement sur la page Cockpit */
+  .tab-cockpit .invite-btn { display: inline-flex; }
+  .tab-cockpit .import-warning { display: block; }
+}
