@@ -39,7 +39,6 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
     if (q.length < 2) return [];
     const hit = (i) => `${i.cle} ${i.resume} ${i.dossier} ${(i.contributors || []).join(" ")} ${(i.labels || []).join(" ")} ${i.assigne || ""}`.toLowerCase().includes(q);
     const arr = issues.filter(hit);
-    // les correspondances de clé d'abord
     arr.sort((a, b) => (String(b.cle).toLowerCase().includes(q) ? 1 : 0) - (String(a.cle).toLowerCase().includes(q) ? 1 : 0));
     return arr.slice(0, 8);
   }, [issues, q]);
@@ -69,103 +68,109 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
     }
   }, [loading]);
 
+  const search = onQuery && (
+    <div className="hdr-search" ref={searchRef}>
+      <span className="hs-ic">🔎</span>
+      <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
+        onFocus={() => setSFocus(true)} onBlur={() => setTimeout(() => setSFocus(false), 160)}
+        placeholder="Rechercher un ticket, une personne…" />
+      {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
+      {showSuggest && sRect && (
+        <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: sRect.width, zIndex: 2000 }}>
+          {suggestions.length === 0 ? (
+            <div className="ss-empty">Aucun résultat pour « {query} »</div>
+          ) : suggestions.map((i) => (
+            <button className="ss-item" key={i.cle}
+              onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
+              <span className="ss-key">{i.cle}</span>
+              <span className="ss-res">{i.resume}</span>
+              <span className="ss-meta">
+                {(i.contributors && i.contributors[0]) || i.assigne || ""}
+                {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const refresh = (
+    <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
+      <span className="gauge-fill" style={{ width: `${prog}%` }} />
+      <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
+    </button>
+  );
+
+  const bell = onOpenNotif && (
+    <div className="bell-wrap">
+      <button className={`btn bell ${notifOn ? "on" : "ghost"}`} onClick={() => setNotifOpen((o) => !o)} title="Notifications">
+        🔔{unread > 0 && <span className="bell-badge">{unread > 99 ? "99+" : unread}</span>}
+      </button>
+      {notifOpen && (
+        <>
+          <div className="notif-backdrop" onClick={() => setNotifOpen(false)} />
+          <div className="notif-panel" role="dialog">
+            <div className="notif-hd">
+              <span className="notif-title">Notifications</span>
+              <label className="notif-toggle" title="Détection automatique des changements Jira">
+                <input type="checkbox" checked={notifOn} onChange={onToggleNotifOn} /> Auto
+              </label>
+            </div>
+            <div className="notif-sub">
+              <span>{notifs.length} récente(s){unread ? ` · ${unread} non lue(s)` : ""}</span>
+              {notifs.length > 0 && <button className="notif-clear" onClick={onMarkAllRead}>Tout marquer comme lu</button>}
+            </div>
+            <div className="notif-list">
+              {notifs.length === 0 ? (
+                <div className="notif-empty">
+                  Aucune notification.<br />
+                  {notifOn ? "Les tickets Jira modifiés apparaîtront ici." : "Active « Auto » pour détecter les changements."}
+                </div>
+              ) : (
+                notifs.slice(0, 30).map((n) => (
+                  <button className={`notif-item ${n.read ? "" : "unread"}`} key={n.id}
+                    onClick={() => { onOpenNotif(n.cle); setNotifOpen(false); }}>
+                    <span className="ni-dot" />
+                    <span className="ni-body">
+                      <span className="ni-line"><b>{n.cle}</b> — {n.resume}</span>
+                      <span className="ni-expl">{n.who ? <b>{n.who}</b> : null}{n.who ? " · " : ""}{n.action || "Mis à jour"}</span>
+                      <span className="ni-meta">{n.statut ? <span className={`pill ${PILL[n.statut] || ""}`}>{n.statut}</span> : null}<span className="ni-time">{timeAgo(n.at)}</span></span>
+                    </span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <header className={`hdr ${tab === "cockpit" ? "is-dash" : "is-sub"}`}>
-      <div className="hdr-row">
-        <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
+      {/* Barre du haut : marque à gauche, contrôles à droite (même ligne) */}
+      <div className="hdr-top">
+        <span className="hdr-brand">
+          <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
+          <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v22</span></span>
+        </span>
+        <div className="hdr-controls">
+          {search}
+          {refresh}
+          {bell}
+          <button className="btn ghost hdr-logout" onClick={onLogout} title="Se déconnecter">Déconnexion</button>
+        </div>
+      </div>
+
+      {/* Titre + fraîcheur des données */}
+      <div className="hdr-headline">
         <div className="hdr-left">
-          <span className="hdr-brand">
-            <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-            <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v21</span></span>
-          </span>
           <h1 className="hdr-title">Welcome to the jungle !<span className="hdr-tagline">, we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="hdr-actions">
-          <div className="hdr-bar">
-            {onQuery && (
-              <div className="hdr-search" ref={searchRef}>
-                <span className="hs-ic">🔎</span>
-                <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
-                  onFocus={() => setSFocus(true)} onBlur={() => setTimeout(() => setSFocus(false), 160)}
-                  placeholder="Rechercher un ticket, une personne, une clé…" />
-                {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
-                {showSuggest && sRect && (
-                  <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: sRect.width, zIndex: 2000 }}>
-                    {suggestions.length === 0 ? (
-                      <div className="ss-empty">Aucun résultat pour « {query} »</div>
-                    ) : suggestions.map((i) => (
-                      <button className="ss-item" key={i.cle}
-                        onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
-                        <span className="ss-key">{i.cle}</span>
-                        <span className="ss-res">{i.resume}</span>
-                        <span className="ss-meta">
-                          {(i.contributors && i.contributors[0]) || i.assigne || ""}
-                          {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-            <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
-              <span className="gauge-fill" style={{ width: `${prog}%` }} />
-              <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
-            </button>
-            {onOpenNotif && (
-              <div className="bell-wrap">
-                <button className={`btn bell ${notifOn ? "on" : "ghost"}`} onClick={() => setNotifOpen((o) => !o)}
-                  title="Notifications">
-                  🔔{unread > 0 && <span className="bell-badge">{unread > 99 ? "99+" : unread}</span>}
-                </button>
-                {notifOpen && (
-                  <>
-                    <div className="notif-backdrop" onClick={() => setNotifOpen(false)} />
-                    <div className="notif-panel" role="dialog">
-                      <div className="notif-hd">
-                        <span className="notif-title">Notifications</span>
-                        <label className="notif-toggle" title="Détection automatique des changements Jira">
-                          <input type="checkbox" checked={notifOn} onChange={onToggleNotifOn} /> Auto
-                        </label>
-                      </div>
-                      <div className="notif-sub">
-                        <span>{notifs.length} récente(s){unread ? ` · ${unread} non lue(s)` : ""}</span>
-                        {notifs.length > 0 && <button className="notif-clear" onClick={onMarkAllRead}>Tout marquer comme lu</button>}
-                      </div>
-                      <div className="notif-list">
-                        {notifs.length === 0 ? (
-                          <div className="notif-empty">
-                            Aucune notification.<br />
-                            {notifOn ? "Les tickets Jira modifiés apparaîtront ici." : "Active « Auto » pour détecter les changements."}
-                          </div>
-                        ) : (
-                          notifs.slice(0, 30).map((n) => (
-                            <button className={`notif-item ${n.read ? "" : "unread"}`} key={n.id}
-                              onClick={() => { onOpenNotif(n.cle); setNotifOpen(false); }}>
-                              <span className="ni-dot" />
-                              <span className="ni-body">
-                                <span className="ni-line"><b>{n.cle}</b> — {n.resume}</span>
-                                <span className="ni-expl">{n.who ? <b>{n.who}</b> : null}{n.who ? " · " : ""}{n.action || "Mis à jour"}</span>
-                                <span className="ni-meta">{n.statut ? <span className={`pill ${PILL[n.statut] || ""}`}>{n.statut}</span> : null}<span className="ni-time">{timeAgo(n.at)}</span></span>
-                              </span>
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            <button className="btn ghost" onClick={onLogout}>Déconnexion</button>
-          </div>
-          <div className="src">
-            {source ? `Source : ${source}` : "Chargement…"}
-            <br />
-            Données au {when}
-          </div>
-        </div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when}</div>
       </div>
 
       <div className="kpis">
@@ -179,9 +184,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
 
       <div className="progress">
         <span>Avancement ({k["Terminé"] ?? 0} terminés sur {k.total ?? 0})</span>
-        <span className="bar">
-          <span style={{ width: `${k.avancement || 0}%` }} />
-        </span>
+        <span className="bar"><span style={{ width: `${k.avancement || 0}%` }} /></span>
         <b>{k.avancement || 0}&nbsp;%</b>
       </div>
     </header>
