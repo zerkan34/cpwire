@@ -2,23 +2,26 @@
 // Stockage fichier simple (aucune base externe requise).
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { dataDir } from "./paths.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIR = path.join(__dirname, "data");
+const DIR = dataDir();
 const FILE = path.join(DIR, "history.json");
 
 function ensure() {
-  if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-  if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, "[]");
+  try {
+    if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
+    if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, "[]");
+  } catch (e) { console.error("[history] init impossible:", e.message); }
 }
 
 export function logEvent(type, label, meta = {}) {
-  ensure();
-  const list = read();
   const entry = { id: Date.now() + "-" + Math.random().toString(36).slice(2, 7), at: new Date().toISOString(), type, label, meta };
-  list.unshift(entry);
-  fs.writeFileSync(FILE, JSON.stringify(list.slice(0, 500), null, 2));
+  try {
+    ensure();
+    const list = read();
+    list.unshift(entry);
+    fs.writeFileSync(FILE, JSON.stringify(list.slice(0, 500), null, 2));
+  } catch (e) { console.error("[history] écriture impossible:", e.message); }
   return entry;
 }
 

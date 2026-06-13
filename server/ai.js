@@ -26,7 +26,7 @@ export function aiAvailable() {
 
 // Aiguilleur d'appel IA. Priorité : Anthropic (privé) → Mistral (gratuit, UE) → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
-async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.4) {
+async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
   if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature);
   if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature);
   if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature);
@@ -34,7 +34,7 @@ async function callClaude(system, userText, images = [], maxTokens = 2000, tempe
   throw new Error("Aucune clé IA configurée.");
 }
 
-async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.4) {
+async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
   const content = [];
   for (const im of images) content.push({ type: "image", source: { type: "base64", media_type: im.media_type, data: im.dataBase64 } });
   content.push({ type: "text", text: userText });
@@ -49,7 +49,7 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000, te
 }
 
 // Fournisseur compatible OpenAI (Mistral, Groq, OpenRouter, etc.). Texte uniquement (images ignorées).
-async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.4) {
+async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.2) {
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
@@ -69,7 +69,15 @@ Tu renvoies UNIQUEMENT un fragment HTML (pas de <html>, <head> ni <body>), sans 
 <h2> et <h3> (titres), <p>, <ul><li>, <b>, <table class="data"> avec <th>/<td>, et ces classes de la charte :
 <span class="tk"> (clé de ticket), <span class="who"> (nom de personne),
 <span class="pill done|prog|todo|block"> (statut : done=résolu/clôturé, prog=en cours, todo=à faire/en attente, block=bloqué),
-<div class="indic"> (encadré pour un point marquant), et <div class="opt"><div class="ot">Option 1</div>…</div> (présenter des options).`;
+<div class="indic"> (encadré pour un point marquant), et <div class="opt"><div class="ot">Option 1</div>…</div> (présenter des options).
+
+RÈGLES DE FIDÉLITÉ — IMPÉRATIVES, prioritaires sur tout le reste :
+- N'invente JAMAIS rien. Utilise UNIQUEMENT les informations présentes dans les données fournies ci-dessous par l'utilisateur.
+- NOMS DE PERSONNES : n'écris que des noms réellement présents dans les données. N'invente aucun nom, ne déduis JAMAIS un nom à partir d'une clé de ticket, d'un projet ou d'un client. Si tu n'as pas le nom, écris « non précisé » (jamais un prénom inventé).
+- CLÉS DE TICKETS, PROJETS, CLIENTS, DATES, CHIFFRES : reprends-les EXACTEMENT depuis les données. N'en invente aucun, n'arrondis pas, ne complète pas « de mémoire ».
+- Si une information manque, écris « non précisé » ou n'en parle pas — ne comble JAMAIS un vide par une supposition.
+- Aucune citation inventée, aucun événement non mentionné. En cas de doute, reste général plutôt que d'inventer un détail précis.
+- Ne mélange pas les clients/projets entre eux : ce qui concerne un dossier ne doit pas être attribué à un autre.`;
 
 // ---------- CR journalier par client ----------
 function buckets(issues) {
@@ -388,6 +396,7 @@ export async function writtenDailyReport(dossier, issues) {
       const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj));
       const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
       const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
+      const noms = [...new Set(issues.flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [devOf(i)])).filter((n) => n && n !== "Non assigné"))];
       const prompt = `Rédige un COMPTE RENDU ÉCRIT de la journée pour le dossier "${dossier}", en français, destiné à un lecteur NON technique (par exemple un responsable côté client).\n` +
         `RÈGLES DE CLARTÉ (importantes) :\n` +
         `- Langage simple et concret, phrases courtes. Pas de jargon informatique.\n` +
@@ -395,7 +404,7 @@ export async function writtenDailyReport(dossier, issues) {
         `- Reformule les intitulés techniques en langage courant. Si un terme technique est indispensable, explique-le en quelques mots (ex. « recette » = phase de vérification avant mise en service).\n` +
         `- Pas de formules de politesse ni de remplissage.\n` +
         `Structure en sections avec des titres HTML <h2> : "En bref" (2 à 3 phrases), "Ce qui a été terminé", "Ce qui avance", "En cours de validation", "Points d'attention", "En résumé" (les chiffres clés en une phrase).\n` +
-        `N'invente AUCUN chiffre ni statut ; appuie-toi uniquement sur les données ci-dessous. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
+        `N'invente AUCUN chiffre, statut NI NOM ; appuie-toi uniquement sur les données ci-dessous. Les SEULES personnes que tu peux citer nommément sont : ${noms.join(", ") || "aucune (dans ce cas écris « l'équipe »)"}. Tout autre nom est interdit. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
         `Terminés aujourd'hui (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
         `En cours aujourd'hui (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
         `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
@@ -630,6 +639,7 @@ export async function meetingReport({ titre, participants, notes, transcript, im
 
 RÈGLES DE FIDÉLITÉ (PRIORITAIRES — ne jamais enfreindre) :
 - N'utilise QUE les informations présentes dans les notes / la transcription. N'invente AUCUN fait, chiffre, date, nom, ticket, option ni décision.
+- NOMS DE PERSONNES : les SEULS noms autorisés sont ceux de la liste « Participants » ci-dessous et ceux explicitement écrits dans les notes / la transcription. N'invente, ne déduis ni ne complète AUCUN autre nom ; si l'auteur d'une action est inconnu, écris « non précisé » (jamais un prénom inventé).
 - NUMÉROS DE TICKETS : recopie-les EXACTEMENT depuis la source. Ne devine pas, ne transpose pas un numéro (ex. ne transforme pas 773 en 713). Si un numéro est incertain ou absent, écris « (numéro à confirmer) » — n'en invente jamais un.
 - OPTIONS / SOLUTIONS : ne liste que les options réellement évoquées. Ne les multiplie pas, ne les fractionne pas, n'en ajoute pas pour « remplir la mise en page ». Si deux options ont été discutées, n'en mets que deux.
 - ATTRIBUTION : rattache chaque fait (qui a fait quoi, mise en pré-production, livraison, analyse…) au BON ticket et à la BONNE personne. Ne fusionne JAMAIS deux tickets et ne déplace pas une action d'un ticket vers un autre. Un ticket = une section distincte.

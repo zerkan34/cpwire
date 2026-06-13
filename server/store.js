@@ -3,10 +3,9 @@
 // pour ne plus tout recharger depuis Jira à chaque actualisation.
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { dataDir } from "./paths.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIR = path.join(__dirname, "data");
+const DIR = dataDir();
 const FILE = path.join(DIR, "portfolio.json");
 
 export function loadSnapshot() {

@@ -2,21 +2,22 @@
 // Soft-delete : on ne perd aucune donnée Jira, on marque seulement le dev comme inactif.
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { dataDir } from "./paths.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIR = path.join(__dirname, "data");
+const DIR = dataDir();
 const FILE = path.join(DIR, "devmeta.json");
 
 function ensure() {
-  if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-  if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify({ deleted: [] }, null, 2));
+  try {
+    if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
+    if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify({ deleted: [] }, null, 2));
+  } catch (e) { console.error("[devmeta] init impossible:", e.message); }
 }
 function readRaw() {
   ensure();
   try { return JSON.parse(fs.readFileSync(FILE, "utf-8")); } catch { return { deleted: [] }; }
 }
-function write(obj) { ensure(); fs.writeFileSync(FILE, JSON.stringify(obj, null, 2)); }
+function write(obj) { try { ensure(); fs.writeFileSync(FILE, JSON.stringify(obj, null, 2)); } catch (e) { console.error("[devmeta] écriture impossible:", e.message); } }
 
 export function readDeleted() {
   const o = readRaw();
