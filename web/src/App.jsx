@@ -465,7 +465,6 @@ export default function App() {
               <span className="reload-ico">⟳</span>
               <span className="reload-txt">Tout recharger</span>
             </button>
-            <ExportBar buildHtml={buildCockpitHtml} filename={`tickets_${cockpitFilterLabel.replace(/[^a-z0-9]+/gi, "_").slice(0, 40) || "liste"}.html`} subject={`Tickets — ${cockpitFilterLabel}`} />
           </div>
           <div className="panel cockpit-panel">
             <div className="recap-hd">

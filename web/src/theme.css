@@ -958,13 +958,8 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 .scc-dot { color: var(--orange-deep); font-weight: 800; margin-right: 4px; }
 .scc-tip { font-size: 11px; color: var(--muted); font-style: italic; margin-top: 6px; }
 
-/* ===== KPI du header cliquables (ordinateur) ===== */
-button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: inherit; text-align: left; width: 100%; }
-.kpi.clickable { cursor: pointer; transition: transform .12s ease, box-shadow .12s ease, background .12s ease; }
-.kpi.clickable:hover { background: rgba(255, 255, 255, 0.16); transform: translateY(-2px); }
-.kpi.clickable:active { transform: translateY(0); }
-.kpi.clickable.active { box-shadow: 0 0 0 2px var(--gold); background: rgba(255, 255, 255, 0.18); }
-.kpi.clickable:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+/* ===== KPI du header cliquables (ordinateur) — apparence IDENTIQUE à l'origine, simplement cliquable ===== */
+button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
 
 /* Sous-titre du header (plus petit que « Welcome to the jungle ! ») */
 .hdr-tagline { font-size: .5em; font-weight: 600; opacity: .82; margin-left: .15em; letter-spacing: .01em; white-space: nowrap; }
@@ -989,3 +984,78 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .cr-preview-wrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #fff; }
 .cr-preview { width: 100%; height: 460px; border: 0; display: block; background: #fff; }
 @media (max-width: 768px) { .cr-preview { height: 58vh; } .cr-modal { width: 100vw; } }
+.cr-pick { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.cr-pick label { font-size: 13px; color: var(--muted); font-weight: 600; }
+.cr-pick select { padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; font: inherit; background: #fff; }
+
+/* ============================================================
+   REFONTE MOBILE — thème navy + orange (≤768px UNIQUEMENT)
+   Tout est ici, sous le media query : le DESKTOP n'est jamais impacté.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 1) Tokens repeints en navy (cascade sur toute l'appli mobile) */
+  :root {
+    --bg: #0e1322; --bg-top: #141a2e;
+    --card: #192036; --card-2: #1d2540;
+    --line: rgba(255,255,255,.08); --line-soft: rgba(255,255,255,.05); --row-alt: #1d2540;
+    --ink: #eef1f8; --body: #e4e8f3; --muted: #8b93ad;
+    --hd-grad: linear-gradient(180deg, #141a2e, #0e1322 70%);
+    --orange: #f97316; --orange-deep: #f2700f; --orange-soft: rgba(249,115,22,.16);
+    --purple: #8b7cf6; --purple-strong: #a99bff; --purple-soft: rgba(139,124,246,.16); --purple-line: rgba(139,124,246,.30);
+    --gold: #f5a623; --gold-deep: #d98a12;
+    --green: #34d399; --green-bg: rgba(52,211,153,.16);
+    --blue: #4f8ff7; --blue-bg: rgba(79,143,247,.16);
+    --amber: #f5a623; --amber-bg: rgba(245,166,35,.16);
+    --red: #f06a72; --red-bg: rgba(240,106,114,.16);
+    --shadow: 0 1px 2px rgba(0,0,0,.40), 0 10px 26px rgba(0,0,0,.34);
+    --shadow-lg: 0 18px 50px rgba(0,0,0,.55);
+  }
+  body { background: var(--bg); color: var(--ink); }
+
+  /* 2) Contrôles/cartes à fond blanc codé en dur → carte navy + texte clair */
+  .fbtn, .fselect, .btn-line, .dev-block, .dstat, .meet-card, .enc-card, .cra-card, .cra-kpi,
+  table.edit-tbl input, table.edit-tbl select, .cra-form input, .cra-form select, .cra-form input[type="date"],
+  .search-suggest, .rec-rew-list li, .sc-step, .part-del, .dev-hide, .notif-panel,
+  .filter-box-bd { background: var(--card); color: var(--ink); border-color: var(--line); }
+  .rec-chip.cat-attenteClient { background: var(--amber-bg); color: var(--amber); border-color: rgba(245,166,35,.32); }
+
+  /* 3) En-tête : bande navy continue + recherche sombre */
+  .hdr-search input { background: var(--card-2); color: var(--ink); border: 1px solid var(--line); }
+  .hdr-search input::placeholder { color: var(--muted); }
+  .hdr-burger { border-color: rgba(255,255,255,.16); background: rgba(255,255,255,.06); }
+
+  /* 4) KPI → cartes « stat » navy, chiffres colorés par statut */
+  .kpis .kpi { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 14px; }
+  .kpis .kpi .lbl { color: var(--muted); }
+  .kpis .kpi .val { color: var(--ink); }
+  .kpis .kpi:first-child .val { color: var(--purple-strong); }
+  .kpi.todo .val { color: #ff9f4a; }
+  .kpi.prog .val { color: #6ba4ff; }
+  .kpi.block .val { color: #ff7d85; }
+  .kpi.late .val { color: #f5b53e; }
+  .kpi.done .val { color: #4ade9f; }
+
+  /* 5) Bouton Actualiser → orange plein */
+  .reload-btn, .reload-btn:hover { background: linear-gradient(180deg,#fb8a3a,#f2700f); color: #fff; border: 0;
+    box-shadow: 0 10px 24px -12px rgba(249,115,22,.72); transform: none; }
+  .reload-btn .reload-ico, .reload-btn .reload-txt { color: #fff; }
+
+  /* 6) Barre du bas → navy + onglet actif ORANGE avec halo */
+  .mobile-tabbar { background: var(--bg-top); border-top: 1px solid var(--line);
+    box-shadow: 0 -6px 22px rgba(0,0,0,.45); }
+  .mtab { color: var(--muted); }
+  .mtab.active { color: var(--orange); }
+  .mtab.active::before { background: var(--orange); box-shadow: 0 0 10px var(--orange); border-radius: 99px; }
+
+  /* 7) Tiroir (drawer) → sombre + élément actif orange */
+  .drawer { background: linear-gradient(180deg, #141a2e, #0e1322); border-right: 1px solid var(--line); }
+  .drawer-item { color: var(--muted); }
+  .drawer-item:active { background: rgba(255,255,255,.05); }
+  .drawer-item.active { background: rgba(249,115,22,.12); color: var(--orange); }
+  .drawer-item.active .di-ic { color: var(--orange); }
+  .drawer-foot { border-top: 1px solid var(--line); color: var(--muted); }
+
+  /* 8) Onglets clients (En cours) + pastille compteur → accent navy/orange */
+  .enc-ctab { border-color: var(--line); }
+  .enc-ctab-n { background: var(--orange); color: #fff; }
+}
