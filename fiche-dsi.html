@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<style>
+  @page { size: A4; margin: 16mm 15mm; }
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; color: #2a2937; font-size: 10.5px; line-height: 1.5; }
+  .eyebrow { font-size: 9px; letter-spacing: .18em; text-transform: uppercase; color: #a9842f; font-weight: 700; }
+  h1 { font-size: 21px; margin: 3px 0 2px; color: #2c2945; }
+  .sub { color: #6b6880; font-size: 11px; margin-bottom: 14px; }
+  h2 { font-size: 13px; color: #2c2945; margin: 16px 0 6px; padding-bottom: 4px; border-bottom: 2px solid #ece9f6; }
+  h2 .n { display: inline-block; width: 18px; height: 18px; background: #5a48b0; color: #fff; border-radius: 5px; text-align: center; line-height: 18px; font-size: 11px; margin-right: 7px; }
+  p { margin: 5px 0; }
+  ul { margin: 5px 0; padding-left: 18px; }
+  li { margin: 3px 0; }
+  code, .mono { font-family: "Courier New", monospace; background: #f4f2fb; color: #41406a; padding: 1px 5px; border-radius: 4px; font-size: 9.8px; }
+  pre { background: #1f1d2e; color: #e9e6f5; border-radius: 8px; padding: 11px 13px; font-family: "Courier New", monospace; font-size: 9.3px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; margin: 7px 0; break-inside: avoid; page-break-inside: avoid; }
+  pre .c { color: #8f88b0; }
+  table { width: 100%; border-collapse: collapse; margin: 7px 0; font-size: 9.6px; }
+  thead { display: table-header-group; }
+  tr { break-inside: avoid; page-break-inside: avoid; }
+  h2 { break-after: avoid; page-break-after: avoid; }
+  .note, .keep { break-inside: avoid; page-break-inside: avoid; }
+  th { text-align: left; background: #f4f2fb; color: #41406a; padding: 6px 8px; border: 1px solid #e2def2; font-size: 9px; text-transform: uppercase; letter-spacing: .04em; }
+  td { padding: 6px 8px; border: 1px solid #ece9f6; vertical-align: top; }
+  td .mono { font-size: 9px; }
+  .req { color: #b4434a; font-weight: 700; }
+  .opt { color: #6b6880; }
+  .note { background: #f4f2fb; border-left: 3px solid #5a48b0; border-radius: 6px; padding: 9px 12px; margin: 9px 0; }
+  .foot { margin-top: 18px; padding-top: 9px; border-top: 1px solid #ece9f6; color: #6b6880; font-size: 9px; }
+  .brand { font-weight: 800; letter-spacing: -.5px; }
+  .brand .cp { color: #e8772e; } .brand .wire { color: #2c2945; }
+</style>
+</head>
+<body>
+
+  <div class="eyebrow">Fiche technique · à destination de la DSI</div>
+  <h1>Déploiement de <span class="brand"><span class="cp">cp</span>|<span class="wire">WIRE</span></span> sur un serveur interne</h1>
+  <div class="sub">Cockpit de pilotage chef de projet · connecté à Jira (armonie.atlassian.net)</div>
+
+  <h2><span class="n">1</span>En deux mots</h2>
+  <p>cp|WIRE est une petite application web de pilotage de portefeuille de tickets Jira (vue consolidée, comptes-rendus, brief matinal). Techniquement : un serveur <b>Node.js</b> (Express) qui sert aussi l'interface <b>React</b> pré-construite — <b>un seul conteneur Docker</b>, sans base de données externe. Il interroge l'API Jira Cloud en lecture, et écrit (commentaires / changement de statut) uniquement à la demande de l'utilisateur.</p>
+
+  <h2><span class="n">2</span>Prérequis</h2>
+  <ul>
+    <li>Un hôte capable d'exécuter <b>Docker</b> (recommandé) ou à défaut <b>Node.js 20+</b>.</li>
+    <li>Ressources modestes : <b>1 vCPU</b>, <b>512 Mo–1 Go de RAM</b>, ~200 Mo de disque.</li>
+    <li>Accès réseau <b>sortant en HTTPS</b> vers <span class="mono">armonie.atlassian.net</span> (et, optionnellement, vers les API d'IA si la fonction est activée).</li>
+    <li>Le service écoute sur le port <span class="mono">4000</span> (à placer derrière le reverse-proxy interne).</li>
+    <li>Sonde de santé disponible sur <span class="mono">/api/health</span>.</li>
+  </ul>
+
+  <h2><span class="n">3</span>Variables d'environnement</h2>
+  <table>
+    <tr><th>Variable</th><th>Rôle</th><th>Obligatoire</th></tr>
+    <tr><td class="mono">JIRA_BASE_URL</td><td>URL Jira, sans / final — ex. <span class="mono">https://armonie.atlassian.net</span></td><td class="req">Oui</td></tr>
+    <tr><td class="mono">JIRA_EMAIL</td><td>E-mail du compte de service Jira</td><td class="req">Oui</td></tr>
+    <tr><td class="mono">JIRA_API_TOKEN</td><td>Jeton d'API Jira du compte de service</td><td class="req">Oui</td></tr>
+    <tr><td class="mono">AUTH_EMAIL</td><td>Identifiant de connexion à l'appli</td><td class="req">Oui</td></tr>
+    <tr><td class="mono">AUTH_PASSWORD</td><td>Mot de passe de connexion à l'appli</td><td class="req">Oui</td></tr>
+    <tr><td class="mono">PROJECTS</td><td>Clés de projets Jira suivis, séparées par des virgules</td><td class="req">Oui</td></tr>
+    <tr><td class="mono">ME</td><td>Nom affiché de l'utilisateur (pour « mes tickets »)</td><td class="opt">Recommandé</td></tr>
+    <tr><td class="mono">TARGET_DONE</td><td>Libellé du statut « Terminé » dans le workflow</td><td class="opt">Recommandé</td></tr>
+    <tr><td class="mono">PORT</td><td>Port d'écoute (défaut 4000)</td><td class="opt">Optionnel</td></tr>
+    <tr><td class="mono">ANTHROPIC_API_KEY</td><td>Active la rédaction et les analyses par IA</td><td class="opt">Optionnel</td></tr>
+    <tr><td class="mono">OPENAI_API_KEY · MS_*</td><td>Dictée vocale / envoi automatique Outlook · SharePoint</td><td class="opt">Optionnel</td></tr>
+  </table>
+
+  <h2><span class="n">4</span>Persistance (important)</h2>
+  <p>L'application conserve, dans le dossier <span class="mono">/app/data</span> du conteneur, une « photo » des tickets (pour des actualisations rapides et incrémentales) ainsi que les fiches dossiers. <b>Il faut monter un volume persistant sur <span class="mono">/app/data</span></b> pour que ces données survivent aux redémarrages et mises à jour.</p>
+
+  <h2><span class="n">5</span>Déploiement Docker</h2>
+  <pre><span class="c"># Construction de l'image (depuis le dossier du projet)</span>
+docker build -t cpwire:latest .
+
+<span class="c"># Lancement avec volume persistant + variables d'environnement</span>
+docker run -d --name cpwire --restart unless-stopped \
+  -p 4000:4000 \
+  -v /srv/cpwire/data:/app/data \
+  -e JIRA_BASE_URL="https://armonie.atlassian.net" \
+  -e JIRA_EMAIL="compte-service@armonie.group" \
+  -e JIRA_API_TOKEN="•••" \
+  -e AUTH_EMAIL="•••" \
+  -e AUTH_PASSWORD="•••" \
+  -e PROJECTS="TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,PBAL,TIMA,PIMA,PIMA2,TDIA" \
+  -e ME="Nicolas Durand" \
+  -e TARGET_DONE="Terminé" \
+  cpwire:latest</pre>
+  <p>Les variables peuvent aussi être placées dans un fichier <span class="mono">.env</span> (<span class="mono">--env-file</span>) ou gérées via <span class="mono">docker compose</span> / l'orchestrateur interne.</p>
+
+  <h2><span class="n">6</span>Exposition</h2>
+  <p>Publier le port 4000 derrière le reverse-proxy interne (Nginx / Traefik / IIS…) avec un nom de domaine interne et un certificat HTTPS. L'accès peut être restreint au réseau de l'entreprise ou au VPN. L'application gère sa propre authentification (identifiant + mot de passe ci-dessus) ; un SSO peut être ajouté en amont au niveau du proxy si souhaité.</p>
+
+  <h2><span class="n">7</span>Mise à jour</h2>
+  <pre><span class="c"># Reconstruire l'image avec la nouvelle version, puis relancer</span>
+docker build -t cpwire:latest .
+docker stop cpwire &amp;&amp; docker rm cpwire
+docker run -d --name cpwire ... (mêmes options qu'à l'étape 5)</pre>
+  <p>Le volume <span class="mono">/app/data</span> étant externe au conteneur, les données (cache, fiches) sont conservées d'une version à l'autre.</p>
+
+  <h2><span class="n">8</span>Sécurité &amp; données</h2>
+  <ul>
+    <li>Le jeton Jira reste sur l'infrastructure d'Armonie ; il convient d'utiliser un <b>compte de service dédié</b> avec les seuls droits nécessaires sur les projets listés.</li>
+    <li>Aucune donnée n'est stockée hors du volume <span class="mono">/app/data</span> ; aucune base externe n'est requise.</li>
+    <li>Les fonctions d'IA et de messagerie sont <b>désactivées par défaut</b> et ne s'activent qu'en renseignant les variables optionnelles correspondantes.</li>
+  </ul>
+
+  <h2><span class="n">9</span>Propriété intellectuelle &amp; attribution</h2>
+  <p>cp|WIRE est une application <b>conçue et développée par Nicolas Durand</b>, qui en conserve la <b>propriété intellectuelle</b> et la qualité d'auteur. La mise à disposition et l'hébergement sur l'infrastructure d'Armonie sont consentis pour un <b>usage interne</b> et n'emportent <b>aucun transfert de propriété</b>. Toute réutilisation, redistribution, commercialisation ou modification en dehors de ce cadre requiert son accord préalable.</p>
+
+  <div class="note"><b>Recommandation.</b> Hébergé en interne avec un volume persistant, cp|WIRE n'a plus aucune limite de mise en veille ni de cache éphémère : les actualisations restent rapides en permanence. Le code source complet et le <span class="mono">Dockerfile</span> sont fournis (dépôt Git + archive).</div>
+
+  <div class="foot">Document préparé pour la DSI · <b>Auteur et propriétaire de l'application : Nicolas Durand</b>, chef de projet · cp|WIRE · Configuration complémentaire dans le fichier <span class="mono">README.md</span> du projet.</div>
+
+</body>
+</html>
