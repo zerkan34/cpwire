@@ -154,7 +154,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v22</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v23</span></span>
         </span>
         <div className="hdr-controls">
           {search}
