@@ -1059,3 +1059,40 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .enc-ctab { border-color: var(--line); }
   .enc-ctab-n { background: var(--orange); color: #fff; }
 }
+
+/* ============================================================
+   EN-TÊTE RESTRUCTURÉ — barre du haut propre
+   (marque à gauche · recherche/Actualiser/cloche/déconnexion à droite, même ligne)
+   ============================================================ */
+/* Ordinateur : tout sur UNE ligne, aucun enroulement */
+.hdr-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: nowrap; position: relative; }
+.hdr-brand { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 0 0 auto; overflow: visible; }
+.hdr-logo { height: 26px; width: auto; display: block; margin: 0; flex: 0 0 auto; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; width: auto; text-align: left; white-space: nowrap; }
+.hdr-controls { display: flex; align-items: center; justify-content: flex-end; gap: 8px; flex-wrap: nowrap; flex: 1 1 auto; min-width: 0; }
+.hdr-controls .btn { height: 40px; flex: 0 0 auto; }
+.hdr-controls .hdr-search { flex: 1 1 0; min-width: 90px; max-width: 240px; width: auto; }
+.hdr-headline { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-top: 14px; position: relative; }
+.hdr-headline .hdr-left { min-width: 0; }
+.hdr-headline .src { text-align: right; flex: 0 0 auto; white-space: nowrap; }
+
+/* ---- Nettoyage du header mobile : lignes claires, pas de fouillis ---- */
+@media (max-width: 768px) {
+  .hdr-top { flex-wrap: wrap; gap: 10px; }
+  .hdr-brand { flex: 1 1 auto; overflow: visible; }
+  .eyebrow { flex-wrap: wrap; white-space: normal; row-gap: 4px; }   /* le badge BUILD passe à la ligne au lieu de déborder */
+  .hdr-build { margin-left: 0; }
+  .hdr-logo { height: 22px; }
+  .hdr-controls { flex: 1 1 100%; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+  .hdr-controls .hdr-search { flex: 1 1 100%; width: 100%; max-width: none; order: -1; }   /* recherche pleine largeur, sa propre ligne */
+  .hdr-controls .gauge-btn { flex: 1 1 auto; }
+  .hdr-logout { display: none; }                                          /* la déconnexion est déjà dans le tiroir */
+  .hdr-headline { flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 10px; }
+  .hdr-headline .src { text-align: left; white-space: normal; font-size: 11px; }
+}
+
+/* Sécurité : sur les écrans étroits (petits portables), on masque le badge BUILD
+   pour laisser de la place aux contrôles — il reste visible dès 1100px. */
+@media (min-width: 769px) and (max-width: 1100px) {
+  .hdr-build { display: none; }
+}
