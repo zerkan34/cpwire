@@ -1,7 +1,7 @@
 // sw.js — service worker CPwire.
 // Objectif : rendre l'appli installable (PWA) et rapide, SANS jamais mettre en
 // cache les données Jira (les appels /api passent toujours par le réseau).
-const CACHE = "cpwire-shell-v18";
+const CACHE = "cpwire-shell-v20";
 
 self.addEventListener("install", () => self.skipWaiting());
 
