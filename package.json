@@ -2,10 +2,9 @@
 // Données propres à l'utilisateur, persistées sur fichier. Seed = ce que l'on connaît déjà.
 import fs from "fs";
 import path from "path";
-import { fileURLToPath } from "url";
+import { dataDir } from "./paths.js";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const DIR = path.join(__dirname, "data");
+const DIR = dataDir();
 const FILE = path.join(DIR, "dossiers.json");
 
 const p = (nom, poste, email, statut, cote) => ({ nom, poste, email: email || "", statut: statut || "Actif", cote });
@@ -112,8 +111,10 @@ export const SEED = {
 };
 
 function ensure() {
-  if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-  if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify(SEED, null, 2));
+  try {
+    if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
+    if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify(SEED, null, 2));
+  } catch (e) { console.error("[dossiers] init impossible:", e.message); }
 }
 
 export function readAll() {
@@ -135,6 +136,6 @@ export function saveOne(nom, fiche) {
     tech: Array.isArray(fiche.tech) ? fiche.tech.filter(Boolean) : [],
     team: Array.isArray(fiche.team) ? fiche.team : [],
   };
-  fs.writeFileSync(FILE, JSON.stringify(all, null, 2));
+  try { fs.writeFileSync(FILE, JSON.stringify(all, null, 2)); } catch (e) { console.error("[dossiers] écriture impossible:", e.message); }
   return all[nom];
 }

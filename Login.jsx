@@ -1,337 +1,292 @@
-import React, { useState, useRef, useMemo, useEffect } from "react";
-import { genMeetingReport, genMeetingPrep } from "../api.js";
-import { buildSimpleDoc, esc } from "../utils.js";
-import { TEAM } from "../team.js";
-import ExportBar from "./ExportBar.jsx";
-import { useReadOnly } from "../readonly.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchHistory, crForDate, crDailyForPeriod } from "../api.js";
+import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
+import DocPreview from "./DocPreview.jsx";
 
-const SUJETS = [
-  "Point d'avancement", "Comité de pilotage (COPIL)", "Point technique",
-  "Recette / validation", "Cadrage / lancement", "Rétrospective", "Suivi des actions", "Autre",
+const LABELS = { cr_journalier: "CR journalier", cr_ecrit: "CR écrit", cr_date: "CR rédigé (IA)", cr_reunion: "CR réunion", prep_reunion: "Prépa réunion", brief_matin: "Brief matinal", cr_global: "Rapport global", cra_import: "Import CRA", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
+const DONE = ["termine", "miseEnProd"];
+const ACTIVE = ["encours", "retourTest", "retourProd"];
+
+const PRESETS = [
+  { id: "auj", label: "Aujourd'hui" },
+  { id: "hier", label: "Hier" },
+  { id: "semaine", label: "Cette semaine" },
+  { id: "mois", label: "Ce mois" },
+  { id: "moisdernier", label: "Mois dernier" },
+  { id: "tout", label: "Tout" },
 ];
+const MOIS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 
-function pillCls(s) { return s === "Bloqué" ? "block" : s === "En cours" ? "prog" : s === "Terminé" ? "done" : "todo"; }
-function agendaToHtml(text) {
-  const lines = String(text || "").split(/\n/);
-  let html = "", inUl = false;
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line) { if (inUl) { html += "</ul>"; inUl = false; } continue; }
-    if (line.startsWith("•") || line.startsWith("-")) {
-      if (!inUl) { html += "<ul>"; inUl = true; }
-      html += `<li>${esc(line.replace(/^[•\-]\s*/, ""))}</li>`;
-    } else {
-      if (inUl) { html += "</ul>"; inUl = false; }
-      if (/[:：]\s*$/.test(line) && line.length < 60) html += `<h3>${esc(line.replace(/[:：]\s*$/, ""))}</h3>`;
-      else html += `<p>${esc(line)}</p>`;
-    }
-  }
-  if (inUl) html += "</ul>";
-  return html;
+function pad(n) { return String(n).padStart(2, "0"); }
+function dayValue(d) { return `day:${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; }
+function monthValue(d) { return `month:${d.getFullYear()}-${pad(d.getMonth() + 1)}`; }
+
+function periodRange(period) {
+  const now = new Date();
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); const s = new Date(y, m - 1, d); const e = new Date(y, m - 1, d + 1); return [s, e]; }
+  if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return [new Date(y, m - 1, 1), new Date(y, m, 1)]; }
+  if (period === "auj") return [startToday, null];
+  if (period === "hier") { const y = new Date(startToday); y.setDate(y.getDate() - 1); return [y, startToday]; }
+  if (period === "semaine") { const d = new Date(startToday); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return [d, null]; }
+  if (period === "mois") return [new Date(now.getFullYear(), now.getMonth(), 1), null];
+  if (period === "moisdernier") return [new Date(now.getFullYear(), now.getMonth() - 1, 1), new Date(now.getFullYear(), now.getMonth(), 1)];
+  return [null, null];
 }
+function periodLabel(period) {
+  if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); return `${pad(d)} ${MOIS[m - 1]} ${y}`; }
+  if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return `${MOIS[m - 1]} ${y}`; }
+  return PRESETS.find((p) => p.id === period)?.label || "";
+}
+function inRange(iso, range) {
+  if (!iso) return false;
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return false;
+  if (range[0] && t < range[0].getTime()) return false;
+  if (range[1] && t >= range[1].getTime()) return false;
+  return true;
+}
+function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
+function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
+const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-function PrepReunion({ issues }) {
-  const clients = useMemo(() => Array.from(new Set(issues.map((i) => i.dossier).filter(Boolean))).sort(), [issues]);
-  const [dossier, setDossier] = useState("");
-  const [type, setType] = useState(SUJETS[0]);
-  const [precision, setPrecision] = useState("");
-  const [notes, setNotes] = useState("");
-  const [importedText, setImportedText] = useState("");
-  const [fileName, setFileName] = useState("");
-  const [fileMsg, setFileMsg] = useState("");
-  const [busy, setBusy] = useState(false);
+export default function History({ issues = [], onTicket, onDev, deletedDevs = [] }) {
+  const [events, setEvents] = useState(null);
   const [err, setErr] = useState("");
-  const fileRef = useRef();
-
-  // Données + champs éditables du composer
-  const [data, setData] = useState(null);
-  const [comment, setComment] = useState("");
-  const [agendaText, setAgendaText] = useState("");
-  const [whoChecked, setWhoChecked] = useState({});
-  const [delivChecked, setDelivChecked] = useState({});
-  const [fricChecked, setFricChecked] = useState({});
-  const [participants, setParticipants] = useState([]);
-
-  const onFile = (f) => {
-    if (!f) return;
-    setFileName(f.name); setFileMsg("");
-    const textLike = /^(text\/|application\/json)/.test(f.type || "") || /\.(txt|md|markdown|csv|json|log|rtf)$/i.test(f.name);
-    if (textLike) { const r = new FileReader(); r.onload = () => setImportedText(String(r.result || "")); r.onerror = () => setFileMsg("Lecture du fichier impossible."); r.readAsText(f); }
-    else { setImportedText(""); setFileMsg("Format non texte (PDF/Word) : colle le contenu dans les notes. Lecture directe : .txt, .md, .csv, .json."); }
-  };
-
-  const generate = async () => {
-    if (!dossier) { setErr("Choisis d'abord un client."); return; }
-    setBusy(true); setErr("");
-    try {
-      const sujet = precision.trim() ? `${type} — ${precision.trim()}` : type;
-      const res = await genMeetingPrep({ dossier, sujet, type, notes, importedText });
-      const d = res.data || {};
-      setData(d);
-      setComment(d.contextText || "");
-      setAgendaText(d.agendaText || "");
-      const all = (arr, key) => { const o = {}; (arr || []).forEach((x) => { o[x[key]] = true; }); return o; };
-      setWhoChecked(all(d.who, "name"));
-      setDelivChecked(all(d.deliverables, "cle"));
-      setFricChecked(all(d.frictions, "cle"));
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
-  };
-
-  const kpiRow = useMemo(() => {
-    if (!data) return "";
-    const kpi = (l, v) => `<div style="flex:1;min-width:82px;border:1px solid #e7e5f1;border-radius:10px;padding:9px 8px;text-align:center"><div style="font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:#2c2945">${v}</div><div style="font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:#74718a">${l}</div></div>`;
-    return `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px">${kpi("Avancement", data.avancement + "%")}${kpi("En cours", data.active)}${kpi("En recette", data.recette)}${kpi("Bloquants", data.bloquants)}${kpi("En retard", data.retard)}</div>`;
-  }, [data]);
-
-  const buildDocHtml = () => {
-    if (!data) return "";
-    let body = `<h2>Point &amp; contexte</h2>${kpiRow}`;
-    if (comment.trim()) body += `<p>${esc(comment).replace(/\n/g, "<br>")}</p>`;
-    const parts = participants.filter((p) => p.person || p.topic);
-    if (parts.length) {
-      body += `<h3>Participants &amp; répartition</h3><table><tr><th>Personne</th><th>Rôle</th><th>Sujet / responsabilité</th></tr>` +
-        parts.map((p) => { const m = TEAM.find((t) => t.name === p.person); return `<tr><td><b>${esc(p.person || "—")}</b></td><td>${esc(m ? m.role : "")}</td><td>${esc(p.topic || "")}</td></tr>`; }).join("") + `</table>`;
-    }
-    const who = (data.who || []).filter((w) => whoChecked[w.name] !== false);
-    if (who.length) body += `<h3>Qui travaille dessus</h3><table><tr><th>Personne</th><th>Tickets actifs</th></tr>${who.map((w) => `<tr><td>${esc(w.name)}</td><td><b>${w.count}</b></td></tr>`).join("")}</table>`;
-    const dl = (data.deliverables || []).filter((d) => delivChecked[d.cle] !== false);
-    body += `<h3>Où on en est — derniers livrables</h3>`;
-    body += dl.length ? `<table><tr><th>Clé</th><th>Projet</th><th>Livrable</th></tr>${dl.map((d) => `<tr><td>${esc(d.cle)}</td><td>${esc(d.dossier)}</td><td>${esc(d.resume)}</td></tr>`).join("")}</table>` : `<p>—</p>`;
-    const fr = (data.frictions || []).filter((f) => fricChecked[f.cle] !== false);
-    if (fr.length) body += `<h3>⚠ Points de friction</h3><table><tr><th>Clé</th><th>Sujet</th><th>Statut</th></tr>${fr.map((f) => `<tr><td>${esc(f.cle)}</td><td>${esc(f.resume)}</td><td><span class="pill ${pillCls(f.statut)}">${esc(f.statut)}</span></td></tr>`).join("")}</table>`;
-    body += `<h2>Réunion — ${esc(data.sujet)}</h2>${agendaToHtml(agendaText)}`;
-    return buildSimpleDoc({
-      kicker: "Préparation de réunion", title: `Préparation — ${data.dossier}`, subtitle: `${data.sujet} · équipe Armonie`,
-      cartouche: [["Client / dossier", `${data.dossier} — équipe Armonie`], ["Chef de projet", "Nicolas Durand"], ["Sujet", data.sujet], ["Date", new Date().toLocaleDateString("fr-FR")]],
-      bodyHtml: body, etabliPar: "Nicolas Durand",
-    });
-  };
-
-  const tog = (setter) => (key) => setter((prev) => ({ ...prev, [key]: prev[key] === false ? true : false }));
-  const togWho = tog(setWhoChecked), togDeliv = tog(setDelivChecked), togFric = tog(setFricChecked);
-  const addPart = () => setParticipants((p) => [...p, { person: "", topic: "" }]);
-  const setPart = (idx, field, val) => setParticipants((p) => p.map((x, i) => (i === idx ? { ...x, [field]: val } : x)));
-  const delPart = (idx) => setParticipants((p) => p.filter((_, i) => i !== idx));
-
-  return (
-    <div className="meet-card">
-      <div className="meet-hd"><span>Préparation de réunion</span></div>
-      <div className="meet-bd">
-        <p className="hint" style={{ marginTop: 0 }}>
-          cp|WIRE prépare le <b>contexte</b> depuis Jira (point, qui travaille dessus, livrables, frictions). Ensuite <b>tout est modifiable</b> : ton commentaire, les participants, ce que tu coches, l'ordre du jour — prêt à exporter ou coller dans un e-mail.
-        </p>
-
-        <div className="meet-grid2">
-          <div className="field">
-            <label>Client</label>
-            <select className="fselect block" value={dossier} onChange={(e) => setDossier(e.target.value)}>
-              <option value="">— choisir un client —</option>
-              {clients.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div className="field">
-            <label>Sujet de la réunion</label>
-            <select className="fselect block" value={type} onChange={(e) => setType(e.target.value)}>
-              {SUJETS.map((s) => <option key={s} value={s}>{s}</option>)}
-            </select>
-          </div>
-        </div>
-        <div className="field">
-          <label>Précisions sur le sujet (optionnel)</label>
-          <input type="text" value={precision} onChange={(e) => setPrecision(e.target.value)} placeholder="Ex. validation du module facturation…" />
-        </div>
-        <div className="field">
-          <label>Importer un fichier de notes (.txt, .md, .csv, .json)</label>
-          <div className="drop" onClick={() => fileRef.current.click()}>{fileName ? `📄 ${fileName}` : "Cliquer pour importer un fichier de notes"}</div>
-          <input ref={fileRef} type="file" accept=".txt,.md,.markdown,.csv,.json,.log,.rtf,text/*" style={{ display: "none" }} onChange={(e) => onFile(e.target.files[0])} />
-          {fileMsg && <div className="warn-note" style={{ marginTop: 8 }}>{fileMsg}</div>}
-          {importedText && <div className="hint">✓ {importedText.length} caractères importés.</div>}
-        </div>
-        <div className="field">
-          <label>Notes (l'IA structure l'ordre du jour à partir de ça)</label>
-          <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Points à aborder, questions, décisions attendues…" />
-        </div>
-        <div className="row-actions">
-          <button className="btn-solid" onClick={generate} disabled={busy}>
-            {busy ? "Génération…" : (data ? "↻ Régénérer le contexte (IA)" : "✨ Préparer avec l'IA")}
-          </button>
-        </div>
-        {err && <div className="warn-note">{err}</div>}
-
-        {data && (
-          <div className="prep-edit">
-            <div className="prep-edit-h">Composer — tout est modifiable</div>
-
-            <div className="field">
-              <label>Commentaire / contexte (après les statistiques)</label>
-              <textarea className="ta" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ton mot de contexte pour la réunion…" />
-            </div>
-
-            <div className="field">
-              <label>Participants &amp; répartition (qui s'occupe de quoi)</label>
-              {participants.map((p, idx) => (
-                <div className="part-row" key={idx}>
-                  <select className="fselect" value={p.person} onChange={(e) => setPart(idx, "person", e.target.value)}>
-                    <option value="">— personne —</option>
-                    {TEAM.map((t) => <option key={t.name} value={t.name}>{t.name} — {t.role}</option>)}
-                  </select>
-                  <input type="text" value={p.topic} onChange={(e) => setPart(idx, "topic", e.target.value)} placeholder="Sujet / responsabilité" />
-                  <button className="part-del" title="Retirer" onClick={() => delPart(idx)}>×</button>
-                </div>
-              ))}
-              <button className="btn-line sm" onClick={addPart}>+ Ajouter une personne</button>
-            </div>
-
-            {data.deliverables && data.deliverables.length > 0 && (
-              <div className="field">
-                <label>Derniers livrables — coche ceux à inclure</label>
-                <div className="chk-list">
-                  {data.deliverables.map((d) => (
-                    <label className="chk" key={d.cle}>
-                      <input type="checkbox" checked={delivChecked[d.cle] !== false} onChange={() => togDeliv(d.cle)} />
-                      <span><b>{d.cle}</b> — {d.resume}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {data.frictions && data.frictions.length > 0 && (
-              <div className="field">
-                <label>Points de friction — coche ceux à inclure</label>
-                <div className="chk-list">
-                  {data.frictions.map((f) => (
-                    <label className="chk" key={f.cle}>
-                      <input type="checkbox" checked={fricChecked[f.cle] !== false} onChange={() => togFric(f.cle)} />
-                      <span><b>{f.cle}</b> — {f.resume} <span className={`pill ${pillCls(f.statut)}`}>{f.statut}</span></span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {data.who && data.who.length > 0 && (
-              <div className="field">
-                <label>Qui travaille dessus — coche ceux à inclure</label>
-                <div className="chk-list">
-                  {data.who.map((w) => (
-                    <label className="chk" key={w.name}>
-                      <input type="checkbox" checked={whoChecked[w.name] !== false} onChange={() => togWho(w.name)} />
-                      <span>{w.name} <span className="muted">· {w.count} ticket(s)</span></span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="field">
-              <label>Ordre du jour (modifiable — une ligne par point, « • » pour une puce)</label>
-              <textarea className="ta" style={{ minHeight: 120 }} value={agendaText} onChange={(e) => setAgendaText(e.target.value)} />
-            </div>
-
-            <div className="prep-result-hd">
-              <span className="prep-result-t">Aperçu (mis à jour en direct)</span>
-            </div>
-            <iframe className="doc-frame" srcDoc={buildDocHtml()} title="aperçu du document" />
-            <ExportBar buildHtml={buildDocHtml} filename={`Prep_reunion_${(data.dossier || "client").replace(/\s+/g, "_")}.html`} subject={`Préparation réunion — ${data.dossier}`} />
-            <p className="hint" style={{ marginTop: 6 }}>Export PDF / e-mail à la charte Armonie. « Régénérer le contexte » relance l'IA sur les données Jira (tes modifications de commentaire/agenda seront réécrites).</p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-function ResultPanel({ doc, busy, onRegen }) {
-  if (!doc) return null;
-  return (
-    <div className="prep-result">
-      <div className="prep-result-hd">
-        <span className="prep-result-t">Aperçu</span>
-        <button className="btn-line sm" onClick={onRegen} disabled={busy}>{busy ? "Régénération…" : "↻ Régénérer avec l'IA"}</button>
-      </div>
-      <iframe className="doc-frame" srcDoc={doc.html} title="aperçu du document" />
-      <ExportBar buildHtml={() => doc.html} filename={doc.filename} subject={doc.title} />
-    </div>
-  );
-}
-
-function CompteRendu() {
-  const [titre, setTitre] = useState("");
-  const [equipe, setEquipe] = useState("TMA Armonie");
-  const [participants, setParticipants] = useState("");
-  const [notes, setNotes] = useState("");
-  const [transcript, setTranscript] = useState("");
-  const [audio, setAudio] = useState(null);
-  const [images, setImages] = useState([]);
-  const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState("");
+  const [period, setPeriod] = useState("hier");
+  const [client, setClient] = useState("Tous");
   const [doc, setDoc] = useState(null);
-  const audioRef = useRef();
-  const imgRef = useRef();
+  const [crBusy, setCrBusy] = useState(false);
+  const [crBusy2, setCrBusy2] = useState(false);
+  const [crErr, setCrErr] = useState("");
+  const delSet = new Set(deletedDevs);
 
-  const generate = async (regen = false) => {
-    setBusy(true); setErr("");
+  useEffect(() => { fetchHistory().then((d) => setEvents(d.events)).catch((e) => setErr(e.message)); }, []);
+
+  const allClients = useMemo(() => Array.from(new Set(issues.map((i) => i.dossier).filter(Boolean))).sort(), [issues]);
+
+  const dayOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 31; k++) { const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - k); a.push({ v: dayValue(d), label: d.toLocaleDateString("fr-FR", { weekday: "short", day: "2-digit", month: "2-digit" }) }); } return a; }, []);
+  const monthOptions = useMemo(() => { const a = []; const now = new Date(); for (let k = 0; k < 12; k++) { const d = new Date(now.getFullYear(), now.getMonth() - k, 1); a.push({ v: monthValue(d), label: `${MOIS[d.getMonth()]} ${d.getFullYear()}` }); } return a; }, []);
+
+  const data = useMemo(() => {
+    const range = periodRange(period);
+    const all = issues.filter((i) => inRange(i.maj, range) || inRange(i.resolu, range));
+    const touched = client === "Tous" ? all : all.filter((i) => i.dossier === client);
+    const doneIn = (i) => DONE.includes(i.categorie) && inRange(i.resolu || i.maj, range);
+
+    const byClient = {}; const byDev = {}; const byProj = {};
+    touched.forEach((i) => {
+      const cli = i.dossier || "Autre";
+      (byClient[cli] ||= { client: cli, items: [], done: 0, active: 0, blocked: 0 });
+      const c = byClient[cli];
+      c.items.push(i);
+      if (doneIn(i)) c.done += 1;
+      else if (i.statut === "Bloqué") c.blocked += 1;
+      else if (ACTIVE.includes(i.categorie)) c.active += 1;
+
+      const dev = i.dev || i.assigne || "Non assigné";
+      (byDev[dev] ||= { dev, touched: 0, done: 0 });
+      byDev[dev].touched += 1; if (doneIn(i)) byDev[dev].done += 1;
+      (byProj[cli] ||= { dossier: cli, touched: 0, done: 0 });
+      byProj[cli].touched += 1; if (doneIn(i)) byProj[cli].done += 1;
+    });
+    Object.values(byClient).forEach((c) => c.items.sort((a, b) => String(b.resolu || b.maj || "").localeCompare(String(a.resolu || a.maj || ""))));
+    const clients = Object.values(byClient).sort((a, b) => b.items.length - a.items.length);
+    const devs = Object.values(byDev).filter((d) => d.dev !== "Non assigné").sort((a, b) => b.done - a.done || b.touched - a.touched);
+    const projets = Object.values(byProj).sort((a, b) => b.touched - a.touched);
+    const totalDone = touched.filter(doneIn).length;
+    return { touched: touched.length, totalDone, clients, devs, projets };
+  }, [issues, period, client]);
+
+  const label = periodLabel(period);
+
+  // L'IA génère un CR rédigé pour la PÉRIODE sélectionnée et le client choisi (ou tous).
+  const proposeCr = async () => {
+    setCrBusy(true); setCrErr("");
     try {
-      const fd = new FormData();
-      fd.append("titre", titre); fd.append("participants", participants); fd.append("notes", notes);
-      fd.append("equipe", equipe);
-      if (regen) fd.append("regenerate", "1");
-      if (transcript) fd.append("transcript", transcript);
-      if (audio) fd.append("audio", audio);
-      images.forEach((im) => fd.append("images", im));
-      const { html, transcript: tr } = await genMeetingReport(fd);
-      if (tr && !transcript) setTranscript(tr);
-      setDoc({ title: titre || "Compte rendu de réunion", html, filename: `CR_reunion_${(titre || "reunion").replace(/\s+/g, "_")}.html` });
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(false); }
+      const [rs, re] = periodRange(period);
+      const startISO = rs ? rs.toISOString() : null;
+      const endISO = re ? re.toISOString() : null;
+      const out = await crForDate({ dossier: client, startISO, endISO, label });
+      const slug = (label || "periode").replace(/[^\wÀ-ÿ]+/g, "_");
+      setDoc({
+        title: `CR rédigé — ${client === "Tous" ? "tous clients" : client} — ${label}`,
+        html: out.html,
+        dossier: client === "Tous" ? "" : client,
+        filename: `CR_${client === "Tous" ? "tous" : client}_${slug}.html`,
+      });
+    } catch (e) { setCrErr(e.message || String(e)); }
+    setCrBusy(false);
   };
 
-  return (
-    <div className="meet-card">
-      <div className="meet-hd"><span>Compte rendu de réunion</span></div>
-      <div className="meet-bd">
-        <div className="meet-grid2">
-          <div className="field"><label>Objet de la réunion</label>
-            <input type="text" value={titre} onChange={(e) => setTitre(e.target.value)} placeholder="Ex. COPIL DIAPAR — mars 2026" /></div>
-          <div className="field"><label>Participants</label>
-            <input type="text" value={participants} onChange={(e) => setParticipants(e.target.value)} placeholder="Ex. M. Barteldt (DIAPAR), M. Senebier (Armonie)…" /></div>
-        </div>
-        <div className="field"><label>Équipe / périmètre — modifiable (ex. « Projet Armonie » pour Tafanel, qui n'est pas de la TMA)</label>
-          <input type="text" value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Ex. TMA Armonie" /></div>
-        <div className="field"><label>Notes prises en séance</label>
-          <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tes notes brutes : points évoqués, décisions, actions…" /></div>
-        <div className="field"><label>Enregistrement (dictaphone) — transcrit si configuré</label>
-          <div className="drop" onClick={() => audioRef.current.click()}>{audio ? `🎙️ ${audio.name}` : "Cliquer pour ajouter un fichier audio"}</div>
-          <input ref={audioRef} type="file" accept="audio/*" style={{ display: "none" }} onChange={(e) => setAudio(e.target.files[0] || null)} /></div>
-        <div className="field"><label>Transcription (collée manuellement si pas de service audio)</label>
-          <textarea className="ta" value={transcript} onChange={(e) => setTranscript(e.target.value)} placeholder="Optionnel." /></div>
-        <div className="field"><label>Images (tableau blanc, slides…) — lues par l'IA</label>
-          <div className="drop" onClick={() => imgRef.current.click()}>Cliquer pour ajouter des images</div>
-          <input ref={imgRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => setImages(Array.from(e.target.files || []))} />
-          {images.length > 0 && <div className="chips-files">{images.map((im, i) => <span className="chip-file" key={i}>🖼️ {im.name}</span>)}</div>}</div>
-        <div className="row-actions">
-          <button className="btn-solid" onClick={() => generate(false)} disabled={busy}>{busy ? "Rédaction…" : (doc ? "↻ Régénérer avec l'IA" : "✨ Générer le compte rendu")}</button>
-        </div>
-        {err && <div className="warn-note">{err}</div>}
-        <ResultPanel doc={doc} busy={busy} onRegen={() => generate(true)} />
-      </div>
-    </div>
-  );
-}
+  // CR JOURNALIER DÉTAILLÉ (le même format que « récap du jour »), pour la période choisie.
+  const proposeDetailed = async () => {
+    setCrBusy2(true); setCrErr("");
+    try {
+      const [rs, re] = periodRange(period);
+      const out = await crDailyForPeriod({
+        dossier: client,
+        startISO: rs ? rs.toISOString() : null,
+        endISO: re ? re.toISOString() : null,
+        label,
+      });
+      const slug = (label || "periode").replace(/[^\wÀ-ÿ]+/g, "_");
+      setDoc({
+        title: `CR journalier détaillé — ${client === "Tous" ? "tous clients" : client} — ${label}`,
+        html: out.html,
+        dossier: client === "Tous" ? "" : client,
+        filename: `CR_detaille_${client === "Tous" ? "tous" : client}_${slug}.html`,
+      });
+    } catch (e) { setCrErr(e.message || String(e)); }
+    setCrBusy2(false);
+  };
 
-export default function Meetings({ issues = [] }) {
-  const ro = useReadOnly();
-  const [mode, setMode] = useState("prep");
+  const exportPdf = () => {
+    let clientsHtml = "";
+    data.clients.forEach((c) => {
+      const rows = c.items.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${esc(i.dev || i.assigne || "")}</td><td>${esc(i.statutJira || i.statut)}</td><td>${fr(i.resolu || i.maj)}</td></tr>`).join("");
+      clientsHtml += `<h3>${esc(c.client)} — ${c.done} terminé(s) · ${c.active} en cours · ${c.blocked} bloqué(s)</h3>
+        <table><tr><th>Clé</th><th>Résumé</th><th>Dév.</th><th>Statut</th><th>Date</th></tr>${rows}</table>`;
+    });
+    const devRows = data.devs.map((d) => `<tr><td>${esc(d.dev)}${delSet.has(d.dev) ? " (supprimé)" : ""}</td><td>${d.done}</td><td>${d.touched}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
+    const body = `<h2>Par client</h2>${clientsHtml || "<p class='muted'>Aucune activité sur la période.</p>"}
+      <h2>Synthèse par développeur</h2>
+      <table><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr>${devRows}</table>`;
+    const cartouche = [
+      ["Client", client === "Tous" ? "Tous les clients" : client],
+      ["Période", label],
+      ["Équipe", "Armonie"],
+      ["Chef de projet", "Nicolas Durand"],
+      ["Synthèse", `${data.totalDone} terminé(s) · ${data.touched} avec activité · ${data.clients.length} client(s)`],
+    ];
+    printHtml(buildSimpleDoc({ kicker: "Récap par client", title: `Récap — ${label}`, cartouche, bodyHtml: body }));
+  };
+
   return (
     <>
-      <div className="section-title">Réunions</div>
+      <div className="section-title">Historique des récaps par client</div>
+      <p className="hint" style={{ marginTop: -6 }}>
+        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF. <b>Le bouton « Générer le CR rédigé (IA) » produit un compte rendu complet de la période choisie</b> (jour, semaine, mois…).
+      </p>
+
       <div className="ctabs">
-        <button className={`ctab ${mode === "prep" ? "active" : ""}`} onClick={() => setMode("prep")}>Préparation réunion</button>
-        {!ro && <button className={`ctab ${mode === "cr" ? "active" : ""}`} onClick={() => setMode("cr")}>Compte rendu de réunion</button>}
+        <button className={`ctab ${client === "Tous" ? "active" : ""}`} onClick={() => setClient("Tous")}>Tous</button>
+        {allClients.map((c) => (
+          <button key={c} className={`ctab ${client === c ? "active" : ""}`} onClick={() => setClient(c)}>{c}</button>
+        ))}
       </div>
-      {(ro || mode === "prep") ? <PrepReunion issues={issues} /> : <CompteRendu />}
+
+      <div className="panel">
+        <div className="filters" style={{ marginBottom: 8 }}>
+          <span className="fg-lbl">Période</span>
+          {PRESETS.map((p) => (
+            <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
+          ))}
+        </div>
+        <div className="filters" style={{ marginBottom: 4, gap: 14 }}>
+          <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            Jour précis
+            <select value={period.startsWith("day:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+              <option value="">—</option>
+              {dayOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+            </select>
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            Mois précis
+            <select value={period.startsWith("month:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+              <option value="">—</option>
+              {monthOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
+            </select>
+          </label>
+        </div>
+
+        <p className="period-sum">
+          <b>{label}</b> : <b>{data.totalDone}</b> terminé(s) · <b>{data.touched}</b> avec activité · <b>{data.clients.length}</b> client(s)
+          <button className="btn-solid gold sm" style={{ marginLeft: 10 }} disabled={crBusy2} onClick={proposeDetailed}>{crBusy2 ? "Génération…" : "✨ CR journalier détaillé"}</button>
+          <button className="btn-line sm" style={{ marginLeft: 8 }} disabled={crBusy} onClick={proposeCr}>{crBusy ? "Rédaction…" : "CR rédigé (IA)"}</button>
+          <button className="btn-line sm" style={{ marginLeft: 8 }} onClick={exportPdf}>Exporter PDF</button>
+        </p>
+        {!crErr && (
+          <p className="hint" style={{ marginTop: -2 }}>
+            <b>« CR journalier détaillé »</b> = le même compte rendu que dans « Récap du jour » (analyse + tickets détaillés), mais pour <b>{label}</b> et pour {client === "Tous" ? "tous les clients" : <b>{client}</b>}. « CR rédigé » = version en texte continu. Sans IA branchée, les CR restent produits (en mode « brut »).
+          </p>
+        )}
+        {crErr && <div className="banner">CR impossible : {crErr}</div>}
+
+        {data.clients.length === 0 ? (
+          <div className="empty">Aucune activité sur cette période.</div>
+        ) : (
+          data.clients.map((c) => (
+            <div key={c.client} className="cli-block">
+              <div className="cli-h">
+                <span className="tag">{c.client}</span>
+                <span className="cli-meta">{c.done} terminé(s){c.active ? ` · ${c.active} en cours` : ""}{c.blocked ? ` · ${c.blocked} bloqué(s)` : ""} · {c.items.length} ticket(s)</span>
+              </div>
+              <table className="fiche-tbl">
+                <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-proj">Dév.</th><th className="c-stat">Statut</th><th className="c-date">Date</th></tr></thead>
+                <tbody>
+                  {c.items.slice(0, 40).map((i) => {
+                    const dev = i.dev || i.assigne || "";
+                    return (
+                      <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                        <td className="c-cle"><span className="k">{i.cle}</span></td>
+                        <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                        <td className="c-proj">{dev && dev !== "Non assigné"
+                          ? <span className={`dev-chip ${delSet.has(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
+                          : (dev || "—")}</td>
+                        <td className="c-stat"><span className={`pill ${PILL[i.statut]}`}>{i.statutJira || i.statut}</span></td>
+                        <td className="c-date">{fr(i.resolu || i.maj)}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {c.items.length > 40 && <p className="hint">+ {c.items.length - 40} autre(s)…</p>}
+            </div>
+          ))
+        )}
+      </div>
+
+      {data.devs.length > 0 && (
+        <>
+          <div className="section-title" style={{ marginTop: 22 }}>Synthèse par développeur — {label}</div>
+          <div className="panel">
+            <table className="proj-tbl">
+              <thead><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr></thead>
+              <tbody>
+                {data.devs.map((d) => (
+                  <tr key={d.dev} style={{ cursor: onDev ? "pointer" : "default" }} onClick={() => onDev && onDev(d.dev)}>
+                    <td><span className={delSet.has(d.dev) ? "dev-chip del" : "dev-chip"}>{d.dev}{delSet.has(d.dev) ? <span className="dev-del-tag">supprimé</span> : null}</span></td>
+                    <td><b>{d.done}</b></td>
+                    <td>{d.touched}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      <div className="section-title" style={{ marginTop: 22 }}>Journal de l'application</div>
+      <p className="hint" style={{ marginTop: -6 }}>Tout ce qui a été produit ou poussé depuis l'application.</p>
+      {err ? (
+        <div className="banner">Erreur : {err}</div>
+      ) : !events ? (
+        <div className="panel empty">Chargement…</div>
+      ) : events.length === 0 ? (
+        <div className="panel empty">Rien pour l'instant. Génère un CR ou pousse un ticket pour démarrer le journal.</div>
+      ) : (
+        <div className="hist">
+          {events.map((e) => (
+            <div className="hist-row" key={e.id}>
+              <span className="when">{frDate(e.at)}</span>
+              <span className="type">{LABELS[e.type] || e.type}</span>
+              <span style={{ flex: 1 }}>{e.label}{e.meta?.simulated ? " (simulé)" : ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
     </>
   );
 }

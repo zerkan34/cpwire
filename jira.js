@@ -12,7 +12,7 @@ import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, 
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
-import { dailyReport, writtenDailyReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -263,7 +263,7 @@ app.get("/api/portfolio", guard, async (req, res) => {
   try {
     const got = await getIssues({ refresh: req.query.refresh === "1", full: req.query.full === "1", jql: req.query.jql });
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
-    const payload = aggregate(got.issues, got.source);
+    const payload = aggregate(pruneInactiveDevs(got.issues), got.source);
     payload.changed = got.changed || [];
     payload.syncedAt = snap.syncedAt || null;
     payload.importing = Boolean(got.importing);
@@ -272,12 +272,42 @@ app.get("/api/portfolio", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+// Retire des tickets les personnes SANS activité depuis N mois (par défaut 2) :
+// elles ne doivent plus apparaître comme développeurs nulle part dans l'app.
+// L'activité = dernière mise à jour (maj) d'un ticket où la personne intervient,
+// calculée sur TOUT le jeu de tickets (donc une personne active ailleurs est conservée).
+const INACTIVE_MONTHS = Number(process.env.DEV_INACTIVITY_MONTHS) || 2;
+function pruneInactiveDevs(issues, months = INACTIVE_MONTHS) {
+  if (!Array.isArray(issues) || !issues.length || months <= 0) return issues;
+  const cutoff = Date.now() - months * 30 * 24 * 3600 * 1000; // ~N mois
+  const last = new Map(); // personne -> date de dernière activité (ms)
+  const bump = (name, t) => { if (!name || name === "Non assigné") return; if (t > (last.get(name) || 0)) last.set(name, t); };
+  for (const i of issues) {
+    const t = new Date(i.maj || i.resolu || i.cree || 0).getTime();
+    if (isNaN(t)) continue;
+    bump(i.dev, t); bump(i.assigne, t);
+    for (const c of (i.contributors || [])) bump(c, t);
+  }
+  let any = false; for (const t of last.values()) if (t < cutoff) { any = true; break; }
+  if (!any) return issues;
+  const stale = (name) => !!name && name !== "Non assigné" && (last.get(name) || 0) < cutoff;
+  return issues.map((i) => {
+    const dev = stale(i.dev) ? "" : i.dev;
+    const assigne = stale(i.assigne) ? "" : i.assigne;
+    const contributors = (i.contributors || []).filter((c) => !stale(c));
+    if (dev === i.dev && assigne === i.assigne && contributors.length === (i.contributors || []).length) return i;
+    return { ...i, dev, assigne, contributors };
+  });
+}
+
 // Exclut les tickets dont le développeur (ou l'assigné) a été supprimé/masqué :
 // ces personnes ne doivent plus apparaître dans les récaps ni les comptes rendus.
+// On y applique aussi le filtrage des développeurs inactifs (> 2 mois).
 function withoutDeletedDevs(issues) {
+  const pruned = pruneInactiveDevs(issues);
   const del = new Set(readDeleted());
-  if (!del.size) return issues;
-  return issues.filter((i) => !del.has(i.dev) && !del.has(i.assigne));
+  if (!del.size) return pruned;
+  return pruned.filter((i) => !del.has(i.dev) && !del.has(i.assigne));
 }
 
 app.get("/api/recap", guard, async (_req, res) => {
@@ -305,6 +335,19 @@ app.post("/api/cr/daily", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+app.post("/api/cr/daily-period", guard, async (req, res) => {
+  try {
+    const { dossier, startISO, endISO, label } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
+    const sub = withoutDeletedDevs(got.issues).filter((i) => !scope || i.dossier === scope);
+    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label });
+    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
 app.post("/api/cr/written", guard, async (req, res) => {
   try {
     const dossier = req.body.dossier;
@@ -313,6 +356,19 @@ app.post("/api/cr/written", guard, async (req, res) => {
     const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
     const out = await writtenDailyReport(dossier, sub);
     logEvent("cr_ecrit", `CR écrit - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/date", guard, async (req, res) => {
+  try {
+    const { dossier, dateISO, startISO, endISO, label } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const visible = withoutDeletedDevs(got.issues);
+    const range = (startISO || endISO || label) ? { startISO, endISO, label } : dateISO; // plage, sinon compat jour unique
+    const out = await writtenDateReport(dossier, range, visible);
+    logEvent("cr_date", `CR rédigé - ${dossier || "Tous"} - ${label || dateISO || "?"}`, { dossier: dossier || "Tous", periode: label || dateISO, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
