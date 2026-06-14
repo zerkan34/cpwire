@@ -1,27 +1,62 @@
-<!doctype html>
-<html lang="fr">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#2c2945" />
-    <meta name="description" content="CPwire — cockpit de pilotage des projets Jira, Armonie Group." />
-    <link rel="manifest" href="/manifest.webmanifest" />
-    <link rel="icon" type="image/png" href="/icons/icon-192.png" />
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="CPwire" />
-    <title>CPwire · Cockpit de pilotage</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
-</html>
+cp|WIRE — LIVRAISON COMPLÈTE
+============================
+
+Bonjour,
+
+Ce dossier contient TOUT le nécessaire pour héberger l'application cp|WIRE
+sur un serveur interne :
+
+  - cpwire-fiche-deploiement-DSI.pdf  -> la fiche technique détaillée (À LIRE EN PREMIER)
+  - server/                            -> le serveur Node.js (Express)
+  - web/                               -> l'interface React (sources)
+  - Dockerfile                         -> construit l'image complète (interface + serveur)
+  - render.yaml                        -> blueprint Render (référence, optionnel)
+  - README.md                          -> notes du projet
+
+
+EN 30 SECONDES
+--------------
+C'est une application web = UN SEUL conteneur Docker (Node 20), sans base de
+données externe. Elle se connecte à l'API Jira Cloud d'Armonie. Le serveur
+sert aussi l'interface web déjà incluse. Le service écoute sur le port 4000.
+
+
+DÉPLOIEMENT (résumé — détails complets dans le PDF)
+---------------------------------------------------
+1) Construire l'image :
+     docker build -t cpwire:latest .
+
+2) Lancer avec un VOLUME PERSISTANT (important) + les variables :
+     docker run -d --name cpwire --restart unless-stopped \
+       -p 4000:4000 \
+       -v /srv/cpwire/data:/app/data \
+       -e JIRA_BASE_URL="https://armonie.atlassian.net" \
+       -e JIRA_EMAIL="..." \
+       -e JIRA_API_TOKEN="..." \
+       -e AUTH_EMAIL="..." \
+       -e AUTH_PASSWORD="..." \
+       -e PROJECTS="TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,PBAL,TIMA,PIMA,PIMA2,TDIA" \
+       -e ME="Nicolas Durand" \
+       -e TARGET_DONE="Terminé" \
+       cpwire:latest
+
+3) Exposer le port 4000 derrière le reverse-proxy interne (HTTPS).
+
+Le volume monté sur /app/data conserve le cache des tickets et les fiches
+dossiers d'une mise à jour à l'autre.
+
+Sonde de santé : GET /api/health
+
+
+VARIABLES D'ENVIRONNEMENT
+-------------------------
+Voir le tableau complet (obligatoires / optionnelles) dans le PDF, section 3.
+Les valeurs sensibles (jeton Jira, mot de passe) sont à demander à Nicolas Durand.
+
+
+PROPRIÉTÉ
+---------
+Application conçue et développée par Nicolas Durand, qui en conserve la
+propriété intellectuelle. Mise à disposition pour un usage interne (voir PDF, section 9).
+
+Contact : Nicolas Durand — chef de projet.
