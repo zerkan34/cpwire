@@ -57,6 +57,35 @@ const CSS = `
   .cr-none{color:#74718a;font-style:italic;}
   @page{margin:14mm 13mm;}
   @media print{.page{padding:0;max-width:none;}}
+  /* === MOBILE UNIQUEMENT (iframe étroite < 480px) : fond violet cp|WIRE, écriture blanche === */
+  @media (max-width:480px){
+    body{background:linear-gradient(160deg,#2c2945 0%,#3a3658 100%);color:#eef1f8;}
+    .page{padding:22px 16px;}
+    .conf{color:#c8c4e0;}
+    .eyebrow{color:#d8b765;}                                   /* doré cp|WIRE */
+    h1{color:#ffffff;}
+    .sub{color:#c8c4e0;}
+    h2{color:#ffffff;font-weight:800;border-left-color:#c7a14a;} /* "Ce qui avance" : blanc gras, accent doré */
+    h3{color:#ffffff;}
+    p,li{color:#e4e8f3;}
+    .cartouche td{border-color:rgba(255,255,255,.16);color:#e4e8f3;}
+    .cartouche td:first-child{background:rgba(255,255,255,.08);color:#ffffff;}
+    table.data td{border-bottom-color:rgba(255,255,255,.12);color:#e4e8f3;}
+    table.data th{background:#6e5cc4;}
+    .kpi{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.14);}
+    .kpi .v{color:#ffffff;} .kpi .l{color:#c8c4e0;}
+    .indic{background:rgba(110,92,196,.22);border-left-color:#8b7ce0;color:#eef1f8;}
+    .indic .hint{color:#c8c4e0;}
+    .opt{border-color:rgba(255,255,255,.16);} .opt .ot{color:#b9a9f0;}
+    .who,.tk,.cr-to,.cr-tk-k,.cr-lbl,.opt .ot{color:#b9a9f0;}
+    details.cr-tk{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);}
+    details.cr-tk>summary{background:rgba(255,255,255,.07);}
+    details.cr-tk>summary:before,details.cr-tk[open]>summary:before{color:#b9a9f0;}
+    .cr-tk-bd{border-top-color:rgba(255,255,255,.12);}
+    .cr-meta,.cr-tk-st,.foot{color:#c8c4e0;}
+    .cr-from{color:#9a96b5;} .cr-none{color:#c8c4e0;}
+    .foot{border-top-color:rgba(255,255,255,.16);}
+  }
 `;
 
 const FONTS = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
