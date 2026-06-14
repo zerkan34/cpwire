@@ -423,6 +423,59 @@ export async function writtenDailyReport(dossier, issues) {
   });
   return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
 }
+// CR rédigé pour une DATE PRÉCISE (passée ou non) et un périmètre client donné.
+// Contrairement à writtenDailyReport (figé sur "aujourd'hui"), on filtre sur le jour demandé.
+export async function writtenDateReport(dossier, dateISO, allIssues = []) {
+  const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
+  const scopeLabel = scope || "Tous les clients";
+  let start = null, end = null, dateLabel = dateISO || "";
+  if (dateISO && /^\d{4}-\d{2}-\d{2}$/.test(dateISO)) {
+    const [y, m, d] = dateISO.split("-").map(Number);
+    start = new Date(y, m - 1, d).getTime();
+    end = new Date(y, m - 1, d + 1).getTime();
+    dateLabel = new Date(y, m - 1, d).toLocaleDateString("fr-FR");
+  }
+  const inDay = (iso) => { if (start == null) return true; const t = new Date(iso).getTime(); return !isNaN(t) && t >= start && t < end; };
+  const pool = allIssues.filter((i) => (!scope || i.dossier === scope));
+  const dayDone = pool.filter((i) => DONE_CATS.includes(i.categorie) && inDay(i.resolu || i.maj));
+  const dayActive = pool.filter((i) => ACTIVE_CATS.includes(i.categorie) && inDay(i.maj));
+  const bloquants = pool.filter((i) => (i.statut === "Bloqué" || i.flagged) && inDay(i.maj));
+
+  let body = "";
+  if (aiAvailable()) {
+    try {
+      const pick = (arr) => arr.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${devOf(i) ? " [" + devOf(i) + "]" : ""}${scope ? "" : " {" + (i.dossier || "?") + "}"} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
+      const noms = [...new Set([...dayDone, ...dayActive, ...bloquants].flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [devOf(i)])).filter((n) => n && n !== "Non assigné"))];
+      const prompt = `Rédige un COMPTE RENDU ÉCRIT pour la journée du ${dateLabel}, périmètre "${scopeLabel}", en français, destiné à un lecteur NON technique (responsable côté client).\n` +
+        `RÈGLES DE CLARTÉ (importantes) :\n` +
+        `- Langage simple et concret, phrases courtes. Pas de jargon informatique.\n` +
+        `- N'affiche PAS de références de tickets (pas de "ABC-123") : décris le travail en mots.\n` +
+        `- Reformule les intitulés techniques en langage courant ; si un terme technique est indispensable, explique-le brièvement.\n` +
+        `- Pas de formules de politesse ni de remplissage.\n` +
+        (scope ? "" : `- Plusieurs clients sont concernés : fais une courte sous-section <h3> par client (le nom figure entre accolades dans les données).\n`) +
+        `Structure en sections HTML <h2> : "En bref" (2-3 phrases), "Ce qui a été terminé", "Ce qui avance", "En cours de validation", "Points d'attention", "En résumé" (chiffres clés en une phrase).\n` +
+        `N'invente AUCUN chiffre, statut NI NOM ; appuie-toi UNIQUEMENT sur les données ci-dessous. Les SEULES personnes citables nommément : ${noms.join(", ") || "aucune (dans ce cas écris « l'équipe »)"}. Tout autre nom est interdit. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
+        `Terminés ce jour-là (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
+        `En cours ce jour-là (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
+        `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
+      body = await callClaude(STYLE, prompt);
+    } catch { body = ""; }
+  }
+  if (!body) {
+    const li = (arr) => arr.length ? "<ul>" + arr.slice(0, 25).map((i) => `<li>${esc(i.resume)}${devOf(i) ? " — " + esc(devOf(i)) : ""}${scope ? "" : " <i>(" + esc(i.dossier || "?") + ")</i>"}</li>`).join("") + "</ul>" : "<p>Aucun.</p>";
+    body = `<h2>En bref</h2><p>Journée du ${esc(dateLabel)} — ${esc(scopeLabel)}. ${dayDone.length} terminé(s), ${dayActive.length} en cours, ${bloquants.length} à surveiller.</p>` +
+      `<h2>Ce qui a été terminé</h2>${li(dayDone)}<h2>Ce qui avance</h2>${li(dayActive)}<h2>Points d'attention</h2>${li(bloquants)}`;
+  }
+  const html = buildDoc({
+    kicker: "Compte rendu écrit",
+    title: `Journée du ${dateLabel}`,
+    subtitle: `${scopeLabel} — équipe Armonie`,
+    cartouche: [["Périmètre", scopeLabel], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR écrit (IA)"], ["Date", dateLabel]],
+    bodyHtml: body,
+    etabliPar: process.env.ME || "Nicolas Durand",
+  });
+  return { html, generatedBy: aiAvailable() ? "Claude + données" : "données" };
+}
 // Ne garde que les gens d'ARMONIE (les contacts client sont exclus via clientNames).
 // Périmètre : ce qui est en mouvement (En cours + Retour test).
 export async function morningReport(dossier, issues, clientNames = new Set()) {
