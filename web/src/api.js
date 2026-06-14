@@ -61,6 +61,7 @@ export const fetchPortfolio = ({ refresh = false, full = false } = {}) =>
   req(`/api/portfolio${full ? "?full=1" : refresh ? "?refresh=1" : ""}`, { timeoutMs: 180000 });
 export const fetchRecap = () => req(`/api/recap`);
 export const crForDate = ({ dossier, startISO, endISO, label }) => post(`/api/cr/date`, { dossier, startISO, endISO, label });
+export const crDailyForPeriod = ({ dossier, startISO, endISO, label }) => post(`/api/cr/daily-period`, { dossier, startISO, endISO, label });
 export const fetchHistory = () => req(`/api/history`);
 export const fetchDossiers = () => req(`/api/dossiers`);
 export const saveDossier = (nom, fiche) => put(`/api/dossiers/${encodeURIComponent(nom)}`, fiche);
