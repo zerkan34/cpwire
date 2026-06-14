@@ -1111,3 +1111,15 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .tab-cockpit .invite-btn { display: inline-flex; }
   .tab-cockpit .import-warning { display: block; }
 }
+
+/* ============================================================
+   Badge BUILD : en haut à gauche sur ORDINATEUR,
+   reporté sur la ligne « Données au… » en MOBILE
+   (et « Cockpit de pilotage » reste sur la ligne du logo)
+   ============================================================ */
+.hdr-build-src { display: none; }
+@media (max-width: 768px) {
+  .eyebrow { white-space: nowrap; }            /* intitulé sur une ligne, avec le logo */
+  .eyebrow .hdr-build { display: none; }       /* on retire le badge de sous l'intitulé */
+  .hdr-build-src { display: inline-block; margin-left: 8px; }   /* il rejoint « Données au… » */
+}
