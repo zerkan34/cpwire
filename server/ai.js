@@ -226,10 +226,20 @@ async function progressHtml(tickets) {
 }
 
 
-function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
+// Filtre de date paramétrable : par défaut "aujourd'hui", sinon une plage { startISO, endISO } (null/null = tout).
+function makeWithin(range) {
+  if (!range) return isToday;
+  const s = range.startISO ? new Date(range.startISO).getTime() : null;
+  const e = range.endISO ? new Date(range.endISO).getTime() : null;
+  if (s == null && e == null) return () => true;
+  return (iso) => { const t = new Date(iso).getTime(); if (isNaN(t)) return false; if (s != null && t < s) return false; if (e != null && t >= e) return false; return true; };
+}
+
+function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false) {
+  const W = isPeriod ? "sur la période" : "aujourd'hui";
   const inCat = (c) => issues.filter((i) => i.categorie === c);
-  const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
-  const enCoursToday = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && within(i.maj)).sort(byMajDesc);
+  const enCoursToday = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && within(i.maj)).sort(byMajDesc);
   const recArmonie = inCat("recetteArmonie");
   const recClient = inCat("recetteClient");
   const attenteClient = inCat("attenteClient");
@@ -240,7 +250,7 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
   issues.forEach((i) => { (g[i.statut] || (g[i.statut] = [])).push(i); });
 
   // Activité du jour par personne.
-  const touchedToday = issues.filter((i) => isToday(i.maj));
+  const touchedToday = issues.filter((i) => within(i.maj));
   const parPersonne = {};
   touchedToday.forEach((i) => {
     const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
@@ -251,10 +261,10 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
   });
   const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
   const tablePersonnes = personnes.length
-    ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total du jour</th></tr>` +
+    ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total ${isPeriod ? "période" : "du jour"}</th></tr>` +
       personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
       `</table>`
-    : `<p>Aucun ticket mis à jour aujourd'hui.</p>`;
+    : `<p>Aucun ticket mis à jour ${W}.</p>`;
 
   const recette = [...recArmonie, ...recClient];
   const recetteBloc = recette.length
@@ -267,22 +277,26 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "") {
     ? `<h3>⚠ Points bloquants (${bloquants.length})</h3>${catList(bloquants, { showStatus: true, cap: 40 })}`
     : `<h3>Points bloquants</h3><p>Aucun point bloquant signalé à ce jour.</p>`;
 
-  return `<h2>Synthèse de la journée</h2>
+  return `<h2>Synthèse ${isPeriod ? "de la période" : "de la journée"}</h2>
     ${kpiRow(g, issues.length)}
     ${analyseHtml || ""}
     <h2>État des lieux détaillé</h2>
-    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours aujourd'hui. Cliquez sur un ticket pour déplier le détail (sujet, problématique, travaux réalisés, avancement).</p>
-    ${detailedHtml || "<p>Aucun ticket travaillé aujourd'hui.</p>"}
+    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. Cliquez sur un ticket pour déplier le détail (sujet, problématique, travaux réalisés, avancement).</p>
+    ${detailedHtml || `<p>Aucun ticket travaillé ${W}.</p>`}
     ${recetteBloc}
     ${attenteBloc}
     ${bloquantsBloc}
-    <h2>Activité du jour par personne</h2>${tablePersonnes}`;
+    <h2>Activité ${isPeriod ? "sur la période" : "du jour"} par personne</h2>${tablePersonnes}`;
 }
 
-export async function dailyReport(dossier, issues) {
-  // Données du jour (toujours exactes, calcul déterministe).
-  const dayDone = issues.filter((i) => i.categorie === "termine" && isToday(i.maj));
-  const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
+export async function dailyReport(dossier, issues, range = null) {
+  const within = makeWithin(range);
+  const isPeriod = !!range;
+  const periodLabel = (range && range.label) ? range.label : new Date().toLocaleDateString("fr-FR");
+  const W = isPeriod ? "sur la période" : "aujourd'hui";
+  // Données de la période (toujours exactes, calcul déterministe).
+  const dayDone = issues.filter((i) => i.categorie === "termine" && within(i.maj));
+  const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && within(i.maj));
   const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
 
   // Compte par personne (pour nourrir l'analyse).
@@ -297,12 +311,12 @@ export async function dailyReport(dossier, issues) {
       const dev = (i) => (i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : (i.assigne && i.assigne !== "Non assigné" ? " [" + i.assigne + "]" : ""));
       const doneList = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)}`).join("\n");
       const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
-      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée de la journée pour le dossier "${dossier}", ` +
+      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée pour le dossier "${dossier}" sur la période « ${periodLabel} », ` +
         `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
         `en citant les personnes par leur nom et les tickets par leur clé. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
-        `Données réelles : ${dayDone.length} terminé(s) aujourd'hui, ${dayActive.length} en cours dans la journée, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
-        `Tickets terminés aujourd'hui :\n${doneList || "(aucun)"}\n` +
-        `Tickets en cours aujourd'hui :\n${activeList || "(aucun)"}\n` +
+        `Données réelles : ${dayDone.length} terminé(s) ${W}, ${dayActive.length} en cours ${W}, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
+        `Tickets terminés (${periodLabel}) :\n${doneList || "(aucun)"}\n` +
+        `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
         `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
       analyseHtml = await callClaude(STYLE, prompt);
     } catch { analyseHtml = ""; }
@@ -311,12 +325,12 @@ export async function dailyReport(dossier, issues) {
     // Repli déterministe (sans IA) : une synthèse concise et utile.
     if (dayDone.length || dayActive.length) {
       const phrases = [];
-      phrases.push(`Aujourd'hui, <b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${esc(dossier)}.`);
+      phrases.push(`${isPeriod ? "Sur la période, " : "Aujourd'hui, "}<b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${esc(dossier)}.`);
       if (topWho) phrases.push(`Contributions principales : ${esc(topWho)}.`);
       if (recA) phrases.push(`<b>${recA}</b> ticket(s) restent en attente de recette côté Armonie — à suivre pour validation.`);
       analyseHtml = `<p>${phrases.join(" ")}</p>`;
     } else {
-      analyseHtml = `<p>Aucune activité enregistrée aujourd'hui sur le dossier ${esc(dossier)} (aucun ticket terminé ni mis à jour).</p>`;
+      analyseHtml = `<p>Aucune activité enregistrée ${W} sur le dossier ${esc(dossier)} (aucun ticket terminé ni mis à jour).</p>`;
     }
   }
 
@@ -327,13 +341,13 @@ export async function dailyReport(dossier, issues) {
   if (!detailSource.length) detailSource = [...issues].sort(byMajDesc).slice(0, 10);
   const detailedHtml = await detailedTicketsHtml(detailSource);
 
-  const body = templateDaily(dossier, issues, analyseHtml, detailedHtml);
+  const body = templateDaily(dossier, issues, analyseHtml, detailedHtml, within, isPeriod);
 
   const html = buildDoc({
     kicker: "Compte rendu journalier",
-    title: `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
+    title: isPeriod ? `Récap détaillé — ${periodLabel}` : `Journée du ${new Date().toLocaleDateString("fr-FR")}`,
     subtitle: `Dossier ${dossier} — équipe Armonie · activité consolidée`,
-    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR journalier"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR journalier détaillé"], ["Période", periodLabel]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
@@ -425,52 +439,60 @@ export async function writtenDailyReport(dossier, issues) {
 }
 // CR rédigé pour une DATE PRÉCISE (passée ou non) et un périmètre client donné.
 // Contrairement à writtenDailyReport (figé sur "aujourd'hui"), on filtre sur le jour demandé.
-export async function writtenDateReport(dossier, dateISO, allIssues = []) {
+export async function writtenDateReport(dossier, range, allIssues = []) {
+  // range : { startISO, endISO, label }  — ou une simple date "YYYY-MM-DD" (compat ancienne version)
+  let startISO = null, endISO = null, label = "";
+  if (typeof range === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(range)) {
+      const [y, m, d] = range.split("-").map(Number);
+      startISO = new Date(y, m - 1, d).toISOString();
+      endISO = new Date(y, m - 1, d + 1).toISOString();
+      label = new Date(y, m - 1, d).toLocaleDateString("fr-FR");
+    }
+  } else if (range && typeof range === "object") {
+    startISO = range.startISO || null; endISO = range.endISO || null; label = range.label || "";
+  }
+  label = label || "la période";
   const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
   const scopeLabel = scope || "Tous les clients";
-  let start = null, end = null, dateLabel = dateISO || "";
-  if (dateISO && /^\d{4}-\d{2}-\d{2}$/.test(dateISO)) {
-    const [y, m, d] = dateISO.split("-").map(Number);
-    start = new Date(y, m - 1, d).getTime();
-    end = new Date(y, m - 1, d + 1).getTime();
-    dateLabel = new Date(y, m - 1, d).toLocaleDateString("fr-FR");
-  }
-  const inDay = (iso) => { if (start == null) return true; const t = new Date(iso).getTime(); return !isNaN(t) && t >= start && t < end; };
+  const start = startISO ? new Date(startISO).getTime() : null;
+  const end = endISO ? new Date(endISO).getTime() : null;
+  const inR = (iso) => { const t = new Date(iso).getTime(); if (isNaN(t)) return false; if (start != null && t < start) return false; if (end != null && t >= end) return false; return true; };
   const pool = allIssues.filter((i) => (!scope || i.dossier === scope));
-  const dayDone = pool.filter((i) => DONE_CATS.includes(i.categorie) && inDay(i.resolu || i.maj));
-  const dayActive = pool.filter((i) => ACTIVE_CATS.includes(i.categorie) && inDay(i.maj));
-  const bloquants = pool.filter((i) => (i.statut === "Bloqué" || i.flagged) && inDay(i.maj));
+  const done = pool.filter((i) => DONE_CATS.includes(i.categorie) && inR(i.resolu || i.maj));
+  const active = pool.filter((i) => ACTIVE_CATS.includes(i.categorie) && inR(i.maj));
+  const bloquants = pool.filter((i) => (i.statut === "Bloqué" || i.flagged) && inR(i.maj));
 
   let body = "";
   if (aiAvailable()) {
     try {
-      const pick = (arr) => arr.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${devOf(i) ? " [" + devOf(i) + "]" : ""}${scope ? "" : " {" + (i.dossier || "?") + "}"} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
-      const noms = [...new Set([...dayDone, ...dayActive, ...bloquants].flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [devOf(i)])).filter((n) => n && n !== "Non assigné"))];
-      const prompt = `Rédige un COMPTE RENDU ÉCRIT pour la journée du ${dateLabel}, périmètre "${scopeLabel}", en français, destiné à un lecteur NON technique (responsable côté client).\n` +
+      const pick = (arr) => arr.slice(0, 40).map((i) => `- ${i.cle} : ${i.resume}${devOf(i) ? " [" + devOf(i) + "]" : ""}${scope ? "" : " {" + (i.dossier || "?") + "}"} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
+      const noms = [...new Set([...done, ...active, ...bloquants].flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [devOf(i)])).filter((n) => n && n !== "Non assigné"))];
+      const prompt = `Rédige un COMPTE RENDU ÉCRIT, complet et précis, pour la période « ${label} », périmètre "${scopeLabel}", en français, destiné à un lecteur NON technique (responsable côté client).\n` +
         `RÈGLES DE CLARTÉ (importantes) :\n` +
         `- Langage simple et concret, phrases courtes. Pas de jargon informatique.\n` +
         `- N'affiche PAS de références de tickets (pas de "ABC-123") : décris le travail en mots.\n` +
         `- Reformule les intitulés techniques en langage courant ; si un terme technique est indispensable, explique-le brièvement.\n` +
-        `- Pas de formules de politesse ni de remplissage.\n` +
-        (scope ? "" : `- Plusieurs clients sont concernés : fais une courte sous-section <h3> par client (le nom figure entre accolades dans les données).\n`) +
+        `- Sois exhaustif sur les éléments fournis ci-dessous, sans rien inventer. Pas de formules de politesse ni de remplissage.\n` +
+        (scope ? "" : `- Plusieurs clients sont concernés : fais une sous-section <h3> par client (le nom figure entre accolades dans les données).\n`) +
         `Structure en sections HTML <h2> : "En bref" (2-3 phrases), "Ce qui a été terminé", "Ce qui avance", "En cours de validation", "Points d'attention", "En résumé" (chiffres clés en une phrase).\n` +
         `N'invente AUCUN chiffre, statut NI NOM ; appuie-toi UNIQUEMENT sur les données ci-dessous. Les SEULES personnes citables nommément : ${noms.join(", ") || "aucune (dans ce cas écris « l'équipe »)"}. Tout autre nom est interdit. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
-        `Terminés ce jour-là (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
-        `En cours ce jour-là (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
+        `Terminés sur la période (${done.length}) :\n${pick(done) || "(aucun)"}\n\n` +
+        `En cours sur la période (${active.length}) :\n${pick(active) || "(aucun)"}\n\n` +
         `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
       body = await callClaude(STYLE, prompt);
     } catch { body = ""; }
   }
   if (!body) {
-    const li = (arr) => arr.length ? "<ul>" + arr.slice(0, 25).map((i) => `<li>${esc(i.resume)}${devOf(i) ? " — " + esc(devOf(i)) : ""}${scope ? "" : " <i>(" + esc(i.dossier || "?") + ")</i>"}</li>`).join("") + "</ul>" : "<p>Aucun.</p>";
-    body = `<h2>En bref</h2><p>Journée du ${esc(dateLabel)} — ${esc(scopeLabel)}. ${dayDone.length} terminé(s), ${dayActive.length} en cours, ${bloquants.length} à surveiller.</p>` +
-      `<h2>Ce qui a été terminé</h2>${li(dayDone)}<h2>Ce qui avance</h2>${li(dayActive)}<h2>Points d'attention</h2>${li(bloquants)}`;
+    const li = (arr) => arr.length ? "<ul>" + arr.slice(0, 60).map((i) => `<li>${esc(i.resume)}${devOf(i) ? " — " + esc(devOf(i)) : ""}${scope ? "" : " <i>(" + esc(i.dossier || "?") + ")</i>"}</li>`).join("") + "</ul>" : "<p>Aucun.</p>";
+    body = `<h2>En bref</h2><p>Période « ${esc(label)} » — ${esc(scopeLabel)}. ${done.length} terminé(s), ${active.length} en cours, ${bloquants.length} à surveiller.</p>` +
+      `<h2>Ce qui a été terminé</h2>${li(done)}<h2>Ce qui avance</h2>${li(active)}<h2>Points d'attention</h2>${li(bloquants)}`;
   }
   const html = buildDoc({
     kicker: "Compte rendu écrit",
-    title: `Journée du ${dateLabel}`,
+    title: `Récap — ${label}`,
     subtitle: `${scopeLabel} — équipe Armonie`,
-    cartouche: [["Périmètre", scopeLabel], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR écrit (IA)"], ["Date", dateLabel]],
+    cartouche: [["Périmètre", scopeLabel], ["Période", label], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "CR écrit (IA)"]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });

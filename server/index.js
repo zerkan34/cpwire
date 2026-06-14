@@ -335,6 +335,19 @@ app.post("/api/cr/daily", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+app.post("/api/cr/daily-period", guard, async (req, res) => {
+  try {
+    const { dossier, startISO, endISO, label } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
+    const sub = withoutDeletedDevs(got.issues).filter((i) => !scope || i.dossier === scope);
+    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label });
+    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
 app.post("/api/cr/written", guard, async (req, res) => {
   try {
     const dossier = req.body.dossier;
@@ -349,13 +362,13 @@ app.post("/api/cr/written", guard, async (req, res) => {
 
 app.post("/api/cr/date", guard, async (req, res) => {
   try {
-    const dossier = req.body.dossier;
-    const dateISO = req.body.dateISO;
+    const { dossier, dateISO, startISO, endISO, label } = req.body || {};
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const visible = withoutDeletedDevs(got.issues);
-    const out = await writtenDateReport(dossier, dateISO, visible);
-    logEvent("cr_date", `CR rédigé - ${dossier || "Tous"} - ${dateISO || "?"}`, { dossier: dossier || "Tous", dateISO, via: out.generatedBy });
+    const range = (startISO || endISO || label) ? { startISO, endISO, label } : dateISO; // plage, sinon compat jour unique
+    const out = await writtenDateReport(dossier, range, visible);
+    logEvent("cr_date", `CR rédigé - ${dossier || "Tous"} - ${label || dateISO || "?"}`, { dossier: dossier || "Tous", periode: label || dateISO, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
