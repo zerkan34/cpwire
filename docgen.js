@@ -1,48 +1,36 @@
-// jira-write.js — actions retour vers Jira : ajouter un commentaire, changer le statut.
-import { isConfigured } from "./jira.js";
+// paths.js — résout UN dossier de données garanti inscriptible.
+// Corrige l'erreur ENOTDIR vue sur Render (« /app/data » occupé par un fichier au lieu d'un dossier) :
+// si le chemin attendu n'est pas un dossier inscriptible, on bascule proprement sur un dossier
+// temporaire, sans jamais faire planter le serveur. On peut forcer l'emplacement via DATA_DIR.
+import fs from "fs";
+import path from "path";
+import os from "os";
+import { fileURLToPath } from "url";
 
-const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
-const EMAIL = process.env.JIRA_EMAIL || "";
-const TOKEN = process.env.JIRA_API_TOKEN || "";
-function auth() { return "Basic " + Buffer.from(`${EMAIL}:${TOKEN}`).toString("base64"); }
-function headers() { return { Authorization: auth(), Accept: "application/json", "Content-Type": "application/json" }; }
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+let cached = null;
 
-// L'API v3 attend un commentaire au format ADF (Atlassian Document Format).
-function textToADF(text) {
-  const paras = String(text).split(/\n{2,}/).map((p) => ({
-    type: "paragraph",
-    content: [{ type: "text", text: p.replace(/\n/g, " ") }],
-  }));
-  return { type: "doc", version: 1, content: paras.length ? paras : [{ type: "paragraph", content: [] }] };
-}
+export function dataDir() {
+  if (cached) return cached;
+  const candidates = [
+    process.env.DATA_DIR,                       // emplacement explicite (ex. disque persistant Render)
+    path.join(__dirname, "data"),               // emplacement par défaut, à côté du code
+    path.join(os.tmpdir(), "cpwire-data"),      // repli temporaire (toujours inscriptible)
+  ].filter(Boolean);
 
-export async function addComment(key, body) {
-  if (!isConfigured()) return { simulated: true, message: "Mode démo : commentaire non envoyé." };
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/comment`, {
-    method: "POST", headers: headers(), body: JSON.stringify({ body: textToADF(body) }),
-  });
-  if (!res.ok) throw new Error(`Commentaire refusé (${res.status}) : ${(await res.text()).slice(0, 200)}`);
-  return { ok: true };
-}
+  for (const dir of candidates) {
+    try {
+      // Si un FICHIER occupe ce chemin, impossible d'y créer des fichiers → on saute (cause de l'ENOTDIR).
+      if (fs.existsSync(dir) && !fs.statSync(dir).isDirectory()) continue;
+      fs.mkdirSync(dir, { recursive: true });
+      const probe = path.join(dir, ".write-test");
+      fs.writeFileSync(probe, "ok"); fs.unlinkSync(probe); // test d'écriture réel
+      cached = dir;
+      return dir;
+    } catch { /* on essaie le candidat suivant */ }
+  }
 
-export async function listTransitions(key) {
-  if (!isConfigured()) return [{ id: "demo", name: "Terminé" }];
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/transitions`, { headers: headers() });
-  if (!res.ok) throw new Error(`Transitions indisponibles (${res.status})`);
-  const data = await res.json();
-  return (data.transitions || []).map((t) => ({ id: t.id, name: t.name, to: t.to?.name }));
-}
-
-export async function transition(key, targetStatus) {
-  if (!isConfigured()) return { simulated: true, message: `Mode démo : passage à "${targetStatus}" non envoyé.` };
-  const trans = await listTransitions(key);
-  const norm = (s) => String(s).toLowerCase();
-  const match = trans.find((t) => norm(t.to) === norm(targetStatus) || norm(t.name) === norm(targetStatus)) ||
-    trans.find((t) => /(termin|done|fait|clos)/.test(norm(t.to) + norm(t.name)));
-  if (!match) throw new Error(`Aucune transition vers "${targetStatus}" disponible pour ${key}.`);
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/transitions`, {
-    method: "POST", headers: headers(), body: JSON.stringify({ transition: { id: match.id } }),
-  });
-  if (!res.ok) throw new Error(`Transition refusée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
-  return { ok: true, applied: match.name };
+  cached = path.join(os.tmpdir(), "cpwire-data");
+  try { fs.mkdirSync(cached, { recursive: true }); } catch { /* best-effort */ }
+  return cached;
 }
