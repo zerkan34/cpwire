@@ -124,6 +124,16 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
 
 function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
 
+// Liste compacte « N° — description — intervenant — état », SANS troncature (pas de « + N autres… »).
+function tkList(arr) {
+  if (!arr.length) return `<p class="cr-scope">—</p>`;
+  return `<ul class="cr-list">` + arr.map((i) => {
+    const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
+    const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
+    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)} — <span class="who">${esc(who)}</span> — <b>${esc(st)}</b></li>`;
+  }).join("") + `</ul>`;
+}
+
 // Petite limite de concurrence pour ne pas saturer Jira lors de la récupération des détails.
 async function mapLimit(items, limit, fn) {
   const out = []; let idx = 0;
@@ -197,7 +207,7 @@ async function detailedTicketsHtml(tickets) {
       : `Statut actuel : <b>${esc(statut)}</b>`;
     const tps = act.totalSeconds ? ` · ${esc(act.totalTime)} saisies` : "";
     return `<details class="cr-tk">
-      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-st">${esc(statut)}</span></summary>
+      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-who">${esc(who || "—")}</span> <span class="cr-tk-st">${esc(statut)}</span></summary>
       <div class="cr-tk-bd">
         <p class="cr-row"><span class="cr-lbl">Problématique / contexte</span>${prob}</p>
         <div class="cr-row"><span class="cr-lbl">Travaux réalisés</span>${travaux}</div>
@@ -284,9 +294,9 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
   let tablePersonnes;
   if (actorAct && actorAct.actors.length) {
     // Acteurs RÉELS des transitions (qui a fait avancer / clôturé), pas le dev d'origine.
-    tablePersonnes = `<table class="data"><tr><th>Personne (a fait avancer)</th><th>Recette client</th><th>Terminés / clôtures</th><th>Recette Armonie</th><th>Total actions</th></tr>` +
-      actorAct.actors.map((a) => `<tr><td><span class="who">${esc(a.who)}</span></td><td>${a.recC || "—"}</td><td>${a.term || "—"}</td><td>${a.recA || "—"}</td><td><b>${a.total}</b></td></tr>`).join("") +
-      `</table><p style="font-size:11.5px;color:#74718a;margin-top:4px;">Chaque ligne = la personne qui a <b>réellement effectué</b> le passage de statut (recette / clôture) ${W}, d'après l'historique Jira — et non le développeur d'origine.</p>`;
+    tablePersonnes = `<table class="data"><tr><th>Personne (a fait avancer)</th><th>Recette client</th><th>Recette Armonie</th><th>Attente client</th><th>Terminés / clôtures</th><th>Total actions</th></tr>` +
+      actorAct.actors.map((a) => `<tr><td><span class="who">${esc(a.who)}</span></td><td>${a.recC || "—"}</td><td>${a.recA || "—"}</td><td>${a.att || "—"}</td><td>${a.term || "—"}</td><td><b>${a.total}</b></td></tr>`).join("") +
+      `</table><p style="font-size:11.5px;color:#74718a;margin-top:4px;">Chaque ligne = la personne qui a <b>réellement effectué</b> le passage de statut (recette / clôture) ${W}, d'après l'historique Jira — et non le développeur d'origine. Les 4 colonnes s'additionnent dans « Total actions ».</p>`;
   } else {
     // Repli (pas d'historique chargé) : activité par assigné.
     const touchedToday = issues.filter((i) => within(i.maj));
@@ -306,36 +316,42 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
       : `<p>Aucun ticket mis à jour ${W}.</p>`;
   }
 
-  // En recette : on garde les COMPTEURS (contexte), mais en mode période on ne LISTE que les tickets
-  // ayant bougé sur la période — sinon on déverse un backlog ancien (ex. recette client depuis des mois).
-  const recArmList = isPeriod ? recArmonie.filter((i) => within(i.maj)) : recArmonie;
-  const recCliList = isPeriod ? recClient.filter((i) => within(i.maj)) : recClient;
-  const recetteShown = [...recArmList, ...recCliList];
-  const recetteBloc = (recArmonie.length || recClient.length)
-    ? `<h3>En recette — ${recArmonie.length} côté Armonie · ${recClient.length} côté client</h3>` +
-      (recetteShown.length
-        ? `<p class="cr-scope">Tickets ayant bougé en recette ${W} :</p>${catList(recetteShown, { showStatus: true, cap: 40 })}`
-        : `<p class="cr-scope">Aucun mouvement de recette ${W}.</p>`)
-    : `<h3>En recette</h3><p>Aucun ticket en attente de recette.</p>`;
+  // Recette SÉPARÉE : Armonie = à valider PAR NOUS ; client = à valider par le CLIENT (Ludovic, Tafanel).
+  const recArmBloc = recArmonie.length
+    ? `<h3>Recette Armonie — ${recArmonie.length} ticket(s) · à valider par Armonie</h3>${tkList(recArmonie)}`
+    : `<h3>Recette Armonie</h3><p class="cr-scope">Aucun ticket en recette Armonie.</p>`;
+  const recCliBloc = recClient.length
+    ? `<h3>Recette client — ${recClient.length} ticket(s) · à valider par le client (Ludovic, Tafanel)</h3>${tkList(recClient)}`
+    : "";
 
-  const attList = isPeriod ? attenteClient.filter((i) => within(i.maj)) : attenteClient;
   const attenteBloc = attenteClient.length
-    ? `<h3>En attente client (${attenteClient.length})</h3>` +
-      (attList.length ? catList(attList, { cap: 40 }) : `<p class="cr-scope">Aucun mouvement ${W}.</p>`)
+    ? `<h3>En attente client (${attenteClient.length})</h3>${tkList(attenteClient)}`
     : "";
 
   // Points bloquants : seulement les tickets OUVERTS réellement bloqués (on exclut terminés/annulés/MEP).
   const bloquantsOpen = bloquants.filter((i) => !DONE_CATS.includes(i.categorie) && i.categorie !== "annule");
   const bloquantsBloc = bloquantsOpen.length
-    ? `<h3>⚠ Points bloquants (${bloquantsOpen.length})</h3>${catList(bloquantsOpen, { showStatus: true, cap: 40 })}`
+    ? `<h3>⚠ Points bloquants (${bloquantsOpen.length})</h3>${tkList(bloquantsOpen)}`
     : `<h3>Points bloquants</h3><p>Aucun point bloquant ouvert.</p>`;
 
+  // Synthèse page 1 : seulement les états qui comptent (pas Total/En cours/À faire).
+  const mep = inCat("miseEnProd"); const term = inCat("termine");
+  const synthRow = `<div class="kpi-row">
+    <div class="kpi"><div class="v">${recArmonie.length}</div><div class="l">Recette Armonie</div></div>
+    <div class="kpi"><div class="v">${recClient.length}</div><div class="l">Recette client</div></div>
+    <div class="kpi"><div class="v">${attenteClient.length}</div><div class="l">Attente client</div></div>
+    <div class="kpi"><div class="v">${mep.length}</div><div class="l">Mise en prod.</div></div>
+    <div class="kpi"><div class="v">${term.length}</div><div class="l">Terminés</div></div>
+  </div>`;
+
   return `<h2>Synthèse ${isPeriod ? "de la période" : "de la journée"}</h2>
+    ${synthRow}
     ${analyseHtml || ""}
     <h2>État des lieux détaillé</h2>
-    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. Cliquez sur un ticket pour déplier le détail (sujet, problématique, travaux réalisés, avancement).</p>
+    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. Cliquez sur un ticket pour le détail.</p>
     ${detailedHtml || `<p>Aucun ticket travaillé ${W}.</p>`}
-    ${recetteBloc}
+    ${recArmBloc}
+    ${recCliBloc}
     ${attenteBloc}
     ${bloquantsBloc}
     <h2>Activité ${isPeriod ? "sur la période" : "du jour"} par personne</h2>${tablePersonnes}`;
@@ -401,12 +417,13 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         const ctx = (cle) => devByKey[cle] ? ` (développé par ${devByKey[cle]})` : "";
         const moves = act.perTicket.slice(0, 30).map((t) => `- ${t.cle} → ${CATEGORY_LABEL[t.toCat] || t.to}, par ${t.who}${ctx(t.cle)}`).join("\n");
         const parActeur = act.actors.slice(0, 12).map((a) => `${a.who} : ${a.recC} passage(s) en recette client, ${a.term} clôture(s)/terminé(s), ${a.recA} en recette Armonie (${a.nbTickets} ticket(s))`).join("\n");
+        const tRecC = act.actors.reduce((s, a) => s + a.recC, 0), tTerm = act.actors.reduce((s, a) => s + a.term, 0), tRecA = act.actors.reduce((s, a) => s + a.recA, 0), tAtt = act.actors.reduce((s, a) => s + a.att, 0);
         prompt = `Tu es un chef de projet senior. Rédige une ANALYSE pour le dossier "${dossier}" sur « ${periodLabel} », en 2 à 4 paragraphes factuels.\n` +
           `RÈGLE ABSOLUE : sur cette période l'activité consiste surtout à FAIRE AVANCER les tickets en RECETTE et à les CLÔTURER. La personne à créditer pour un passage en recette client ou en Terminé est CELLE QUI A EFFECTUÉ LA TRANSITION (le recetteur), JAMAIS le développeur d'origine. Le développeur a souvent codé des semaines avant et n'a pas travaillé sur la période : ne lui attribue aucune clôture. Mentionne « développé par … » uniquement comme contexte.\n` +
           `Cite les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets et personnes listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action absent des données ; n'affirme jamais qu'un ticket est « en production », « déployé » ou « validé » si ce n'est pas son statut réel ; reformule en langage clair, sans recopier les libellés techniques.\n` +
+          `TOTAUX EXACTS de la période — reprends CES chiffres tels quels, n'en calcule ni n'en invente AUCUN autre : ${tTerm} clôture(s)/terminé(s), ${tRecC} passage(s) en recette client, ${tRecA} en recette Armonie, ${tAtt} en attente client. ${recA} ticket(s) restent en attente de recette Armonie.\n` +
           `Qui a fait avancer quoi (acteur réel des transitions) :\n${parActeur || "(aucune transition)"}\n` +
           `Détail des passages (ticket → nouveau statut · par qui · dev d'origine en contexte) :\n${moves || "(aucun)"}\n` +
-          `${recA} ticket(s) restent en attente de recette Armonie.\n` +
           `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
       } else {
         const dev = (i) => (i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : (i.assigne && i.assigne !== "Non assigné" ? " [" + i.assigne + "]" : ""));
