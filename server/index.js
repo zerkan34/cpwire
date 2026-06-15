@@ -263,7 +263,9 @@ app.get("/api/portfolio", guard, async (req, res) => {
   try {
     const got = await getIssues({ refresh: req.query.refresh === "1", full: req.query.full === "1", jql: req.query.jql });
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
-    const payload = aggregate(pruneInactiveDevs(got.issues), got.source);
+    const payload = aggregate(got.issues, got.source);
+    payload.inactiveDevs = inactiveDevNames(got.issues, INACTIVE_MONTHS);
+    payload.inactiveMonths = INACTIVE_MONTHS;
     payload.changed = got.changed || [];
     payload.syncedAt = snap.syncedAt || null;
     payload.importing = Boolean(got.importing);
@@ -298,6 +300,24 @@ function pruneInactiveDevs(issues, months = INACTIVE_MONTHS) {
     if (dev === i.dev && assigne === i.assigne && contributors.length === (i.contributors || []).length) return i;
     return { ...i, dev, assigne, contributors };
   });
+}
+
+// Renvoie la LISTE des personnes sans activité depuis N mois (même calcul que le prune),
+// mais SANS vider leur nom : on les signale pour les ranger en « Anciens développeurs ».
+function inactiveDevNames(issues, months = INACTIVE_MONTHS) {
+  if (!Array.isArray(issues) || !issues.length || months <= 0) return [];
+  const cutoff = Date.now() - months * 30 * 24 * 3600 * 1000;
+  const last = new Map();
+  const bump = (name, t) => { if (!name || name === "Non assigné") return; if (t > (last.get(name) || 0)) last.set(name, t); };
+  for (const i of issues) {
+    const t = new Date(i.maj || i.resolu || i.cree || 0).getTime();
+    if (isNaN(t)) continue;
+    bump(i.dev, t); bump(i.assigne, t);
+    for (const c of (i.contributors || [])) bump(c, t);
+  }
+  const out = [];
+  for (const [name, t] of last.entries()) if (t < cutoff) out.push(name);
+  return out;
 }
 
 // Exclut les tickets dont le développeur (ou l'assigné) a été supprimé/masqué :
