@@ -283,6 +283,8 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 
 /* ===== Brief du matin : conteneurs et rythme propres ===== */
 .mb-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.mb-actions { display: flex; gap: 8px; margin-top: 2px; }
+.mb-actions .btn-solid { flex: 1; }
 .recap-card ul.mb-list { margin: 4px 0 12px; }
 .recap-card li.mb-li { display: block; padding: 8px; border-bottom: 1px solid var(--line-soft); border-radius: 8px; cursor: pointer; transition: background .12s ease; }
 .recap-card li.mb-li:hover { background: var(--purple-soft); }
