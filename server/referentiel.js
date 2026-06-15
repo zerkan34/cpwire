@@ -1,110 +1,103 @@
-{
-  "_doc": "Référentiel Recette par client. Domaine → Option → liste de Programmes. Source : fichier de priorisation rempli par le dev. À VALIDER par le dev (les programmes sont extraits des journaux Excel et peuvent être incomplets, surtout pour les grosses chaînes suivies au nombre). Le rapprochement Programme → ticket Jira est automatique (programme extrait du titre « Réécriture XXX »).",
-  "Tafanel": {
-    "client": "Tafanel",
-    "majSource": "Extrait de « TAFANEL Priorisation » (brouillon à valider par le dev)",
-    "options": [
-      {
-        "domaine": "3.0_Commandes Tafanel",
-        "code": "SAICOM",
-        "libelle": "Saisie des commandes clients",
-        "statutRecette": "Tafanel",
-        "echeance": "10/02/2026",
-        "livraison": "19/02/2026",
-        "programmes": ["CRTFAC", "MAJFAC", "MAJLQG2", "MAJCDE", "TABLET4"]
-      },
-      {
-        "domaine": "3.0_Commandes Tafanel",
-        "code": "RECOPTCB",
-        "libelle": "Saisie de commandes dépannage",
-        "statutRecette": "Tafanel",
-        "echeance": "10/02/2026",
-        "livraison": "13/02/2026",
-        "programmes": []
-      },
-      {
-        "domaine": "3.0_Commandes Tafanel",
-        "code": "OPTION035",
-        "libelle": "Lancement facturation tournées CHR",
-        "statutRecette": "Armonie",
-        "echeance": "10/02/2026",
-        "livraison": "18/02/2026",
-        "programmes": ["GRAFAC", "CRTFAC", "EDISORG", "MAJFAC", "EDITTAG", "SANSBEC", "CUMFUT0", "CUMFUT1", "SOCO31", "MOLIFA"]
-      },
-      {
-        "domaine": "3.1_Commandes Socodis",
-        "code": "CLEDISOCO",
-        "libelle": "Lancement facturation tournées Collectivités",
-        "statutRecette": "Armonie",
-        "echeance": "10/02/2026",
-        "livraison": "18/02/2026",
-        "programmes": ["GRAFAC", "CRTFAC", "EDIFAC", "MAJFAC", "FACTA2BF", "DLSAEDL", "EXEDIT", "HISCDE", "BONL24BF", "EDIFA2BLAF", "MJEDITJO", "SOCO27"]
-      },
-      {
-        "domaine": "4.1_Logistique Tafanel",
-        "code": "OPTION257",
-        "libelle": "Affectation et édition des tournées CHR (SOCO32)",
-        "statutRecette": "Tafanel",
-        "echeance": "10/02/2026",
-        "livraison": "20/02/2026",
-        "programmes": ["SOCO32", "EDIFAC", "CTLPOI", "EDBORCHT2", "EDBORCHTC2", "HISCDE", "FACTA2BF", "EDBORCHT", "EDBORCP", "EDPUBL"]
-      },
-      {
-        "domaine": "4.2_Logistique Socodis",
-        "code": "OPTION064P",
-        "libelle": "Affectation des tournées SOCODIS (SOCO032P)",
-        "statutRecette": "Armonie",
-        "echeance": "10/02/2026",
-        "livraison": "20/02/2026",
-        "programmes": ["SOCO32P", "EDILOTA", "EDILOTA0", "EDBORCH", "EDBORCHB", "EDBORP", "CTLPOI", "LSTPAL", "EDPUBL", "MAJFAC", "CRTFAC", "IMEDBORCP"]
-      },
-      {
-        "domaine": "5.0_Traitements début et fin de journée",
-        "code": "OPTION052",
-        "libelle": "Travaux journaliers du matin",
-        "statutRecette": "Armonie",
-        "echeance": "10/02/2026",
-        "livraison": "16/02/2026",
-        "programmes": ["BAIHTT", "CONAUG", "CONPRV", "CTLDROI", "MJDROI", "MJDROI1", "TARFIS", "MAJFAC", "CDDFOU", "EDIFA2BF"]
-      },
-      {
-        "domaine": "5.0_Traitements début et fin de journée",
-        "code": "BALANCE",
-        "libelle": "Traitement de la balance (fin de journée)",
-        "statutRecette": "Armonie",
-        "echeance": "10/02/2026",
-        "livraison": "20/02/2026",
-        "grosseChaine": true,
-        "noteChaine": "Grande chaîne (~148 programmes) suivie au nombre côté Excel ; liste ci-dessous non exhaustive, à compléter par le dev.",
-        "programmes": ["MJSTOC", "EDIFAC", "FACTA2BF", "EDIJOU", "EDIFA2BLF", "CRTFAC", "MAJFAC"]
-      },
-      {
-        "domaine": "6.0_Administration commerciale",
-        "code": "OPTION306",
-        "libelle": "Mise à jour des prestations clients",
-        "statutRecette": "Tafanel",
-        "echeance": "",
-        "livraison": "",
-        "programmes": []
-      },
-      {
-        "domaine": "4.1_Logistique Tafanel",
-        "code": "OPTION268",
-        "libelle": "Mise à jour des codes livreurs sur fiche client",
-        "statutRecette": "Tafanel",
-        "echeance": "",
-        "livraison": "",
-        "programmes": []
-      },
-      {
-        "domaine": "7.0_Comptabilité clients et caisse",
-        "code": "OPTION505",
-        "libelle": "Annulation d'une facture de livraison ou d'un BL",
-        "statutRecette": "Tafanel",
-        "echeance": "",
-        "livraison": "",
-        "programmes": ["EDIFAC", "EDAVAUF", "FACTA2BF", "EDIFA2BLAF", "ENRAVOB", "MAJTVA2", "BONL24BF", "SELAVOB", "INTGRA"]
-      }
-    ]
+// Référentiel Recette : le SOCLE qui fait parler la même langue.
+// Domaine → Option → liste de Programmes (saisie/validée par le dev),
+// puis rapprochement AUTOMATIQUE de chaque programme à son/ses ticket(s) Jira
+// (le programme est déjà extrait du titre « Réécriture XXX » par programmes.js → i.prog).
+// Aucune invention : si un programme n'a pas de ticket, il est marqué « non lié ».
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const REF_PATH = path.join(__dirname, "referentiel.json");
+
+export function loadReferentiel() {
+  try { return JSON.parse(fs.readFileSync(REF_PATH, "utf8")); }
+  catch { return {}; }
+}
+export function referentielClients() {
+  return Object.keys(loadReferentiel()).filter((k) => k !== "_doc");
+}
+
+// Normalisation d'un nom de programme : majuscules, sans joker ni espaces de fin.
+const norm = (s) => String(s || "").toUpperCase().replace(/[*\s]+$/g, "").trim();
+
+const DONE = ["termine", "miseEnProd"];
+const RECETTE = ["recetteArmonie", "recetteClient"];
+const RETOUR = ["retourTest", "retourProd"];
+
+// Index programme → tickets, à partir des tickets live.
+function indexByProgramme(issues) {
+  const idx = new Map();
+  const add = (name, issue) => {
+    const n = norm(name);
+    if (!n) return;
+    if (!idx.has(n)) idx.set(n, []);
+    if (!idx.get(n).some((x) => x.cle === issue.cle)) idx.get(n).push(issue);
+  };
+  for (const i of issues) {
+    if (i.prog && i.prog.name) add(i.prog.name, i);
+    // repli : tente d'attraper le programme dans un titre « Réécriture XXX »
+    const m = String(i.resume || "").match(/r[ée]+criture\s+([A-Z0-9_]{3,12})/i);
+    if (m) add(m[1], i);
   }
+  return idx;
+}
+
+// État représentatif d'un programme = catégorie du ticket le plus « avancé » trouvé.
+const RANK = ["afaire", "encours", "retourProd", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine"];
+function bestCategory(tickets) {
+  let best = null, bestRank = -1;
+  for (const t of tickets) {
+    const r = RANK.indexOf(t.categorie);
+    if (r > bestRank) { bestRank = r; best = t.categorie; }
+  }
+  return best;
+}
+
+// Croise le référentiel d'un client avec les tickets Jira live.
+export function crossReferentiel(issues, client) {
+  const ref = loadReferentiel()[client];
+  if (!ref) return null;
+  const idx = indexByProgramme(issues || []);
+  const byDomaine = {};
+
+  for (const opt of ref.options) {
+    const programmes = (opt.programmes || []).map((p) => {
+      const tickets = (idx.get(norm(p)) || []).map((i) => ({
+        cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie,
+        url: i.url, qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
+      }));
+      return { nom: p, lie: tickets.length > 0, etat: bestCategory(tickets), tickets };
+    });
+
+    const cats = {};
+    programmes.forEach((p) => p.tickets.forEach((t) => { cats[t.categorie] = (cats[t.categorie] || 0) + 1; }));
+    const total = programmes.length;
+    const lies = programmes.filter((p) => p.lie).length;
+    const done = DONE.reduce((s, k) => s + (cats[k] || 0), 0);
+    const enRecette = RECETTE.reduce((s, k) => s + (cats[k] || 0), 0);
+    const retours = RETOUR.reduce((s, k) => s + (cats[k] || 0), 0);
+    // Avancement : part de programmes liés qui sont validés (MEP/terminé). 0 si rien de lié.
+    const pct = lies ? Math.round((done / lies) * 100) : 0;
+
+    const enriched = {
+      domaine: opt.domaine, code: opt.code, libelle: opt.libelle,
+      statutRecette: opt.statutRecette || "", echeance: opt.echeance || "", livraison: opt.livraison || "",
+      grosseChaine: !!opt.grosseChaine, noteChaine: opt.noteChaine || "",
+      total, lies, nonLies: total - lies, done, enRecette, retours, pct,
+      programmes,
+    };
+    (byDomaine[opt.domaine] ||= []).push(enriched);
+  }
+
+  const domaines = Object.entries(byDomaine)
+    .map(([domaine, options]) => ({ domaine, options }))
+    .sort((a, b) => a.domaine.localeCompare(b.domaine, "fr"));
+
+  const nbProgrammes = ref.options.reduce((s, o) => s + (o.programmes ? o.programmes.length : 0), 0);
+  return {
+    client, majSource: ref.majSource || "",
+    nbOptions: ref.options.length, nbProgrammes,
+    domaines,
+  };
 }

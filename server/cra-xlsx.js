@@ -1,190 +1,160 @@
-// config.js — paramétrage métier du cockpit CPwire.
+// cra-xlsx.js — construit un CRA à partir d'un fichier Excel/CSV importé.
+// Produit EXACTEMENT la même structure que le CRA Jira (byProject / byPerson),
+// pour que l'affichage et les exports existants fonctionnent sans changement.
+import * as XLSX from "xlsx";
 
-export const DOSSIERS = {
-  TEDL: "EDL", PEM: "EDL",
-  TDSS: "DS Smith", PDFP: "DS Smith",
-  TMT: "Tafanel", PTAF: "Tafanel",
-  TBEL: "Bellion",
-  TBAL: "Balas", PBAL: "Balas",
-  TIMA: "IMA", PIMA: "IMA", PIMA2: "IMA",
-  TDIA: "DIAPAR",
+const fmtSeconds = (sec) => {
+  const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
+  return m ? `${h}h ${String(m).padStart(2, "0")}` : `${h}h`;
 };
+const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
-export const ME = process.env.ME || "Nicolas Durand";
-export const TARGET_DONE = process.env.TARGET_DONE || "Terminé";
-
-export function dossierFromKey(key = "") {
-  const k = String(key).toUpperCase();
-  for (const prefix of Object.keys(DOSSIERS)) if (k.startsWith(prefix)) return DOSSIERS[prefix];
-  const m = k.match(/^[A-Z]+/);
-  return (m && DOSSIERS[m[0]]) || "Autre";
+// Trouve l'en-tête dont le nom contient l'un des candidats (par ordre de préférence).
+function pickCol(headers, cands) {
+  for (const c of cands) { const h = headers.find((x) => norm(x).includes(c)); if (h) return h; }
+  return null;
 }
 
-// Type d'engagement par préfixe de projet Jira : "TMA" (projets T…) ou "Projet" (projets P…).
-// C'est la convention Armonie par défaut. Les exceptions connues sont déclarées ici
-// (ex. Tafanel = mode Projet) et on peut tout corriger via la variable d'environnement
-// ENGAGEMENT_MAP="TMT:Projet,PEM:TMA,…" sans toucher au code.
-export const ENGAGEMENT_BY_PREFIX = {
-  TMT: "Projet", PTAF: "Projet", // Tafanel : mode Projet (ce n'est pas de la TMA)
-};
-(function () {
-  String(process.env.ENGAGEMENT_MAP || "").split(",").map((s) => s.trim()).filter(Boolean).forEach((pair) => {
-    const i = pair.indexOf(":");
-    if (i > 0) { const p = pair.slice(0, i).trim().toUpperCase(); const v = pair.slice(i + 1).trim(); if (p && v) ENGAGEMENT_BY_PREFIX[p] = v; }
+// Convertit une valeur de durée en heures décimales. Gère : nombre, "2,5", "1:30",
+// "1h30", "90m", "1j 2h" (jour = base heures). Renvoie un nombre d'heures.
+function parseHours(v, unit, basis) {
+  if (v == null || v === "") return 0;
+  if (typeof v === "number") return unit === "days" ? v * basis : v;
+  let s = String(v).trim().toLowerCase().replace(",", ".");
+  if (/^\d+(\.\d+)?$/.test(s)) { const n = parseFloat(s); return unit === "days" ? n * basis : n; }
+  const hm = s.match(/^(\d+):(\d{1,2})$/); if (hm) return parseInt(hm[1], 10) + parseInt(hm[2], 10) / 60;
+  const hmm = s.match(/(\d+(?:\.\d+)?)\s*h\s*(\d{1,2})\b/); if (hmm) return parseFloat(hmm[1]) + parseInt(hmm[2], 10) / 60;
+  let total = 0, found = false;
+  const dd = s.match(/(\d+(?:\.\d+)?)\s*(?:j|d)\b/); if (dd) { total += parseFloat(dd[1]) * basis; found = true; }
+  const hh = s.match(/(\d+(?:\.\d+)?)\s*h/); if (hh) { total += parseFloat(hh[1]); found = true; }
+  const mm = s.match(/(\d+(?:\.\d+)?)\s*m(?:in)?\b/); if (mm) { total += parseFloat(mm[1]) / 60; found = true; }
+  return found ? total : 0;
+}
+
+// Déduit un statut normalisé + done à partir d'un libellé libre.
+function statutFrom(raw) {
+  const n = norm(raw);
+  if (!n) return { statut: "À faire", done: false, statutJira: "" };
+  if (/(termin|fait|done|closed|resolu|clos|ferm|livr|fini|prod)/.test(n)) return { statut: "Terminé", done: true, statutJira: raw };
+  if (/(bloqu|block|hold|attente|stand ?by)/.test(n)) return { statut: "Bloqué", done: false, statutJira: raw };
+  if (/(cours|progress|doing|wip|dev|test|review|revue|recette)/.test(n)) return { statut: "En cours", done: false, statutJira: raw };
+  return { statut: "À faire", done: false, statutJira: raw };
+}
+
+// Parseur CSV minimal et robuste (gère les guillemets et le séparateur fourni).
+// Renvoie un tableau de lignes (chaque ligne = tableau de cellules, toutes en TEXTE).
+function parseCsvText(text, delim) {
+  const rows = []; let row = [], cur = "", inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (inQ) {
+      if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+      else cur += ch;
+    } else if (ch === '"') inQ = true;
+    else if (ch === delim) { row.push(cur); cur = ""; }
+    else if (ch === "\n") { row.push(cur); rows.push(row); row = []; cur = ""; }
+    else if (ch !== "\r") cur += ch;
+  }
+  if (cur.length || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+
+export function parseCraXlsx(buffer, { basis = 7 } = {}) {
+  // xlsx/xlsm = archive ZIP (« PK »). Sinon CSV/texte → on parse nous-mêmes (séparateur ; , tab ou |),
+  // ce qui évite que le moteur tableur ré-interprète « 3,5 » en 35 ou « 2:30 » en date.
+  const isZip = buffer.length > 1 && buffer[0] === 0x50 && buffer[1] === 0x4b;
+  let data, delimiter = null;
+  if (isZip) {
+    const wb = XLSX.read(buffer, { type: "buffer" });
+    const sheet = wb.Sheets[wb.SheetNames[0]];
+    if (!sheet) throw new Error("Le fichier ne contient aucune feuille lisible.");
+    data = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false }); // valeurs telles qu'affichées
+  } else {
+    let text = buffer.toString("utf8");
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1); // enlève le BOM
+    const line = text.split(/\r?\n/).find((l) => l.trim()) || "";
+    const counts = { ";": (line.match(/;/g) || []).length, ",": (line.match(/,/g) || []).length, "\t": (line.match(/\t/g) || []).length, "|": (line.match(/\|/g) || []).length };
+    delimiter = Object.entries(counts).sort((a, b) => b[1] - a[1])[0][0];
+    const rows = parseCsvText(text, delimiter);
+    if (rows.length < 2) throw new Error("Le fichier CSV semble vide ou ne contient qu'une ligne d'en-tête.");
+    const heads = rows[0].map((h) => String(h).trim());
+    data = rows.slice(1)
+      .filter((r) => r.some((c) => String(c).trim() !== ""))
+      .map((r) => { const o = {}; heads.forEach((h, i) => { o[h] = r[i] != null ? r[i] : ""; }); return o; });
+  }
+  if (!data.length) throw new Error("Aucune ligne de données trouvée dans le fichier.");
+
+  const headers = Object.keys(data[0]);
+  const cProj = pickCol(headers, ["projet", "dossier", "client", "project", "application", "appli"]);
+  const cWho = pickCol(headers, ["intervenant", "collaborateur", "ressource", "personne", "developpeur", "developpe", "assign", "auteur", "author", "utilisateur", "membre", "consultant", "agent", "nom"]);
+  const cKey = pickCol(headers, ["cle", "clef", "ticket", "issue", "key", "numero", "n°"]);
+  const cSum = pickCol(headers, ["resume", "sujet", "libelle", "intitule", "titre", "description", "summary", "tache", "activite", "objet", "prestation", "commentaire"]);
+  const cTime = pickCol(headers, ["temps", "heures", "heure", "duree", "hours", "time", "charge", "jours", "jour", "day"]);
+  const cStat = pickCol(headers, ["statut", "status", "etat", "avancement"]);
+
+  if (!cTime) {
+    throw new Error(`Impossible de trouver une colonne de temps. Colonnes détectées : ${headers.join(", ")}. Ajoute une colonne « Temps » (ou « Heures », « Durée », « Jours »).`);
+  }
+  const unit = /jour|day|\bj\b/.test(norm(cTime)) && !/heure|temps|^h$/.test(norm(cTime)) ? "days" : "hours";
+
+  const personMap = {}; // who -> { who, seconds, projects:{dossier:{dossier,seconds,tickets:{cle:{...}}}} }
+  const projectMap = {}; // dossier -> { dossier, seconds, persons:{who:sec}, tickets:{cle:{...}} }
+  let totalSeconds = 0, used = 0, ignored = 0;
+
+  data.forEach((row, idx) => {
+    const dossier = (cProj && String(row[cProj]).trim()) || "Sans projet";
+    const who = (cWho && String(row[cWho]).trim()) || "Non précisé";
+    // Ignore les lignes de total / sous-total / cumul d'un export tableur.
+    if (/^(total|totaux|sous.?total|cumul|somme)\b/.test(norm(dossier)) || /^(total|totaux)\b/.test(norm(who))) return;
+    const hours = parseHours(row[cTime], unit, basis);
+    const seconds = Math.round(hours * 3600);
+    const resume = (cSum && String(row[cSum]).trim()) || "";
+    const cle = (cKey && String(row[cKey]).trim()) || (resume ? resume.slice(0, 40) : `Ligne ${idx + 2}`);
+    const { statut, done, statutJira } = statutFrom(cStat ? row[cStat] : "");
+    if (seconds <= 0) { ignored += 1; return; } // ligne sans temps valide (vide, titre, total…)
+    used += 1;
+    totalSeconds += seconds;
+
+    const P = (personMap[who] ||= { who, seconds: 0, projects: {} });
+    P.seconds += seconds;
+    const PP = (P.projects[dossier] ||= { dossier, seconds: 0, tickets: {} });
+    PP.seconds += seconds;
+    const PT = (PP.tickets[cle] ||= { cle, resume, statut, statutJira, done, seconds: 0 });
+    PT.seconds += seconds;
+
+    const J = (projectMap[dossier] ||= { dossier, seconds: 0, persons: {}, tickets: {} });
+    J.seconds += seconds;
+    J.persons[who] = (J.persons[who] || 0) + seconds;
+    const JT = (J.tickets[cle] ||= { cle, resume, statut, statutJira, done, seconds: 0, who: {} });
+    JT.seconds += seconds;
+    JT.who[who] = (JT.who[who] || 0) + seconds;
   });
-})();
 
-// Déduit l'engagement d'un ticket depuis sa clé : exception explicite d'abord (préfixe le plus
-// long en premier), sinon convention P…→Projet, T…→TMA.
-export function engagementFromKey(key = "") {
-  const k = String(key).toUpperCase();
-  for (const p of Object.keys(ENGAGEMENT_BY_PREFIX).sort((a, b) => b.length - a.length)) if (k.startsWith(p)) return ENGAGEMENT_BY_PREFIX[p];
-  if (/^P/.test(k)) return "Projet";
-  if (/^T/.test(k)) return "TMA";
-  return "—";
-}
+  if (!used) throw new Error("Aucune ligne avec un temps valide n'a été trouvée. Vérifie la colonne des heures/jours.");
 
-// --- Normalisation des statuts Jira -------------------------------------
-// Enlève accents + minuscule, pour comparer sans se soucier de la casse.
-function norm(s) {
-  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-}
+  const tList = (tk) => Object.values(tk).sort((a, b) => b.seconds - a.seconds)
+    .map((t) => ({ ...t, time: fmtSeconds(t.seconds), who: t.who ? Object.keys(t.who) : undefined }));
+  const byPerson = Object.values(personMap).map((p) => ({
+    who: p.who, seconds: p.seconds, time: fmtSeconds(p.seconds),
+    projects: Object.values(p.projects).sort((a, b) => b.seconds - a.seconds)
+      .map((pr) => ({ dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds), tickets: tList(pr.tickets) })),
+  })).sort((a, b) => b.seconds - a.seconds);
+  const byProject = Object.values(projectMap).map((pr) => ({
+    dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds),
+    persons: Object.entries(pr.persons).map(([who, sec]) => ({ who, seconds: sec, time: fmtSeconds(sec) })).sort((a, b) => b.seconds - a.seconds),
+    tickets: tList(pr.tickets),
+  })).sort((a, b) => b.seconds - a.seconds);
 
-// Statuts RÉELS du workflow Armonie -> catégorie interne.
-// >>> Si un statut est renommé dans Jira, ajuste juste la clé ici. <<<
-const STATUS_CATEGORY = {
-  "a faire": "afaire",
-  "en cours": "encours",
-  "retour test": "retourTest",
-  "retour production": "retourProd",
-  "recette armonie": "recetteArmonie",
-  "recette client": "recetteClient",
-  "en attente client": "attenteClient",
-  "mise en production": "miseEnProd",
-  "termine": "termine",
-  "annule": "annule",
-};
+  const warnings = [];
+  if (!cProj) warnings.push("Aucune colonne « Projet / Dossier » détectée — tout est regroupé sous « Sans projet ».");
+  if (!cWho) warnings.push("Aucune colonne « Intervenant » détectée — tout est regroupé sous « Non précisé ».");
+  if (!cStat) warnings.push("Aucune colonne « Statut » détectée — les statuts ne sont pas affichés.");
 
-// Catégorie d'un statut (avec repli heuristique pour tout statut inconnu).
-export function categoryFromStatus(statusName = "") {
-  const n = norm(statusName);
-  if (STATUS_CATEGORY[n]) return STATUS_CATEGORY[n];
-  if (/(annul|cancel)/.test(n)) return "annule";
-  if (/mise en prod|en production/.test(n)) return "miseEnProd";
-  if (/retour.*prod/.test(n)) return "retourProd";
-  if (/retour.*test/.test(n)) return "retourTest";
-  if (/recette.*client/.test(n)) return "recetteClient";
-  if (/recette/.test(n)) return "recetteArmonie";
-  if (/attente.*client/.test(n)) return "attenteClient";
-  if (/(termin|fait|done|closed|resolu|clos|ferm)/.test(n)) return "termine";
-  if (/(en cours|in progress|doing|revue|review|test)/.test(n)) return "encours";
-  return "afaire";
-}
-
-// Libellés lisibles par catégorie (pour les rapports et l'onglet Développeurs).
-export const CATEGORY_LABEL = {
-  afaire: "À faire",
-  encours: "En cours",
-  retourTest: "Retour test",
-  retourProd: "Retour production",
-  recetteArmonie: "Recette Armonie",
-  recetteClient: "Recette client",
-  attenteClient: "En attente client",
-  miseEnProd: "Mise en production",
-  termine: "Terminé",
-  annule: "Annulé",
-};
-
-// Regroupement des catégories pour la ligne de synthèse du CR journalier.
-export const RESTE_CATS = ["afaire", "encours", "retourTest", "retourProd"];
-export const ACTIVE_CATS = ["encours", "retourTest", "retourProd"]; // tickets en cours de traitement
-export const DONE_CATS = ["termine", "miseEnProd"];
-
-// Catégorie -> bucket grossier (KPI/filtre du cockpit : 4 colonnes historiques).
-const CAT_BUCKET = {
-  afaire: "À faire",
-  encours: "En cours", retourTest: "En cours", retourProd: "En cours",
-  recetteArmonie: "En cours", recetteClient: "En cours", attenteClient: "En cours",
-  miseEnProd: "Terminé", termine: "Terminé", annule: "Terminé",
-};
-
-export function bucketFromStatus(statusName = "", _statusCategoryKey = "", flagged = false, labels = []) {
-  // "Bloqué" = uniquement un vrai drapeau/impediment (le workflow Armonie n'a pas de statut "Bloqué").
-  const isBlocked = flagged || (labels || []).some((l) => /bloqu|blocked|impediment/i.test(l));
-  if (isBlocked) return "Bloqué";
-  return CAT_BUCKET[categoryFromStatus(statusName)] || "À faire";
-}
-
-export const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
-
-// --- Identification du développeur --------------------------------------
-// Un ticket peut impliquer plusieurs personnes. On retient :
-//  1) la personne ASSIGNÉE dans Jira (auto-assignation comprise) ;
-//  2) un nom « (Prénom Nom) » écrit en fin de titre (projets de réécriture) ;
-//  3) les INITIALES présentes dans les ÉTIQUETTES (labels) Jira — ex. « HRE » -> Hamza.
-//
-// >>> Table des initiales d'étiquette -> nom EXACT du dev (tel qu'affiché dans Jira). <<<
-//     À compléter pour chaque dév. Surchargée par la variable d'env DEV_LABELS
-//     au format "HRE:Hamza Rebai,GPI:Guillaume Pizard".
-function parseDevLabels(str) {
-  if (!str) return null;
-  const o = {};
-  String(str).split(/[;,]/).forEach((pair) => {
-    const idx = pair.indexOf(":");
-    if (idx > 0) {
-      const code = pair.slice(0, idx).trim().toUpperCase();
-      const name = pair.slice(idx + 1).trim();
-      if (code && name) o[code] = name;
-    }
-  });
-  return Object.keys(o).length ? o : null;
-}
-// Table par défaut déduite de la convention observée dans vos étiquettes Jira :
-// 1re lettre du prénom + 2 premières lettres du nom (ex. GPI = Guillaume Pizard, HRE = Hamza Rebai).
-// Surchargeable intégralement par la variable d'env DEV_LABELS ("HRE:Hamza Rebai,SCR:Steven Crugeon").
-export const DEV_LABELS = parseDevLabels(process.env.DEV_LABELS) || {
-  HRE: "Hamza Rebai", SCR: "Steven Crugeon", GPI: "Guillaume Pizard", MPR: "Mathieu Prie",
-  BPA: "Bastien Pavageau", IGH: "Inès Ghamgui", LCH: "Léo Charrier", FAN: "Fetra Andriamahaly",
-  EPI: "Erik Pillere", GBO: "Geoffrey Bourmond", GGA: "Geoffrey Gambée", JVE: "Joshua Vegas",
-  VNG: "Vantai Nguyen", LGU: "Léo Gualano", MME: "Maamar Meziane", AEL: "Abdelaziz El Kaddari",
-  LSA: "Ludovic Sagnal", MAD: "Michael Adjedj", TMA: "Thomas Malavieille", PAG: "Pedram Aguiard",
-  TNO: "Tony Noel", CCH: "Cyrille Chassange", TKI: "Tania Kicien", MAN: "Marie Antoine Samy",
-  RDA: "Reda Dahmane", GCH: "Gaëtan Chaugny", HFR: "Henry Franceschi", COI: "Clément Oiry",
-  AQU: "Adrien Quillère",
-};
-
-const NAME_IN_TITLE = /\(([A-ZÀ-Ÿ][\p{L}'’.\-]*(?:\s[A-ZÀ-Ÿ][\p{L}'’.\-]*)+)\)\s*$/u;
-
-// Renvoie un nom de dév depuis une étiquette, si elle correspond à un code connu.
-function devFromLabel(label = "") {
-  const code = String(label || "").trim().toUpperCase();
-  return DEV_LABELS[code] || null;
-}
-
-// Dév « principal » (1 par ticket) : assigné, sinon nom en titre, sinon 1re étiquette connue.
-export function devFromIssue(assignee = "", summary = "", labels = []) {
-  if (assignee && assignee !== "Non assigné") return assignee;
-  const m = String(summary || "").match(NAME_IN_TITLE);
-  if (m) return m[1].trim();
-  for (const l of labels || []) { const n = devFromLabel(l); if (n) return n; }
-  return "Non assigné";
-}
-
-// TOUS les contributeurs d'un ticket (assigné + nom en titre + initiales en étiquette).
-// C'est cette liste qui sert à compter les tickets « travaillés » par dév.
-export function contributorsFromIssue(assignee = "", summary = "", labels = []) {
-  const out = [];
-  const seen = new Set();
-  const add = (n) => {
-    const v = String(n || "").trim();
-    if (!v || v === "Non assigné") return;
-    const k = v.toLowerCase();
-    if (seen.has(k)) return;
-    seen.add(k); out.push(v);
+  return {
+    source: "excel", configured: true, totalSeconds, totalTime: fmtSeconds(totalSeconds),
+    byPerson, byProject, scanned: used, total: used, ignored, capped: false,
+    fileKind: isZip ? "xlsx" : "csv", delimiter,
+    columns: { projet: cProj, personne: cWho, cle: cKey, resume: cSum, temps: cTime, statut: cStat, unite: unit },
+    warnings,
   };
-  if (assignee) add(assignee);
-  const m = String(summary || "").match(NAME_IN_TITLE);
-  if (m) add(m[1].trim());
-  (labels || []).forEach((l) => { const n = devFromLabel(l); if (n) add(n); });
-  return out;
 }
