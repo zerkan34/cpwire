@@ -2,6 +2,7 @@
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
 import { dossierFromKey, engagementFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
+import { findProgram } from "./programmes.js";
 
 const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
 const EMAIL = process.env.JIRA_EMAIL || "";
@@ -154,6 +155,7 @@ function normalize(it) {
     dossier: dossierFromKey(it.key),
     engagement: engagementFromKey(it.key), // "TMA" (projet T…) ou "Projet" (projet P…)
     resume: summary,
+    prog: findProgram(summary), // localisation IBM i du programme (référentiel Arcad), ou repère "à compléter"
     assigne,
     assigneEmail: f.assignee?.emailAddress || "", // souvent masqué par Jira (vie privée)
     dev: devFromIssue(assigne, summary, labels), // dév principal (assigné, sinon titre, sinon étiquette)

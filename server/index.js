@@ -12,6 +12,8 @@ import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, 
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
+import { findProgram } from "./programmes.js";
+import { buildSlaReport, slaStatus } from "./sla.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -225,7 +227,7 @@ async function getIssues(arg, jqlArg) {
     };
   }
 
-  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
+  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME, prog: findProgram(i.resume) })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
   return null; // ni Jira, ni démo -> écran de configuration
 }
 
@@ -375,6 +377,16 @@ app.post("/api/cr/daily-period", guard, async (req, res) => {
     const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label }, tr.items);
     logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, scanned: tr.scanned, capped: tr.capped, via: out.generatedBy });
     res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Pilotage des engagements (SLA) : respect du GTR par dossier, calculé depuis le snapshot.
+app.get("/api/sla", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = withoutDeletedDevs(got.issues);
+    res.json(buildSlaReport(sub));
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
