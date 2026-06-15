@@ -1,6 +1,17 @@
-programme,bibliotheque,fichier_source,membre_source,type,version,derniere_compil,texte
-ACHVTE,EXEMPLE_LIB,QRPGLESRC,ACHVTE,RPGLE,,,"EXEMPLE — remplacer ce fichier par l'export Arcad"
-CTLSTOTAF,EXEMPLE_LIB,QRPGLESRC,CTLSTOTAF,RPGLE,,,"EXEMPLE"
-AFCCOAP,EXEMPLE_LIB,QCLSRC,AFCCOAP,CLLE,,,"EXEMPLE"
-EDILOT0,EXEMPLE_LIB,QRPGLESRC,EDILOT0,RPGLE,,,"EXEMPLE"
-REPTIT,EXEMPLE_LIB,QRPGLESRC,REPTIT,RPGLE,,,"EXEMPLE"
+{
+  "_doc": "Cibles SLA en HEURES (calendaires), par dossier et priorité P1..P4. GTI = prise en charge, GTR = résolution. VALEURS D'EXEMPLE — remplacer par les engagements contractuels réels. 'defaut' sert de repli pour tout dossier/priorité non listé. Pour un repli par dossier, ajouter une clé \"*\".",
+  "defaut": {
+    "P1": { "gti": 4, "gtr": 24 },
+    "P2": { "gti": 8, "gtr": 72 },
+    "P3": { "gti": 24, "gtr": 168 },
+    "P4": { "gti": 48, "gtr": 360 }
+  },
+  "dossiers": {
+    "Tafanel": {
+      "P1": { "gti": 2, "gtr": 16 },
+      "P2": { "gti": 8, "gtr": 72 },
+      "P3": { "gti": 24, "gtr": 168 },
+      "P4": { "gti": 48, "gtr": 336 }
+    }
+  }
+}
