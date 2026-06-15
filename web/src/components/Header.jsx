@@ -154,7 +154,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v45</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v47</span></span>
         </span>
         <div className="hdr-controls">
           {search}
@@ -170,16 +170,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v45</span></div>
-      </div>
-
-      <div className="kpis">
-        <Kpi lbl="Total" val={k.total} onClick={onKpi && (() => onKpi("total"))} active={activeKpi === "total"} />
-        <Kpi lbl="À faire" val={k["À faire"]} cls="todo" onClick={onKpi && (() => onKpi("À faire"))} active={activeKpi === "À faire"} />
-        <Kpi lbl="En cours" val={k["En cours"]} cls="prog" onClick={onKpi && (() => onKpi("En cours"))} active={activeKpi === "En cours"} />
-        <Kpi lbl="Bloqués" val={k["Bloqué"]} cls="block" onClick={onKpi && (() => onKpi("Bloqué"))} active={activeKpi === "Bloqué"} />
-        <Kpi lbl="En retard" val={k.enRetard} cls="late" onClick={onKpi && (() => onKpi("late"))} active={activeKpi === "late"} />
-        <Kpi lbl="Terminés" val={k["Terminé"]} cls="done" onClick={onKpi && (() => onKpi("Terminé"))} active={activeKpi === "Terminé"} />
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v47</span></div>
       </div>
 
       <div className="progress">

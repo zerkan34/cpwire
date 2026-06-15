@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { genMorningCR } from "../api.js";
+import { genMorningCR, genWrittenCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 // Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
@@ -31,11 +31,18 @@ export default function Morning({ issues = [], onTicket }) {
     return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
   }, [issues]);
 
-  const make = async (dossier) => {
-    setBusy(dossier); setErr("");
+  const make = async (dossier, kind = "morning") => {
+    const key = `${dossier}|${kind}`;
+    setBusy(key); setErr("");
     try {
-      const { html } = await genMorningCR(dossier);
-      setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
+      const today = new Date().toISOString().slice(0, 10);
+      if (kind === "written") {
+        const { html } = await genWrittenCR(dossier);
+        setDoc({ title: `CR écrit — ${dossier}`, html, filename: `CR_ecrit_${dossier}_${today}.html` });
+      } else {
+        const { html } = await genMorningCR(dossier);
+        setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${today}.html` });
+      }
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }
   };
@@ -54,8 +61,8 @@ export default function Morning({ issues = [], onTicket }) {
       </p>
       {err && <div className="banner">Erreur : {err}</div>}
       <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={() => make("Tous")} disabled={busy === "Tous"}>
-          {busy === "Tous" ? "Préparation…" : "Préparer le brief (tous les clients)"}
+        <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
+          {busy === "Tous|morning" ? "Préparation…" : "Préparer le brief (tous les clients)"}
         </button>
       </div>
 
@@ -97,9 +104,14 @@ export default function Morning({ issues = [], onTicket }) {
                     </li>
                   )}
                 </ul>
-                <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => make(dossier)} disabled={busy === dossier}>
-                  {busy === dossier ? "Préparation…" : `Préparer le brief de ${dossier}`}
-                </button>
+                <div className="mb-actions">
+                  <button className="btn-solid gold" onClick={() => make(dossier, "morning")} disabled={busy === `${dossier}|morning`}>
+                    {busy === `${dossier}|morning` ? "Préparation…" : "Brief du matin"}
+                  </button>
+                  <button className="btn-solid" onClick={() => make(dossier, "written")} disabled={busy === `${dossier}|written`}>
+                    {busy === `${dossier}|written` ? "Génération…" : "CR écrit"}
+                  </button>
+                </div>
                 </div>
               </div>
             );
