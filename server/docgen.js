@@ -55,6 +55,18 @@ const CSS = `
   .cr-meta{color:#74718a;font-size:11px;}
   .cr-from{color:#74718a;text-decoration:line-through;} .cr-to{font-weight:700;color:#5a48b0;}
   .cr-none{color:#74718a;font-style:italic;}
+  .cr-scope{color:#74718a;font-size:11.5px;margin:2px 0 4px;}
+  .cr-list{margin:4px 0 10px;padding-left:18px;}
+  .cr-list li{font-size:12.5px;line-height:1.5;margin:2px 0;color:#2c2945;}
+  .cr-list li .who{color:#5a48b0;font-weight:600;}
+  .cr-tk-who{font-size:11px;color:#74718a;font-weight:600;}
+  details.cr-more{margin:-4px 0 14px;}
+  details.cr-more>summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:#6e5cc4;padding:4px 0;display:inline-block;}
+  details.cr-more>summary::-webkit-details-marker{display:none;}
+  details.cr-more>summary:before{content:"\\002B ";font-weight:800;}
+  details.cr-more[open]>summary:before{content:"\\2212 ";}
+  /* PDF/impression : on déplie les listes pour ne rien cacher dans le document figé */
+  @media print{details.cr-more>summary{display:none;} details.cr-more>ul{display:block !important;}}
   @page{margin:14mm 13mm;}
   @media print{.page{padding:0;max-width:none;}}
   /* === MOBILE UNIQUEMENT (iframe étroite < 480px) : fond violet cp|WIRE, écriture blanche === */
@@ -78,6 +90,8 @@ const CSS = `
     .indic .hint{color:#c8c4e0;}
     .opt{border-color:rgba(255,255,255,.16);} .opt .ot{color:#b9a9f0;}
     .who,.tk,.cr-to,.cr-tk-k,.cr-lbl,.opt .ot{color:#b9a9f0;}
+    .cr-list li{color:#e4e8f3;} .cr-list li .who{color:#b9a9f0;}
+    details.cr-more>summary{color:#b9a9f0;} .cr-scope,.cr-tk-who{color:#c8c4e0;}
     details.cr-tk{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);}
     details.cr-tk>summary{background:rgba(255,255,255,.07);}
     details.cr-tk>summary:before,details.cr-tk[open]>summary:before{color:#b9a9f0;}

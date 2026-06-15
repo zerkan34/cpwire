@@ -124,14 +124,21 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
 
 function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
 
-// Liste compacte « N° — description — intervenant — état », SANS troncature (pas de « + N autres… »).
+// Liste compacte « N° — description — intervenant — état ». Affiche les 10 premiers,
+// puis replie le reste dans un accordéon natif « Afficher les N autre(s) » (pas de troncature).
 function tkList(arr) {
   if (!arr.length) return `<p class="cr-scope">—</p>`;
-  return `<ul class="cr-list">` + arr.map((i) => {
+  const line = (i) => {
     const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
     const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
     return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)} — <span class="who">${esc(who)}</span> — <b>${esc(st)}</b></li>`;
-  }).join("") + `</ul>`;
+  };
+  const head = arr.slice(0, 10), rest = arr.slice(10);
+  let html = `<ul class="cr-list">${head.map(line).join("")}</ul>`;
+  if (rest.length) {
+    html += `<details class="cr-more"><summary>Afficher les ${rest.length} autre(s)</summary><ul class="cr-list">${rest.map(line).join("")}</ul></details>`;
+  }
+  return html;
 }
 
 // Petite limite de concurrence pour ne pas saturer Jira lors de la récupération des détails.
