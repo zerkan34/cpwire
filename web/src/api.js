@@ -76,6 +76,8 @@ export const fetchChangesSummary = (keys) => post(`/api/changes/summary`, { keys
 export const fetchCRA = (start, end) => post(`/api/cra`, { start, end });
 export const fetchSla = () => req(`/api/sla`);
 export const fetchHygiene = () => req(`/api/hygiene`);
+export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
+export const fetchReferentiel = (client) => req(`/api/referentiel${client ? `?client=${encodeURIComponent(client)}` : ""}`);
 export function importCRA(file, basis = 7) {
   const fd = new FormData();
   fd.append("file", file);

@@ -281,6 +281,32 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .recap-card li { font-size: 13px; padding: 5px 0; border-bottom: 1px solid var(--line-soft); display: flex; gap: 8px; align-items: baseline; }
 .recap-card li .k { font-family: "JetBrains Mono"; font-size: 11.5px; color: var(--muted); min-width: 72px; }
 
+/* ===== Brief du matin : conteneurs et rythme propres ===== */
+.mb-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.recap-card ul.mb-list { margin: 4px 0 12px; }
+.recap-card li.mb-li { display: block; padding: 8px; border-bottom: 1px solid var(--line-soft); border-radius: 8px; cursor: pointer; transition: background .12s ease; }
+.recap-card li.mb-li:hover { background: var(--purple-soft); }
+.recap-card li.mb-li:last-of-type { border-bottom: 0; }
+.recap-card li.mb-more { display: block; padding: 8px 8px 2px; border-bottom: 0; color: var(--purple-strong); font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.recap-card li.mb-more:hover { background: transparent; text-decoration: underline; }
+
+/* ===== Référentiel recette (socle Option→Programmes→Tickets) ===== */
+.ref-dom { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 12.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--indigo); margin: 0 0 8px; }
+.ref-meta { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11.5px; color: var(--muted); margin-bottom: 6px; }
+.ref-meta .late { color: var(--red); font-weight: 700; }
+.ref-bar { height: 6px; border-radius: 99px; background: var(--line-soft); overflow: hidden; }
+.ref-bar-fill { height: 100%; background: linear-gradient(90deg, var(--purple), #c7a14a); border-radius: 99px; }
+.ref-prog { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 7px 6px; border-bottom: 1px solid var(--line-soft); }
+.ref-prog:last-of-type { border-bottom: 0; }
+.ref-prog-nom { font-family: "JetBrains Mono", monospace; font-size: 12px; color: var(--ink); font-weight: 600; }
+.ref-prog-tk { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.ref-prog-none { font-size: 11.5px; color: var(--muted); font-style: italic; }
+.ref-tk-link { font-family: "JetBrains Mono", monospace; font-size: 11px; font-weight: 700; color: var(--purple-strong); background: var(--purple-soft); border: 0; border-radius: 6px; padding: 2px 7px; cursor: pointer; }
+.ref-tk-link:hover { filter: brightness(.97); text-decoration: underline; }
+.pill.rec { background: var(--amber-bg); color: #9a6a00; }
+.filters .btn-line.sm { font: inherit; font-size: 12px; font-weight: 600; padding: 5px 11px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); cursor: pointer; }
+.filters .btn-line.sm.on { background: var(--purple); color: #fff; border-color: var(--purple); }
+
 /* ===== Aperçu document (iframe) ===== */
 .doc-frame { width: 100%; height: 60vh; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
 
