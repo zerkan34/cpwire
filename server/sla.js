@@ -1,6 +1,6 @@
 // sla.js — Pilotage des engagements (SLA) par client.
 // Cibles GTI (prise en charge) / GTR (résolution) par dossier et par priorité,
-// définies dans server/data/sla.json (éditable, survit aux redéploiements).
+// définies dans server/config/sla.json (éditable, survit aux redéploiements).
 //
 // v1 : calcul du GTR (résolution) à partir du snapshot déjà chargé — AUCUN appel Jira en plus.
 //   - tickets résolus : (résolu − créé) comparé à la cible GTR → respecté / dépassé
@@ -14,7 +14,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const JSON_PATH = process.env.SLA_JSON || path.join(__dirname, "data", "sla.json");
+const JSON_PATH = process.env.SLA_JSON || path.join(__dirname, "config", "sla.json");
 
 let CONFIG = { defaut: {}, dossiers: {} };
 try {
