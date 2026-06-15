@@ -1,126 +1,58 @@
-// programmes.js — Référentiel des programmes : OÙ vit chaque programme côté IBM i
-// (bibliothèque, fichier/membre source, type, version, dernière compilation).
+// personnes.js — normalisation de l'affichage des noms dans les récaps/listes/tableaux.
 //
-// SOURCE : un export Arcad (ou une extraction SQL IBM i) déposé dans server/programmes.csv.
-// Chargé au démarrage, en mémoire. Pour rafraîchir : remplacer le fichier et redéployer.
+// 1) Table de correction éditable (server/personnes.json) : nom Jira EXACT -> nom voulu "Prénom Nom".
+//    Sert à corriger l'ordre ET l'orthographe, et les cas que l'automatique ne sait pas trancher.
+// 2) À défaut, redressement AUTOMATIQUE prudent : si un nom de 2 mots est clairement "Nom Prénom"
+//    (2e mot = prénom connu, 1er mot = pas un prénom), on remet le prénom devant.
 //
-// Le ticket Jira ne contient PAS la localisation — seulement le nom du programme dans le titre
-// (« Réécriture ACHVTE … » → ACHVTE). Ce module fait le pont : il repère le programme dans le
-// titre et renvoie sa localisation depuis le référentiel.
+// La table gagne toujours sur l'automatique. Aucune invention : on ne touche qu'aux cas sûrs.
 
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const CSV_PATH = process.env.PROGRAMMES_CSV || path.join(__dirname, "programmes.csv");
+const JSON_PATH = process.env.PERSONNES_JSON || path.join(__dirname, "personnes.json");
 
-const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-// En-têtes acceptés (tolérant aux noms de colonnes de l'export Arcad / SQL).
-const FIELD_SYNONYMS = {
-  name:      ["programme", "program", "objet", "object", "nom", "name", "composant", "component", "pgm"],
-  lib:       ["bibliotheque", "biblio", "library", "lib", "objlib", "library_name", "obj_lib"],
-  srcFile:   ["fichier_source", "fichier source", "source_file", "srcfile", "fichier", "sourcefile", "src_pf", "srcpf"],
-  srcMember: ["membre_source", "membre source", "source_member", "srcmbr", "member", "membre", "source_mbr", "src_mbr"],
-  type:      ["type", "objtype", "langage", "language", "attribut", "attribute", "srctype", "src_type"],
-  version:   ["version", "niveau", "level", "release", "etat_arcad", "statut_arcad"],
-  compile:   ["derniere_compil", "derniere compilation", "compile", "compiled", "date_compil", "creation", "last_compile", "objcreated", "date_creation"],
-  text:      ["texte", "text", "description", "objtext", "libelle", "commentaire", "comment"],
-};
-
-// --- Parseur CSV minimal : gère guillemets, "" échappés, et détecte ; ou , comme séparateur. ---
-function parseCSV(text) {
-  text = String(text || "").replace(/^\uFEFF/, "");
-  const nl = text.indexOf("\n");
-  const head = nl >= 0 ? text.slice(0, nl) : text;
-  const delim = (head.split(";").length > head.split(",").length) ? ";" : ",";
-  const rows = []; let field = "", row = [], inQ = false;
-  for (let i = 0; i < text.length; i++) {
-    const c = text[i];
-    if (inQ) {
-      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
-      else field += c;
-    } else if (c === '"') inQ = true;
-    else if (c === delim) { row.push(field); field = ""; }
-    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
-    else if (c !== "\r") field += c;
-  }
-  if (field.length || row.length) { row.push(field); rows.push(row); }
-  return rows.filter((r) => r.some((x) => String(x).trim() !== ""));
-}
-
-function buildCatalog(rows) {
-  if (!rows.length) return { map: new Map(), count: 0 };
-  const header = rows[0].map(norm);
-  const colOf = {};
-  for (const [field, syns] of Object.entries(FIELD_SYNONYMS)) {
-    let idx = -1;
-    for (const s of syns) { idx = header.indexOf(norm(s)); if (idx >= 0) break; }
-    colOf[field] = idx;
-  }
-  const map = new Map();
-  for (let r = 1; r < rows.length; r++) {
-    const cols = rows[r];
-    const get = (f) => (colOf[f] >= 0 ? String(cols[colOf[f]] || "").trim() : "");
-    const name = (get("name") || get("srcMember")).toUpperCase();
-    if (!name) continue;
-    map.set(name, {
-      name,
-      lib: get("lib"),
-      srcFile: get("srcFile"),
-      srcMember: get("srcMember") || name,
-      type: get("type"),
-      version: get("version"),
-      compile: get("compile"),
-      text: get("text"),
-      found: true,
-    });
-  }
-  return { map, count: map.size };
-}
-
-let CATALOG = { map: new Map(), count: 0 };
+let ALIAS = {}; // norm(nom Jira) -> "Prénom Nom"
 try {
-  if (fs.existsSync(CSV_PATH)) {
-    CATALOG = buildCatalog(parseCSV(fs.readFileSync(CSV_PATH, "utf8")));
-    console.log(`[programmes] référentiel chargé : ${CATALOG.count} programme(s) depuis ${CSV_PATH}`);
+  if (fs.existsSync(JSON_PATH)) {
+    const cfg = JSON.parse(fs.readFileSync(JSON_PATH, "utf8")) || {};
+    const src = cfg.alias || {};
+    for (const k of Object.keys(src)) if (k[0] !== "_") ALIAS[norm(k)] = src[k];
+    console.log(`[personnes] ${Object.keys(ALIAS).length} correction(s) de nom chargée(s) depuis ${JSON_PATH}`);
   } else {
-    console.log(`[programmes] aucun référentiel (${CSV_PATH} absent) — fonctionnalité dormante.`);
+    console.log(`[personnes] aucune table (${JSON_PATH} absent) — redressement automatique seul.`);
   }
-} catch (e) { console.log(`[programmes] erreur de chargement : ${e.message}`); }
+} catch (e) { console.log(`[personnes] erreur de chargement : ${e.message}`); }
 
-const VERBS = new Set(["reecriture", "reecrit", "reecrire", "modification", "modif", "modifier", "creation", "creer", "correction", "corriger", "refonte", "ajout", "suppression", "analyse", "developpement", "dev", "mise", "migration", "portage", "evolution", "bug", "anomalie"]);
+// Prénoms (équipe + courants FR) pour détecter une inversion. Large mais prudent.
+const FIRST_NAMES = new Set([
+  "bastien", "ines", "quentin", "hamza", "enzo", "geoffrey", "ludovic", "mathieu", "matthieu", "steven",
+  "mohammed", "nicolas", "sylvain", "lionel", "laurent", "sandrine", "jaimie", "alice", "ismahen",
+  "alexandre", "alexis", "antoine", "arnaud", "arthur", "aurelien", "benjamin", "benoit", "bernard", "brice",
+  "camille", "cedric", "charles", "christophe", "clement", "corentin", "cyril", "damien", "david", "denis",
+  "didier", "dimitri", "dominique", "dylan", "edouard", "emilie", "emma", "eric", "fabien", "fabrice", "florent",
+  "florian", "francois", "frederic", "gabriel", "gael", "gauthier", "gilles", "gregory", "guillaume", "gwenael",
+  "hugo", "jacques", "jean", "jeremy", "jerome", "jonathan", "jordan", "julien", "julie", "kevin", "leo", "loic", "louis",
+  "lucas", "ludivine", "manon", "marc", "marie", "martin", "mathis", "maxime", "melanie", "michel", "morgan",
+  "nathan", "olivier", "pascal", "patrice", "patrick", "paul", "philippe", "pierre",
+  "raphael", "remi", "romain", "sebastien", "simon", "sophie", "stephane", "theo", "thibault", "thomas", "tom",
+  "valentin", "vincent", "william", "xavier", "yann", "yannick", "yoann", "aurore", "caroline", "celine", "claire",
+  "elodie", "laura", "laetitia", "margaux", "sarah", "virginie",
+]);
 
-// Repère le programme cité dans le titre et renvoie sa localisation (ou un repère "à compléter").
-export function findProgram(title) {
-  const raw = String(title || "");
-  if (!raw) return null;
+const isFirst = (w) => FIRST_NAMES.has(norm(w));
 
-  // 1) Correspondance avec le catalogue (la plus fiable) : on cherche un token connu.
-  const tokens = raw.toUpperCase().match(/[A-Z0-9_]{3,}/g) || [];
-  let best = null;
-  for (const t of tokens) {
-    const rec = CATALOG.map.get(t);
-    if (rec && (!best || t.length > best.name.length)) best = rec;
-  }
-  if (best) return { ...best };
-
-  // 2) Hors catalogue : on devine le nom du programme pour afficher "localisation à compléter".
-  let guess = null;
-  const words = raw.split(/\s+/);
-  for (let i = 0; i < words.length; i++) {
-    if (VERBS.has(norm(words[i]).replace(/[^a-z0-9]/g, ""))) {
-      for (let j = i + 1; j < words.length; j++) {
-        const nx = words[j].replace(/[^A-Za-z0-9_]/g, "");
-        if (nx.length >= 3 && /[A-Z0-9]/.test(nx) && !VERBS.has(norm(nx))) { guess = nx.toUpperCase(); break; }
-      }
-      break;
-    }
-  }
-  if (!guess) { const m = raw.match(/^([A-Z][A-Z0-9_]{2,9})\b/); if (m) guess = m[1]; }
-  if (!guess) return null;
-  return { name: guess, found: false, lib: "", srcFile: "", srcMember: "", type: "", version: "", compile: "", text: "" };
+export function displayName(raw) {
+  const s = String(raw || "").trim().replace(/\s+/g, " ");
+  if (!s) return s;
+  const hit = ALIAS[norm(s)];
+  if (hit) return hit;
+  const parts = s.split(" ");
+  // 2 mots clairement à l'envers : "Nom Prénom" -> "Prénom Nom"
+  if (parts.length === 2 && isFirst(parts[1]) && !isFirst(parts[0])) return `${parts[1]} ${parts[0]}`;
+  return s;
 }
-
-export function catalogStatus() { return { loaded: CATALOG.count > 0, count: CATALOG.count, path: CSV_PATH }; }
