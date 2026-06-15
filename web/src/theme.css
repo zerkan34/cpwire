@@ -12,6 +12,8 @@
   --orange: #fb7a28;
   --orange-deep: #e0600f;
   --orange-soft: #fff2e7;
+  /* Dégradé de la marque « WIRE » du logo : orange → bleu lavande (relevé sur cpwire-logo.png) */
+  --wire-grad: linear-gradient(90deg, #fc6f28 0%, #ff8a2a 20%, #fe9424 40%, #e7b293 62%, #bfc4ea 82%, #cbdcff 100%);
   --ink: #2a2937;
   --body: #3d3b4d;
   --muted: #74718a;
@@ -99,8 +101,11 @@ a { color: inherit; }
 
 /* ---- Jauge dans le bouton Actualiser ---- */
 .gauge-btn { position: relative; overflow: hidden; min-width: 138px; }
-.gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--orange-deep); transition: width .35s ease; z-index: 0; }
-.gauge-label { position: relative; z-index: 1; }
+/* Bouton « Actualiser » : même dégradé que « WIRE » */
+.btn.gold.gauge-btn { background: var(--wire-grad); color: #fff; }
+.btn.gold.gauge-btn:hover { background: var(--wire-grad); filter: brightness(1.05); }
+.gauge-fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: rgba(34, 26, 70, .28); transition: width .35s ease; z-index: 0; }
+.gauge-label { position: relative; z-index: 1; text-shadow: 0 1px 2px rgba(25, 20, 50, .45); }
 
 /* ---- Bouton cloche (notifications) ---- */
 .btn.bell { padding-left: 12px; padding-right: 12px; }
@@ -962,7 +967,21 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
 button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: inherit; text-align: left; width: 100%; cursor: pointer; }
 
 /* Sous-titre du header (plus petit que « Welcome to the jungle ! ») */
-.hdr-tagline { font-size: .5em; font-weight: 600; opacity: .82; margin-left: .15em; letter-spacing: .01em; white-space: nowrap; }
+.hdr-tagline {
+  font-family: "Poppins", sans-serif;   /* même typo que le « cp » de la marque */
+  font-style: italic;                    /* « we take it day-by-day ! » en italique */
+  font-weight: 800;
+  font-size: .52em;
+  margin-left: .14em;
+  letter-spacing: .005em;
+  white-space: nowrap;
+  /* même dégradé que « WIRE », appliqué sur le texte */
+  background: var(--wire-grad);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent; /* indispensable sur iOS / Safari (PWA iPhone) */
+}
 
 /* Badge d'engagement client : TMA / Projet / mixte */
 .eng-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; vertical-align: middle; }

@@ -102,6 +102,7 @@ export default function App() {
 
   // Déclaré tôt : utilisé par des callbacks plus bas (évite une erreur d'initialisation au rendu).
   const issues = data?.issues || [];
+  const inactiveDevs = data?.inactiveDevs || [];
 
   const resetFilters = useCallback(() => {
     setDossier("Tous"); setStatut("Tous"); setOnlyLate(false); setOnlyMine(false); setOnlyFlagged(false);
@@ -488,10 +489,10 @@ export default function App() {
       {tab === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
-      {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "meetings" && <Meetings issues={issues} />}
       {tab === "cra" && <CRA onTicket={setTicket} />}
-      {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
       {tab === "recette" && <Recette issues={issues} onTicket={setTicket} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
