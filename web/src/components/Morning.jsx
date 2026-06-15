@@ -73,14 +73,14 @@ export default function Morning({ issues = [], onTicket }) {
                   <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
                 </div>
                 <div className="recap-bd">
-                <div className="filters" style={{ marginBottom: 8 }}>
+                <div className="mb-pills">
                   {ORDER.map(([c, label, pill]) => count(c) ? (
                     <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
                   ) : null)}
                 </div>
-                <ul>
+                <ul className="mb-list">
                   {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer", display: "block" }}>
+                    <li key={i.cle} className="mb-li" onClick={() => onTicket(i)}>
                       <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
                         <span className="k">{i.cle}</span>
                         <span style={{ flex: 1 }}>{i.resume}</span>
@@ -92,7 +92,7 @@ export default function Morning({ issues = [], onTicket }) {
                     </li>
                   ))}
                   {items.length > 5 && (
-                    <li style={{ color: "var(--purple-strong)", cursor: "pointer", fontWeight: 600 }} onClick={() => setOpenD(open ? null : dossier)}>
+                    <li className="mb-more" onClick={() => setOpenD(open ? null : dossier)}>
                       {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
                     </li>
                   )}
