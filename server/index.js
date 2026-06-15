@@ -16,6 +16,7 @@ import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
+import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -29,7 +30,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
-const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,PBAL,TIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
+const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,TIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
 // Import EXHAUSTIF : tous les tickets des projets, aucun filtre excluant.
 const DEFAULT_JQL = process.env.JQL || `project in (${PROJECTS.join(",")}) ORDER BY created ASC`;
 const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
@@ -407,6 +408,20 @@ app.get("/api/dolibarr/status", guard, (_req, res) => res.json(dolibarrStatus())
 app.get("/api/dolibarr/probe", guard, async (_req, res) => {
   try { res.json(await dolibarrProbe()); }
   catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Référentiel Recette (socle) : Domaine → Option → Programmes → tickets Jira (rapprochement auto).
+app.get("/api/referentiel/clients", guard, (_req, res) => res.json({ clients: referentielClients() }));
+app.get("/api/referentiel", guard, async (req, res) => {
+  try {
+    const client = req.query.client || (referentielClients()[0] || "");
+    if (!client) return res.json({ client: "", domaines: [], nbOptions: 0, nbProgrammes: 0 });
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const data = crossReferentiel(got.issues, client);
+    if (!data) return res.status(404).json({ error: `Aucun référentiel pour « ${client} ».` });
+    res.json(data);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
 app.post("/api/cr/written", guard, async (req, res) => {
