@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -349,7 +349,11 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
-    const out = await dailyReport(dossier, sub);
+    // Qui a réellement fait avancer les tickets aujourd'hui (historique Jira).
+    const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    const todayKeys = sub.filter((i) => i.maj && new Date(i.maj) >= startToday).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(todayKeys, startToday.toISOString(), null);
+    const out = await dailyReport(dossier, sub, null, tr.items);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
@@ -362,8 +366,14 @@ app.post("/api/cr/daily-period", guard, async (req, res) => {
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
     const sub = withoutDeletedDevs(got.issues).filter((i) => !scope || i.dossier === scope);
-    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label });
-    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, via: out.generatedBy });
+    // Candidats = tickets modifiés sur la période ; on lit leur historique pour créditer le bon acteur.
+    const sT = startISO ? new Date(startISO).getTime() : -Infinity;
+    const eT = endISO ? new Date(endISO).getTime() : Infinity;
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const keys = sub.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(keys, startISO, endISO);
+    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label }, tr.items);
+    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, scanned: tr.scanned, capped: tr.capped, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });

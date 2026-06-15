@@ -1,7 +1,7 @@
 // ai.js — rédaction assistée. Utilise l'API Claude si ANTHROPIC_API_KEY est défini,
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
-import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS } from "./config.js";
+import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
@@ -235,7 +235,7 @@ function makeWithin(range) {
   return (iso) => { const t = new Date(iso).getTime(); if (isNaN(t)) return false; if (s != null && t < s) return false; if (e != null && t >= e) return false; return true; };
 }
 
-function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false) {
+function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false, actorAct = null) {
   const W = isPeriod ? "sur la période" : "aujourd'hui";
   const inCat = (c) => issues.filter((i) => i.categorie === c);
   const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && within(i.maj)).sort(byMajDesc);
@@ -249,22 +249,31 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
   const g = { "Terminé": [], "En cours": [], "À faire": [], "Bloqué": [] };
   issues.forEach((i) => { (g[i.statut] || (g[i.statut] = [])).push(i); });
 
-  // Activité du jour par personne.
-  const touchedToday = issues.filter((i) => within(i.maj));
-  const parPersonne = {};
-  touchedToday.forEach((i) => {
-    const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
-    (parPersonne[d] ||= { dev: d, faits: 0, encours: 0, total: 0 });
-    parPersonne[d].total += 1;
-    if (DONE_CATS.includes(i.categorie)) parPersonne[d].faits += 1;
-    else if (ACTIVE_CATS.includes(i.categorie)) parPersonne[d].encours += 1;
-  });
-  const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
-  const tablePersonnes = personnes.length
-    ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total ${isPeriod ? "période" : "du jour"}</th></tr>` +
-      personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
-      `</table>`
-    : `<p>Aucun ticket mis à jour ${W}.</p>`;
+  // Activité par personne.
+  let tablePersonnes;
+  if (actorAct && actorAct.actors.length) {
+    // Acteurs RÉELS des transitions (qui a fait avancer / clôturé), pas le dev d'origine.
+    tablePersonnes = `<table class="data"><tr><th>Personne (a fait avancer)</th><th>Recette client</th><th>Terminés / clôtures</th><th>Recette Armonie</th><th>Total actions</th></tr>` +
+      actorAct.actors.map((a) => `<tr><td><span class="who">${esc(a.who)}</span></td><td>${a.recC || "—"}</td><td>${a.term || "—"}</td><td>${a.recA || "—"}</td><td><b>${a.total}</b></td></tr>`).join("") +
+      `</table><p style="font-size:11.5px;color:#74718a;margin-top:4px;">Chaque ligne = la personne qui a <b>réellement effectué</b> le passage de statut (recette / clôture) ${W}, d'après l'historique Jira — et non le développeur d'origine.</p>`;
+  } else {
+    // Repli (pas d'historique chargé) : activité par assigné.
+    const touchedToday = issues.filter((i) => within(i.maj));
+    const parPersonne = {};
+    touchedToday.forEach((i) => {
+      const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
+      (parPersonne[d] ||= { dev: d, faits: 0, encours: 0, total: 0 });
+      parPersonne[d].total += 1;
+      if (DONE_CATS.includes(i.categorie)) parPersonne[d].faits += 1;
+      else if (ACTIVE_CATS.includes(i.categorie)) parPersonne[d].encours += 1;
+    });
+    const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
+    tablePersonnes = personnes.length
+      ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total ${isPeriod ? "période" : "du jour"}</th></tr>` +
+        personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
+        `</table>`
+      : `<p>Aucun ticket mis à jour ${W}.</p>`;
+  }
 
   const recette = [...recArmonie, ...recClient];
   const recetteBloc = recette.length
@@ -289,7 +298,37 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
     <h2>Activité ${isPeriod ? "sur la période" : "du jour"} par personne</h2>${tablePersonnes}`;
 }
 
-export async function dailyReport(dossier, issues, range = null) {
+// À partir de l'historique Jira (transitions de statut sur la période), agrège QUI a réellement
+// fait avancer les tickets — par acteur de la transition, PAS par développeur d'origine.
+// items: [{ cle, transitions: [{ to, from, who, date }] }]
+function actorActivity(items) {
+  const MILESTONE = new Set(["recetteArmonie", "recetteClient", "attenteClient", "termine", "miseEnProd"]);
+  const byActor = {};   // who -> { who, recC, term, recA, att, total, tickets:Set }
+  const perTicket = []; // { cle, to, toCat, who, date } : dernier passage marquant du ticket
+  for (const it of (items || [])) {
+    const trs = (it.transitions || []).slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    let last = null;
+    for (const tr of trs) {
+      const cat = categoryFromStatus(tr.to);
+      if (!MILESTONE.has(cat)) continue;            // on ne compte que les avancées « recette / clôture »
+      const who = (tr.who && tr.who !== "—") ? tr.who : "Inconnu";
+      const a = (byActor[who] ||= { who, recC: 0, term: 0, recA: 0, att: 0, total: 0, tickets: new Set() });
+      if (cat === "recetteClient") a.recC += 1;
+      else if (cat === "termine" || cat === "miseEnProd") a.term += 1;
+      else if (cat === "recetteArmonie") a.recA += 1;
+      else if (cat === "attenteClient") a.att += 1;
+      a.total += 1; a.tickets.add(it.cle);
+      last = { cle: it.cle, to: tr.to, toCat: cat, who, date: tr.date };
+    }
+    if (last) perTicket.push(last);
+  }
+  const actors = Object.values(byActor)
+    .map((a) => ({ ...a, nbTickets: a.tickets.size }))
+    .sort((x, y) => y.total - x.total);
+  return { actors, perTicket };
+}
+
+export async function dailyReport(dossier, issues, range = null, transitions = null) {
   const within = makeWithin(range);
   const isPeriod = !!range;
   const periodLabel = (range && range.label) ? range.label : new Date().toLocaleDateString("fr-FR");
@@ -299,31 +338,62 @@ export async function dailyReport(dossier, issues, range = null) {
   const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && within(i.maj));
   const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
 
-  // Compte par personne (pour nourrir l'analyse).
+  // Acteurs RÉELS des transitions sur la période (qui a fait avancer / clôturé), via l'historique Jira.
+  const act = (transitions && transitions.length) ? actorActivity(transitions) : null;
+  const devByKey = {}; issues.forEach((i) => { devByKey[i.cle] = (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : ""); });
+
+  // Compte par personne (pour nourrir l'analyse) : acteur réel si dispo, sinon repli sur l'assigné.
   const whoDone = {};
-  dayDone.forEach((i) => { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné"); whoDone[d] = (whoDone[d] || 0) + 1; });
+  if (act) { act.actors.forEach((a) => { whoDone[a.who] = a.total; }); }
+  else { dayDone.forEach((i) => { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné"); whoDone[d] = (whoDone[d] || 0) + 1; }); }
   const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).map(([d, n]) => `${d} (${n})`).join(", ");
 
   // Analyse « chef de projet senior » : claire, concise, pertinente — placée avant « Terminés ».
   let analyseHtml = "";
   if (aiAvailable()) {
     try {
-      const dev = (i) => (i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : (i.assigne && i.assigne !== "Non assigné" ? " [" + i.assigne + "]" : ""));
-      const doneList = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)}`).join("\n");
-      const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
-      const prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée pour le dossier "${dossier}" sur la période « ${periodLabel} », ` +
-        `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
-        `en citant les personnes par leur nom et les tickets par leur clé. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
-        `Données réelles : ${dayDone.length} terminé(s) ${W}, ${dayActive.length} en cours ${W}, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
-        `Tickets terminés (${periodLabel}) :\n${doneList || "(aucun)"}\n` +
-        `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
-        `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
+      let prompt;
+      if (act) {
+        // Récap centré sur les TRANSITIONS réelles : on crédite l'acteur, pas le dev d'origine.
+        const ctx = (cle) => devByKey[cle] ? ` (développé par ${devByKey[cle]})` : "";
+        const moves = act.perTicket.slice(0, 30).map((t) => `- ${t.cle} → ${CATEGORY_LABEL[t.toCat] || t.to}, par ${t.who}${ctx(t.cle)}`).join("\n");
+        const parActeur = act.actors.slice(0, 12).map((a) => `${a.who} : ${a.recC} passage(s) en recette client, ${a.term} clôture(s)/terminé(s), ${a.recA} en recette Armonie (${a.nbTickets} ticket(s))`).join("\n");
+        prompt = `Tu es un chef de projet senior. Rédige une ANALYSE pour le dossier "${dossier}" sur « ${periodLabel} », en 2 à 4 paragraphes factuels.\n` +
+          `RÈGLE ABSOLUE : sur cette période l'activité consiste surtout à FAIRE AVANCER les tickets en RECETTE et à les CLÔTURER. La personne à créditer pour un passage en recette client ou en Terminé est CELLE QUI A EFFECTUÉ LA TRANSITION (le recetteur), JAMAIS le développeur d'origine. Le développeur a souvent codé des semaines avant et n'a pas travaillé sur la période : ne lui attribue aucune clôture. Mentionne « développé par … » uniquement comme contexte.\n` +
+          `Cite les personnes par leur nom et les tickets par leur clé. N'invente aucun chiffre.\n` +
+          `Qui a fait avancer quoi (acteur réel des transitions) :\n${parActeur || "(aucune transition)"}\n` +
+          `Détail des passages (ticket → nouveau statut · par qui · dev d'origine en contexte) :\n${moves || "(aucun)"}\n` +
+          `${recA} ticket(s) restent en attente de recette Armonie.\n` +
+          `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
+      } else {
+        const dev = (i) => (i.dev && i.dev !== "Non assigné" ? " [" + i.dev + "]" : (i.assigne && i.assigne !== "Non assigné" ? " [" + i.assigne + "]" : ""));
+        const doneList = dayDone.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)}`).join("\n");
+        const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
+        prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée pour le dossier "${dossier}" sur la période « ${periodLabel} », ` +
+          `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
+          `en citant les personnes par leur nom et les tickets par leur clé. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
+          `Données réelles : ${dayDone.length} terminé(s) ${W}, ${dayActive.length} en cours ${W}, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
+          `Tickets terminés (${periodLabel}) :\n${doneList || "(aucun)"}\n` +
+          `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
+          `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
+      }
       analyseHtml = await callClaude(STYLE, prompt);
     } catch { analyseHtml = ""; }
   }
   if (!analyseHtml) {
-    // Repli déterministe (sans IA) : une synthèse concise et utile.
-    if (dayDone.length || dayActive.length) {
+    // Repli déterministe (sans IA).
+    if (act && act.actors.length) {
+      const totRecC = act.actors.reduce((s, a) => s + a.recC, 0);
+      const totTerm = act.actors.reduce((s, a) => s + a.term, 0);
+      const totRecA = act.actors.reduce((s, a) => s + a.recA, 0);
+      const top = act.actors.slice(0, 4).map((a) => `${esc(a.who)} (${a.total})`).join(", ");
+      const bits = [];
+      if (totRecC) bits.push(`<b>${totRecC}</b> passage(s) en recette client`);
+      if (totTerm) bits.push(`<b>${totTerm}</b> clôture(s)/terminé(s)`);
+      if (totRecA) bits.push(`<b>${totRecA}</b> passage(s) en recette Armonie`);
+      analyseHtml = `<p>${isPeriod ? "Sur la période, " : "Aujourd'hui, "}l'activité a surtout porté sur la recette et la clôture : ${bits.join(", ") || "aucune transition de statut enregistrée"}. Réalisé par : ${top || "—"}.</p>` +
+        (recA ? `<p><b>${recA}</b> ticket(s) restent en attente de recette Armonie — à prioriser.</p>` : "");
+    } else if (dayDone.length || dayActive.length) {
       const phrases = [];
       phrases.push(`${isPeriod ? "Sur la période, " : "Aujourd'hui, "}<b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${esc(dossier)}.`);
       if (topWho) phrases.push(`Contributions principales : ${esc(topWho)}.`);
@@ -341,7 +411,7 @@ export async function dailyReport(dossier, issues, range = null) {
   if (!detailSource.length) detailSource = [...issues].sort(byMajDesc).slice(0, 10);
   const detailedHtml = await detailedTicketsHtml(detailSource);
 
-  const body = templateDaily(dossier, issues, analyseHtml, detailedHtml, within, isPeriod);
+  const body = templateDaily(dossier, issues, analyseHtml, detailedHtml, within, isPeriod, act);
 
   const html = buildDoc({
     kicker: "Compte rendu journalier",

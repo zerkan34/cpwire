@@ -242,6 +242,44 @@ export async function fetchIssueActivity(key) {
   return { timeline, worklogs, totalTime: fmtSeconds(totalSeconds), totalSeconds };
 }
 
+// Pour les RÉCAPS : QUI a réellement fait avancer chaque ticket sur une période.
+// On lit UNIQUEMENT le changelog (pas les worklogs) → 2× moins d'appels.
+// Concurrence limitée (6 en parallèle) + plafond pour rester rapide sur les grosses périodes.
+export async function fetchStatusTransitions(keys = [], startISO = null, endISO = null, cap = 90) {
+  if (!isConfigured() || !keys.length) return { configured: isConfigured(), items: [], scanned: 0, total: keys.length, capped: false };
+  const headers = { Authorization: authHeader(), Accept: "application/json" };
+  const sT = startISO ? new Date(startISO).getTime() : -Infinity;
+  const eT = endISO ? new Date(endISO).getTime() : Infinity;
+  const inRange = (d) => { const t = new Date(d).getTime(); return !isNaN(t) && t >= sT && t < eT; };
+  const list = keys.slice(0, cap);
+  const capped = keys.length > cap;
+  const items = [];
+  const fetchOne = async (key) => {
+    const enc = encodeURIComponent(key);
+    try {
+      const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}?expand=changelog&fields=summary`, { headers });
+      if (!r.ok) return { cle: key, transitions: [] };
+      const data = await r.json();
+      const transitions = [];
+      (data.changelog?.histories || []).forEach((h) => {
+        if (!inRange(h.created)) return;
+        const who = h.author?.displayName || "—";
+        (h.items || []).forEach((it) => {
+          if (it.field !== "status") return;
+          transitions.push({ to: it.toString || "", from: it.fromString || "", who, date: h.created });
+        });
+      });
+      return { cle: key, transitions };
+    } catch { return { cle: key, transitions: [] }; }
+  };
+  const CONC = 6;
+  for (let i = 0; i < list.length; i += CONC) {
+    const res = await Promise.all(list.slice(i, i + CONC).map(fetchOne));
+    items.push(...res);
+  }
+  return { configured: true, items, scanned: list.length, total: keys.length, capped };
+}
+
 // Récupère la description d'UN seul ticket, à la demande (ouverture d'un ticket).
 export async function fetchIssueDescription(key) {
   if (!isConfigured() || !key) return "";
