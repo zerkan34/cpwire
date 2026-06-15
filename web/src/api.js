@@ -74,6 +74,7 @@ export const fetchTicketActivity = (cle) => post(`/api/ticket/activity`, { cle }
 export const fetchDevWork = (dev, keys) => post(`/api/dev/work`, { dev, keys });
 export const fetchChangesSummary = (keys) => post(`/api/changes/summary`, { keys });
 export const fetchCRA = (start, end) => post(`/api/cra`, { start, end });
+export const fetchSla = () => req(`/api/sla`);
 export function importCRA(file, basis = 7) {
   const fd = new FormData();
   fd.append("file", file);

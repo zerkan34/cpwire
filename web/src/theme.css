@@ -1161,3 +1161,67 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .rec-chip { background: rgba(255,255,255,.07); color: var(--ink); border-color: var(--line); }
   .crash-card, .install-ios-box { background: var(--card); color: var(--ink); border-color: var(--line); }
 }
+
+/* ============================================================
+   MOBILE PWA UNIQUEMENT (≤768px) — ajustements demandés.
+   Le DESKTOP n'est jamais impacté : tout est sous ce media query.
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 1) Titres de section ("Récap de la journée"…) : même typo que le
+        titre de page ("Récap du jour") = Inter, gras 800. */
+  .section-title { font-family: "Inter", system-ui, -apple-system, sans-serif; font-weight: 800; }
+
+  /* 2) Conteneur "Explication simple" (fiche ticket) : violet + écriture blanche.
+        Violet profond choisi pour rester lisible sur le thème sombre. */
+  .expl { background: #5a48b0; border-color: #6e5cc4; }
+  .expl-h { color: rgba(255,255,255,.9); }
+  .expl p { color: #fff; }
+
+  /* 3) Barre "Exporter / partager" : libellé sur sa ligne, puis les 4 boutons
+        (PDF · Télécharger · Copier · E-mail) harmonisés en grille 2×2 égale. */
+  .export-bar { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: stretch; }
+  .export-bar .eb-lbl { grid-column: 1 / -1; }
+  .export-bar .btn-line { width: 100%; text-align: center; }
+  .export-bar .eb-err { grid-column: 1 / -1; }
+}
+
+/* ---- Localisation programme (référentiel Arcad, à côté de chaque ticket) ---- */
+.prog-loc { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 12px; padding: 12px 16px; margin: 4px 0 16px; }
+.prog-loc.nf { border-left-color: var(--line); opacity: .92; }
+.prog-h { font-weight: 700; font-size: 11px; letter-spacing: .07em; text-transform: uppercase; color: var(--gold-deep); margin-bottom: 8px; }
+.prog-loc.nf .prog-h { color: var(--muted); }
+.prog-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 18px; }
+.pl-cell { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.pl-l { font-size: 10.5px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.pl-v { font-size: 14px; color: var(--ink); font-weight: 600; word-break: break-word; }
+.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+.prog-src { margin: 8px 0 0; font-size: 11px; color: var(--muted); }
+.prog-chip { display: inline-block; margin-left: 6px; font-size: 10.5px; font-weight: 600; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--gold-deep); background: var(--gold-soft, #f8f1dd); border: 1px solid #ecd9a8; border-radius: 5px; padding: 1px 6px; vertical-align: middle; white-space: nowrap; }
+
+/* ---- Onglet SLA (pilotage des engagements) ---- */
+.sla-wrap { display: block; }
+.sla-intro { padding: 4px 2px; }
+.sla-intro code, .sla-note code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; background: var(--line-soft); padding: 1px 5px; border-radius: 4px; }
+.sla-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 8px 0 16px; }
+.sla-kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; text-align: center; }
+.sla-kpi .v { font-size: 26px; font-weight: 800; line-height: 1.1; color: var(--ink); }
+.sla-kpi .l { font-size: 11px; color: var(--muted); margin-top: 4px; }
+.sla-ok { color: #2e9e5b !important; }
+.sla-warn { color: #c98a1e !important; }
+.sla-bad { color: #d1495b !important; }
+.sla-h { margin: 18px 0 8px; font-size: 14px; font-weight: 700; color: var(--ink); }
+.sla-list { display: flex; flex-direction: column; gap: 6px; }
+.sla-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--line); border-radius: 10px; padding: 8px 12px; cursor: pointer; }
+.sla-row:hover { background: var(--line-soft); }
+.sla-bad-row { border-left-color: #d1495b; }
+.sla-warn-row { border-left-color: #c98a1e; }
+.sla-prio { font-size: 10.5px; font-weight: 700; color: var(--muted); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+.sla-resume { flex: 1 1 220px; min-width: 0; font-size: 13.5px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sla-late { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.sla-bad-row .sla-late b { color: #d1495b; }
+.muted-cell { color: var(--muted); }
+.sla-note { margin-top: 16px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+@media (max-width: 768px) {
+  .sla-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .sla-resume { flex-basis: 100%; white-space: normal; }
+}
