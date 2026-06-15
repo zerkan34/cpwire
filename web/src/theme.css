@@ -180,6 +180,7 @@ tr.has-flag td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
 .fbtn.reset { border-color: #e7c4c4; color: #b4434a; }
 .fbtn.reset:hover { border-color: #b4434a; }
 .btn-line.sm { font-size: 12px; padding: 5px 11px; border-radius: 8px; }
+.btn-solid.sm { font-size: 12px; padding: 5px 11px; border-radius: 8px; font-weight: 600; }
 
 /* Tri par colonne */
 .th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
