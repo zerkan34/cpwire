@@ -25,6 +25,7 @@ function periodRange(period) {
   const now = new Date();
   const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); const s = new Date(y, m - 1, d); const e = new Date(y, m - 1, d + 1); return [s, e]; }
+  if (period.startsWith("range:")) { const [a, b] = period.slice(6).split(".."); const [ys, ms, ds] = a.split("-").map(Number); const [ye, me, de] = b.split("-").map(Number); return [new Date(ys, ms - 1, ds), new Date(ye, me - 1, de + 1)]; }
   if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return [new Date(y, m - 1, 1), new Date(y, m, 1)]; }
   if (period === "auj") return [startToday, null];
   if (period === "hier") { const y = new Date(startToday); y.setDate(y.getDate() - 1); return [y, startToday]; }
@@ -35,6 +36,7 @@ function periodRange(period) {
 }
 function periodLabel(period) {
   if (period.startsWith("day:")) { const [y, m, d] = period.slice(4).split("-").map(Number); return `${pad(d)} ${MOIS[m - 1]} ${y}`; }
+  if (period.startsWith("range:")) { const [a, b] = period.slice(6).split(".."); const [ys, ms, ds] = a.split("-").map(Number); const [ye, me, de] = b.split("-").map(Number); const left = `${pad(ds)} ${MOIS[ms - 1]}${ys !== ye ? " " + ys : ""}`; return `du ${left} au ${pad(de)} ${MOIS[me - 1]} ${ye}`; }
   if (period.startsWith("month:")) { const [y, m] = period.slice(6).split("-").map(Number); return `${MOIS[m - 1]} ${y}`; }
   return PRESETS.find((p) => p.id === period)?.label || "";
 }
@@ -54,6 +56,10 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState("");
   const [period, setPeriod] = useState("hier");
+  const [rStart, setRStart] = useState("");
+  const [rEnd, setREnd] = useState("");
+  const pick = (p) => { setRStart(""); setREnd(""); setPeriod(p); };
+  const applyRange = (s, e) => { if (s && e && s <= e) setPeriod(`range:${s}..${e}`); };
   const [client, setClient] = useState("Tous");
   const [doc, setDoc] = useState(null);
   const [crBusy, setCrBusy] = useState(false);
@@ -182,23 +188,29 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
         <div className="filters" style={{ marginBottom: 8 }}>
           <span className="fg-lbl">Période</span>
           {PRESETS.map((p) => (
-            <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
+            <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => pick(p.id)}>{p.label}</button>
           ))}
         </div>
         <div className="filters" style={{ marginBottom: 4, gap: 14 }}>
           <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
             Jour précis
-            <select value={period.startsWith("day:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+            <select value={period.startsWith("day:") ? period : ""} onChange={(e) => e.target.value && pick(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
               <option value="">—</option>
               {dayOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
             </select>
           </label>
           <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
             Mois précis
-            <select value={period.startsWith("month:") ? period : ""} onChange={(e) => e.target.value && setPeriod(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
+            <select value={period.startsWith("month:") ? period : ""} onChange={(e) => e.target.value && pick(e.target.value)} style={{ padding: "6px 8px", borderRadius: 8, border: "1px solid var(--line)" }}>
               <option value="">—</option>
               {monthOptions.map((o) => <option key={o.v} value={o.v}>{o.label}</option>)}
             </select>
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)", display: "flex", alignItems: "center", gap: 6 }}>
+            Plage : du
+            <input type="date" value={rStart} max={rEnd || undefined} onChange={(e) => { const v = e.target.value; setRStart(v); applyRange(v, rEnd); }} style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid var(--line)" }} />
+            au
+            <input type="date" value={rEnd} min={rStart || undefined} onChange={(e) => { const v = e.target.value; setREnd(v); applyRange(rStart, v); }} style={{ padding: "5px 8px", borderRadius: 8, border: "1px solid var(--line)" }} />
           </label>
         </div>
 
