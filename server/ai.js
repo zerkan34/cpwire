@@ -134,6 +134,23 @@ async function mapLimit(items, limit, fn) {
   return out;
 }
 
+// Reformule en langage clair (1 seul appel IA, groupé) la "problématique" de chaque ticket,
+// à partir de sa description Jira — pour ne PAS recopier le pavé brut. Repli sûr si pas d'IA.
+async function clarifyContexts(enriched) {
+  if (!aiAvailable()) return {};
+  const items = enriched.filter(({ desc }) => desc && desc.trim())
+    .map(({ i, desc }) => `${i.cle} | ${i.resume} | ${desc.replace(/\s+/g, " ").slice(0, 400)}`);
+  if (!items.length) return {};
+  const prompt = `Pour CHAQUE ticket ci-dessous (format "CLÉ | titre | description Jira"), reformule en UNE phrase claire, en français simple, CE DONT IL S'AGIT et ce qu'il faut faire — sans recopier la description, sans jargon inutile ni identifiants d'incident. Ne traite QUE les tickets listés, n'en invente AUCUN, n'ajoute aucun nom ni client absent.\n` +
+    items.join("\n") +
+    `\nRéponds STRICTEMENT en JSON : un objet {"CLÉ": "phrase claire", ...}, sans texte autour ni Markdown.`;
+  try {
+    const raw = await callClaude("Tu es un chef de projet qui vulgarise des tickets techniques, fidèlement, sans rien inventer.", prompt);
+    const j = JSON.parse(String(raw).replace(/```json|```/gi, "").trim());
+    return (j && typeof j === "object" && !Array.isArray(j)) ? j : {};
+  } catch { return {}; }
+}
+
 // Construit, pour chaque ticket, un bloc dépliable (accordéon) qui explique réellement :
 // le sujet, la problématique (description Jira), les travaux réalisés (commentaires de temps),
 // l'avancement (transitions de statut) et les intervenants. Honnête : indique ce qui manque dans Jira.
@@ -148,22 +165,36 @@ async function detailedTicketsHtml(tickets) {
     return { i, desc, act };
   });
 
+  const clear = await clarifyContexts(enriched);
   return enriched.map(({ i, desc, act }) => {
     const statut = CATEGORY_LABEL[i.categorie] || i.statut || "—";
     const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "");
-    const prob = desc
-      ? esc(desc.slice(0, 600)) + (desc.length > 600 ? "…" : "")
-      : `<span class="cr-none">Non documentée dans Jira.</span>`;
+    // Reformulation claire (IA) si dispo, sinon court extrait — jamais le pavé Jira recopié intégralement.
+    const prob = clear[i.cle]
+      ? esc(clear[i.cle])
+      : (desc ? esc(desc.replace(/\s+/g, " ").slice(0, 280)) + (desc.length > 280 ? "…" : "") : `<span class="cr-none">Non documentée dans Jira.</span>`);
     const works = (act.worklogs || []).filter((w) => w.comment)
       .map((w) => `<li>${esc(w.comment)} <span class="cr-meta">— ${esc(w.who)}${w.time ? ", " + esc(w.time) : ""}</span></li>`);
     const travaux = works.length
       ? `<ul class="cr-works">${works.join("")}</ul>`
       : `<span class="cr-none">Aucun détail de travaux saisi dans Jira — à demander au développeur.</span>`;
-    const trans = (act.timeline || []).filter((t) => t.champ === "Statut")
-      .slice(0, 6).reverse()
-      .map((t) => `<span class="cr-from">${esc(t.from)}</span> → <span class="cr-to">${esc(t.to)}</span>`)
-      .join(" , puis ");
-    const avancement = trans || `Statut actuel : <b>${esc(statut)}</b>`;
+    // Avancement : parcours des statuts (sans répétition) + nb de changements et de retours,
+    // au lieu de la liste brute « X→Y , puis Y→X… » qui donnait un ping-pong illisible.
+    const seq = (act.timeline || []).filter((t) => t.champ === "Statut").slice().reverse(); // chrono
+    const visited = new Set(); const ordered = []; let changes = 0, retours = 0;
+    seq.forEach((t, k) => {
+      if (k === 0 && t.from) { ordered.push(t.from); visited.add(t.from); }
+      if (t.to) {
+        changes += 1;
+        if (visited.has(t.to) || /retour/i.test(t.to)) retours += 1;
+        if (!ordered.includes(t.to)) ordered.push(t.to);
+        visited.add(t.to);
+      }
+    });
+    const parcours = ordered.length > 1 ? ordered.map((s) => esc(s)).join(" → ") : "";
+    const avancement = changes
+      ? `Statut actuel : <b>${esc(statut)}</b><span class="cr-meta"> · ${changes} changement${changes > 1 ? "s" : ""}${retours ? `, dont ${retours} retour${retours > 1 ? "s" : ""}` : ""}${parcours ? ` · parcours : ${parcours}` : ""}</span>`
+      : `Statut actuel : <b>${esc(statut)}</b>`;
     const tps = act.totalSeconds ? ` · ${esc(act.totalTime)} saisies` : "";
     return `<details class="cr-tk">
       <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-st">${esc(statut)}</span></summary>
@@ -275,19 +306,31 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
       : `<p>Aucun ticket mis à jour ${W}.</p>`;
   }
 
-  const recette = [...recArmonie, ...recClient];
-  const recetteBloc = recette.length
-    ? `<h3>En recette — ${recArmonie.length} côté Armonie · ${recClient.length} côté client</h3>${catList(recette, { showStatus: true, cap: 40 })}`
+  // En recette : on garde les COMPTEURS (contexte), mais en mode période on ne LISTE que les tickets
+  // ayant bougé sur la période — sinon on déverse un backlog ancien (ex. recette client depuis des mois).
+  const recArmList = isPeriod ? recArmonie.filter((i) => within(i.maj)) : recArmonie;
+  const recCliList = isPeriod ? recClient.filter((i) => within(i.maj)) : recClient;
+  const recetteShown = [...recArmList, ...recCliList];
+  const recetteBloc = (recArmonie.length || recClient.length)
+    ? `<h3>En recette — ${recArmonie.length} côté Armonie · ${recClient.length} côté client</h3>` +
+      (recetteShown.length
+        ? `<p class="cr-scope">Tickets ayant bougé en recette ${W} :</p>${catList(recetteShown, { showStatus: true, cap: 40 })}`
+        : `<p class="cr-scope">Aucun mouvement de recette ${W}.</p>`)
     : `<h3>En recette</h3><p>Aucun ticket en attente de recette.</p>`;
+
+  const attList = isPeriod ? attenteClient.filter((i) => within(i.maj)) : attenteClient;
   const attenteBloc = attenteClient.length
-    ? `<h3>En attente client (${attenteClient.length})</h3>${catList(attenteClient, { cap: 40 })}`
+    ? `<h3>En attente client (${attenteClient.length})</h3>` +
+      (attList.length ? catList(attList, { cap: 40 }) : `<p class="cr-scope">Aucun mouvement ${W}.</p>`)
     : "";
-  const bloquantsBloc = bloquants.length
-    ? `<h3>⚠ Points bloquants (${bloquants.length})</h3>${catList(bloquants, { showStatus: true, cap: 40 })}`
-    : `<h3>Points bloquants</h3><p>Aucun point bloquant signalé à ce jour.</p>`;
+
+  // Points bloquants : seulement les tickets OUVERTS réellement bloqués (on exclut terminés/annulés/MEP).
+  const bloquantsOpen = bloquants.filter((i) => !DONE_CATS.includes(i.categorie) && i.categorie !== "annule");
+  const bloquantsBloc = bloquantsOpen.length
+    ? `<h3>⚠ Points bloquants (${bloquantsOpen.length})</h3>${catList(bloquantsOpen, { showStatus: true, cap: 40 })}`
+    : `<h3>Points bloquants</h3><p>Aucun point bloquant ouvert.</p>`;
 
   return `<h2>Synthèse ${isPeriod ? "de la période" : "de la journée"}</h2>
-    ${kpiRow(g, issues.length)}
     ${analyseHtml || ""}
     <h2>État des lieux détaillé</h2>
     <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. Cliquez sur un ticket pour déplier le détail (sujet, problématique, travaux réalisés, avancement).</p>
@@ -360,7 +403,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         const parActeur = act.actors.slice(0, 12).map((a) => `${a.who} : ${a.recC} passage(s) en recette client, ${a.term} clôture(s)/terminé(s), ${a.recA} en recette Armonie (${a.nbTickets} ticket(s))`).join("\n");
         prompt = `Tu es un chef de projet senior. Rédige une ANALYSE pour le dossier "${dossier}" sur « ${periodLabel} », en 2 à 4 paragraphes factuels.\n` +
           `RÈGLE ABSOLUE : sur cette période l'activité consiste surtout à FAIRE AVANCER les tickets en RECETTE et à les CLÔTURER. La personne à créditer pour un passage en recette client ou en Terminé est CELLE QUI A EFFECTUÉ LA TRANSITION (le recetteur), JAMAIS le développeur d'origine. Le développeur a souvent codé des semaines avant et n'a pas travaillé sur la période : ne lui attribue aucune clôture. Mentionne « développé par … » uniquement comme contexte.\n` +
-          `Cite les personnes par leur nom et les tickets par leur clé. N'invente aucun chiffre.\n` +
+          `Cite les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets et personnes listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action absent des données ; n'affirme jamais qu'un ticket est « en production », « déployé » ou « validé » si ce n'est pas son statut réel ; reformule en langage clair, sans recopier les libellés techniques.\n` +
           `Qui a fait avancer quoi (acteur réel des transitions) :\n${parActeur || "(aucune transition)"}\n` +
           `Détail des passages (ticket → nouveau statut · par qui · dev d'origine en contexte) :\n${moves || "(aucun)"}\n` +
           `${recA} ticket(s) restent en attente de recette Armonie.\n` +
@@ -371,7 +414,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
         prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée pour le dossier "${dossier}" sur la période « ${periodLabel} », ` +
           `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
-          `en citant les personnes par leur nom et les tickets par leur clé. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
+          `en citant les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action absent des données ; n'affirme jamais qu'un ticket est « en production », « déployé » ou « validé » si ce n'est pas son statut réel. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
           `Données réelles : ${dayDone.length} terminé(s) ${W}, ${dayActive.length} en cours ${W}, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
           `Tickets terminés (${periodLabel}) :\n${doneList || "(aucun)"}\n` +
           `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
