@@ -143,6 +143,26 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
             <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer">Ouvrir le ticket dans Jira ↗</a>
           )}
 
+          {ticket.prog && (ticket.prog.found ? (
+            <div className="prog-loc">
+              <div className="prog-h">📦 Programme localisé</div>
+              <div className="prog-grid">
+                <div className="pl-cell"><span className="pl-l">Programme</span><span className="pl-v mono">{ticket.prog.name}</span></div>
+                <div className="pl-cell"><span className="pl-l">Bibliothèque</span><span className="pl-v mono">{ticket.prog.lib || "—"}</span></div>
+                <div className="pl-cell"><span className="pl-l">Source</span><span className="pl-v mono">{(ticket.prog.srcFile ? ticket.prog.srcFile + "/" : "") + (ticket.prog.srcMember || "—")}</span></div>
+                <div className="pl-cell"><span className="pl-l">Type</span><span className="pl-v">{ticket.prog.type || "—"}</span></div>
+                {ticket.prog.version ? <div className="pl-cell"><span className="pl-l">Version</span><span className="pl-v">{ticket.prog.version}</span></div> : null}
+                {ticket.prog.compile ? <div className="pl-cell"><span className="pl-l">Dernière compil</span><span className="pl-v">{ticket.prog.compile}</span></div> : null}
+              </div>
+              <p className="prog-src">Source : référentiel Arcad importé dans cp|WIRE.</p>
+            </div>
+          ) : (
+            <div className="prog-loc nf">
+              <div className="prog-h">📦 Programme <span className="mono">{ticket.prog.name}</span></div>
+              <p className="prog-src">Localisation non référencée — à compléter dans l'annuaire Arcad (bibliothèque, membre source).</p>
+            </div>
+          ))}
+
           <ExportBar buildHtml={buildTicketHtml} filename={`${ticket.cle}.html`} subject={`${ticket.cle} — ${ticket.resume}`} />
 
           <div className="expl">

@@ -83,7 +83,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
             <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
               <td data-label="Clé"><span className="k">{r.cle}</span></td>
               <td data-label="Dossier"><span className="tag">{r.dossier}</span></td>
-              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}</td>
+              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
               <td data-label="Sur le ticket">{(r.contributors && r.contributors.length) ? (
                 r.contributors.map((c, idx) => (
                   <span key={c}>
