@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { fetchRecap, genDailyCR, genWrittenCR, genGlobalCR } from "../api.js";
+import JSZip from "jszip";
+import { fetchRecap, genDailyCR, genWrittenCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
@@ -43,6 +44,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
   const [recap, setRecap] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
+  const [prog, setProg] = useState("");
   const [doc, setDoc] = useState(null);
   const delSet = new Set(deletedDevs);
 
@@ -68,12 +70,42 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     finally { setBusy(""); }
   };
 
-  const makeGlobal = async () => {
-    setBusy("__global__"); setErr("");
+  // ZIP « Récap global du jour » : un dossier par client, contenant le CR détaillé ET le CR écrit.
+  // Les deux passent par les générateurs SERVEUR (chiffres cohérents, noms redressés, périmètre à jour).
+  const makeGlobalZip = async () => {
+    setBusy("__global__"); setErr(""); setProg("");
     try {
-      const { html } = await genGlobalCR();
-      setDoc({ title: "Rapport journalier global", html, filename: `CR_global_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
+      const date = new Date().toISOString().slice(0, 10); // AAAA-MM-JJ (triable, sans caractère interdit)
+      const safe = (s) => String(s).replace(/[\\/:*?"<>|]/g, "-").replace(/\s+/g, " ").trim();
+      const clients = Object.keys(recap.byDossier).filter((d) => d && d !== "Autre");
+      if (!clients.length) { setErr("Aucun client à générer."); setBusy(""); return; }
+
+      const zip = new JSZip();
+      const root = zip.folder(`${date} - Armonie Récap journalier`);
+      const fails = [];
+
+      for (let i = 0; i < clients.length; i++) {
+        const dossier = clients[i];
+        setProg(`Génération ${i + 1}/${clients.length} — ${dossier}…`);
+        try {
+          const [det, ecr] = await Promise.all([genDailyCR(dossier), genWrittenCR(dossier)]);
+          const folder = root.folder(`${safe(dossier).toUpperCase()}-RECAP-${date}`);
+          folder.file(`CR-detaille-${safe(dossier)}-${date}.html`, det.html || "<p>(vide)</p>");
+          folder.file(`CR-ecrit-${safe(dossier)}-${date}.html`, ecr.html || "<p>(vide)</p>");
+        } catch (e) { fails.push(`${dossier}`); }
+      }
+
+      setProg("Compression du ZIP…");
+      const blob = await zip.generateAsync({ type: "blob" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `Recap-journalier-${date}.zip`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 4000);
+      setProg(fails.length
+        ? `ZIP téléchargé. ${clients.length - fails.length}/${clients.length} clients OK — échec : ${fails.join(", ")}.`
+        : `ZIP téléchargé — ${clients.length} clients, 2 fichiers chacun (détaillé + écrit).`);
+    } catch (e) { setErr(e.message || String(e)); }
     finally { setBusy(""); }
   };
 
@@ -89,9 +121,10 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
         Base : {recap.basis}. Clique sur un ticket pour le détailler, ou génère le compte rendu journalier d'un client.
       </p>
       <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={makeGlobal} disabled={busy === "__global__"}>
-          {busy === "__global__" ? "Génération…" : "Rapport global (tous les clients)"}
+        <button className="btn-solid" onClick={makeGlobalZip} disabled={busy === "__global__"}>
+          {busy === "__global__" ? "Génération…" : "📦 Récap global du jour (ZIP — détaillé + écrit / client)"}
         </button>
+        {prog && <span className="hint" style={{ marginLeft: 10 }}>{prog}</span>}
       </div>
       <div className="recap-grid">
         {entries.map(([dossier, items]) => {

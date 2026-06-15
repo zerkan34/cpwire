@@ -40,7 +40,7 @@ export default function SLA({ issues = [], onTicket }) {
     return (
       <div className="sla-intro">
         <h2 className="section-title">Pilotage SLA</h2>
-        <p>Aucune cible définie. Renseigne les engagements (GTI/GTR) par client dans <code>server/data/sla.json</code>, puis redéploie.</p>
+        <p>Aucune cible définie. Renseigne les engagements (GTI/GTR) par client dans <code>server/sla.json</code>, puis redéploie.</p>
       </div>
     );
   }
@@ -111,7 +111,7 @@ export default function SLA({ issues = [], onTicket }) {
       <p className="sla-note">
         GTR = délai de résolution (créé → résolu), comparé à la cible contractuelle par client et priorité.
         Délais <b>calendaires</b> pour l'instant (pas encore en heures ouvrées). La <b>prise en charge (GTI)</b> arrive en phase 2
-        (elle nécessite l'historique ticket par ticket). Cibles éditables dans <code>server/data/sla.json</code>.
+        (elle nécessite l'historique ticket par ticket). Cibles éditables dans <code>server/sla.json</code>.
       </p>
     </div>
   );
