@@ -1225,3 +1225,22 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .sla-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .sla-resume { flex-basis: 100%; white-space: normal; }
 }
+
+/* Note de cadrage "sur la période" dans les CR */
+.cr-scope { font-size: 12px; color: var(--muted); margin: -2px 0 6px; }
+
+/* Listes compactes des états des lieux (N° — description — intervenant — état) */
+.cr-list { margin: 4px 0 14px; padding-left: 18px; }
+.cr-list li { font-size: 13px; line-height: 1.5; margin: 2px 0; color: var(--ink); }
+.cr-list li .who { color: var(--purple-strong, #5a48b0); font-weight: 600; }
+.cr-tk-who { font-size: 12px; color: var(--muted); font-weight: 600; margin-left: 6px; }
+
+/* Contrôle qualité Jira — accordéon d'anomalies */
+.hyg-checks { display: flex; flex-direction: column; gap: 8px; margin: 8px 0 14px; }
+.hyg-check { border: 1px solid var(--line, #e7e5f1); border-radius: 10px; overflow: hidden; background: var(--card, #fff); }
+.hyg-head { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; }
+.hyg-head:hover { background: var(--hover, #faf9fe); }
+.hyg-count { min-width: 28px; text-align: center; font-weight: 800; font-family: 'Poppins', sans-serif; background: #f3eafe; color: #6e5cc4; border-radius: 7px; padding: 2px 7px; }
+.hyg-label { font-weight: 600; flex: 1; }
+.hyg-toggle { color: var(--muted, #74718a); font-size: 12px; }
+.hyg-hint { font-size: 11.5px; color: var(--muted, #74718a); padding: 0 12px 9px 50px; margin-top: -3px; }
