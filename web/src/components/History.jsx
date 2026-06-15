@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchHistory } from "../api.js";
+import { fetchHistory, crForDate, crDailyForPeriod } from "../api.js";
 import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
+import DocPreview from "./DocPreview.jsx";
 
-const LABELS = { cr_journalier: "CR journalier", cr_reunion: "CR réunion", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
+const LABELS = { cr_journalier: "CR journalier", cr_ecrit: "CR écrit", cr_date: "CR rédigé (IA)", cr_reunion: "CR réunion", prep_reunion: "Prépa réunion", brief_matin: "Brief matinal", cr_global: "Rapport global", cra_import: "Import CRA", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
 const DONE = ["termine", "miseEnProd"];
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 
@@ -49,12 +50,18 @@ function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } cat
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function History({ issues = [], onTicket, onDev, deletedDevs = [] }) {
+export default function History({ issues = [], onTicket, onDev, deletedDevs = [], inactiveDevs = [] }) {
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState("");
   const [period, setPeriod] = useState("hier");
   const [client, setClient] = useState("Tous");
+  const [doc, setDoc] = useState(null);
+  const [crBusy, setCrBusy] = useState(false);
+  const [crBusy2, setCrBusy2] = useState(false);
+  const [crErr, setCrErr] = useState("");
   const delSet = new Set(deletedDevs);
+  const inactiveSet = new Set(inactiveDevs);
+  const greyed = (d) => delSet.has(d) || inactiveSet.has(d); // parti OU sans activité Jira → grisé
 
   useEffect(() => { fetchHistory().then((d) => setEvents(d.events)).catch((e) => setErr(e.message)); }, []);
 
@@ -95,6 +102,47 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
 
   const label = periodLabel(period);
 
+  // L'IA génère un CR rédigé pour la PÉRIODE sélectionnée et le client choisi (ou tous).
+  const proposeCr = async () => {
+    setCrBusy(true); setCrErr("");
+    try {
+      const [rs, re] = periodRange(period);
+      const startISO = rs ? rs.toISOString() : null;
+      const endISO = re ? re.toISOString() : null;
+      const out = await crForDate({ dossier: client, startISO, endISO, label });
+      const slug = (label || "periode").replace(/[^\wÀ-ÿ]+/g, "_");
+      setDoc({
+        title: `CR rédigé — ${client === "Tous" ? "tous clients" : client} — ${label}`,
+        html: out.html,
+        dossier: client === "Tous" ? "" : client,
+        filename: `CR_${client === "Tous" ? "tous" : client}_${slug}.html`,
+      });
+    } catch (e) { setCrErr(e.message || String(e)); }
+    setCrBusy(false);
+  };
+
+  // CR JOURNALIER DÉTAILLÉ (le même format que « récap du jour »), pour la période choisie.
+  const proposeDetailed = async () => {
+    setCrBusy2(true); setCrErr("");
+    try {
+      const [rs, re] = periodRange(period);
+      const out = await crDailyForPeriod({
+        dossier: client,
+        startISO: rs ? rs.toISOString() : null,
+        endISO: re ? re.toISOString() : null,
+        label,
+      });
+      const slug = (label || "periode").replace(/[^\wÀ-ÿ]+/g, "_");
+      setDoc({
+        title: `CR journalier détaillé — ${client === "Tous" ? "tous clients" : client} — ${label}`,
+        html: out.html,
+        dossier: client === "Tous" ? "" : client,
+        filename: `CR_detaille_${client === "Tous" ? "tous" : client}_${slug}.html`,
+      });
+    } catch (e) { setCrErr(e.message || String(e)); }
+    setCrBusy2(false);
+  };
+
   const exportPdf = () => {
     let clientsHtml = "";
     data.clients.forEach((c) => {
@@ -120,7 +168,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
     <>
       <div className="section-title">Historique des récaps par client</div>
       <p className="hint" style={{ marginTop: -6 }}>
-        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF.
+        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF. <b>Le bouton « Générer le CR rédigé (IA) » produit un compte rendu complet de la période choisie</b> (jour, semaine, mois…).
       </p>
 
       <div className="ctabs">
@@ -156,8 +204,16 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
 
         <p className="period-sum">
           <b>{label}</b> : <b>{data.totalDone}</b> terminé(s) · <b>{data.touched}</b> avec activité · <b>{data.clients.length}</b> client(s)
-          <button className="btn-line sm" style={{ marginLeft: 10 }} onClick={exportPdf}>Exporter PDF</button>
+          <button className="btn-solid gold sm" style={{ marginLeft: 10 }} disabled={crBusy2} onClick={proposeDetailed}>{crBusy2 ? "Génération…" : "✨ CR journalier détaillé"}</button>
+          <button className="btn-line sm" style={{ marginLeft: 8 }} disabled={crBusy} onClick={proposeCr}>{crBusy ? "Rédaction…" : "CR rédigé (IA)"}</button>
+          <button className="btn-line sm" style={{ marginLeft: 8 }} onClick={exportPdf}>Exporter PDF</button>
         </p>
+        {!crErr && (
+          <p className="hint" style={{ marginTop: -2 }}>
+            <b>« CR journalier détaillé »</b> = le même compte rendu que dans « Récap du jour » (analyse + tickets détaillés), mais pour <b>{label}</b> et pour {client === "Tous" ? "tous les clients" : <b>{client}</b>}. « CR rédigé » = version en texte continu. Sans IA branchée, les CR restent produits (en mode « brut »).
+          </p>
+        )}
+        {crErr && <div className="banner">CR impossible : {crErr}</div>}
 
         {data.clients.length === 0 ? (
           <div className="empty">Aucune activité sur cette période.</div>
@@ -178,7 +234,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
                         <td className="c-cle"><span className="k">{i.cle}</span></td>
                         <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
                         <td className="c-proj">{dev && dev !== "Non assigné"
-                          ? <span className={`dev-chip ${delSet.has(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
+                          ? <span className={`dev-chip ${greyed(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
                           : (dev || "—")}</td>
                         <td className="c-stat"><span className={`pill ${PILL[i.statut]}`}>{i.statutJira || i.statut}</span></td>
                         <td className="c-date">{fr(i.resolu || i.maj)}</td>
@@ -202,7 +258,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
               <tbody>
                 {data.devs.map((d) => (
                   <tr key={d.dev} style={{ cursor: onDev ? "pointer" : "default" }} onClick={() => onDev && onDev(d.dev)}>
-                    <td><span className={delSet.has(d.dev) ? "dev-chip del" : "dev-chip"}>{d.dev}{delSet.has(d.dev) ? <span className="dev-del-tag">supprimé</span> : null}</span></td>
+                    <td><span className={greyed(d.dev) ? "dev-chip del" : "dev-chip"}>{d.dev}{delSet.has(d.dev) ? <span className="dev-del-tag">parti</span> : (inactiveSet.has(d.dev) ? <span className="dev-del-tag">inactif</span> : null)}</span></td>
                     <td><b>{d.done}</b></td>
                     <td>{d.touched}</td>
                   </tr>
@@ -232,6 +288,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
           ))}
         </div>
       )}
+      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
     </>
   );
 }
