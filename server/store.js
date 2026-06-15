@@ -1,17 +1,30 @@
-{
-  "_doc": "Cibles SLA en HEURES (calendaires), par dossier et priorité P1..P4. GTI = prise en charge, GTR = résolution. VALEURS D'EXEMPLE — remplacer par les engagements contractuels réels. 'defaut' sert de repli pour tout dossier/priorité non listé. Pour un repli par dossier, ajouter une clé \"*\".",
-  "defaut": {
-    "P1": { "gti": 4, "gtr": 24 },
-    "P2": { "gti": 8, "gtr": 72 },
-    "P3": { "gti": 24, "gtr": 168 },
-    "P4": { "gti": 48, "gtr": 360 }
-  },
-  "dossiers": {
-    "Tafanel": {
-      "P1": { "gti": 2, "gtr": 16 },
-      "P2": { "gti": 8, "gtr": 72 },
-      "P3": { "gti": 24, "gtr": 168 },
-      "P4": { "gti": 48, "gtr": 336 }
+// Cache persistant du portefeuille de tickets.
+// On garde une "photo" (snapshot) de tous les tickets connus sur le disque,
+// pour ne plus tout recharger depuis Jira à chaque actualisation.
+import fs from "fs";
+import path from "path";
+import { dataDir } from "./paths.js";
+
+const DIR = dataDir();
+const FILE = path.join(DIR, "portfolio.json");
+
+export function loadSnapshot() {
+  try {
+    const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
+    if (data && Array.isArray(data.issues)) {
+      return { syncedAt: data.syncedAt || null, issues: data.issues };
     }
+  } catch { /* pas de snapshot encore */ }
+  return { syncedAt: null, issues: [] };
+}
+
+export function saveSnapshot(snap) {
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify({ syncedAt: snap.syncedAt, issues: snap.issues }));
+    return true;
+  } catch (e) {
+    console.error("saveSnapshot:", e.message);
+    return false;
   }
 }
