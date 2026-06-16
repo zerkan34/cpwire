@@ -25,6 +25,18 @@ const DONE = ["termine", "miseEnProd"];
 const RECETTE = ["recetteArmonie", "recetteClient"];
 const RETOUR = ["retourTest", "retourProd"];
 
+// Repli : statut texte de l'export Excel → catégorie interne (si le ticket n'est pas dans le snapshot live).
+const EXCEL_TO_CAT = {
+  "MISE EN PRODUCTION": "miseEnProd",
+  "Terminé": "termine",
+  "RECETTE CLIENT": "recetteClient",
+  "EN ATTENTE CLIENT": "attenteClient",
+  "RECETTE ARMONIE": "recetteArmonie",
+  "annulé": "annule",
+};
+const excelCat = (s) => EXCEL_TO_CAT[String(s || "").trim()] || null;
+const JIRA_BASE = "https://armonie.atlassian.net/browse/";
+
 // Index programme → tickets, à partir des tickets live.
 function indexByProgramme(issues) {
   const idx = new Map();
@@ -44,7 +56,7 @@ function indexByProgramme(issues) {
 }
 
 // État représentatif d'un programme = catégorie du ticket le plus « avancé » trouvé.
-const RANK = ["afaire", "encours", "retourProd", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine"];
+const RANK = ["annule", "afaire", "encours", "retourProd", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine"];
 function bestCategory(tickets) {
   let best = null, bestRank = -1;
   for (const t of tickets) {
@@ -58,16 +70,33 @@ function bestCategory(tickets) {
 export function crossReferentiel(issues, client) {
   const ref = loadReferentiel()[client];
   if (!ref) return null;
-  const idx = indexByProgramme(issues || []);
+  const idx = indexByProgramme(issues || []);               // repli par nom de programme
+  const byCle = new Map((issues || []).map((i) => [i.cle, i])); // rattachement exact par clé
   const byDomaine = {};
 
   for (const opt of ref.options) {
     const programmes = (opt.programmes || []).map((p) => {
-      const tickets = (idx.get(norm(p)) || []).map((i) => ({
-        cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie,
-        url: i.url, qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
-      }));
-      return { nom: p, lie: tickets.length > 0, etat: bestCategory(tickets), tickets };
+      const nom = typeof p === "string" ? p : (p.nom || "");
+      const tkKey = (typeof p === "object" && p.ticket) ? String(p.ticket).trim() : "";
+      const stExcel = (typeof p === "object" && p.statutExcel) ? p.statutExcel : "";
+      let tickets;
+      if (tkKey && byCle.has(tkKey)) {
+        const i = byCle.get(tkKey);
+        tickets = [{
+          cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie, url: i.url,
+          qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
+        }];
+      } else if (tkKey) {
+        // ticket connu de l'export mais absent du snapshot Jira live → statut Excel en repli
+        tickets = [{ cle: tkKey, resume: nom, statut: stExcel || "—", categorie: excelCat(stExcel), url: JIRA_BASE + tkKey, qui: "" }];
+      } else {
+        // aucun ticket connu : repli par nom de programme sur les titres Jira live
+        tickets = (idx.get(norm(nom)) || []).map((i) => ({
+          cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie, url: i.url,
+          qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
+        }));
+      }
+      return { nom, lie: tickets.length > 0, etat: bestCategory(tickets), tickets };
     });
 
     const cats = {};

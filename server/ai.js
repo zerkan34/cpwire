@@ -109,6 +109,15 @@ function isToday(iso) {
   const d = new Date(iso), n = new Date();
   return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
 }
+// "Terminé / clôturé dans la fenêtre" : on se fie à la DATE DE RÉSOLUTION (clôture réelle),
+// PAS à la date de modification (qui bouge pour un commentaire, un label ou un import/édition en masse,
+// ce qui faisait compter des milliers de tickets clos comme « terminés aujourd'hui »).
+// Repli : une mise en prod sans date de résolution est datée par sa dernière modif.
+function doneWithin(within, i) {
+  if (!DONE_CATS.includes(i.categorie)) return false;
+  if (i.resolu) return within(i.resolu);
+  return i.categorie === "miseEnProd" && within(i.maj);
+}
 // Liste HTML d'une sélection de tickets (avec dév + statut détaillé, plafonnée).
 function catList(arr, { showStatus = false, cap = 60 } = {}) {
   if (!arr.length) return "<p>—</p>";
@@ -288,7 +297,7 @@ function makeWithin(range) {
 function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false, actorAct = null, dayLabel = "") {
   const W = isPeriod ? "sur la période" : (dayLabel ? `pour la journée du ${dayLabel}` : "ce jour");
   const inCat = (c) => issues.filter((i) => i.categorie === c);
-  const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && within(i.maj)).sort(byMajDesc);
+  const doneToday = issues.filter((i) => doneWithin(within, i)).sort(byMajDesc);
   const enCoursToday = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && within(i.maj)).sort(byMajDesc);
   const recArmonie = inCat("recetteArmonie");
   const recClient = inCat("recetteClient");
@@ -411,7 +420,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
   const periodLabel = (range && range.label) ? range.label : todayFR;
   const W = singleDay ? `pour la journée du ${dayLabel}` : "sur la période";
   // Données de la période (toujours exactes, calcul déterministe).
-  const dayDone = issues.filter((i) => i.categorie === "termine" && within(i.maj));
+  const dayDone = issues.filter((i) => doneWithin(within, i));
   const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && within(i.maj));
   const recA = issues.filter((i) => i.categorie === "recetteArmonie").length;
 
@@ -516,7 +525,7 @@ function exList(arr, max = 4) {
 }
 
 function writtenTemplate(dossier, issues) {
-  const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+  const dayDone = issues.filter((i) => doneWithin(isToday, i)).sort(byMajDesc);
   const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
   const recArmonie = issues.filter((i) => i.categorie === "recetteArmonie");
   const recClient = issues.filter((i) => i.categorie === "recetteClient");
@@ -555,7 +564,7 @@ export async function writtenDailyReport(dossier, issues) {
   if (aiAvailable()) {
     try {
       const pick = (arr) => arr.slice(0, 20).map((i) => `- ${i.cle} : ${i.resume}${devOf(i) ? " [" + devOf(i) + "]" : ""} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
-      const dayDone = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj));
+      const dayDone = issues.filter((i) => doneWithin(isToday, i));
       const dayActive = issues.filter((i) => ACTIVE_CATS.includes(i.categorie) && isToday(i.maj));
       const bloquants = issues.filter((i) => i.statut === "Bloqué" || i.flagged);
       const noms = [...new Set(issues.flatMap((i) => (i.contributors && i.contributors.length ? i.contributors : [devOf(i)])).filter((n) => n && n !== "Non assigné"))];
@@ -777,7 +786,7 @@ export async function globalReport(byDossier) {
     const g = buckets(issues);
     totalAll += issues.length; doneAll += g["Terminé"].length;
     // Détail explicatif (accordéon) : terminés aujourd'hui, plafonné par client et au global.
-    const doneToday = issues.filter((i) => DONE_CATS.includes(i.categorie) && isToday(i.maj)).sort(byMajDesc);
+    const doneToday = issues.filter((i) => doneWithin(isToday, i)).sort(byMajDesc);
     let detailHtml = "";
     if (doneToday.length && detailBudget > 0) {
       const take = doneToday.slice(0, Math.min(4, detailBudget));
