@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
-  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping } from "./api.js";
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -90,6 +90,8 @@ function notify(title, body) {
 export default function App() {
   const [authed, setAuthed] = useState(Boolean(getToken()));
   const [role, setRole] = useState("owner");
+  const [presence, setPresence] = useState([]);       // (owner) comptes consultation actuellement en ligne
+  const seenOnlineRef = useRef(null);                  // suivi pour détecter les nouvelles connexions
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
@@ -281,6 +283,35 @@ export default function App() {
     return () => clearInterval(id);
   }, [authed]);
 
+  // (Owner) Présence des invités + alerte « quelqu'un vient de se connecter ».
+  useEffect(() => {
+    if (!authed || role !== "owner") return;
+    let alive = true;
+    const poll = async () => {
+      try {
+        const r = await fetchAdminUsers();
+        if (!alive) return;
+        const online = (r.users || []).filter((u) => u.online);
+        setPresence(online);
+        const now = new Set(online.map((u) => u.email));
+        const prev = seenOnlineRef.current;
+        if (prev) {                                   // on n'alerte pas au tout premier sondage
+          for (const u of online) {
+            if (!prev.has(u.email)) {
+              showToast(`👤 ${u.email} vient de se connecter`);
+              notify("cp|WIRE — connexion", `${u.email} vient de se connecter au cockpit`);
+              setNotifs((p) => [{ id: "login-" + u.email + "-" + Date.now(), cle: "👤 Connexion", resume: u.email, who: "", action: "vient de se connecter", kind: "login", statut: "", at: Date.now(), read: false }, ...p].slice(0, 60));
+            }
+          }
+        }
+        seenOnlineRef.current = now;
+      } catch { /* admin indisponible : on ignore */ }
+    };
+    poll();
+    const id = setInterval(poll, 25000);
+    return () => { alive = false; clearInterval(id); };
+  }, [authed, role, showToast]);
+
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
   useEffect(() => { if (query.trim() && tab !== "cockpit") setTab("cockpit"); /* eslint-disable-next-line */ }, [query]);
 
@@ -463,6 +494,7 @@ export default function App() {
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
+        role={role} presence={presence} onPresence={() => setTab("admin")}
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
@@ -470,18 +502,16 @@ export default function App() {
         tab={tab} pageLabel={tabLabel(tab)}
         onKpi={applyKpi} activeKpi={tab === "cockpit" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
-      {readOnly ? (
-        <div className="ro-banner">{role === "consultation"
-          ? "👁 Accès consultation — vous pouvez consulter et exporter. Aucun compte rendu ni aucune modification."
-          : "👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification."}</div>
-      ) : (
+      {role === "owner" ? (
         <div className="owner-bar">
           {showDailyCr && (
             <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
           )}
           <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
-      )}
+      ) : role === "guest" ? (
+        <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification.</div>
+      ) : null}
 
       <div className="tabs">
         {visibleTabs.map((t) => (
@@ -550,7 +580,7 @@ export default function App() {
       {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "meetings" && <Meetings issues={issues} />}
       {tab === "cra" && <CRA onTicket={setTicket} />}
-      {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
+      {tab === "history" && <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
       {tab === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
       {tab === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}

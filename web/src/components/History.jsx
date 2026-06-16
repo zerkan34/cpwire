@@ -52,7 +52,7 @@ function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } cat
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function History({ issues = [], onTicket, onDev, deletedDevs = [], inactiveDevs = [] }) {
+export default function History({ issues = [], canCR = true, onTicket, onDev, deletedDevs = [], inactiveDevs = [] }) {
   const [events, setEvents] = useState(null);
   const [err, setErr] = useState("");
   const [period, setPeriod] = useState("hier");
@@ -174,7 +174,7 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
     <>
       <div className="section-title">Historique des récaps par client</div>
       <p className="hint" style={{ marginTop: -6 }}>
-        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF. <b>Le bouton « Générer le CR rédigé (IA) » produit un compte rendu complet de la période choisie</b> (jour, semaine, mois…).
+        Choisis un client et une période : le récap est reconstitué automatiquement à partir de l'historique Jira (chaque journée passée est déjà disponible — « Hier » = le récap de la veille). Exportable en PDF.{canCR && <> <b>Le bouton « Générer le CR rédigé (IA) » produit un compte rendu complet de la période choisie</b> (jour, semaine, mois…).</>}
       </p>
 
       <div className="ctabs">
@@ -216,11 +216,11 @@ export default function History({ issues = [], onTicket, onDev, deletedDevs = []
 
         <p className="period-sum">
           <b>{label}</b> : <b>{data.totalDone}</b> terminé(s) · <b>{data.touched}</b> avec activité · <b>{data.clients.length}</b> client(s)
-          <button className="btn-solid gold sm" style={{ marginLeft: 10 }} disabled={crBusy2} onClick={proposeDetailed}>{crBusy2 ? "Génération…" : "✨ CR journalier détaillé"}</button>
-          <button className="btn-line sm" style={{ marginLeft: 8 }} disabled={crBusy} onClick={proposeCr}>{crBusy ? "Rédaction…" : "CR rédigé (IA)"}</button>
+          {canCR && <button className="btn-solid gold sm" style={{ marginLeft: 10 }} disabled={crBusy2} onClick={proposeDetailed}>{crBusy2 ? "Génération…" : "✨ CR journalier détaillé"}</button>}
+          {canCR && <button className="btn-line sm" style={{ marginLeft: 8 }} disabled={crBusy} onClick={proposeCr}>{crBusy ? "Rédaction…" : "CR rédigé (IA)"}</button>}
           <button className="btn-line sm" style={{ marginLeft: 8 }} onClick={exportPdf}>Exporter PDF</button>
         </p>
-        {!crErr && (
+        {canCR && !crErr && (
           <p className="hint" style={{ marginTop: -2 }}>
             <b>« CR journalier détaillé »</b> = le même compte rendu que dans « Récap du jour » (analyse + tickets détaillés), mais pour <b>{label}</b> et pour {client === "Tous" ? "tous les clients" : <b>{client}</b>}. « CR rédigé » = version en texte continu. Sans IA branchée, les CR restent produits (en mode « brut »).
           </p>

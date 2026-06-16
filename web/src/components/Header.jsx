@@ -26,7 +26,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
+export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -196,10 +196,16 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v80</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v81</span></span>
         </span>
         <div className="hdr-controls">
           {search}
+          {role === "owner" && onPresence && (
+            <button className="btn ghost hdr-presence" onClick={onPresence} title={presence.length ? "Connectés : " + presence.map((u) => u.email).join(", ") : "Personne d'autre connecté"}>
+              <span className={`pres-dot ${presence.length ? "on" : ""}`} />
+              {presence.length ? `${presence.length} en ligne` : "0 en ligne"}
+            </button>
+          )}
           {refresh}
           {bell}
           <button className="btn ghost hdr-logout" onClick={onLogout} title="Se déconnecter">Déconnexion</button>
@@ -212,7 +218,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v80</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v81</span></div>
       </div>
 
       <div className="progress">

@@ -1794,3 +1794,8 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .adm-off { color: var(--muted); font-size: 13px; }
 .adm-revoke { border: 1px solid var(--line); background: var(--card); color: var(--red); font-weight: 600; font-size: 12px; padding: 5px 12px; border-radius: 8px; cursor: pointer; }
 .adm-revoke:hover { background: #fdecec; border-color: var(--red); }
+
+/* ===== Présence admin dans le header ===== */
+.hdr-presence { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.pres-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.45); display: inline-block; }
+.pres-dot.on { background: #43d17a; box-shadow: 0 0 0 3px rgba(67,209,122,.25); }
