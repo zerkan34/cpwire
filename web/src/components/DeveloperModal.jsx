@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { printHtml, buildSimpleDoc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
+import Avatar from "./Avatar.jsx";
 import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
 import { useReadOnly } from "../readonly.js";
@@ -9,6 +10,15 @@ const ACTIVE = ["encours", "retourTest", "retourProd"];
 const DONE = ["termine", "miseEnProd"];
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+const FTEST = {
+  pris: () => true,
+  done: (i) => DONE.includes(i.categorie),
+  encours: (i) => ACTIVE.includes(i.categorie),
+  recette: (i) => WAIT.includes(i.categorie),
+  retard: (i) => i.enRetard,
+  flag: (i) => i.flagged,
+};
+const FLABEL = { pris: "Tickets pris", done: "Terminés", encours: "En cours", recette: "En recette", retard: "En retard", flag: "🚩 Flaggés" };
 
 const PERIODS = [
   { id: "auj", label: "Aujourd'hui" },
@@ -45,6 +55,7 @@ function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ 
 
 export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
   const [period, setPeriod] = useState("tout");
+  const [filter, setFilter] = useState("encours");
   const [copied, setCopied] = useState(false);
   const ro = useReadOnly();
   useModalBack(onClose);
@@ -71,6 +82,13 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     retard: items.filter((i) => i.enRetard).length,
     flagged: items.filter((i) => i.flagged).length,
   }), [items]);
+
+  const topProjet = useMemo(() => {
+    const c = {};
+    items.forEach((i) => { if (i.dossier) c[i.dossier] = (c[i.dossier] || 0) + 1; });
+    const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
+    return top ? top[0] : "";
+  }, [items]);
 
   const email = useMemo(() => {
     const hit = items.find((i) => i.assigne === devName && i.assigneEmail);
@@ -126,6 +144,8 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
 
   if (!devName) return null;
   const periodLabel = PERIODS.find((p) => p.id === period)?.label || "";
+  const filtered = items.filter(FTEST[filter] || (() => true)).sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+  const showWork = filter === "encours" || filter === "recette";
 
   const copyRecap = async () => {
     const L = [];
@@ -166,14 +186,19 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   return (
     <div className="overlay" onClick={backOut}>
       <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-hd">
+        <div className="modal-hd dev-hero">
           <button className="modal-back" onClick={backOut} title="Retour">←</button>
           <button className="x" onClick={backOut}>×</button>
-          <div className="k">Fiche développeur</div>
-          <h3>{devName}</h3>
+          <div className="dev-hero-k">Fiche développeur</div>
+          <div className="dev-hero-av"><Avatar name={devName} size={96} /></div>
+          <h3 className="dev-hero-name">{devName}</h3>
+          <div className="dev-hero-meta">
+            <span className="dhm gold">🏢 Armonie</span>
+            {topProjet ? <span className="dhm">📁 Principalement&nbsp;: {topProjet}</span> : null}
+          </div>
           {email
-            ? <a className="dm-email" href={`mailto:${email}`} title="Écrire un e-mail">{email}</a>
-            : <span className="dm-email muted">E-mail non exposé par Jira</span>}
+            ? <a className="dev-hero-email" href={`mailto:${email}`} title="Écrire un e-mail">✉ {email}</a>
+            : <span className="dev-hero-email muted">E-mail non exposé par Jira</span>}
         </div>
         <div className="modal-bd">
 
@@ -185,25 +210,26 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           )}
 
           <div className="dev-stats">
-            <div className="dstat"><div className="v">{g.total}</div><div className="l">Tickets pris</div></div>
-            <div className="dstat done"><div className="v">{g.termine}</div><div className="l">Terminés</div></div>
-            <div className="dstat prog"><div className="v">{g.encours}</div><div className="l">En cours</div></div>
-            <div className="dstat todo"><div className="v">{g.recette}</div><div className="l">En recette</div></div>
-            <div className="dstat block"><div className="v">{g.retard}</div><div className="l">En retard</div></div>
-            <div className="dstat flagged"><div className="v">{g.flagged}</div><div className="l">🚩 Flaggés</div></div>
+            {[["pris", "Tickets pris", g.total, ""], ["done", "Terminés", g.termine, "done"], ["encours", "En cours", g.encours, "prog"], ["recette", "En recette", g.recette, "todo"], ["retard", "En retard", g.retard, "block"], ["flag", "🚩 Flaggés", g.flagged, "flagged"]].map(([id, label, val, cls]) => (
+              <button key={id} className={`dstat ${cls} ${filter === id ? "on" : ""}`} onClick={() => setFilter(id)} title={`Afficher : ${label}`}>
+                <div className="v">{val}</div><div className="l">{label}</div>
+              </button>
+            ))}
           </div>
 
-          <div className="dev-sec-h">Sur quoi il travaille en ce moment ({activeItems.length})</div>
-          {activeItems.length === 0 ? (
-            <div className="empty">Aucun ticket actif (en cours / recette) en ce moment.</div>
+          <div className="dev-sec-h">{FLABEL[filter]} ({filtered.length})</div>
+          {filtered.length === 0 ? (
+            <div className="empty">Aucun ticket dans cette catégorie.</div>
           ) : (
             <table className="fiche-tbl work-tbl">
               <thead><tr>
                 <th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th>
-                <th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th>
+                {showWork
+                  ? <><th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></>
+                  : <th className="c-date">Date</th>}
               </tr></thead>
               <tbody>
-                {activeItems.slice(0, 10).map((i) => {
+                {filtered.slice(0, 200).map((i) => {
                   const w = work[i.cle];
                   const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
                   let badge;
@@ -217,17 +243,22 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
                       <td className="c-cle"><span className="k">{i.cle}</span></td>
                       <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
                       <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
-                      <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
-                      <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
-                      <td className="c-act">{badge}</td>
+                      {showWork
+                        ? <>
+                            <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
+                            <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
+                            <td className="c-act">{badge}</td>
+                          </>
+                        : <td className="c-date">{fr(i.resolu || i.maj)}</td>}
                     </tr>
                   );
                 })}
               </tbody>
             </table>
           )}
-          {!workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
-          {workConfigured && activeItems.length > 0 && (
+          {filtered.length > 200 && <p className="hint">+ {filtered.length - 200} autre(s)…</p>}
+          {showWork && !workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
+          {showWork && workConfigured && filtered.length > 0 && (
             <p className="hint" style={{ marginTop: 6 }}>
               « Heures (lui) » = temps qu'<b>il</b> a saisi sur le ticket dans Jira. « Pris le » = dernière fois où le ticket lui a été assigné. « Travaille dessus ? » se base sur sa dernière saisie de temps : <b>actif</b> = activité de moins de 10 jours. Sans saisie de temps dans Jira, impossible de le confirmer.
             </p>

@@ -32,17 +32,26 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
 
   // ----- Recherche : suggestions en accordéon sous la barre -----
   const [sFocus, setSFocus] = useState(false);
+  const [seeAll, setSeeAll] = useState(false);
   const [sRect, setSRect] = useState(null);
   const searchRef = useRef();
   const q = (query || "").trim().toLowerCase();
-  const suggestions = useMemo(() => {
+  const allMatches = useMemo(() => {
     if (q.length < 2) return [];
     const hit = (i) => `${i.cle} ${i.resume} ${i.dossier} ${(i.contributors || []).join(" ")} ${(i.labels || []).join(" ")} ${i.assigne || ""}`.toLowerCase().includes(q);
     const arr = issues.filter(hit);
     arr.sort((a, b) => (String(b.cle).toLowerCase().includes(q) ? 1 : 0) - (String(a.cle).toLowerCase().includes(q) ? 1 : 0));
-    return arr.slice(0, 8);
+    return arr;
   }, [issues, q]);
-  const showSuggest = sFocus && q.length >= 2;
+  const suggestions = allMatches.slice(0, 8);
+  const showSuggest = sFocus && q.length >= 2 && !seeAll;
+  useEffect(() => { if (q.length < 2) setSeeAll(false); }, [q]);
+  useEffect(() => {
+    if (!seeAll) return;
+    const onKey = (e) => { if (e.key === "Escape") setSeeAll(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [seeAll]);
   useEffect(() => {
     if (!showSuggest) return;
     const upd = () => { if (searchRef.current) { const r = searchRef.current.getBoundingClientRect(); setSRect({ left: r.left, top: r.bottom + 6, width: r.width }); } };
@@ -73,23 +82,56 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
       <span className="hs-ic">🔎</span>
       <input value={query || ""} onChange={(e) => onQuery(e.target.value)}
         onFocus={() => setSFocus(true)} onBlur={() => setTimeout(() => setSFocus(false), 160)}
-        placeholder="Rechercher un ticket, une personne…" />
+        onKeyDown={(e) => { if (e.key === "Enter" && q.length >= 2) { e.preventDefault(); setSeeAll(true); setSFocus(false); } }}
+        placeholder="Rechercher un ticket, une personne… (Entrée = tout voir)" />
       {query ? <button className="hs-x" onClick={() => onQuery("")} title="Effacer">×</button> : null}
       {showSuggest && sRect && (
-        <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: sRect.width, zIndex: 2000 }}>
+        <div className="search-suggest" style={{ position: "fixed", left: sRect.left, top: sRect.top, width: Math.min(Math.max(sRect.width, 480), (typeof window !== "undefined" ? window.innerWidth : 1200) - sRect.left - 12), zIndex: 2000 }}>
           {suggestions.length === 0 ? (
             <div className="ss-empty">Aucun résultat pour « {query} »</div>
-          ) : suggestions.map((i) => (
-            <button className="ss-item" key={i.cle}
-              onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
-              <span className="ss-key">{i.cle}</span>
-              <span className="ss-res">{i.resume}</span>
-              <span className="ss-meta">
-                {(i.contributors && i.contributors[0]) || i.assigne || ""}
-                {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
-              </span>
-            </button>
-          ))}
+          ) : (<>
+            {suggestions.map((i) => (
+              <button className="ss-item" key={i.cle}
+                onMouseDown={(e) => { e.preventDefault(); onOpenTicket && onOpenTicket(i); setSFocus(false); }}>
+                <span className="ss-key">{i.cle}</span>
+                <span className="ss-res">{i.resume}</span>
+                <span className="ss-meta">
+                  <span className="tag">{i.dossier}</span>
+                  {(i.contributors && i.contributors[0]) || i.assigne || ""}
+                  {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
+                </span>
+              </button>
+            ))}
+            {allMatches.length > suggestions.length && (
+              <button className="ss-all" onMouseDown={(e) => { e.preventDefault(); setSeeAll(true); setSFocus(false); }}>
+                ↵ Voir les {allMatches.length} résultats
+              </button>
+            )}
+          </>)}
+        </div>
+      )}
+      {seeAll && q.length >= 2 && (
+        <div className="ss-modal-back" onMouseDown={() => setSeeAll(false)}>
+          <div className="ss-modal" onMouseDown={(e) => e.stopPropagation()}>
+            <div className="ss-modal-hd">
+              <span>Résultats pour « {query} » <b>{allMatches.length}</b></span>
+              <button onClick={() => setSeeAll(false)} title="Fermer (Échap)">×</button>
+            </div>
+            <div className="ss-modal-list">
+              {allMatches.length === 0 ? <div className="ss-empty">Aucun résultat.</div> : allMatches.map((i) => (
+                <button className="ss-item" key={i.cle}
+                  onClick={() => { onOpenTicket && onOpenTicket(i); setSeeAll(false); }}>
+                  <span className="ss-key">{i.cle}</span>
+                  <span className="ss-res">{i.resume}</span>
+                  <span className="ss-meta">
+                    <span className="tag">{i.dossier}</span>
+                    {(i.contributors && i.contributors[0]) || i.assigne || ""}
+                    {i.statut ? <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span> : null}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -154,7 +196,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v47</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v51</span></span>
         </span>
         <div className="hdr-controls">
           {search}
@@ -170,7 +212,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v47</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v51</span></div>
       </div>
 
       <div className="progress">

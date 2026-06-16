@@ -8,6 +8,7 @@ export default function Hygiene({ issues = [], onTicket }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [openCheck, setOpenCheck] = useState(null);
+  const [selDossier, setSelDossier] = useState(null);
 
   useEffect(() => {
     let alive = true; setLoading(true); setErr("");
@@ -44,7 +45,7 @@ export default function Hygiene({ issues = [], onTicket }) {
         <thead><tr><th>Client / dossier</th><th>Ouverts</th><th>À corriger</th><th>Incohér.</th><th>Qualité</th></tr></thead>
         <tbody>
           {rep.byDossier.map((d) => (
-            <tr key={d.dossier}>
+            <tr key={d.dossier} className={`hyg-drow ${selDossier === d.dossier ? "on" : ""}`} onClick={() => setSelDossier(selDossier === d.dossier ? null : d.dossier)} title="Voir les anomalies de ce client">
               <td><span className="tag">{d.dossier}</span></td>
               <td>{d.ouverts}</td>
               <td className={d.aCorriger ? "sla-bad" : ""}><b>{d.aCorriger || "—"}</b></td>
@@ -55,32 +56,44 @@ export default function Hygiene({ issues = [], onTicket }) {
         </tbody>
       </table>
 
-      <h3 className="sla-h">Anomalies à corriger</h3>
+      <h3 className="sla-h">Anomalies à corriger {selDossier && <span className="hyg-filter">{selDossier} <button onClick={() => setSelDossier(null)} title="Tout afficher">✕</button></span>}</h3>
       {rep.checks.length === 0 && <p className="sla-note">Aucune anomalie détectée 🎉</p>}
       <div className="hyg-checks">
-        {rep.checks.map((c) => (
-          <div className="hyg-check" key={c.id}>
-            <div className="hyg-head" onClick={() => setOpenCheck(openCheck === c.id ? null : c.id)} title="Voir les tickets">
-              <span className="hyg-count">{c.count}</span>
-              <span className="hyg-label">{c.label}</span>
-              <span className="hyg-toggle">{openCheck === c.id ? "▾" : "▸"}</span>
-            </div>
-            <div className="hyg-hint">{c.hint}</div>
-            {openCheck === c.id && (
-              <div className="sla-list">
-                {c.tickets.map((t) => (
-                  <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
-                    <span className="k">{t.cle}</span>
-                    <span className="tag">{t.dossier}</span>
-                    <span className="sla-resume">{t.resume}</span>
-                    {t.who && <span className="sla-prio">{t.who}</span>}
-                    {t.extra && <span className="sla-late">{t.extra}</span>}
-                  </div>
-                ))}
+        {rep.checks.map((c) => {
+          const tks = selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets;
+          if (selDossier && tks.length === 0) return null;
+          const isOpen = selDossier ? true : openCheck === c.id;
+          const groups = {};
+          tks.forEach((t) => { (groups[t.dossier] ||= []).push(t); });
+          const groupNames = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+          return (
+            <div className="hyg-check" key={c.id}>
+              <div className="hyg-head" onClick={() => { if (!selDossier) setOpenCheck(openCheck === c.id ? null : c.id); }} title="Voir les tickets">
+                <span className="hyg-count">{tks.length}</span>
+                <span className="hyg-label">{c.label}</span>
+                {!selDossier && <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>}
               </div>
-            )}
-          </div>
-        ))}
+              <div className="hyg-hint">{c.hint}</div>
+              {isOpen && (
+                <div className="sla-list">
+                  {groupNames.map((dn) => (
+                    <div key={dn} className="hyg-grp-wrap">
+                      <div className="hyg-grp">{dn} <span>({groups[dn].length})</span></div>
+                      {groups[dn].map((t) => (
+                        <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                          <span className="k">{t.cle}</span>
+                          <span className="sla-resume">{t.resume}</span>
+                          {t.who && <span className="sla-prio">{t.who}</span>}
+                          {t.extra && <span className="sla-late">{t.extra}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <p className="sla-note">
