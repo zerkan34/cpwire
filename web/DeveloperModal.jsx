@@ -1,108 +1,193 @@
-import React, { useState } from "react";
-import { saveDossier } from "../api.js";
-import { buildSimpleDoc, esc } from "../utils.js";
-import { useModalBack, backOut } from "../modalNav.js";
-import ExportBar from "./ExportBar.jsx";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchReferentiel, fetchReferentielClients } from "../api.js";
 
-const blank = () => ({ nom: "", poste: "", email: "", statut: "Actif", cote: "Armonie" });
+// Catégorie Jira → [libellé, classe de pastille]. Aligné sur server/config.js.
+const CAT = {
+  afaire: ["À faire", "todo"],
+  encours: ["En cours", "prog"],
+  retourTest: ["Retour test", "block"],
+  retourProd: ["Retour prod", "block"],
+  recetteArmonie: ["Recette Armonie", "rec"],
+  recetteClient: ["Recette client", "rec"],
+  attenteClient: ["Attente client", "todo"],
+  miseEnProd: ["Mise en prod", "done"],
+  termine: ["Terminé", "done"],
+  annule: ["Annulé", "todo"],
+};
+function Pill({ cat }) {
+  const c = CAT[cat];
+  if (!c) return <span className="pill todo">non lié</span>;
+  return <span className={`pill ${c[1]}`}>{c[0]}</span>;
+}
 
-export default function DossierModal({ nom, fiche, onClose, onSaved }) {
-  useModalBack(onClose);
-  const [desc, setDesc] = useState(fiche?.description || "");
-  const [tech, setTech] = useState((fiche?.tech || []).join(", "));
-  const [team, setTeam] = useState((fiche?.team || []).map((m) => ({ ...m })));
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState(null);
+// Pipeline bout-en-bout : réécriture → recette Armonie → recette client → MEP.
+const STAGES = [
+  { key: "afaire", label: "À faire", cls: "st-afaire", cats: ["afaire"] },
+  { key: "encours", label: "En cours", cls: "st-encours", cats: ["encours"] },
+  { key: "retour", label: "Retour test", cls: "st-retour", cats: ["retourTest", "retourProd"] },
+  { key: "recArm", label: "Recette Armonie", cls: "st-recarm", cats: ["recetteArmonie"] },
+  { key: "recCli", label: "Recette client", cls: "st-reccli", cats: ["recetteClient", "attenteClient"] },
+  { key: "mep", label: "MEP / terminé", cls: "st-mep", cats: ["miseEnProd", "termine"] },
+];
+const STAGE_OF = {};
+STAGES.forEach((s) => s.cats.forEach((c) => { STAGE_OF[c] = s.key; }));
 
-  const upd = (i, k, v) => setTeam((t) => t.map((m, j) => (j === i ? { ...m, [k]: v } : m)));
-  const add = () => setTeam((t) => [...t, blank()]);
-  const remove = (i) => setTeam((t) => t.filter((_, j) => j !== i));
+function pipelineOf(programmes) {
+  const counts = { noncouvert: 0 };
+  STAGES.forEach((s) => { counts[s.key] = 0; });
+  const blocants = [], noncouverts = [];
+  programmes.forEach((p) => {
+    if (!p.lie) { counts.noncouvert++; noncouverts.push(p.nom); return; }
+    const k = STAGE_OF[p.etat] || "encours";
+    counts[k]++;
+    if (k === "retour") blocants.push(p.nom);
+  });
+  return { counts, blocants, noncouverts, total: programmes.length };
+}
 
-  const save = async () => {
-    setBusy(true); setMsg(null);
-    try {
-      const payload = { description: desc, tech: tech.split(",").map((s) => s.trim()).filter(Boolean), team };
-      const { fiche: saved } = await saveDossier(nom, payload);
-      setMsg({ type: "ok", text: "Fiche enregistrée." });
-      onSaved && onSaved(nom, saved);
-    } catch (e) { setMsg({ type: "warn", text: e.message }); }
-    finally { setBusy(false); }
-  };
+function Pipeline({ programmes }) {
+  const { counts, blocants, noncouverts, total } = pipelineOf(programmes);
+  if (!total) return null;
+  const segs = [
+    { key: "noncouvert", label: "Non couvert", cls: "st-noncouvert", n: counts.noncouvert },
+    ...STAGES.map((s) => ({ key: s.key, label: s.label, cls: s.cls, n: counts[s.key] })),
+  ].filter((s) => s.n > 0);
+  return (
+    <div className="ref-pipe">
+      <div className="ref-pipe-bar" title="Avancement des programmes par étape de recette">
+        {segs.map((s) => <span key={s.key} className={`rp-seg ${s.cls}`} style={{ flexGrow: s.n }} title={`${s.label} : ${s.n}`} />)}
+      </div>
+      <div className="ref-pipe-legend">
+        {segs.map((s) => <span key={s.key} className="rp-leg"><i className={`rp-dot ${s.cls}`} />{s.label} <b>{s.n}</b></span>)}
+      </div>
+      {(blocants.length || noncouverts.length) ? (
+        <div className="ref-bloc">
+          ⚠ <b>Ce qui bloque&nbsp;:</b>
+          {blocants.length ? <> {blocants.length} en retour ({blocants.slice(0, 6).join(", ")}{blocants.length > 6 ? "…" : ""})</> : null}
+          {blocants.length && noncouverts.length ? " · " : null}
+          {noncouverts.length ? <> {noncouverts.length} non couvert{noncouverts.length > 1 ? "s" : ""} (sans ticket Jira)</> : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
-  const client = team.filter((m) => m.cote === "Client");
-  const armonie = team.filter((m) => m.cote === "Armonie");
+export default function Referentiel({ issues = [], onTicket }) {
+  const [clients, setClients] = useState([]);
+  const [client, setClient] = useState("");
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState({}); // code option → déplié ?
 
-  const buildDossierHtml = () => {
-    const techList = tech.split(",").map((s) => s.trim()).filter(Boolean);
-    const rows = team.map((m) => `<tr><td>${esc(m.nom)}</td><td>${esc(m.poste)}</td><td>${esc(m.email)}</td><td>${esc(m.statut)}</td><td>${esc(m.cote)}</td></tr>`).join("");
-    let body = `<h2>Présentation</h2><p>${esc(desc) || "<span class='muted'>—</span>"}</p>`;
-    body += `<h2>Technologies</h2><p>${techList.length ? esc(techList.join(", ")) : "<span class='muted'>—</span>"}</p>`;
-    body += `<h2>Équipe &amp; contacts</h2>` +
-      `<table><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th></tr>${rows || "<tr><td colspan='5'>—</td></tr>"}</table>`;
-    const cartouche = [
-      ["Dossier", `${nom} — équipe Armonie`],
-      ["Chef de projet", "Nicolas Durand"],
-      ["Équipe", `${team.length} personne(s) · Armonie ${armonie.length} · Client ${client.length}`],
-    ];
-    return buildSimpleDoc({ kicker: "Fiche dossier", title: `Fiche dossier — ${nom}`, cartouche, bodyHtml: body });
-  };
+  // Pour ouvrir la fiche ticket complète au clic, on retrouve l'issue par sa clé.
+  const byCle = useMemo(() => {
+    const m = {};
+    issues.forEach((i) => { m[i.cle] = i; });
+    return m;
+  }, [issues]);
+
+  useEffect(() => {
+    fetchReferentielClients()
+      .then((r) => {
+        const cs = r.clients || [];
+        setClients(cs);
+        if (cs.length) setClient(cs[0]); else setLoading(false);
+      })
+      .catch((e) => { setErr(e.message); setLoading(false); });
+  }, []);
+
+  useEffect(() => {
+    if (!client) return;
+    setLoading(true); setErr("");
+    fetchReferentiel(client)
+      .then((d) => { setData(d); setLoading(false); })
+      .catch((e) => { setErr(e.message); setLoading(false); });
+  }, [client]);
+
+  const openTicket = (cle) => { const full = byCle[cle]; if (full && onTicket) onTicket(full); };
+
+  if (loading) return <div className="panel">Chargement du référentiel…</div>;
+  if (err) return <div className="banner">Erreur : {err}</div>;
+  if (!clients.length || !data) return <div className="panel empty">Aucun référentiel défini pour l'instant.</div>;
 
   return (
-    <div className="overlay" onClick={backOut}>
-      <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-hd">
-          <button className="modal-back" onClick={backOut} title="Retour">←</button>
-          <button className="x" onClick={backOut}>×</button>
-          <div className="k">Fiche dossier</div>
-          <h3>{nom}</h3>
-        </div>
-        <div className="modal-bd">
-          <ExportBar buildHtml={buildDossierHtml} filename={`fiche-${nom}.html`} subject={`Fiche dossier — ${nom}`} />
-          <div className="field">
-            <label>Historique court / ce que fait le dossier</label>
-            <textarea className="ta" value={desc} onChange={(e) => setDesc(e.target.value)} />
-          </div>
-          <div className="field">
-            <label>Technologies utilisées (séparées par des virgules)</label>
-            <input type="text" value={tech} onChange={(e) => setTech(e.target.value)} placeholder="IBM i, RPG, eMage…" />
-          </div>
-
-          <div className="field">
-            <label>Équipe & contacts <span style={{ color: "var(--muted)", fontWeight: 400 }}>({team.length})</span></label>
-            <table className="edit-tbl">
-              <thead><tr><th>Nom</th><th>Poste</th><th>E-mail</th><th>Statut</th><th>Côté</th><th></th></tr></thead>
-              <tbody>
-                {team.map((m, i) => (
-                  <tr key={i}>
-                    <td><input value={m.nom} onChange={(e) => upd(i, "nom", e.target.value)} placeholder="Nom" /></td>
-                    <td><input value={m.poste} onChange={(e) => upd(i, "poste", e.target.value)} placeholder="Poste" /></td>
-                    <td><input value={m.email} onChange={(e) => upd(i, "email", e.target.value)} placeholder="email@…" /></td>
-                    <td>
-                      <select value={m.statut} onChange={(e) => upd(i, "statut", e.target.value)}>
-                        <option>Actif</option><option>Inactif</option><option>À confirmer</option>
-                      </select>
-                    </td>
-                    <td>
-                      <select value={m.cote} onChange={(e) => upd(i, "cote", e.target.value)}>
-                        <option>Armonie</option><option>Client</option>
-                      </select>
-                    </td>
-                    <td><button className="x-row" onClick={() => remove(i)} title="Retirer">×</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button className="btn-line" style={{ marginTop: 10 }} onClick={add}>+ Ajouter une personne</button>
-            <div className="hint">Côté Armonie : {armonie.length} · Côté client : {client.length}</div>
-          </div>
-
-          <div className="row-actions">
-            <button className="btn-solid gold" onClick={save} disabled={busy}>{busy ? "Enregistrement…" : "Enregistrer la fiche"}</button>
-            <button className="btn-line" onClick={backOut}>Fermer</button>
-          </div>
-          {msg && <div className={msg.type === "ok" ? "ok-note" : "warn-note"}>{msg.text}</div>}
-        </div>
+    <>
+      <div className="section-title">Référentiel recette
+        <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
+          {" "}— {data.nbOptions} option{data.nbOptions > 1 ? "s" : ""} · {data.nbProgrammes} programme{data.nbProgrammes > 1 ? "s" : ""}
+        </span>
       </div>
-    </div>
+      <p className="hint" style={{ marginTop: -6 }}>
+        Le socle qui fait parler la même langue : chaque <b>Option</b> (ce que suit le client) regroupe ses <b>Programmes</b>,
+        chacun rapproché automatiquement de son <b>ticket Jira</b>. Un programme sans ticket est marqué « non lié ».
+        {data.majSource ? <> <i>{data.majSource}.</i></> : null}
+      </p>
+
+      {clients.length > 1 && (
+        <div className="filters" style={{ marginBottom: 12 }}>
+          {clients.map((c) => (
+            <button key={c} className={`btn-line sm ${c === client ? "on" : ""}`} onClick={() => setClient(c)}>{c}</button>
+          ))}
+        </div>
+      )}
+
+      {data.domaines.map((dom) => (
+        <div key={dom.domaine} style={{ marginBottom: 18 }}>
+          <div className="ref-dom">{dom.domaine.replace(/_/g, " ")}</div>
+          <div className="recap-grid">
+            {dom.options.map((o) => {
+              const isOpen = !!open[o.code];
+              const shown = isOpen ? o.programmes : o.programmes.slice(0, 6);
+              return (
+                <div className="recap-card" key={o.code}>
+                  <div className="recap-hd">
+                    <span className="recap-hd-name">{o.code}</span>
+                    <span className="recap-hd-meta">{o.statutRecette === "Armonie" ? "Recette Armonie" : "Recette client"}</span>
+                  </div>
+                  <div className="recap-bd">
+                    <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, marginBottom: 6 }}>{o.libelle}</div>
+                    <div className="ref-meta">
+                      {o.livraison ? <span>Livraison {o.livraison}</span> : null}
+                      <span>{o.lies}/{o.total} programme{o.total > 1 ? "s" : ""} lié{o.lies > 1 ? "s" : ""}</span>
+                      {o.retours ? <span className="late">{o.retours} en retour</span> : null}
+                    </div>
+                    {o.total > 0 && <Pipeline programmes={o.programmes} />}
+                    {o.noteChaine ? <p className="hint" style={{ margin: "6px 0 0" }}>{o.noteChaine}</p> : null}
+
+                    {o.total === 0 ? (
+                      <p className="hint" style={{ margin: "8px 0 0" }}>Programmes à renseigner par le dev.</p>
+                    ) : (
+                      <ul className="mb-list" style={{ marginTop: 8 }}>
+                        {shown.map((p) => (
+                          <li key={p.nom} className="ref-prog">
+                            <span className="ref-prog-nom">{p.nom}</span>
+                            {p.lie ? (
+                              <span className="ref-prog-tk">
+                                <Pill cat={p.etat} />
+                                {p.tickets.map((t) => (
+                                  <button key={t.cle} className="ref-tk-link" onClick={() => openTicket(t.cle)} title={t.resume}>{t.cle}</button>
+                                ))}
+                              </span>
+                            ) : (
+                              <span className="ref-prog-none">non lié à un ticket</span>
+                            )}
+                          </li>
+                        ))}
+                        {o.programmes.length > 6 && (
+                          <li className="mb-more" onClick={() => setOpen((s) => ({ ...s, [o.code]: !isOpen }))}>
+                            {isOpen ? "▾ réduire" : `▸ voir les ${o.programmes.length - 6} autre(s)…`}
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+    </>
   );
 }

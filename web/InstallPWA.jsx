@@ -81,10 +81,10 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
           const cls = [r.mine ? "mine" : "", r.flagged ? "has-flag" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
           return (
             <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
-              <td><span className="k">{r.cle}</span></td>
-              <td><span className="tag">{r.dossier}</span></td>
-              <td><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}</td>
-              <td>{(r.contributors && r.contributors.length) ? (
+              <td data-label="Clé"><span className="k">{r.cle}</span></td>
+              <td data-label="Dossier"><span className="tag">{r.dossier}</span></td>
+              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
+              <td data-label="Sur le ticket">{(r.contributors && r.contributors.length) ? (
                 r.contributors.map((c, idx) => (
                   <span key={c}>
                     {idx > 0 && <span className="who-sep">, </span>}
@@ -94,8 +94,8 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
                   </span>
                 ))
               ) : <span className="who-none">Non assigné</span>}</td>
-              <td>{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
-              <td><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
+              <td data-label="Échéance">{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
+              <td data-label="Statut"><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
             </tr>
           );
         })}

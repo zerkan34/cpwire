@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { genMorningCR } from "../api.js";
+import { genMorningCR, genWrittenCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 // Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
@@ -8,6 +8,14 @@ const ORDER = [
   ["encours", "En cours", "prog"],
   ["retourTest", "Retour test", "todo"],
 ];
+
+// Phrase d'état claire (langage courant) pour chaque ticket du brief.
+function etatLabel(i) {
+  if (i.statut === "Bloqué" || i.flagged) return "bloqué";
+  if (i.categorie === "encours") return "en cours de réalisation";
+  if (i.categorie === "retourTest") return "renvoyé en test";
+  return (i.statut || "en cours").toLowerCase();
+}
 
 export default function Morning({ issues = [], onTicket }) {
   const [busy, setBusy] = useState("");
@@ -23,11 +31,18 @@ export default function Morning({ issues = [], onTicket }) {
     return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
   }, [issues]);
 
-  const make = async (dossier) => {
-    setBusy(dossier); setErr("");
+  const make = async (dossier, kind = "morning") => {
+    const key = `${dossier}|${kind}`;
+    setBusy(key); setErr("");
     try {
-      const { html } = await genMorningCR(dossier);
-      setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
+      const today = new Date().toISOString().slice(0, 10);
+      if (kind === "written") {
+        const { html } = await genWrittenCR(dossier);
+        setDoc({ title: `CR écrit — ${dossier}`, html, filename: `CR_ecrit_${dossier}_${today}.html` });
+      } else {
+        const { html } = await genMorningCR(dossier);
+        setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${today}.html` });
+      }
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }
   };
@@ -46,8 +61,8 @@ export default function Morning({ issues = [], onTicket }) {
       </p>
       {err && <div className="banner">Erreur : {err}</div>}
       <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={() => make("Tous")} disabled={busy === "Tous"}>
-          {busy === "Tous" ? "Préparation…" : "Préparer le brief (tous les clients)"}
+        <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
+          {busy === "Tous|morning" ? "Préparation…" : "Préparer le brief (tous les clients)"}
         </button>
       </div>
 
@@ -60,32 +75,44 @@ export default function Morning({ issues = [], onTicket }) {
             const open = openD === dossier;
             return (
               <div className="recap-card" key={dossier}>
-                <h3>
-                  {dossier}
-                  <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 500 }}>{items.length} actif{items.length > 1 ? "s" : ""}</span>
-                </h3>
-                <div className="filters" style={{ marginBottom: 8 }}>
+                <div className="recap-hd">
+                  <span className="recap-hd-name">{dossier}</span>
+                  <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
+                </div>
+                <div className="recap-bd">
+                <div className="mb-pills">
                   {ORDER.map(([c, label, pill]) => count(c) ? (
                     <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
                   ) : null)}
                 </div>
-                <ul>
+                <ul className="mb-list">
                   {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket(i)} style={{ cursor: "pointer" }}>
-                      <span className="k">{i.cle}</span>
-                      <span style={{ flex: 1 }}>{i.resume}</span>
-                      {i.dev && i.dev !== "Non assigné" ? <span className="tag">{i.dev}</span> : null}
+                    <li key={i.cle} className="mb-li" onClick={() => onTicket(i)}>
+                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                        <span className="k">{i.cle}</span>
+                        <span style={{ flex: 1 }}>{i.resume}</span>
+                      </div>
+                      <div className="mb-state">
+                        {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}
+                        <b>{etatLabel(i)}</b>{i.enRetard ? <span className="late"> · en retard ⚠</span> : null}
+                      </div>
                     </li>
                   ))}
                   {items.length > 5 && (
-                    <li style={{ color: "var(--purple-strong)", cursor: "pointer", fontWeight: 600 }} onClick={() => setOpenD(open ? null : dossier)}>
+                    <li className="mb-more" onClick={() => setOpenD(open ? null : dossier)}>
                       {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
                     </li>
                   )}
                 </ul>
-                <button className="btn-solid gold" style={{ width: "100%" }} onClick={() => make(dossier)} disabled={busy === dossier}>
-                  {busy === dossier ? "Préparation…" : `Préparer le brief de ${dossier}`}
-                </button>
+                <div className="mb-actions">
+                  <button className="btn-solid gold" onClick={() => make(dossier, "morning")} disabled={busy === `${dossier}|morning`}>
+                    {busy === `${dossier}|morning` ? "Préparation…" : "Brief du matin"}
+                  </button>
+                  <button className="btn-solid" onClick={() => make(dossier, "written")} disabled={busy === `${dossier}|written`}>
+                    {busy === `${dossier}|written` ? "Génération…" : "CR écrit"}
+                  </button>
+                </div>
+                </div>
               </div>
             );
           })}
