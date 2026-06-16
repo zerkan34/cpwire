@@ -1,0 +1,67 @@
+{
+  "_note": "Couche d'accès SANS SECRET. Aucun mot de passe / token / lien de partage ici : ils restent dans le coffre (gestionnaire de mots de passe). On ne stocke que la structure : où se connecter, comment (en mots), les environnements et les contacts.",
+  "IMA": {
+    "contexte": "Inter Mutuelles Assistance — TMA des périmètres Dataware / MCS sur IBM i. Accès distant via VPN puis intranet de maintenance.",
+    "portail": { "nom": "Intranet de maintenance IMA", "url": "" },
+    "connexion": [
+      "Ouvrir le VPN (Pulse / Host Checker)",
+      "S'authentifier — identifiant + MFA (identifiants dans le coffre)",
+      "Accéder à l'intranet de maintenance IMA"
+    ],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [
+      { "nom": "Frédérique Crouau", "role": "Référente", "cote": "Client" },
+      { "nom": "Adrien Quillère", "role": "Contact", "cote": "Client" },
+      { "nom": "Geoffrey Bourmond", "role": "Développeur", "cote": "Armonie" },
+      { "nom": "Océane Aimes", "role": "Développeuse", "cote": "Armonie" },
+      { "nom": "Léo Charrier", "role": "Développeur", "cote": "Armonie" }
+    ],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  },
+  "EDL": {
+    "contexte": "L'école des loisirs — TMA de l'application MAX (abonnements « l'école des max ») sur IBM i. Les commerciaux d'EDL sont les animateurs / animatrices.",
+    "portail": { "nom": "", "url": "" },
+    "connexion": [],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  },
+  "TAFANEL": {
+    "contexte": "Tafanel — refonte applicative RPG (mode projet). Périmètre piloté via le référentiel + Jira.",
+    "portail": { "nom": "", "url": "" },
+    "connexion": [],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  },
+  "SEGUREL": {
+    "contexte": "Segurel — implémentation GLog sur AS/400.",
+    "portail": { "nom": "", "url": "" },
+    "connexion": [],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  },
+  "BELLION": {
+    "contexte": "Belmet (groupe Bellion) — refonte du SI de gestion commerciale (projet ERP26). Armonie en MOE + AMOA.",
+    "portail": { "nom": "", "url": "" },
+    "connexion": [],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  },
+  "DIAPAR": {
+    "contexte": "DIAPAR — TMA de la gestion commerciale spécifique (RPG) & finance Anaël sur IBM i.",
+    "portail": { "nom": "", "url": "" },
+    "connexion": [],
+    "sharepoint": { "nom": "SharePoint TMA (NOTOS)", "url": "" },
+    "environnements": ["Production", "Recette"],
+    "contacts": [],
+    "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe."
+  }
+}

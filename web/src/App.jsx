@@ -504,7 +504,7 @@ export default function App() {
       {tab === "history" && <History issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
       {tab === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
-      {tab === "projets" && <Projets />}
+      {tab === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>

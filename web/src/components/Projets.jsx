@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { fetchProjets, downloadProjetsXlsx, openProjetsDoc } from "../api.js";
+import Client360 from "./Client360.jsx";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -54,7 +55,7 @@ function Card({ p, onOpen }) {
   );
 }
 
-function ProjetModal({ p, onClose }) {
+export function ProjetModal({ p, onClose }) {
   useEffect(() => {
     const k = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
@@ -102,13 +103,15 @@ function ProjetModal({ p, onClose }) {
   );
 }
 
-function ClientBlock({ c, onOpen }) {
+function ClientBlock({ c, onOpen, onOpen360 }) {
   const j = c.jira || {};
+  const [openAcc, setOpenAcc] = useState(false);
+  const a = c.acces;
   return (
     <section className="pf-client">
       <header className="pf-client-hd">
         <div className="pf-client-id">
-          <h3>{c.client}</h3>
+          <button className="pf-client-name" onClick={() => onOpen360 && onOpen360(c)} title="Ouvrir la fiche client 360°">{c.client}</button>
           <span className={`pf-type ${c.type === "TMA" ? "tma" : ""}`}>{c.type}</span>
           {c.cdp ? <span className="pf-client-cdp">CDP {c.cdp}</span> : null}
         </div>
@@ -126,6 +129,8 @@ function ClientBlock({ c, onOpen }) {
             {j.retard > 0 ? <span className="pf-chip late">{j.retard} en retard</span> : null}
           </div>
         ) : null}
+        {a ? <button className="pf-acc-btn" onClick={() => setOpenAcc((v) => !v)} title="Accès, environnements et contacts">{openAcc ? "▾" : "▸"} Accès & contacts</button> : null}
+        <button className="pf-360-btn" onClick={() => onOpen360 && onOpen360(c)} title="Vue complète du client">Fiche 360°</button>
       </header>
       {c.recette ? (
         <div className="pf-recette" title="Avancement réel de la recette, calculé depuis le référentiel + Jira">
@@ -133,6 +138,34 @@ function ClientBlock({ c, onOpen }) {
           <div className="pf-recette-bar"><div style={{ width: `${c.recette.pct}%` }} /></div>
           <span className="pf-recette-pct">{c.recette.pct}%</span>
           <span className="pf-recette-meta">{c.recette.nbProgrammes} programmes{c.recette.retours ? ` · ${c.recette.retours} en retour` : ""}</span>
+        </div>
+      ) : null}
+      {openAcc && a ? (
+        <div className="pf-acc">
+          {a.contexte ? <p className="pf-acc-ctx">{a.contexte}</p> : null}
+          <div className="pf-acc-grid">
+            <div className="pf-acc-card">
+              <span className="pf-acc-lbl">Portail</span>
+              {a.portail && a.portail.url ? <a href={a.portail.url} target="_blank" rel="noopener noreferrer">{a.portail.nom || "Ouvrir"}</a> : <b>{(a.portail && a.portail.nom) || "à compléter"}</b>}
+            </div>
+            <div className="pf-acc-card">
+              <span className="pf-acc-lbl">SharePoint</span>
+              {a.sharepoint && a.sharepoint.url ? <a href={a.sharepoint.url} target="_blank" rel="noopener noreferrer">{a.sharepoint.nom || "Ouvrir"}</a> : <b>{(a.sharepoint && a.sharepoint.nom) || "à compléter"}</b>}
+            </div>
+            <div className="pf-acc-card">
+              <span className="pf-acc-lbl">Environnements</span>
+              <div className="pf-acc-envs">{(a.environnements || []).length ? a.environnements.map((e, i) => <span className="pf-env" key={i}>{e}</span>) : <i className="pf-acc-todo">à compléter</i>}</div>
+            </div>
+          </div>
+          {a.connexion && a.connexion.length ? (
+            <div className="pf-acc-sec"><h5>Connexion</h5><ol className="pf-acc-steps">{a.connexion.map((s, i) => <li key={i}>{s}</li>)}</ol></div>
+          ) : null}
+          {a.contacts && a.contacts.length ? (
+            <div className="pf-acc-sec"><h5>Contacts</h5><div className="pf-acc-contacts">{a.contacts.map((ct, i) => (
+              <span className={`pf-contact ${ct.cote === "Armonie" ? "arm" : "cli"}`} key={i}>{ct.nom}<i>{ct.role}{ct.cote ? ` · ${ct.cote}` : ""}</i></span>
+            ))}</div></div>
+          ) : null}
+          {a.coffre ? <div className="pf-acc-coffre">🔐 {a.coffre}</div> : null}
         </div>
       ) : null}
       <div className="pf-tablewrap">
@@ -174,11 +207,12 @@ function ClientBlock({ c, onOpen }) {
   );
 }
 
-export default function Projets() {
+export default function Projets({ issues = [], onTicket, onDev }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [sel, setSel] = useState(null);
+  const [sel360, setSel360] = useState(null);
   const [dl, setDl] = useState(false);
 
   useEffect(() => {
@@ -252,10 +286,11 @@ export default function Projets() {
         )}
       </div>
 
-      {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} />)}
+      {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} onOpen360={setSel360} />)}
       <p className="pf-foot">Couche commerciale éditable, confrontée aux tickets Jira en direct{d.majSource ? ` · ${d.majSource}` : ""}.</p>
 
       {sel ? <ProjetModal p={sel} onClose={() => setSel(null)} /> : null}
+      {sel360 ? <Client360 c={sel360} issues={issues} onClose={() => setSel360(null)} onTicket={onTicket} onDev={onDev} /> : null}
     </div>
   );
 }

@@ -11,10 +11,15 @@ import { buildDoc } from "./docgen.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const P_PATH = path.join(__dirname, "projets.json");
+const A_PATH = path.join(__dirname, "acces.json");
 
 export function loadProjets() {
   try { return JSON.parse(fs.readFileSync(P_PATH, "utf8")); }
   catch { return { projets: [] }; }
+}
+function loadAcces() {
+  try { return JSON.parse(fs.readFileSync(A_PATH, "utf8")); }
+  catch { return {}; }
 }
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
@@ -42,6 +47,7 @@ function jiraPulse(issues, client) {
 
 export function buildProjets(issues) {
   const ref = loadProjets();
+  const ACCES = loadAcces();
   const projets = ref.projets || [];
 
   // --- groupement par client (ordre d'apparition) ---
@@ -86,7 +92,7 @@ export function buildProjets(issues) {
       else sante = "vert";
     }
 
-    return { client, type: items[0].type, cdp: items[0].cdp || "", finances: fin, jira: pulse, recette, santeData: sante, projets: projetsOut };
+    return { client, type: items[0].type, cdp: items[0].cdp || "", finances: fin, jira: pulse, recette, santeData: sante, acces: ACCES[client] || null, projets: projetsOut };
   });
 
   // --- KPIs globaux ---
