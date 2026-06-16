@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 import { crossReferentiel } from "./referentiel.js";
 import { buildDoc } from "./docgen.js";
 
@@ -131,45 +131,107 @@ export function buildProjets(issues) {
   return { majSource: ref.majSource || "", generatedAt: new Date().toISOString(), kpis, pipeline, recap, clients };
 }
 
-// Export Excel (SheetJS) : feuille Synthèse + feuille Suivi détaillée.
-export function projetsWorkbookBuffer(issues) {
+// Export Excel (exceljs) — calé sur le classeur de référence Armonie :
+// en-tête indigo #4B3F8F, bande KPI lilas, fills d'état, météo, databar d'avancement.
+const INDIGO = "FF4B3F8F", LILAS = "FFF5F2FC", ROWALT = "FFFBFAFE", MUTED = "FF74718A", INK = "FF2C2945", GOLD = "FFC7A14A", RED = "FFC0392B";
+const ETAT_FILL = { "Terminé": "FFE4F4EA", "Mise en prod": "FFE4F4EA", "En cours": "FFE7EAFB", "Signé": "FFFBF2DC", "Propal envoyée": "FFFBE9D8", "AVV Pipe": "FFECEDF3" };
+const ETAT_FONT = { "Terminé": "FF1F7A44", "Mise en prod": "FF1F7A44", "En cours": "FF3A3D9E", "Signé": "FF8A6A1E", "Propal envoyée": "FFB0581A", "AVV Pipe": "FF6B6880" };
+const METEO_EMO = { vert: "🟢", orange: "🟠", rouge: "🔴", neutre: "⚪" };
+
+export async function projetsWorkbookBuffer(issues) {
   const d = buildProjets(issues);
-  const wb = XLSX.utils.book_new();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "cp|WIRE"; wb.created = new Date();
 
-  // Synthèse
-  const syn = [
-    ["SUIVI DE PROJETS — Synthèse", ""],
-    ["Généré le", new Date().toLocaleString("fr-FR")],
-    [],
-    ["Indicateur", "Valeur"],
-    ["Budget total (€)", d.kpis.budgete],
-    ["Facturé (€)", d.kpis.facture],
-    ["Reste à facturer (€)", d.kpis.reste],
-    ["J/H vendus", d.kpis.jh],
-    ["Projets actifs", d.kpis.actifs],
-    ["Clients", d.kpis.nbClients],
-    [],
-    ["Pipeline", "Nb", "Montant (€)"],
-    ...d.pipeline.map((p) => [p.etat, p.n, p.montant]),
-    [],
-    ["Ce qui demande attention", "Client", "Projet", "Détail"],
-    ...d.recap.alertes.map((a) => [a.type, a.client, `${a.projet}${a.perimetre ? " — " + a.perimetre : ""}`, a.detail]),
+  // ---------- Feuille SUIVI ----------
+  const ws = wb.addWorksheet("Suivi de projets", { views: [{ state: "frozen", ySplit: 8 }], pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  const COLS = [
+    { h: "Client", w: 12 }, { h: "CDP", w: 11 }, { h: "Projet", w: 28 }, { h: "Périmètre / Phase", w: 26 },
+    { h: "État", w: 15 }, { h: "Météo", w: 7 }, { h: "N° projet", w: 13 }, { h: "Début", w: 9 }, { h: "Fin", w: 9 },
+    { h: "J/H", w: 6 }, { h: "Budgété", w: 12 }, { h: "Facturé", w: 12 }, { h: "Reste à fact.", w: 13 }, { h: "Avanc.", w: 12 },
+    { h: "Points d'attention", w: 40 }, { h: "Reste à faire", w: 34 }, { h: "Commentaires", w: 24 },
   ];
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(syn), "Synthèse");
+  ws.columns = COLS.map((c) => ({ width: c.w }));
+  const N = COLS.length, lastCol = String.fromCharCode(64 + N);
 
-  // Suivi détaillé
-  const head = ["Client", "Type", "Projet", "Périmètre / Phase", "État", "Météo", "N° projet", "Début", "Fin", "J/H", "Budgété (€)", "Facturé (€)", "Reste à fact. (€)", "Avancement %", "Points d'attention", "Reste à faire", "Commentaire"];
-  const rows = [head];
+  // Bandeau titre
+  ws.mergeCells(`A1:${lastCol}1`); ws.mergeCells(`A2:${lastCol}2`); ws.mergeCells(`A3:${lastCol}3`);
+  const t = ws.getCell("A1"); t.value = "SUIVI DE PROJETS"; t.font = { name: "Poppins", size: 18, bold: true, color: { argb: "FFFFFFFF" } };
+  t.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; t.alignment = { vertical: "middle", indent: 1 }; ws.getRow(1).height = 30;
+  const st = ws.getCell("A2"); st.value = "Portefeuille Armonie — vue chef de projet · données confrontées à Jira";
+  st.font = { name: "Inter", size: 10, color: { argb: "FFE4E2F2" } }; st.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; st.alignment = { indent: 1 };
+  const dt = ws.getCell("A3"); dt.value = `Généré le ${new Date().toLocaleDateString("fr-FR")}`;
+  dt.font = { name: "Inter", size: 9, color: { argb: "FFCFC9EC" } }; dt.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; dt.alignment = { indent: 1 };
+
+  // Bande KPI (ligne 5-6) : 6 cartes
+  const kpis = [["Budget total", d.kpis.budgete + " €"], ["Facturé", d.kpis.facture + " €"], ["Reste à facturer", d.kpis.reste + " €"],
+    ["J/H vendus", d.kpis.jh], ["Projets actifs", d.kpis.actifs], ["Clients", d.kpis.nbClients]];
+  const span = Math.max(1, Math.floor(N / 6));
+  kpis.forEach((k, i) => {
+    const c0 = i * span + 1, c1 = i === 5 ? N : c0 + span - 1;
+    const a = ws.getRow(5).getCell(c0), b = ws.getRow(6).getCell(c0);
+    ws.mergeCells(5, c0, 5, c1); ws.mergeCells(6, c0, 6, c1);
+    a.value = String(k[1]); a.font = { name: "Poppins", size: 15, bold: true, color: { argb: INDIGO } }; a.alignment = { indent: 1, vertical: "middle" };
+    a.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LILAS } };
+    b.value = k[0].toUpperCase(); b.font = { name: "Inter", size: 8, color: { argb: MUTED } }; b.alignment = { indent: 1 };
+    b.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LILAS } };
+  });
+  ws.getRow(5).height = 24;
+
+  // En-tête tableau (ligne 8)
+  const hr = ws.getRow(8);
+  COLS.forEach((c, i) => {
+    const cell = hr.getCell(i + 1); cell.value = c.h;
+    cell.font = { name: "Inter", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } };
+    cell.alignment = { vertical: "middle", horizontal: [10, 11, 12, 13, 14].includes(i) ? "right" : "left", wrapText: true };
+    cell.border = { bottom: { style: "thin", color: { argb: GOLD } } };
+  });
+  hr.height = 22;
+
+  // Lignes projets
+  let r = 9;
   for (const c of d.clients) for (const p of c.projets) {
-    rows.push([c.client, p.type, p.nom, p.perimetre || "", p.etat, p.meteo, p.num || "", p.debut || "", p.fin || "",
-      p.jh ?? "", p.budgete ?? "", p.facture ?? "", p.reste ?? "", p.avancement != null ? Math.round(p.avancement * 100) : "",
-      (p.attention || []).join(" • "), (p.raf || []).join(" • "), p.comment || ""]);
+    const row = ws.getRow(r);
+    const vals = [c.client, c.cdp || "", p.nom, p.perimetre || "", p.etat, METEO_EMO[p.meteo] || "", p.num || "",
+      p.debut || "", p.fin || "", p.jh ?? "", p.budgete ?? "", p.facture ?? "", p.reste ?? "",
+      p.avancement != null ? p.avancement : "", (p.attention || []).join(" • "), (p.raf || []).join(" • "), p.comment || ""];
+    vals.forEach((v, i) => { row.getCell(i + 1).value = v; });
+    if (r % 2) for (let i = 1; i <= N; i++) row.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: ROWALT } };
+    // styles colonnes
+    row.getCell(1).font = { bold: true, color: { argb: INK } };
+    row.getCell(3).font = { bold: true, color: { argb: INK } };
+    row.getCell(7).font = { name: "Consolas", size: 9, color: { argb: MUTED } };
+    const e = row.getCell(5); const ef = ETAT_FILL[p.etat];
+    if (ef) { e.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ef } }; e.font = { bold: true, size: 9, color: { argb: ETAT_FONT[p.etat] || INK } }; e.alignment = { horizontal: "center" }; }
+    row.getCell(6).alignment = { horizontal: "center" };
+    [11, 12, 13].forEach((i) => { row.getCell(i).numFmt = '#,##0 "€"'; row.getCell(i).alignment = { horizontal: "right" }; });
+    if (p.reste < 0) { row.getCell(13).font = { bold: true, color: { argb: RED } }; }
+    const av = row.getCell(14); av.numFmt = "0 %"; av.alignment = { horizontal: "right" };
+    row.getCell(10).alignment = { horizontal: "right" };
+    [15, 16, 17].forEach((i) => { row.getCell(i).alignment = { wrapText: true, vertical: "top" }; row.getCell(i).font = { size: 9, color: { argb: "FF555168" } }; });
+    row.getCell(8).alignment = { horizontal: "center" }; row.getCell(9).alignment = { horizontal: "center" };
+    r++;
   }
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws["!cols"] = [12, 8, 26, 28, 14, 8, 13, 11, 11, 6, 12, 12, 13, 11, 40, 34, 22].map((w) => ({ wch: w }));
-  XLSX.utils.book_append_sheet(wb, ws, "Suivi");
+  // databar d'avancement (colonne N)
+  if (r > 9) ws.addConditionalFormatting({ ref: `N9:N${r - 1}`, rules: [{ type: "dataBar", cfvo: [{ type: "num", value: 0 }, { type: "num", value: 1 }], color: { argb: GOLD } }] });
+  ws.autoFilter = `A8:${lastCol}8`;
 
-  return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+  // ---------- Feuille SYNTHÈSE ----------
+  const sy = wb.addWorksheet("Synthèse");
+  sy.columns = [{ width: 22 }, { width: 14 }, { width: 16 }, { width: 40 }];
+  sy.mergeCells("A1:D1"); const st2 = sy.getCell("A1"); st2.value = "SYNTHÈSE DU PORTEFEUILLE";
+  st2.font = { name: "Poppins", size: 15, bold: true, color: { argb: "FFFFFFFF" } }; st2.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; sy.getRow(1).height = 26; st2.alignment = { vertical: "middle", indent: 1 };
+  let rr = 3;
+  const addHd = (txt) => { const cc = sy.getCell(`A${rr}`); cc.value = txt; cc.font = { name: "Poppins", bold: true, size: 11, color: { argb: INDIGO } }; sy.getCell(`A${rr}`).border = { bottom: { style: "medium", color: { argb: GOLD } } }; rr += 1; };
+  addHd("Pipeline commercial");
+  sy.getRow(rr).values = ["Étape", "Affaires", "Montant (€)"]; sy.getRow(rr).font = { bold: true, size: 9, color: { argb: MUTED } }; rr++;
+  d.pipeline.forEach((p) => { sy.getRow(rr).values = [p.etat, p.n, p.montant || 0]; sy.getCell(`C${rr}`).numFmt = '#,##0 "€"'; rr++; });
+  rr++; addHd("Ce qui demande l'attention");
+  if (!d.recap.alertes.length) { sy.getCell(`A${rr}`).value = "Rien d'urgent."; rr++; }
+  d.recap.alertes.forEach((a) => { sy.getRow(rr).values = [a.type, a.client, "", `${a.projet}${a.perimetre ? " — " + a.perimetre : ""} · ${a.detail}`]; sy.getCell(`A${rr}`).font = { bold: true, size: 9, color: { argb: a.niveau === "rouge" ? RED : "FFB0581A" } }; rr++; });
+
+  return await wb.xlsx.writeBuffer();
 }
 
 // Document PDF/HTML à la charte Armonie (réutilise docgen.buildDoc -> identique aux CR).

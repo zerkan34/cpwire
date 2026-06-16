@@ -1,0 +1,18 @@
+# Dépendances
+node_modules/
+
+# Build du front (régénéré par Render)
+web/dist/
+
+# Données runtime du serveur — NE JAMAIS committer (états locaux, recréés au démarrage)
+server/data/
+server/snapshot.json
+server/devmeta.json
+server/portfolio.json
+server/history.json
+
+# Environnement & divers
+.env
+.env.*
+.DS_Store
+*.log

@@ -135,7 +135,41 @@ function ClientBlock({ c, onOpen }) {
           <span className="pf-recette-meta">{c.recette.nbProgrammes} programmes{c.recette.retours ? ` · ${c.recette.retours} en retour` : ""}</span>
         </div>
       ) : null}
-      <div className="pf-grid">{c.projets.map((p, i) => <Card key={i} p={p} onOpen={onOpen} />)}</div>
+      <div className="pf-tablewrap">
+        <table className="proj-tbl pf-table">
+          <thead>
+            <tr>
+              <th>Projet</th><th>État</th><th>N° projet</th><th>Début</th><th>Fin</th>
+              <th className="r">J/H</th><th className="r">Budgété</th><th className="r">Facturé</th><th className="r">Reste</th>
+              <th>Avanc.</th><th>Points d'attention</th>
+            </tr>
+          </thead>
+          <tbody>
+            {c.projets.map((p, i) => {
+              const color = METEO[p.meteo] || METEO.neutre;
+              const pct = Math.round((p.avancement || 0) * 100);
+              return (
+                <tr key={i} className={`pf-row ${ETAT_CLS[p.etat] || ""}`} onClick={() => onOpen(p)} title="Voir le détail du projet">
+                  <td className="pf-c-proj"><b>{p.nom}</b>{p.perimetre ? <span className="pf-c-perim">{p.perimetre}</span> : null}</td>
+                  <td className="pf-c-etat"><span className="pf-meteo" style={{ background: color }} /><span className={`pf-etat ${ETAT_CLS[p.etat] || ""}`}>{p.etat}</span></td>
+                  <td className="pf-c-num">{p.num || "—"}</td>
+                  <td>{frMonth(p.debut) || "—"}</td>
+                  <td>{frMonth(p.fin) || "—"}</td>
+                  <td className="r">{p.jh ?? "—"}</td>
+                  <td className="r">{EUR(p.budgete)}</td>
+                  <td className="r">{EUR(p.facture)}</td>
+                  <td className={`r ${p.reste < 0 ? "neg" : ""}`}>{EUR(p.reste)}</td>
+                  <td className="pf-c-av">
+                    <div className="pf-cbar"><i style={{ width: `${pct}%`, background: p.meteo === "neutre" ? "var(--purple)" : color }} /></div>
+                    <span className="pf-cbar-v">{pct}%</span>
+                  </td>
+                  <td className="pf-c-att">{(p.attention || []).join(" · ") || "—"}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </section>
   );
 }

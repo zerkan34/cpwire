@@ -423,7 +423,7 @@ app.get("/api/projets", guard, async (_req, res) => {
 app.get("/api/projets/export", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
-    const buf = projetsWorkbookBuffer(got ? withoutDeletedDevs(got.issues) : []);
+    const buf = await projetsWorkbookBuffer(got ? withoutDeletedDevs(got.issues) : []);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", 'attachment; filename="Suivi_de_projets.xlsx"');
     res.send(buf);
