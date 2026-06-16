@@ -17,6 +17,7 @@ import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
+import { buildProjets } from "./projets.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -412,6 +413,13 @@ app.get("/api/dolibarr/probe", guard, async (_req, res) => {
 
 // Référentiel Recette (socle) : Domaine → Option → Programmes → tickets Jira (rapprochement auto).
 app.get("/api/referentiel/clients", guard, (_req, res) => res.json({ clients: referentielClients() }));
+app.get("/api/projets", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    const data = buildProjets(got ? withoutDeletedDevs(got.issues) : []);
+    res.json(data);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
 app.get("/api/referentiel", guard, async (req, res) => {
   try {
     const client = req.query.client || (referentielClients()[0] || "");
