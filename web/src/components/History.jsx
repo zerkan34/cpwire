@@ -61,6 +61,8 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
   const pick = (p) => { setRStart(""); setREnd(""); setPeriod(p); };
   const applyRange = (s, e) => { if (s && e && s <= e) setPeriod(`range:${s}..${e}`); };
   const [client, setClient] = useState("Tous");
+  const [open, setOpen] = useState({});            // accordéon : clients dépliés (repliés par défaut)
+  const toggleOpen = (name) => setOpen((o) => ({ ...o, [name]: !o[name] }));
   const [doc, setDoc] = useState(null);
   const [crBusy, setCrBusy] = useState(false);
   const [crBusy2, setCrBusy2] = useState(false);
@@ -184,7 +186,7 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
         ))}
       </div>
 
-      <div className="panel">
+      <div className="panel hist-period">
         <div className="filters" style={{ marginBottom: 8 }}>
           <span className="fg-lbl">Période</span>
           {PRESETS.map((p) => (
@@ -230,34 +232,42 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
         {data.clients.length === 0 ? (
           <div className="empty">Aucune activité sur cette période.</div>
         ) : (
-          data.clients.map((c) => (
-            <div key={c.client} className="cli-block">
-              <div className="cli-h">
+          data.clients.map((c) => {
+            const isOpen = !!open[c.client];
+            return (
+            <div key={c.client} className={`cli-block ${isOpen ? "open" : ""}`}>
+              <button type="button" className="cli-h" onClick={() => toggleOpen(c.client)} aria-expanded={isOpen}>
+                <span className="cli-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
                 <span className="tag">{c.client}</span>
                 <span className="cli-meta">{c.done} terminé(s){c.active ? ` · ${c.active} en cours` : ""}{c.blocked ? ` · ${c.blocked} bloqué(s)` : ""} · {c.items.length} ticket(s)</span>
-              </div>
-              <table className="fiche-tbl">
-                <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-proj">Dév.</th><th className="c-stat">Statut</th><th className="c-date">Date</th></tr></thead>
-                <tbody>
-                  {c.items.slice(0, 40).map((i) => {
-                    const dev = i.dev || i.assigne || "";
-                    return (
-                      <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                        <td className="c-cle"><span className="k">{i.cle}</span></td>
-                        <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
-                        <td className="c-proj">{dev && dev !== "Non assigné"
-                          ? <span className={`dev-chip ${greyed(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
-                          : (dev || "—")}</td>
-                        <td className="c-stat"><span className={`pill ${PILL[i.statut]}`}>{i.statutJira || i.statut}</span></td>
-                        <td className="c-date">{fr(i.resolu || i.maj)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {c.items.length > 40 && <p className="hint">+ {c.items.length - 40} autre(s)…</p>}
+              </button>
+              {isOpen && (
+                <div className="cli-body">
+                  <table className="fiche-tbl">
+                    <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-proj">Dév.</th><th className="c-stat">Statut</th><th className="c-date">Date</th></tr></thead>
+                    <tbody>
+                      {c.items.slice(0, 40).map((i) => {
+                        const dev = i.dev || i.assigne || "";
+                        return (
+                          <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                            <td className="c-cle"><span className="k">{i.cle}</span></td>
+                            <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                            <td className="c-proj">{dev && dev !== "Non assigné"
+                              ? <span className={`dev-chip ${greyed(dev) ? "del" : ""}`} title="Voir la fiche" onClick={(e) => { e.stopPropagation(); onDev && onDev(dev); }}>{dev}</span>
+                              : (dev || "—")}</td>
+                            <td className="c-stat"><span className={`pill ${PILL[i.statut]}`}>{i.statutJira || i.statut}</span></td>
+                            <td className="c-date">{fr(i.resolu || i.maj)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {c.items.length > 40 && <p className="hint" style={{ margin: "0 14px 12px" }}>+ {c.items.length - 40} autre(s)…</p>}
+                </div>
+              )}
             </div>
-          ))
+            );
+          })
         )}
       </div>
 

@@ -501,10 +501,10 @@ export default function App() {
 
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
-    : role === "owner" ? [...TABS, ADMIN_TAB] : TABS;
+    : TABS;
   const primaryTabs = role === "consultation" ? ["cockpit", "projets", "devs", "history"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
-    : role === "owner" ? [...SECONDARY, "admin"] : SECONDARY;
+    : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
   const canCR = role === "owner";
 

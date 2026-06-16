@@ -1800,11 +1800,11 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .pres-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.45); display: inline-block; }
 .pres-dot.on { background: #43d17a; box-shadow: 0 0 0 3px rgba(67,209,122,.25); }
 
-/* ===== Sous-onglets (onglets groupés) ===== */
-.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
-.subtab { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-family: Poppins, sans-serif; font-weight: 600; font-size: 12.5px; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
-.subtab:hover { border-color: var(--purple-line); color: var(--ink); }
-.subtab.active { background: var(--purple-soft); border-color: var(--purple); color: var(--purple-strong); }
+/* ===== Sous-onglets (onglets groupés) — style secondaire, nettement distinct des rubriques ===== */
+.subtabs { display: flex; flex-wrap: wrap; gap: 4px; margin: 0 0 16px; padding: 4px; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; width: fit-content; max-width: 100%; }
+.subtab { border: 0; background: transparent; color: var(--muted); font-family: Inter, sans-serif; font-weight: 600; font-size: 12.5px; padding: 6px 14px; border-radius: 9px; cursor: pointer; transition: background .15s, color .15s; }
+.subtab:hover { color: var(--indigo); }
+.subtab.active { background: #fff; color: var(--purple-strong); box-shadow: 0 1px 3px rgba(44,41,69,.12); }
 
 /* ===== Mémoire : bloc appris automatiquement (IA) ===== */
 .cn-auto { margin-top: 16px; padding: 14px 16px; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; }
@@ -1813,3 +1813,43 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .cn-auto-list { margin: 0 0 8px; padding-left: 18px; }
 .cn-auto-list li { font-size: 13.5px; color: var(--ink); margin: 3px 0; }
 .cn-auto-note { font-size: 12px; color: var(--muted); margin: 0; font-style: italic; }
+
+/* ===== Historique : accordéon par client (header seul + chevron) ===== */
+.cli-h { width: 100%; border: 0; font: inherit; cursor: pointer; color: #fff; }
+.cli-h:hover { filter: brightness(1.05); }
+.cli-chev { color: rgba(255,255,255,.92); font-size: 12px; width: 16px; display: inline-block; text-align: center; }
+.cli-block .cli-body { padding: 2px 0 0; }
+.cli-block .cli-body .fiche-tbl { margin: 0; }
+.cli-block .cli-body .fiche-tbl th, .cli-block .cli-body .fiche-tbl td { padding-left: 14px; padding-right: 14px; }
+.cli-block.open { box-shadow: var(--shadow-lg); }
+/* Séparation nette des lignes (anti « superposition ») */
+.cli-block .fiche-tbl tbody tr td { border-bottom: 1px solid var(--line); }
+.cli-block .fiche-tbl tbody tr:last-child td { border-bottom: 0; }
+
+/* ===== Suivi projets : finances discrètes, « attention » mise en avant ===== */
+/* Bandeau d'indicateurs : compact, sobre (moins « dashboard IA ») */
+.pf-kpis { grid-template-columns: repeat(6, 1fr); gap: 8px; }
+.pf-kpi { padding: 9px 12px; border-radius: 10px; box-shadow: none; background: var(--row-alt); }
+.pf-kpi::before { width: 3px; }
+.pf-kpi-v { font-size: 15.5px; font-weight: 700; }
+.pf-kpi-l { font-size: 10px; }
+/* Pipeline commercial : plus plat, plus petit */
+.pf-pipe-seg { padding: 8px 12px; border-radius: 10px; box-shadow: none; }
+.pf-pipe-seg b { font-size: 16px; }
+.pf-pipe-seg span { font-size: 10.5px; }
+/* Section « Ce qui demande votre attention » : le héros de la page */
+.pf-recap { border: 1px solid var(--purple-line); border-left: 4px solid var(--orange); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow-lg); margin: 4px 0 18px; }
+.pf-recap-hd h3 { font-size: 18px; font-family: "Poppins", sans-serif; color: var(--indigo-deep); }
+.pf-recap-meta { font-size: 12.5px; }
+.pf-recap-list { gap: 8px; }
+.pf-alerte { padding: 11px 13px; border-radius: 11px; }
+.pf-fin-title { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin: 6px 0 8px; }
+
+/* ===== Historique : sous-header période, plus lisible ===== */
+.hist-period { padding: 14px 16px; }
+.hist-period .filters { align-items: center; row-gap: 8px; }
+.hist-period .fg-lbl { font-weight: 700; color: var(--indigo); font-size: 12px; text-transform: uppercase; letter-spacing: .04em; }
+.hist-period select, .hist-period input[type="date"] { font-size: 12.5px; color: var(--ink); background: var(--card); }
+.hist-period .period-sum { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.hist-period .period-sum .btn-solid, .hist-period .period-sum .btn-line { margin-left: 0 !important; }
+.hist-period .period-sum .btn-line.sm:last-of-type { margin-left: auto !important; }

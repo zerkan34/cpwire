@@ -251,20 +251,6 @@ export default function Projets({ issues = [], onTicket, onDev }) {
         </div>
       </div>
 
-      <div className="pf-kpis">
-        {KPIS.map(([l, v, t]) => (
-          <div className={`pf-kpi t-${t}`} key={l}><div className="pf-kpi-v">{v}</div><div className="pf-kpi-l">{l}</div></div>
-        ))}
-      </div>
-
-      <div className="pf-pipe">
-        {d.pipeline.map((s) => (
-          <div key={s.etat} className={`pf-pipe-seg ${ETAT_CLS[s.etat] || ""}`}>
-            <b>{s.n}</b><span>{s.etat}</span><i>{s.montant ? EUR(s.montant) : "\u00a0"}</i>
-          </div>
-        ))}
-      </div>
-
       <div className="pf-recap">
         <div className="pf-recap-hd">
           <h3>Ce qui demande votre attention</h3>
@@ -284,6 +270,21 @@ export default function Projets({ issues = [], onTicket, onDev }) {
             ))}
           </ul>
         )}
+      </div>
+
+      <div className="pf-fin-title">Indicateurs du portefeuille</div>
+      <div className="pf-kpis">
+        {KPIS.map(([l, v, t]) => (
+          <div className={`pf-kpi t-${t}`} key={l}><div className="pf-kpi-v">{v}</div><div className="pf-kpi-l">{l}</div></div>
+        ))}
+      </div>
+
+      <div className="pf-pipe">
+        {d.pipeline.map((s) => (
+          <div key={s.etat} className={`pf-pipe-seg ${ETAT_CLS[s.etat] || ""}`}>
+            <b>{s.n}</b><span>{s.etat}</span><i>{s.montant ? EUR(s.montant) : "\u00a0"}</i>
+          </div>
+        ))}
       </div>
 
       {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} onOpen360={setSel360} />)}
