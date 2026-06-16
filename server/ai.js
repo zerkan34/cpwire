@@ -133,20 +133,22 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
 
 function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
 
-// Liste compacte « N° — description — intervenant — état ». Affiche les 10 premiers,
-// puis replie le reste dans un accordéon natif « Afficher les N autre(s) » (pas de troncature).
+// Liste alignée en colonnes : Clé · Description · Intervenant · État.
+// Affiche les 10 premiers, puis replie le reste dans un accordéon « Afficher les N autre(s) »
+// — les deux tables partagent la même largeur de colonnes (table-layout fixe) pour rester alignées.
+const TK_COLGROUP = `<colgroup><col style="width:11%"><col style="width:53%"><col style="width:20%"><col style="width:16%"></colgroup>`;
+function tkRow(i) {
+  const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
+  const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
+  const prog = i.prog && i.prog.name ? ` <span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : "";
+  return `<tr><td class="tk-k"><b>${esc(i.cle)}</b></td><td class="tk-res">${esc(i.resume)}${prog}</td><td class="tk-who"><span class="who">${esc(who)}</span></td><td class="tk-st">${esc(st)}</td></tr>`;
+}
 function tkList(arr) {
   if (!arr.length) return `<p class="cr-scope">—</p>`;
-  const line = (i) => {
-    const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
-    const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
-    const prog = i.prog && i.prog.name ? ` <span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : "";
-    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)}${prog} — <span class="who">${esc(who)}</span> — <b>${esc(st)}</b></li>`;
-  };
   const head = arr.slice(0, 10), rest = arr.slice(10);
-  let html = `<ul class="cr-list">${head.map(line).join("")}</ul>`;
+  let html = `<table class="tk-tbl">${TK_COLGROUP}<tbody>${head.map(tkRow).join("")}</tbody></table>`;
   if (rest.length) {
-    html += `<details class="cr-more"><summary>Afficher les ${rest.length} autre(s)</summary><ul class="cr-list">${rest.map(line).join("")}</ul></details>`;
+    html += `<details class="cr-more"><summary>Afficher les ${rest.length} autre(s)</summary><table class="tk-tbl">${TK_COLGROUP}<tbody>${rest.map(tkRow).join("")}</tbody></table></details>`;
   }
   return html;
 }
@@ -464,7 +466,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
           `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
           `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
       }
-      analyseHtml = await callClaude(STYLE, prompt);
+      analyseHtml = await callClaude(STYLE, prompt + lexique(dossier));
     } catch { analyseHtml = ""; }
   }
   if (!analyseHtml) {
@@ -579,7 +581,7 @@ export async function writtenDailyReport(dossier, issues) {
         `Terminés aujourd'hui (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +
         `En cours aujourd'hui (${dayActive.length}) :\n${pick(dayActive) || "(aucun)"}\n\n` +
         `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
-      body = await callClaude(STYLE, prompt);
+      body = await callClaude(STYLE, prompt + lexique(dossier));
     } catch { body = ""; }
   }
   if (!body) body = writtenTemplate(dossier, issues);
@@ -637,7 +639,7 @@ export async function writtenDateReport(dossier, range, allIssues = []) {
         `Terminés sur la période (${done.length}) :\n${pick(done) || "(aucun)"}\n\n` +
         `En cours sur la période (${active.length}) :\n${pick(active) || "(aucun)"}\n\n` +
         `À surveiller (${bloquants.length}) :\n${pick(bloquants) || "(aucun)"}`;
-      body = await callClaude(STYLE, prompt);
+      body = await callClaude(STYLE, prompt + lexique(scope));
     } catch { body = ""; }
   }
   if (!body) {
@@ -706,7 +708,7 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
         `Charge par personne : ${top || "—"}. ` +
         `${enRetard.length ? "En retard : " + enRetard.length + " (" + retardListe + ")." : "Aucun ticket en retard."}\n` +
         `Réponds UNIQUEMENT en HTML <p>…</p>, sans titre.`;
-      synthese = await callClaude(STYLE, prompt);
+      synthese = await callClaude(STYLE, prompt + lexique(dossier));
     } catch { synthese = ""; }
   }
   if (!synthese) {
@@ -943,7 +945,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
         `En 4 à 6 phrases claires, orientées pilotage : où en est le projet, ce qui avance, qui travaille dessus, et les points de friction/risques à surveiller. Reste factuel, ne réinvente pas de chiffres.\n` +
         `Données : ${issues.length} tickets (${avancement}% terminés). ${active.length} en cours, ${recette.length} en recette/attente, ${bloquants.length} bloquant(s)/flaggé(s), ${retard.length} en retard. Charge par personne : ${top || "—"}. Points de friction : ${fric || "aucun"}.\n` +
         `Réponds UNIQUEMENT en HTML <p>…</p>, sans titre.`;
-      contexte = await callClaude(STYLE, prompt);
+      contexte = await callClaude(STYLE, prompt + lexique(dossier));
     } catch { contexte = ""; }
   }
   if (!contexte) {
@@ -966,7 +968,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
           `Produis : les objectifs, les points à aborder (puces), les questions ouvertes, et les décisions / actions attendues. Clair, concis, professionnel.\n` +
           `Éléments bruts :\n${matiere.slice(0, 6000)}\n` +
           `Réponds UNIQUEMENT en HTML avec <h3>, <p>, <ul><li>. Pas de <h1> ni <h2>.`;
-        agenda = await callClaude(STYLE, prompt);
+        agenda = await callClaude(STYLE, prompt + lexique(dossier));
       } catch { agenda = ""; }
     }
     if (!agenda) {
@@ -1022,4 +1024,15 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
       frictions: bloquants.slice(0, 40).map((i) => ({ cle: i.cle, resume: i.resume, statut: i.statut || "" })),
     },
   };
+}
+
+// ---------- Glossaire métier par dossier ----------
+// Vocabulaire spécifique à employer dans les récaps / CR / briefs générés.
+// EDL : les commerciaux de l'école des loisirs s'appellent les « animateurs » (animatrices).
+const DOSSIER_LEXIQUE = {
+  EDL: "VOCABULAIRE DU DOSSIER — IMPÉRATIF : chez EDL (l'école des loisirs), les commerciaux sont appelés « animateurs » (au féminin « animatrices »). Emploie systématiquement « animateur » / « animatrice » pour désigner cette fonction commerciale, jamais le mot « commercial ».",
+};
+function lexique(dossier) {
+  const k = DOSSIER_LEXIQUE[dossier];
+  return k ? "\n\n" + k : "";
 }

@@ -42,6 +42,7 @@ function describeDossier(items) {
 
 export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
   const [recap, setRecap] = useState(null);
+  const [openD, setOpenD] = useState(null);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
   const [prog, setProg] = useState("");
@@ -144,7 +145,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                 {describeDossier(items)}
               </p>
               <ul>
-                {items.slice(0, 6).map((i) => {
+                {(openD === dossier ? items : items.slice(0, 6)).map((i) => {
                   const dev = i.dev || i.assigne || "";
                   const showDev = dev && dev !== "Non assigné";
                   const isDel = delSet.has(dev);
@@ -166,7 +167,11 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                     </li>
                   );
                 })}
-                {items.length > 6 && <li className="ri-more" style={{ color: "var(--muted)" }}>+ {items.length - 6} autre(s)…</li>}
+                {items.length > 6 && (
+                  <li className="ri-more" onClick={() => setOpenD(openD === dossier ? null : dossier)} title={openD === dossier ? "Réduire" : "Afficher tout"}>
+                    {openD === dossier ? "▾ réduire" : `▸ voir les ${items.length - 6} autre(s)…`}
+                  </li>
+                )}
               </ul>
               <div className="cr-btns">
                 <button className="btn-solid gold" onClick={() => makeCR(dossier)} disabled={busy === dossier}>

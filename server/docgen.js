@@ -61,13 +61,18 @@ const CSS = `
   .cr-list li .who{color:#5a48b0;font-weight:600;}
   .cr-tk-who{font-size:11px;color:#74718a;font-weight:600;}
   .cr-prog{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#7a6a00;background:#fbf3cf;border:1px solid #f0e3a8;border-radius:5px;padding:0 5px;white-space:nowrap;}
+  table.tk-tbl{width:100%;border-collapse:collapse;table-layout:fixed;margin:4px 0 10px;}
+  table.tk-tbl td{padding:6px 9px;border-bottom:1px solid #f0eef7;vertical-align:top;line-height:1.35;font-size:12px;overflow-wrap:anywhere;}
+  table.tk-tbl .tk-k{white-space:nowrap;} table.tk-tbl .tk-k b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#3a3658;}
+  table.tk-tbl .tk-res{color:#2c2945;} table.tk-tbl .tk-who .who{color:#5a48b0;font-weight:600;}
+  table.tk-tbl .tk-st{text-align:right;white-space:nowrap;font-weight:700;color:#2c2945;font-size:11px;}
   details.cr-more{margin:-4px 0 14px;}
   details.cr-more>summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:#6e5cc4;padding:4px 0;display:inline-block;}
   details.cr-more>summary::-webkit-details-marker{display:none;}
   details.cr-more>summary:before{content:"\\002B ";font-weight:800;}
   details.cr-more[open]>summary:before{content:"\\2212 ";}
   /* PDF/impression : on déplie les listes pour ne rien cacher dans le document figé */
-  @media print{details.cr-more>summary{display:none;} details.cr-more>ul{display:block !important;}}
+  @media print{details.cr-more>summary{display:none;} details.cr-more>ul,details.cr-more>table{display:revert !important;}}
   @page{margin:14mm 13mm;}
   @media print{.page{padding:0;max-width:none;}}
   /* === MOBILE UNIQUEMENT (iframe étroite < 480px) : fond violet cp|WIRE, écriture blanche === */
@@ -92,6 +97,7 @@ const CSS = `
     .opt{border-color:rgba(255,255,255,.16);} .opt .ot{color:#b9a9f0;}
     .who,.tk,.cr-to,.cr-tk-k,.cr-lbl,.opt .ot{color:#b9a9f0;}
     .cr-list li{color:#e4e8f3;} .cr-list li .who{color:#b9a9f0;}
+    table.tk-tbl td{border-bottom-color:rgba(255,255,255,.12);} table.tk-tbl .tk-res,table.tk-tbl .tk-st{color:#e4e8f3;} table.tk-tbl .tk-k b{color:#b9a9f0;} table.tk-tbl .tk-who .who{color:#b9a9f0;}
     details.cr-more>summary{color:#b9a9f0;} .cr-scope,.cr-tk-who{color:#c8c4e0;}
     .cr-prog{color:#e8d27a;background:rgba(232,210,122,.12);border-color:rgba(232,210,122,.32);}
     details.cr-tk{background:rgba(255,255,255,.05);border-color:rgba(255,255,255,.14);}
