@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { login, loginGuest } from "../api.js";
+import { login, loginGuest, claimAccount } from "../api.js";
 
 export default function Login({ onSuccess, invite }) {
   const [email, setEmail] = useState("");
@@ -15,15 +15,55 @@ export default function Login({ onSuccess, invite }) {
     finally { setBusy(false); }
   };
 
-  // Connexion invité : on enregistre le jeton du lien et on entre en lecture seule.
+  // Connexion invité (ancien lien lecture seule "g.") : on enregistre le jeton et on entre en lecture seule.
   const enterGuest = () => {
     setBusy(true); setErr("");
     try { loginGuest(invite); onSuccess({ role: "guest" }); }
     catch (e2) { setErr(e2.message); setBusy(false); }
   };
 
-  // --- Mode invité : un seul bouton, pas de mot de passe ---
-  if (invite) {
+  // Activation d'un compte consultation (lien "i.") : la personne choisit son email + mot de passe.
+  const activate = async (e) => {
+    e.preventDefault();
+    setBusy(true); setErr("");
+    try { const d = await claimAccount(invite, email.trim(), password); onSuccess(d); }
+    catch (e2) { setErr(e2.message); setBusy(false); }
+  };
+
+  const isAccountInvite = invite && invite.startsWith("i.");
+  const isGuestInvite = invite && invite.startsWith("g.");
+
+  // --- Activation d'un compte (lien d'invitation "consultation") ---
+  if (isAccountInvite) {
+    return (
+      <div className="login-screen">
+        <form className="login-card" onSubmit={activate}>
+          <div className="login-logo"><img src="/cpwire-logo.png" alt="CPwire" /></div>
+          <div className="login-tag">Cockpit de pilotage · chef de projet</div>
+          <div className="invite-note">
+            <span className="invite-badge">Activation de votre accès</span>
+            Vous avez été invité à consulter le cockpit. Choisissez votre email et un mot de passe : ils vous serviront à vous reconnecter.
+          </div>
+          <div className="field">
+            <label>Votre email</label>
+            <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@armonie.group" required />
+          </div>
+          <div className="field">
+            <label>Choisir un mot de passe</label>
+            <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 caractères minimum" required minLength={6} />
+          </div>
+          <button className="btn-solid" style={{ width: "100%", padding: "12px" }} disabled={busy}>
+            {busy ? "Activation…" : "Activer mon accès"}
+          </button>
+          {err && <div className="warn-note">{err}</div>}
+          <div className="login-foot">Armonie Group · accès consultation</div>
+        </form>
+      </div>
+    );
+  }
+
+  // --- Ancien lien invité lecture seule ("g.") : un seul bouton ---
+  if (isGuestInvite) {
     return (
       <div className="login-screen">
         <div className="login-card">
@@ -31,8 +71,7 @@ export default function Login({ onSuccess, invite }) {
           <div className="login-tag">Cockpit de pilotage · chef de projet</div>
           <div className="invite-note">
             <span className="invite-badge">Accès invité · lecture seule</span>
-            Vous avez été invité à consulter le cockpit. Vous pourrez tout voir, générer des comptes rendus
-            et exporter, mais rien modifier ni supprimer.
+            Vous avez été invité à consulter le cockpit. Vous pourrez tout voir et exporter, mais rien modifier.
           </div>
           <button className="btn-solid" style={{ width: "100%", padding: "12px" }} disabled={busy} onClick={enterGuest}>
             {busy ? "Connexion…" : "Se connecter"}

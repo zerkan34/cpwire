@@ -17,7 +17,7 @@ const CAT_PILL = {
   afaire: "todo", attenteClient: "todo", retourTest: "block", retourProd: "block", annule: "todo",
 };
 
-export default function Client360({ c, issues = [], onClose, onTicket, onDev }) {
+export default function Client360({ c, issues = [], canCR = true, onClose, onTicket, onDev }) {
   const [selP, setSelP] = useState(null);
   const [busy, setBusy] = useState("");
   const [mails, setMails] = useState({ loading: true });
@@ -66,8 +66,8 @@ export default function Client360({ c, issues = [], onClose, onTicket, onDev }) 
             </div>
           </div>
           <div className="c360-hero-actions">
-            <button className="pf-tb-btn" onClick={() => doc("daily")} disabled={busy === "daily"}>{busy === "daily" ? "…" : "📄 CR du jour"}</button>
-            <button className="pf-tb-btn" onClick={() => doc("written")} disabled={busy === "written"}>{busy === "written" ? "…" : "📝 CR écrit"}</button>
+            {canCR && <button className="pf-tb-btn" onClick={() => doc("daily")} disabled={busy === "daily"}>{busy === "daily" ? "…" : "📄 CR du jour"}</button>}
+            {canCR && <button className="pf-tb-btn" onClick={() => doc("written")} disabled={busy === "written"}>{busy === "written" ? "…" : "📝 CR écrit"}</button>}
             <button className="c360-x" onClick={onClose} title="Fermer (Échap)">×</button>
           </div>
         </div>
@@ -76,19 +76,34 @@ export default function Client360({ c, issues = [], onClose, onTicket, onDev }) 
           {/* Contexte */}
           {a && a.contexte ? <p className="c360-ctx">{a.contexte}</p> : null}
 
-          {/* KPIs : santé Jira + finances */}
-          <div className="c360-kpis">
-            {j.present ? <>
-              <div className="c360-kpi"><b>{j.total}</b><span>Tickets</span></div>
-              <div className="c360-kpi"><b>{j.actifs}</b><span>Actifs</span></div>
-              <div className="c360-kpi"><b>{j.recette}</b><span>En recette</span></div>
-              <div className="c360-kpi t-warn"><b>{j.retours}</b><span>Retours</span></div>
-              <div className="c360-kpi t-warn"><b>{j.retard}</b><span>En retard</span></div>
-            </> : null}
-            <div className="c360-kpi t-fin"><b>{EUR(fin.budgete)}</b><span>Budgété</span></div>
-            <div className="c360-kpi t-fin"><b>{EUR(fin.facture)}</b><span>Facturé</span></div>
-            <div className="c360-kpi t-fin"><b className={reste < 0 ? "neg" : ""}>{EUR(reste)}</b><span>Reste à fact.</span></div>
-            <div className="c360-kpi t-fin"><b>{fin.jh || "—"}</b><span>J/H</span></div>
+          {/* Pouls projet (Jira) — compact, alertes colorées seulement si > 0 */}
+          {j.present ? (
+            <div className="c360-pulse">
+              <div className="c360-pulse-i"><b>{j.total}</b><span>Tickets</span></div>
+              <div className="c360-pulse-i"><b>{j.actifs}</b><span>Actifs</span></div>
+              <div className="c360-pulse-i"><b>{j.recette}</b><span>En recette</span></div>
+              <div className={`c360-pulse-i ${j.retours ? "warn" : ""}`}><b>{j.retours}</b><span>Retours</span></div>
+              <div className={`c360-pulse-i ${j.retard ? "warn" : ""}`}><b>{j.retard}</b><span>En retard</span></div>
+            </div>
+          ) : null}
+
+          {/* Finances — carte distincte avec barre de facturation */}
+          <div className="c360-fin">
+            <div className="c360-fin-head">
+              <span className="c360-fin-lb">Finances</span>
+              {fin.jh ? <span className="c360-fin-jh">{fin.jh} J/H</span> : null}
+            </div>
+            <div className="c360-fin-grid">
+              <div className="c360-fin-kpi"><b>{EUR(fin.budgete)}</b><span>Budgété</span></div>
+              <div className="c360-fin-kpi"><b>{EUR(fin.facture)}</b><span>Facturé</span></div>
+              <div className="c360-fin-kpi"><b className={reste < 0 ? "neg" : ""}>{EUR(reste)}</b><span>Reste à facturer</span></div>
+            </div>
+            {fin.budgete ? (
+              <div className="c360-fin-prog">
+                <div className="c360-fin-bar"><i style={{ width: `${Math.min(100, Math.round(((fin.facture || 0) / fin.budgete) * 100))}%` }} /></div>
+                <span className="c360-fin-pct">{Math.round(((fin.facture || 0) / fin.budgete) * 100)}% facturé</span>
+              </div>
+            ) : null}
           </div>
 
           {/* Recette */}
@@ -173,14 +188,25 @@ export default function Client360({ c, issues = [], onClose, onTicket, onDev }) 
 
               <h3 className="c360-sec">Contacts</h3>
               {a && a.contacts && a.contacts.length ? (
-                <div className="c360-contacts">
-                  {a.contacts.map((ct, i) => (
-                    <span className={`pf-contact ${ct.cote === "Armonie" ? "arm" : "cli"}`} key={i}
-                      onClick={() => ct.cote === "Armonie" && onDev && onDev(ct.nom)}
-                      style={ct.cote === "Armonie" && onDev ? { cursor: "pointer" } : null}>
-                      {ct.nom}<i>{ct.role}{ct.cote ? ` · ${ct.cote}` : ""}</i>
-                    </span>
-                  ))}
+                <div className="c360-cgroups">
+                  {[["Client", "cli"], ["Armonie", "arm"]].map(([cote, cls]) => {
+                    const list = a.contacts.filter((ct) => (cote === "Armonie" ? ct.cote === "Armonie" : ct.cote !== "Armonie"));
+                    if (!list.length) return null;
+                    return (
+                      <div className="c360-cgrp" key={cote}>
+                        <div className="c360-cgrp-lb">{cote === "Armonie" ? "Côté Armonie" : "Côté client"}</div>
+                        <div className="c360-contacts">
+                          {list.map((ct, i) => (
+                            <span className={`pf-contact ${cls}`} key={i}
+                              onClick={() => cote === "Armonie" && onDev && onDev(ct.nom)}
+                              style={cote === "Armonie" && onDev ? { cursor: "pointer" } : null}>
+                              {ct.nom}<i>{ct.role}</i>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : <p className="c360-empty">à compléter</p>}
             </aside>

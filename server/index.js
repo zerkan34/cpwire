@@ -16,6 +16,8 @@ import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { buildCadence } from "./cadence.js";
+import { readConnaissance, saveConnaissance } from "./connaissance.js";
+import { listUsers, createUser, verifyUser, removeUser } from "./users.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
@@ -42,9 +44,12 @@ const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
 const AUTH_EMAIL = process.env.AUTH_EMAIL || "";
 const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "";
 const AUTH_ENABLED = Boolean(AUTH_EMAIL && AUTH_PASSWORD);
-const sessions = new Set();
+const sessions = new Map(); // token -> { role, email, lastSeen }
 // Secret de signature des liens d'invitation (dérivé du mot de passe : pas de config en plus).
 const SIGN_SECRET = AUTH_PASSWORD || "cpwire-invite-secret";
+
+// Routes interdites au rôle « consultation » : aucun récap, aucun CR, aucune réunion.
+const CONSULT_FORBIDDEN = [/^\/api\/cr\//, /^\/api\/recap$/, /^\/api\/meeting\//];
 
 // Jeton déterministe (dérivé des identifiants) : il reste valable même après
 // un redémarrage de Render, contrairement à l'ancien jeton aléatoire stocké en mémoire.
@@ -75,27 +80,67 @@ function checkGuestToken(t) {
   if (!safeEqual(parts[2], sign(`guest|${expMs}`))) return null;        // signature invalide
   return { expMs };
 }
+// ---- Invitation "compte" : jeton signé encodant un rôle (la personne crée ensuite email + mot de passe) ----
+// Format : i.<expirationMs>.<role>.<signature>
+function makeInviteToken(expMs, role = "consultation") {
+  return `i.${expMs}.${role}.${sign(`invite|${expMs}|${role}`)}`;
+}
+function checkInviteToken(t) {
+  if (!t || typeof t !== "string" || !t.startsWith("i.")) return null;
+  const parts = t.split(".");
+  if (parts.length !== 4) return null;
+  const expMs = Number(parts[1]); const role = parts[2];
+  if (!Number.isFinite(expMs) || Date.now() > expMs) return null;
+  if (!safeEqual(parts[3], sign(`invite|${expMs}|${role}`))) return null;
+  return { expMs, role };
+}
 
-// Détermine le rôle de la requête : "owner" (accès total) ou "guest" (lecture seule).
+// Détermine le rôle de la requête : "owner" (total), "consultation" (lecture, sans récap/CR) ou "guest".
 function guard(req, res, next) {
-  if (!AUTH_ENABLED) { req.role = "owner"; return next(); }
+  if (!AUTH_ENABLED) { req.role = "owner"; req.userEmail = ME; return next(); }
   const t = req.headers["x-access-token"];
-  if (t && (t === expectedToken() || sessions.has(t))) { req.role = "owner"; return next(); }
-  if (checkGuestToken(t)) { req.role = "guest"; return next(); }
-  return res.status(401).json({ error: "Authentification requise." });
+  let role = null, email = null;
+  if (t && t === expectedToken()) { role = "owner"; email = AUTH_EMAIL; }
+  else if (t && sessions.has(t)) { const s = sessions.get(t); role = s.role; email = s.email; s.lastSeen = Date.now(); }
+  else if (checkGuestToken(t)) { role = "guest"; }
+  if (!role) return res.status(401).json({ error: "Authentification requise." });
+  req.role = role; req.userEmail = email;
+  // Verrou serveur : le rôle consultation ne peut PAS atteindre un récap/CR/réunion, même en forçant l'URL.
+  if (role === "consultation" && CONSULT_FORBIDDEN.some((re) => re.test(req.path))) {
+    return res.status(403).json({ error: "Accès non autorisé pour ce rôle." });
+  }
+  next();
 }
 
 // À placer APRÈS guard sur toute route qui modifie des données ou déclenche un envoi :
-// un invité (lecture seule) reçoit 403.
+// seul l'owner écrit. Les rôles consultation/guest sont en lecture seule → 403.
 function writeGuard(req, res, next) {
-  if (req.role === "guest") {
-    return res.status(403).json({ error: "Action non autorisée : accès invité en lecture seule." });
+  if (req.role !== "owner") {
+    return res.status(403).json({ error: "Action non autorisée : accès en lecture seule." });
   }
+  next();
+}
+
+// Réservé à l'administrateur (owner).
+function adminGuard(req, res, next) {
+  if (req.role !== "owner") return res.status(403).json({ error: "Réservé à l'administrateur." });
   next();
 }
 
 app.use(cors());
 app.use(express.json({ limit: "8mb" }));
+
+// Verrou global (ceinture + bretelles) : un consultant ne peut atteindre AUCUN récap/CR/réunion,
+// quelle que soit la méthode HTTP, même si une route oubliait le middleware guard.
+app.use((req, res, next) => {
+  if (!AUTH_ENABLED) return next();
+  const t = req.headers["x-access-token"];
+  const s = t && sessions.has(t) ? sessions.get(t) : null;
+  if (s && s.role === "consultation" && CONSULT_FORBIDDEN.some((re) => re.test(req.path))) {
+    return res.status(403).json({ error: "Accès non autorisé pour ce rôle." });
+  }
+  next();
+});
 
 // Photo persistante du portefeuille (chargée au démarrage si elle existe).
 let snap = loadSnapshot();                                   // { syncedAt, issues }
@@ -238,21 +283,43 @@ async function getIssues(arg, jqlArg) {
 }
 
 // ---- Auth ----
-app.post("/api/login", (req, res) => {
+app.post("/api/login", async (req, res) => {
   const { email, password } = req.body || {};
   if (!AUTH_ENABLED) {
-    const t = crypto.randomUUID(); sessions.add(t);
-    return res.json({ token: t, me: ME, note: "Auth non configurée côté serveur." });
+    const t = crypto.randomUUID(); sessions.set(t, { role: "owner", email: ME, lastSeen: Date.now() });
+    return res.json({ token: t, me: ME, role: "owner", note: "Auth non configurée côté serveur." });
   }
   if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-    const t = expectedToken(); sessions.add(t);
-    return res.json({ token: t, me: ME });
+    const t = expectedToken(); sessions.set(t, { role: "owner", email: AUTH_EMAIL, lastSeen: Date.now() });
+    return res.json({ token: t, me: ME, role: "owner" });
   }
+  try {
+    const u = await verifyUser(email, password);
+    if (u) {
+      const t = crypto.randomUUID(); sessions.set(t, { role: u.role, email: u.email, lastSeen: Date.now() });
+      return res.json({ token: t, me: u.email, role: u.role });
+    }
+  } catch (e) { return res.status(502).json({ error: "Base de comptes indisponible : " + String(e.message || e) }); }
   return res.status(401).json({ error: "Identifiants incorrects." });
 });
 
-// Rôle de la session courante : l'interface s'en sert pour activer le mode lecture seule.
-app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: ME }));
+// Activation d'un compte invité : la personne arrive avec un lien (token) et choisit email + mot de passe.
+app.post("/api/account/claim", async (req, res) => {
+  const { token, email, password } = req.body || {};
+  const inv = checkInviteToken(token);
+  if (!inv) return res.status(400).json({ error: "Lien d'invitation invalide ou expiré." });
+  try {
+    const u = await createUser(email, password, inv.role || "consultation");
+    const t = crypto.randomUUID(); sessions.set(t, { role: u.role, email: u.email, lastSeen: Date.now() });
+    res.json({ token: t, me: u.email, role: u.role });
+  } catch (e) { res.status(400).json({ error: String(e.message || e) }); }
+});
+
+// Battement de cœur (présence). guard met déjà à jour lastSeen pour la session.
+app.post("/api/ping", guard, (_req, res) => res.json({ ok: true }));
+
+// Rôle de la session courante : l'interface s'en sert pour adapter les onglets et masquer les outils CR.
+app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: req.userEmail || ME }));
 
 // Génère un lien d'invitation en lecture seule (réservé à l'owner). hours = durée de validité.
 app.post("/api/invite", guard, writeGuard, (req, res) => {
@@ -261,6 +328,41 @@ app.post("/api/invite", guard, writeGuard, (req, res) => {
   const expMs = Date.now() + hours * 3600 * 1000;
   const token = makeGuestToken(expMs);
   res.json({ token, expiresAt: new Date(expMs).toISOString(), hours });
+});
+
+// ---- Admin : comptes invités (rôle consultation) + présence (owner uniquement) ----
+// Génère un lien d'invitation à copier. La personne l'ouvre et crée son email + mot de passe.
+app.post("/api/admin/invite", guard, adminGuard, (req, res) => {
+  const raw = Number(req.body?.days);
+  const days = Math.min(Math.max(Number.isFinite(raw) ? raw : 14, 1), 90);
+  const expMs = Date.now() + days * 86400000;
+  res.json({ token: makeInviteToken(expMs, "consultation"), expiresAt: new Date(expMs).toISOString(), days });
+});
+
+// Liste des comptes + présence (qui est en ligne / vu pour la dernière fois). Silencieux côté invité.
+app.get("/api/admin/users", guard, adminGuard, async (_req, res) => {
+  const now = Date.now();
+  const seen = {};
+  for (const s of sessions.values()) {
+    if (s.email && (!seen[s.email] || s.lastSeen > seen[s.email])) seen[s.email] = s.lastSeen;
+  }
+  try {
+    const list = await listUsers();
+    const users = list.map((u) => ({
+      ...u,
+      lastSeen: seen[u.email] || null,
+      online: seen[u.email] ? now - seen[u.email] < 75000 : false,
+    }));
+    res.json({ users });
+  } catch (e) { res.status(502).json({ error: "Base de comptes indisponible : " + String(e.message || e) }); }
+});
+
+// Révoque un compte invité (et coupe ses sessions en cours).
+app.post("/api/admin/users/remove", guard, adminGuard, async (req, res) => {
+  const email = String(req.body?.email || "").toLowerCase();
+  try { await removeUser(email); } catch (e) { return res.status(502).json({ error: String(e.message || e) }); }
+  for (const [t, s] of sessions) if (s.email === email) sessions.delete(t);
+  res.json({ ok: true });
 });
 
 app.get("/api/health", (_req, res) =>
@@ -670,6 +772,16 @@ app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
     const saved = saveDossier(req.params.nom, req.body || {});
     logEvent("fiche_dossier", `Fiche mise à jour - ${req.params.nom}`, {});
     res.json({ ok: true, fiche: saved });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
+});
+
+// Mémoire d'équipe (connaissance) — lue par l'IA à chaque rapport.
+app.get("/api/connaissance", guard, (_req, res) => res.json(readConnaissance()));
+app.put("/api/connaissance", guard, writeGuard, (req, res) => {
+  try {
+    const k = saveConnaissance(req.body || {});
+    logEvent("connaissance", "Mémoire d'équipe mise à jour", {});
+    res.json({ ok: true, connaissance: k });
   } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
 });
 

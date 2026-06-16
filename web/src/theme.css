@@ -1660,6 +1660,33 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .c360-x:hover { background: rgba(255,255,255,.3); }
 .c360-body { padding: 20px 26px 26px; }
 .c360-ctx { margin: 0 0 16px; font-size: 13.5px; color: var(--body); line-height: 1.55; }
+.c360-stats { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-bottom: 20px; align-items: start; }
+/* ---- Refonte v2 : pouls compact + carte finances distincte ---- */
+.c360-pulse { display: flex; flex-wrap: wrap; gap: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); margin-bottom: 14px; overflow: hidden; }
+.c360-pulse-i { flex: 1; min-width: 90px; padding: 14px 16px; border-right: 1px solid var(--line-soft); }
+.c360-pulse-i:last-child { border-right: 0; }
+.c360-pulse-i b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 22px; color: var(--indigo); line-height: 1; }
+.c360-pulse-i span { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); font-weight: 600; }
+.c360-pulse-i.warn b { color: var(--orange-deep); }
+.c360-fin { background: linear-gradient(180deg, var(--purple-soft), var(--card)); border: 1px solid var(--purple-line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.c360-fin-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.c360-fin-lb { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--indigo); }
+.c360-fin-jh { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 13px; color: var(--purple-strong); }
+.c360-fin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.c360-fin-kpi b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 20px; color: var(--indigo-deep); line-height: 1.1; }
+.c360-fin-kpi b.neg { color: var(--red); }
+.c360-fin-kpi span { font-size: 11px; color: var(--muted); font-weight: 600; }
+.c360-fin-prog { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
+.c360-fin-bar { flex: 1; height: 8px; background: rgba(110,92,196,.16); border-radius: 99px; overflow: hidden; }
+.c360-fin-bar i { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, var(--purple), var(--indigo)); }
+.c360-fin-pct { font-size: 12px; font-weight: 700; color: var(--purple-strong); white-space: nowrap; }
+.c360-cgroups { display: flex; flex-direction: column; gap: 12px; }
+.c360-cgrp-lb { font-size: 9.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 700; margin-bottom: 6px; }
+.c360-statgrp { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px 16px; box-shadow: var(--shadow); }
+.c360-statgrp-lb { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--purple); margin-bottom: 12px; }
+.c360-statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(74px, 1fr)); gap: 10px; }
+.c360-statgrp-fin { background: linear-gradient(180deg, var(--purple-soft), var(--card)); border-color: var(--purple-line); }
+.c360-statgrp-fin .c360-statgrp-lb { color: var(--indigo); }
 .c360-kpis { display: grid; grid-template-columns: repeat(9, 1fr); gap: 8px; margin-bottom: 18px; }
 .c360-kpi { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 11px 12px; text-align: left; }
 .c360-kpi b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 17px; color: var(--indigo-deep); line-height: 1.1; }
@@ -1735,3 +1762,35 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .cad-old-bad { color: var(--orange-deep); font-weight: 700; }
 .cad-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; font-family: "JetBrains Mono", monospace; }
 .cad-foot { margin-top: 16px; font-size: 12px; color: var(--muted); line-height: 1.6; }
+
+/* ===== Mémoire d'équipe ===== */
+.cn-warn { background: #fff7f0; border: 1px solid var(--orange); border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--orange-deep); margin-bottom: 16px; line-height: 1.5; }
+.cn-warn code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.cn-block { padding: 18px; }
+.cn-block h3 { font-family: Poppins, sans-serif; font-size: 14px; color: var(--indigo); margin: 14px 0 6px; }
+.cn-block h3:first-child { margin-top: 0; }
+.cn-ta { width: 100%; box-sizing: border-box; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: inherit; font-size: 14px; resize: vertical; background: var(--card); color: var(--ink); }
+.cn-ta:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.cn-clients { flex-wrap: wrap; margin-bottom: 14px; }
+.cn-actions { display: flex; align-items: center; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.cn-ok { color: var(--green); font-weight: 600; font-size: 13px; }
+.cn-err { color: var(--red); font-weight: 600; font-size: 13px; }
+.cn-save { background: var(--indigo); color: #fff; }
+.cn-save:disabled { opacity: .6; cursor: default; }
+.cn-ghost { background: var(--card); color: var(--indigo); border: 1px solid var(--purple); }
+
+/* ===== Admin — accès & présence ===== */
+.adm-invite { padding: 18px; }
+.adm-invite h3 { font-family: Poppins, sans-serif; font-size: 15px; color: var(--indigo); margin: 0 0 4px; }
+.adm-sub { color: var(--muted); font-size: 13px; margin: 0 0 12px; }
+.adm-link { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+.adm-link input { flex: 1; min-width: 240px; border: 1px solid var(--line); border-radius: 10px; padding: 9px 12px; font-size: 13px; color: var(--ink); background: var(--row-alt); }
+.adm-link-meta { font-size: 12px; color: var(--muted); }
+.adm-table-wrap { overflow-x: auto; }
+.adm-table { width: 100%; }
+.adm-table td b { color: var(--indigo); font-weight: 600; }
+.adm-muted { color: var(--muted); text-align: center; padding: 16px; }
+.adm-on { color: var(--green); font-weight: 700; font-size: 13px; }
+.adm-off { color: var(--muted); font-size: 13px; }
+.adm-revoke { border: 1px solid var(--line); background: var(--card); color: var(--red); font-weight: 600; font-size: 12px; padding: 5px 12px; border-radius: 8px; cursor: pointer; }
+.adm-revoke:hover { background: #fdecec; border-color: var(--red); }

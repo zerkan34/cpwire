@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
-  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets } from "./api.js";
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping } from "./api.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -12,6 +12,8 @@ import Referentiel from "./components/Referentiel.jsx";
 import Projets from "./components/Projets.jsx";
 import Hygiene from "./components/Hygiene.jsx";
 import Cadence from "./components/Cadence.jsx";
+import Connaissance from "./components/Connaissance.jsx";
+import Admin from "./components/Admin.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 import DailyCRModal from "./components/DailyCRModal.jsx";
 
@@ -38,6 +40,7 @@ const TABS = [
   { id: "morning", label: "Brief matin" },
   { id: "devs", label: "Développeurs" },
   { id: "cadence", label: "Cadence" },
+  { id: "memoire", label: "Mémoire" },
   { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
   { id: "recette", label: "Recette" },
   { id: "referentiel", label: "Référentiel" },
@@ -46,7 +49,10 @@ const TABS = [
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
 const PRIMARY = ["cockpit", "encours", "recap", "morning"];
-const SECONDARY = ["projets", "recette", "referentiel", "hygiene", "devs", "cadence", "meetings", "cra", "history"];
+const SECONDARY = ["projets", "recette", "referentiel", "hygiene", "devs", "cadence", "memoire", "meetings", "cra", "history"];
+// Rôle "consultation" : onglets autorisés (aucun récap, aucun CR, aucune réunion, pas la Mémoire).
+const CONSULT_TABS = ["cockpit", "projets", "encours", "devs", "cadence", "cra", "recette", "referentiel", "hygiene", "history"];
+const ADMIN_TAB = { id: "admin", label: "Admin" };
 const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
 
 // Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
@@ -63,6 +69,8 @@ function NavIcon({ id }) {
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
     case "recette": return (<svg viewBox="0 0 24 24" {...p}><path d="M9 11.5l2.2 2.2L15 9.5" /><path d="M12 3l7 3v5c0 4.2-2.8 7.7-7 9-4.2-1.3-7-4.8-7-9V6l7-3z" /></svg>);
     case "hygiene": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
+    case "memoire": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" /><line x1="8" y1="7" x2="15" y2="7" /></svg>);
+    case "admin": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="3.2" /><path d="M5.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5" /><path d="M18 4l1 1.6L20.8 6l-1.3 1.2.3 1.8L18 8.1 16.2 9l.3-1.8L15.2 6l1.8-.4z" /></svg>);
     case "cadence": return (<svg viewBox="0 0 24 24" {...p}><path d="M3 12h3l2-6 4 14 3-9 2 4h4" /></svg>);
     case "referentiel": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 16l9 5 9-5" /></svg>);
     case "projets": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" /><line x1="3" y1="12" x2="21" y2="12" /></svg>);
@@ -81,6 +89,7 @@ function notify(title, body) {
 
 export default function App() {
   const [authed, setAuthed] = useState(Boolean(getToken()));
+  const [role, setRole] = useState("owner");
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
@@ -258,7 +267,18 @@ export default function App() {
   // Confirme le rôle auprès du serveur (lecture seule pour un invité).
   useEffect(() => {
     if (!authed) return;
-    fetchSession().then((s) => setReadOnly(s.role === "guest")).catch(() => {});
+    fetchSession().then((s) => { setRole(s.role); setReadOnly(s.role !== "owner"); }).catch(() => {});
+  }, [authed]);
+
+  // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
+  useEffect(() => { if (role === "consultation" && !CONSULT_TABS.includes(tab)) setTab("cockpit"); }, [role, tab]);
+
+  // Battement de cœur (présence) : permet au super-admin de voir qui est en ligne.
+  useEffect(() => {
+    if (!authed) return;
+    ping().catch(() => {});
+    const id = setInterval(() => ping().catch(() => {}), 30000);
+    return () => clearInterval(id);
   }, [authed]);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
@@ -416,6 +436,15 @@ export default function App() {
 
   const diag = data?.diagnostic;
 
+  // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
+  const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
+    : role === "owner" ? [...TABS, ADMIN_TAB] : TABS;
+  const primaryTabs = role === "consultation" ? ["cockpit", "encours", "cadence", "history"] : PRIMARY;
+  const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
+    : role === "owner" ? [...SECONDARY, "admin"] : SECONDARY;
+  const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
+  const canCR = role === "owner";
+
   // Garde-fou d'authentification : sans jeton valide, on affiche l'écran de connexion
   // (au lieu de rester bloqué sur la barre de chargement sans rien proposer).
   if (!authed) return (
@@ -438,22 +467,24 @@ export default function App() {
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
         issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
-        tab={tab} pageLabel={(TABS.find((t) => t.id === tab) || {}).label}
+        tab={tab} pageLabel={tabLabel(tab)}
         onKpi={applyKpi} activeKpi={tab === "cockpit" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
       {readOnly ? (
-        <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation, génération de comptes rendus et export uniquement ; aucune modification n'est possible.</div>
+        <div className="ro-banner">{role === "consultation"
+          ? "👁 Accès consultation — vous pouvez consulter et exporter. Aucun compte rendu ni aucune modification."
+          : "👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification."}</div>
       ) : (
         <div className="owner-bar">
           {showDailyCr && (
             <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
           )}
-          <button className="btn-line invite-btn" onClick={makeInvite} title="Créer un lien d'accès en lecture seule, à partager">🔗 Inviter (lien lecture seule)</button>
+          <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
       )}
 
       <div className="tabs">
-        {TABS.map((t) => (
+        {visibleTabs.map((t) => (
           <button key={t.id} className={`tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
             {t.label}{t.id === "cockpit" && data?.kpis?.mine ? <span className="b">{data.kpis.mine} pour moi</span> : null}
           </button>
@@ -525,6 +556,8 @@ export default function App() {
       {tab === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
+      {tab === "memoire" && <Connaissance />}
+      {tab === "admin" && role === "owner" && <Admin />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
 
@@ -536,7 +569,7 @@ export default function App() {
       )}
       {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
-      {sel360 && <Client360 c={sel360} issues={issues} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
+      {sel360 && <Client360 c={sel360} issues={issues} canCR={canCR} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
       {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
       {dailyCrOpen && <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />}
 
@@ -546,11 +579,11 @@ export default function App() {
 
       {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}
       <nav className="mobile-tabbar" aria-label="Navigation principale">
-        {PRIMARY.map((id) => (
+        {primaryTabs.map((id) => (
           <button key={id} className={`mtab ${tab === id ? "active" : ""}`}
             onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}>
             <span className="mtab-ic" aria-hidden="true"><NavIcon id={id} /></span>
-            <span className="mtab-lb">{TAB_SHORT[id]}</span>
+            <span className="mtab-lb">{TAB_SHORT[id] || tabLabel(id)}</span>
             {id === "cockpit" && data?.kpis?.mine ? <span className="mtab-badge">{data.kpis.mine}</span> : null}
           </button>
         ))}
@@ -561,15 +594,12 @@ export default function App() {
       <aside className={`drawer ${drawer ? "open" : ""}`} role="dialog" aria-label="Menu" aria-hidden={!drawer}>
         <div className="drawer-hd"><span>Menu</span><button className="drawer-x" aria-label="Fermer" onClick={() => setDrawer(false)}>✕</button></div>
         <nav className="drawer-nav">
-          {SECONDARY.map((id) => {
-            const t = TABS.find((x) => x.id === id);
-            return (
+          {secondaryTabs.map((id) => (
               <button key={id} className={`drawer-item ${tab === id ? "active" : ""}`}
                 onClick={() => { setTab(id); setDrawer(false); window.scrollTo({ top: 0 }); }}>
-                <span className="di-ic" aria-hidden="true"><NavIcon id={id} /></span>{t.label}
+                <span className="di-ic" aria-hidden="true"><NavIcon id={id} /></span>{tabLabel(id)}
               </button>
-            );
-          })}
+          ))}
         </nav>
         <div className="drawer-foot">cp|WIRE — Armonie Group</div>
       </aside>

@@ -1,6 +1,7 @@
 // ai.js — rédaction assistée. Utilise l'API Claude si ANTHROPIC_API_KEY est défini,
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
+import { knowledgeForPrompt } from "./connaissance.js";
 import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus, statusIsExplicit } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
@@ -1149,5 +1150,5 @@ const DOSSIER_LEXIQUE = {
 };
 function lexique(dossier) {
   const k = DOSSIER_LEXIQUE[dossier];
-  return k ? "\n\n" + k : "";
+  return (k ? "\n\n" + k : "") + knowledgeForPrompt(dossier);
 }
