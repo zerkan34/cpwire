@@ -8,6 +8,7 @@
   --purple-line: #cfc6f2;
   --gold: #c7a14a;
   --hd-grad: linear-gradient(135deg, var(--indigo-deep), var(--indigo) 55%, #46426c);
+  --hd-logo: linear-gradient(120deg, #16306a 0%, #2b2748 46%, #d4621a 100%);
   --gold-deep: #a9842f;
   --orange: #fb7a28;
   --orange-deep: #e0600f;
@@ -48,7 +49,7 @@ a { color: inherit; }
 
 /* ---- En-tête ---- */
 .hdr {
-  background: var(--hd-grad);
+  background: var(--hd-logo);
   color: #fff; border-radius: 22px; padding: 26px 30px; box-shadow: var(--shadow-lg);
   position: relative; overflow: hidden;
 }
