@@ -1,17 +1,42 @@
-{
-  "name": "CPwire — Cockpit Armonie",
-  "short_name": "CPwire",
-  "description": "Cockpit de pilotage des projets Jira — Armonie Group.",
-  "lang": "fr",
-  "start_url": "/",
-  "scope": "/",
-  "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#2c2945",
-  "theme_color": "#2c2945",
-  "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
-}
+// sw.js — service worker CPwire.
+// Objectif : rendre l'appli installable (PWA) et rapide, SANS jamais mettre en
+// cache les données Jira (les appels /api passent toujours par le réseau).
+const CACHE = "cpwire-shell-v27";
+
+self.addEventListener("install", () => self.skipWaiting());
+
+self.addEventListener("activate", (e) => {
+  e.waitUntil(
+    caches.keys()
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+      .then(() => self.clients.claim())
+  );
+});
+
+self.addEventListener("fetch", (e) => {
+  const req = e.request;
+  if (req.method !== "GET") return;                       // jamais les POST/PUT (login, rapports, push)
+  const url = new URL(req.url);
+  if (url.origin !== self.location.origin) return;        // on laisse passer les CDN (polices)
+  if (url.pathname.startsWith("/api")) return;            // JAMAIS les données Jira en cache
+
+  // Navigation : réseau d'abord, repli sur la coquille en cache (mode hors-ligne).
+  if (req.mode === "navigate") {
+    e.respondWith(
+      fetch(req)
+        .then((r) => { const c = r.clone(); caches.open(CACHE).then((cc) => cc.put("/", c)); return r; })
+        .catch(() => caches.match("/"))
+    );
+    return;
+  }
+
+  // Ressources statiques (JS/CSS/images, noms hashés) : cache d'abord, sinon réseau.
+  e.respondWith(
+    caches.match(req).then((hit) =>
+      hit || fetch(req).then((r) => {
+        if (r.ok) { const c = r.clone(); caches.open(CACHE).then((cc) => cc.put(req, c)); }
+        return r;
+      })
+    )
+  );
+});

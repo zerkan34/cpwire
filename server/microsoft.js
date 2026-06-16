@@ -1,2 +1,78 @@
-// logo.js — logo Armonie officiel, encodé en base64 (autonome, aucun fichier externe).
-export const LOGO_DATA_URI = "data:image/webp;base64,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";
+// microsoft.js — intégration Microsoft 365 (Outlook + SharePoint) via Microsoft Graph.
+// NÉCESSITE une app déclarée dans Azure AD (Entra) avec les permissions Graph
+// Mail.Send et Sites.ReadWrite.All (consentement admin). Sans ces variables, les
+// fonctions renvoient une erreur claire — rien n'est simulé.
+//
+// Variables attendues (server/.env) :
+//   MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET
+//   MS_SENDER         (adresse e-mail expéditrice, ex. nicolas@armonie.group)
+//   SP_SITE_ID        (ID du site SharePoint, via Graph /sites)
+//   SP_DRIVE_ID       (optionnel : ID de la bibliothèque ; sinon drive par défaut)
+
+const TENANT = process.env.MS_TENANT_ID || "";
+const CLIENT = process.env.MS_CLIENT_ID || "";
+const SECRET = process.env.MS_CLIENT_SECRET || "";
+const SENDER = process.env.MS_SENDER || "";
+const SITE_ID = process.env.SP_SITE_ID || "";
+const DRIVE_ID = process.env.SP_DRIVE_ID || "";
+
+export function msConfigured() {
+  return Boolean(TENANT && CLIENT && SECRET);
+}
+
+// Jeton d'application (client credentials).
+async function token() {
+  const body = new URLSearchParams({
+    client_id: CLIENT,
+    client_secret: SECRET,
+    scope: "https://graph.microsoft.com/.default",
+    grant_type: "client_credentials",
+  });
+  const res = await fetch(`https://login.microsoftonline.com/${TENANT}/oauth2/v2.0/token`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
+  });
+  if (!res.ok) throw new Error(`Auth Microsoft échouée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
+  return (await res.json()).access_token;
+}
+
+// Envoi d'un e-mail via Outlook (le corps HTML du rapport).
+export async function sendMail({ to, subject, html }) {
+  if (!msConfigured() || !SENDER) throw new Error("Outlook (Graph) non configuré : renseigne MS_* et MS_SENDER.");
+  const t = await token();
+  const message = {
+    message: {
+      subject,
+      body: { contentType: "HTML", content: html },
+      toRecipients: (Array.isArray(to) ? to : [to]).filter(Boolean).map((a) => ({ emailAddress: { address: a } })),
+    },
+    saveToSentItems: true,
+  };
+  const res = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(SENDER)}/sendMail`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}`, "Content-Type": "application/json" },
+    body: JSON.stringify(message),
+  });
+  if (!res.ok) throw new Error(`Envoi Outlook refusé (${res.status}) : ${(await res.text()).slice(0, 200)}`);
+  return { ok: true };
+}
+
+// Dépôt d'un fichier dans un dossier SharePoint (crée l'arborescence au besoin).
+export async function uploadToSharePoint({ folderPath, filename, html }) {
+  if (!msConfigured() || !SITE_ID) throw new Error("SharePoint (Graph) non configuré : renseigne MS_* et SP_SITE_ID.");
+  const t = await token();
+  const drive = DRIVE_ID
+    ? `https://graph.microsoft.com/v1.0/drives/${DRIVE_ID}`
+    : `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/drive`;
+  const clean = `${folderPath}/${filename}`.replace(/^\/+/, "").replace(/\/+/g, "/");
+  const url = `${drive}/root:/${encodeURI(clean)}:/content`;
+  const res = await fetch(url, {
+    method: "PUT",
+    headers: { Authorization: `Bearer ${t}`, "Content-Type": "text/html" },
+    body: html,
+  });
+  if (!res.ok) throw new Error(`Dépôt SharePoint refusé (${res.status}) : ${(await res.text()).slice(0, 200)}`);
+  const data = await res.json();
+  return { ok: true, webUrl: data.webUrl };
+}
