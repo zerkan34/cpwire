@@ -1937,3 +1937,6 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .dev-counts .dev-hide { justify-self: end; }
   .dev-counts .dev-caret { justify-self: end; margin: 0; }
 }
+
+/* v88 : fiche projet centrée à l'écran */
+.pf-modal-back { align-items: center; padding: 24px 16px; }

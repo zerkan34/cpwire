@@ -33,8 +33,7 @@ import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 const TABS = [
-  { id: "cockpit", label: "Cockpit" },
-  { id: "projets", label: "Suivi projets" },
+  { id: "cockpit", label: "Portefeuille" },
   { id: "recap", label: "Récap" },
   { id: "devs", label: "Développeurs" },
   { id: "qualite", label: "Qualité & Mémoire" },
@@ -46,13 +45,11 @@ const TABS = [
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
   cockpit: [
-    { id: "portefeuille", label: "Portefeuille" },
-    { id: "recette", label: "Recette" },
-    { id: "referentiel", label: "Référentiel" },
-  ],
-  projets: [
+    { id: "portefeuille", label: "Vue d'ensemble" },
     { id: "projets", label: "Suivi projets" },
     { id: "encours", label: "En cours" },
+    { id: "recette", label: "Recette" },
+    { id: "referentiel", label: "Référentiel" },
   ],
   recap: [
     { id: "recap", label: "Récap du jour" },
@@ -69,12 +66,12 @@ const SUBTABS = {
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "projets", "recap", "devs"];
+const PRIMARY = ["cockpit", "recap", "devs"];
 const SECONDARY = ["qualite", "meetings", "cra", "history"];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "projets", "devs", "qualite", "cra", "history"];
+const CONSULT_TABS = ["cockpit", "devs", "qualite", "cra", "history"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Cockpit", projets: "Projets", recap: "Récap", devs: "Devs", qualite: "Qualité", history: "Histo." };
+const TAB_SHORT = { cockpit: "Portef.", recap: "Récap", devs: "Devs", qualite: "Qualité", history: "Histo." };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
@@ -502,7 +499,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "projets", "devs", "history"] : PRIMARY;
+  const primaryTabs = role === "consultation" ? ["cockpit", "devs", "history"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -532,7 +529,7 @@ export default function App() {
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
         issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
         tab={tab} pageLabel={tabLabel(tab)}
-        onKpi={applyKpi} activeKpi={tab === "cockpit" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
+        onKpi={applyKpi} activeKpi={tab === "cockpit" && sub === "portefeuille" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
       {role === "owner" ? (
         <div className="owner-bar">
@@ -615,7 +612,7 @@ export default function App() {
       )}
 
       {tab === "recap" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "projets" && sub === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "cockpit" && sub === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "recap" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "meetings" && <Meetings issues={issues} />}
@@ -623,7 +620,7 @@ export default function App() {
       {tab === "history" && <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
-      {tab === "projets" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
+      {tab === "cockpit" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "devs" && sub === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
       {tab === "qualite" && sub === "memoire" && role === "owner" && <Connaissance />}
