@@ -1,21 +1,22 @@
 {
-  "name": "pmo-cockpit-web",
+  "name": "pmo-cockpit-server",
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "Cockpit de pilotage — interface React.",
+  "description": "API du cockpit de pilotage — passerelle sécurisée vers Jira.",
+  "main": "index.js",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "multer": "^1.4.5-lts.1",
+    "xlsx": "^0.18.5"
   }
 }

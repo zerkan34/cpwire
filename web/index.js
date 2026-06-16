@@ -8,10 +8,15 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
+import { findProgram } from "./programmes.js";
+import { buildSlaReport, slaStatus } from "./sla.js";
+import { buildHygiene } from "./hygiene.js";
+import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
+import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -25,7 +30,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
-const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,PBAL,TIMA,PIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
+const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,TIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
 // Import EXHAUSTIF : tous les tickets des projets, aucun filtre excluant.
 const DEFAULT_JQL = process.env.JQL || `project in (${PROJECTS.join(",")}) ORDER BY created ASC`;
 const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
@@ -225,7 +230,7 @@ async function getIssues(arg, jqlArg) {
     };
   }
 
-  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
+  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME, prog: findProgram(i.resume) })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
   return null; // ni Jira, ni démo -> écran de configuration
 }
 
@@ -349,7 +354,11 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
-    const out = await dailyReport(dossier, sub);
+    // Qui a réellement fait avancer les tickets aujourd'hui (historique Jira).
+    const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    const todayKeys = sub.filter((i) => i.maj && new Date(i.maj) >= startToday).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(todayKeys, startToday.toISOString(), null);
+    const out = await dailyReport(dossier, sub, null, tr.items);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
@@ -362,9 +371,56 @@ app.post("/api/cr/daily-period", guard, async (req, res) => {
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
     const sub = withoutDeletedDevs(got.issues).filter((i) => !scope || i.dossier === scope);
-    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label });
-    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, via: out.generatedBy });
+    // Candidats = tickets modifiés sur la période ; on lit leur historique pour créditer le bon acteur.
+    const sT = startISO ? new Date(startISO).getTime() : -Infinity;
+    const eT = endISO ? new Date(endISO).getTime() : Infinity;
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const keys = sub.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(keys, startISO, endISO);
+    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label }, tr.items);
+    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, scanned: tr.scanned, capped: tr.capped, via: out.generatedBy });
     res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Pilotage des engagements (SLA) : respect du GTR par dossier, calculé depuis le snapshot.
+app.get("/api/sla", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = withoutDeletedDevs(got.issues);
+    res.json(buildSlaReport(sub));
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Contrôle qualité : on lit le snapshot BRUT (pas de filtre devs) pour pouvoir
+// justement signaler les tickets encore assignés à un parti.
+app.get("/api/hygiene", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    res.json(buildHygiene(got.issues, readDeleted()));
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Dolibarr (lecture seule) — sonde de découverte : que des noms de champs, aucune valeur client.
+app.get("/api/dolibarr/status", guard, (_req, res) => res.json(dolibarrStatus()));
+app.get("/api/dolibarr/probe", guard, async (_req, res) => {
+  try { res.json(await dolibarrProbe()); }
+  catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Référentiel Recette (socle) : Domaine → Option → Programmes → tickets Jira (rapprochement auto).
+app.get("/api/referentiel/clients", guard, (_req, res) => res.json({ clients: referentielClients() }));
+app.get("/api/referentiel", guard, async (req, res) => {
+  try {
+    const client = req.query.client || (referentielClients()[0] || "");
+    if (!client) return res.json({ client: "", domaines: [], nbOptions: 0, nbProgrammes: 0 });
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const data = crossReferentiel(got.issues, client);
+    if (!data) return res.status(404).json({ error: `Aucun référentiel pour « ${client} ».` });
+    res.json(data);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
