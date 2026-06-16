@@ -1,5 +1,17 @@
 import React, { useState } from "react";
-import { PHOTOS } from "../team/photos.js";
+
+// Collecte AUTOMATIQUE des photos de l'équipe (déposées dans web/src/team/).
+// Inliné ici volontairement : le build ne dépend plus d'un fichier photos.js
+// séparé (qui pouvait manquer à l'upload). Si le dossier est vide ou absent,
+// import.meta.glob renvoie {} et l'avatar retombe sur les initiales — rien ne casse.
+const _mods = import.meta.glob("../team/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}", {
+  eager: true, query: "?url", import: "default",
+});
+const PHOTOS = {};
+for (const _p in _mods) {
+  const _base = _p.split("/").pop().replace(/\.[^.]+$/, "").toLowerCase();
+  PHOTOS[_base] = _mods[_p];
+}
 
 // Nom -> clé de fichier (minuscules, sans accents, tirets). Doit matcher le nom du fichier photo.
 export function slugify(name) {
