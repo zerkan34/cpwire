@@ -47,6 +47,8 @@ export default function Recette({ issues = [], onTicket }) {
 
   const totReste = data.reduce((s, r) => s + r.reste, 0);
   const totRetours = data.reduce((s, r) => s + r.retours, 0);
+  const totEnRecette = data.reduce((s, r) => s + r.enRecette, 0);
+  const totValides = data.reduce((s, r) => s + r.valides, 0);
 
   if (!issues.length) return <div className="panel empty">Aucune donnée — actualise depuis Jira.</div>;
 
@@ -66,14 +68,17 @@ export default function Recette({ issues = [], onTicket }) {
 
   return (
     <>
-      <div className="section-title">Recette — pilotage de bout en bout
-        <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {totReste} à recetter · {totRetours} à retravailler
-        </span>
+      <div className="rec-hero">
+        <span className="rec-hero-k">Recette</span>
+        <h2>Pilotage de bout en bout</h2>
+        <p>Suivi des programmes de leur entrée en recette jusqu'à la mise en production — clique un chiffre, une pastille puis un programme pour ouvrir sa fiche et sa chaîne de statuts.</p>
+        <div className="rec-hero-kpis">
+          <div className="rec-hk rec-hk-big"><b>{totReste}</b><small>à recetter</small></div>
+          <div className="rec-hk"><b>{totEnRecette}</b><small>en recette</small></div>
+          <div className="rec-hk rec-hk-rew"><b>{totRetours}</b><small>à retravailler</small></div>
+          <div className="rec-hk rec-hk-done"><b>{totValides}</b><small>validés</small></div>
+        </div>
       </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Clique un <b>chiffre</b> ou une <b>pastille</b> pour dérouler les programmes concernés, puis un <b>programme</b> pour ouvrir sa fiche et sa chaîne de statuts.
-      </p>
 
       {data.map((r) => {
         const cur = sel[r.dossier];

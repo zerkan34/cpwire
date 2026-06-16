@@ -2063,3 +2063,20 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .prep-result { border-top: 0; padding-top: 0; margin-top: 20px; }
 .prep-result-t { font-family: "Poppins", sans-serif; font-size: 15px; color: var(--indigo-deep); }
 .doc-frame { border-radius: 14px; box-shadow: var(--shadow); }
+
+/* ===== v95 : Recette — en-tête de page brandé + synthèse globale ===== */
+.rec-hero { position: relative; background: var(--hd-grad); border-radius: 18px; padding: 22px 26px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 18px; }
+.rec-hero::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.16) 1.1px, transparent 1.3px); background-size: 16px 16px; opacity: .5; pointer-events: none; }
+.rec-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.rec-hero > * { position: relative; }
+.rec-hero-k { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.rec-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 24px; color: #fff; margin: 5px 0 0; }
+.rec-hero p { margin: 6px 0 0; color: #d9d3f0; font-size: 13px; max-width: 720px; line-height: 1.5; }
+.rec-hero-kpis { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 16px; }
+.rec-hk { flex: 1; min-width: 120px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.16); border-radius: 13px; padding: 12px 14px; }
+.rec-hk b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 26px; line-height: 1; color: #fff; }
+.rec-hk small { display: block; margin-top: 6px; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; font-weight: 700; color: rgba(255,255,255,.78); }
+.rec-hk-big { background: rgba(174,153,255,.22); border-color: rgba(174,153,255,.4); }
+.rec-hk-rew b { color: #ffcf9e; }
+.rec-hk-done b { color: #aee7c4; }
+@media (max-width: 640px) { .rec-hk { min-width: calc(50% - 6px); } }
