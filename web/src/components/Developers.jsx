@@ -1,16 +1,34 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchCadence } from "../api.js";
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 const DONE = ["termine", "miseEnProd"];
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
+const fmt = (v, suffix = "") => (v === null || v === undefined ? "—" : `${v}${suffix}`);
 
-// Onglet "Développeurs" : qui a combien de tickets ; clic sur un dev -> fiche.
-// Deux groupes : développeurs ACTIFS, et ANCIENS développeurs — soit marqués
-// manuellement "parti d'Armonie", soit détectés sans activité Jira depuis N mois.
+// Onglet "Développeurs" : pouls de l'équipe (cadence réelle déduite de Jira) + synthèse
+// par développeur unifiée (charge ACTUELLE + rythme). Clic sur un dev -> sa fiche.
+// Deux groupes : développeurs ACTIFS, et ANCIENS (marqués "parti" ou sans activité depuis N mois).
 export default function Developers({ issues = [], onTicket, onDev, deletedDevs = [], inactiveDevs = [], inactiveMonths = 2, onMarkLeft, onRestoreDev }) {
   const [dossier, setDossier] = useState("Tous");
+  const [weeks, setWeeks] = useState(8);
+  const [rep, setRep] = useState(null);     // cadence (serveur)
   const delSet = new Set(deletedDevs);        // marqués manuellement "parti d'Armonie"
   const inactiveSet = new Set(inactiveDevs);  // détectés sans activité Jira depuis N mois
+
+  // Cadence de l'équipe (débit, délais, par dev) — calculée côté serveur depuis les dates Jira.
+  useEffect(() => {
+    let alive = true;
+    fetchCadence(weeks).then((r) => { if (alive) setRep(r); }).catch(() => { if (alive) setRep(null); });
+    return () => { alive = false; };
+  }, [weeks]);
+
+  // Index du rythme par nom de développeur, pour jointure avec la charge.
+  const cadByDev = useMemo(() => {
+    const m = {}; (rep?.devs || []).forEach((d) => { m[d.nom] = d; }); return m;
+  }, [rep]);
+  const seuil = rep?.seuilSouffranceJours;
+  const openTicket = (cle) => { if (onTicket && cle) { const t = issues.find((i) => i.cle === cle); if (t) onTicket(t); } };
 
   const dossiers = useMemo(
     () => ["Tous", ...Array.from(new Set(issues.map((i) => i.dossier))).sort()],
@@ -64,6 +82,23 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
     </>
   );
 
+  // Sous-ligne "rythme" sous le nom : résolus 30 j + alerte plus ancien en cours (souffrance).
+  const rythme = (r) => {
+    const c = cadByDev[r.dev];
+    if (!c) return null;
+    const traine = seuil != null && c.plusAncienJours > seuil;
+    return (
+      <span className="dev-rythme">
+        <span><b>{c.resolus30}</b> résolus/30 j</span>
+        {c.debitHebdo != null ? <span>{c.debitHebdo}/sem</span> : null}
+        {c.plusAncienCle ? <span className={traine ? "souffrance" : ""} title="Plus ancien ticket en cours">⏳ {c.plusAncienJours} j</span> : null}
+      </span>
+    );
+  };
+
+  const e = rep?.equipe || {};
+  const maxW = Math.max(1, ...((rep?.hebdo) || []).map((h) => h.count));
+
   return (
     <>
       <div className="section-title">Développeurs
@@ -72,9 +107,50 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         </span>
       </div>
 
+      {/* ---- Pouls de l'équipe (cadence réelle, déduite des dates Jira) ---- */}
       <div className="panel dev-panel">
         <div className="recap-hd">
-          <span className="recap-hd-name">Charge par développeur</span>
+          <span className="recap-hd-name">Pouls de l'équipe</span>
+          <span className="recap-hd-meta">rythme réel, calculé depuis Jira</span>
+        </div>
+        <div className="dev-panel-bd">
+          {!rep ? (
+            <div className="empty">Calcul du rythme de l'équipe…</div>
+          ) : (
+            <>
+              <div className="enc-toggle" role="tablist">
+                {[8, 12, 16].map((w) => (
+                  <button key={w} className={`enc-tg ${weeks === w ? "on" : ""}`} onClick={() => setWeeks(w)}>{w} sem.</button>
+                ))}
+              </div>
+              <div className="cad-kpis">
+                <div className="cad-kpi"><div className="cad-n">{fmt(e.resolus30)}</div><div className="cad-l">Résolus (30 j)</div></div>
+                <div className="cad-kpi"><div className="cad-n">{fmt(e.debitHebdoMoyen)}</div><div className="cad-l">Débit moyen / semaine</div></div>
+                <div className="cad-kpi"><div className="cad-n">{fmt(e.delaiMedianJours, " j")}</div><div className="cad-l">Délai médian de résolution</div></div>
+                <div className="cad-kpi"><div className="cad-n">{fmt(e.enCours)}</div><div className="cad-l">Tickets ouverts</div></div>
+                <div className={`cad-kpi ${e.enSouffrance ? "cad-alert" : ""}`}><div className="cad-n">{fmt(e.enSouffrance)}</div><div className="cad-l">En souffrance (&gt; {seuil} j)</div></div>
+                <div className="cad-kpi"><div className="cad-n">{fmt(e.devsActifs)}</div><div className="cad-l">Développeurs actifs</div></div>
+              </div>
+
+              <div className="section-title" style={{ marginTop: 22, fontSize: 15 }}>Débit hebdomadaire — tickets résolus</div>
+              <div className="cad-chart">
+                {(rep.hebdo || []).map((h, idx) => (
+                  <div className="cad-bar-wrap" key={idx} title={`Semaine du ${h.label} : ${h.count} résolu(s)`}>
+                    <div className="cad-bar-v">{h.count || ""}</div>
+                    <div className="cad-bar" style={{ height: `${Math.round((h.count / maxW) * 100)}%` }} />
+                    <div className="cad-bar-x">{h.label}</div>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ---- Synthèse par développeur : charge + rythme ---- */}
+      <div className="panel dev-panel" style={{ marginTop: 18 }}>
+        <div className="recap-hd">
+          <span className="recap-hd-name">Synthèse par développeur</span>
           <span className="recap-hd-meta">{realDevs} dev{realDevs > 1 ? "s" : ""} · {totalTickets} ticket{totalTickets > 1 ? "s" : ""}</span>
         </div>
         <div className="dev-panel-bd">
@@ -93,11 +169,14 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
               {activeRows.map((r) => (
                 <div className="dev-row" key={r.dev} role="button" tabIndex={0}
                   onClick={() => onDev && onDev(r.dev)} title="Voir la fiche du développeur">
-                  <span className="dev-name dname">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
+                  <span className="dev-id">
+                    <span className="dev-name dname">{r.dev}{r.dev === "Non assigné" ? " ⚠" : ""}</span>
+                    {rythme(r)}
+                  </span>
                   <span className="dev-bar"><span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} /></span>
                   <span className="dev-counts">
                     {counts(r)}
-                    {onMarkLeft && r.dev !== "Non assigné" ? <button className="dev-hide" title="Marquer ce développeur comme parti d'Armonie" onClick={(e) => { e.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : <span className="dev-hide-ph" />}
+                    {onMarkLeft && r.dev !== "Non assigné" ? <button className="dev-hide" title="Marquer ce développeur comme parti d'Armonie" onClick={(ev) => { ev.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : <span className="dev-hide-ph" />}
                     <span className="dev-caret">›</span>
                   </span>
                 </div>
@@ -125,17 +204,20 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
                   return (
                     <div className={`dev-row ${left ? "del" : "inactive"}`} key={r.dev} role="button" tabIndex={0}
                       onClick={() => onDev && onDev(r.dev)} title="Voir la fiche du développeur">
-                      <span className="dev-name dname">{r.dev}
-                        {left
-                          ? <span className="dev-del-tag">ne fait plus partie d'Armonie</span>
-                          : <span className="dev-inactive-tag">sans activité depuis {inactiveMonths} mois{r.lastLabel ? ` · dern. ${r.lastLabel}` : ""}</span>}
+                      <span className="dev-id">
+                        <span className="dev-name dname">{r.dev}
+                          {left
+                            ? <span className="dev-del-tag">ne fait plus partie d'Armonie</span>
+                            : <span className="dev-inactive-tag">sans activité depuis {inactiveMonths} mois{r.lastLabel ? ` · dern. ${r.lastLabel}` : ""}</span>}
+                        </span>
+                        {rythme(r)}
                       </span>
                       <span className="dev-bar"><span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} /></span>
                       <span className="dev-counts">
                         {counts(r)}
                         {left
-                          ? (onRestoreDev ? <button className="dev-hide" title="Réintégrer dans l'équipe active" onClick={(e) => { e.stopPropagation(); onRestoreDev(r.dev); }}>Réintégrer</button> : null)
-                          : (onMarkLeft ? <button className="dev-hide" title="Confirmer qu'il a quitté Armonie" onClick={(e) => { e.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : null)}
+                          ? (onRestoreDev ? <button className="dev-hide" title="Réintégrer dans l'équipe active" onClick={(ev) => { ev.stopPropagation(); onRestoreDev(r.dev); }}>Réintégrer</button> : null)
+                          : (onMarkLeft ? <button className="dev-hide" title="Confirmer qu'il a quitté Armonie" onClick={(ev) => { ev.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : null)}
                         <span className="dev-caret">›</span>
                       </span>
                     </div>
@@ -149,9 +231,9 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
 
       <p className="hint">
         Clique un développeur pour ouvrir sa fiche (tickets pris, activité, répartition par mois).
-        Légende : <span className="pill done">terminés</span> <span className="pill prog">en cours</span> <span className="pill todo">en recette</span>. Le volume reflète l'activité Jira, pas une note de performance.
+        Charge : <span className="pill done">terminés</span> <span className="pill prog">en cours</span> <span className="pill todo">en recette</span> · Rythme (sous le nom) : <b>résolus/30 j</b>, débit/sem et <b>⏳ plus ancien en cours</b> (orange = en souffrance, au‑delà de {seuil ?? "—"} j).
         <br />
-        <b>Comment c'est compté :</b> un ticket est rattaché à <b>toutes</b> les personnes qui y ont contribué — la personne <b>assignée</b> dans Jira, un nom « (Prénom Nom) » écrit en fin de titre, et les <b>initiales en étiquette</b> (ex. « HRE » → Hamza). Un même ticket peut donc compter pour deux personnes. Les tickets sans personne tombent dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici).
+        <b>Comment c'est compté :</b> un ticket est rattaché à <b>toutes</b> les personnes qui y ont contribué — la personne <b>assignée</b> dans Jira, un nom « (Prénom Nom) » écrit en fin de titre, et les <b>initiales en étiquette</b> (ex. « HRE » → Hamza). Un même ticket peut donc compter pour deux personnes. Les tickets sans personne tombent dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici). Le rythme (résolus, délais) est attribué à l'assigné courant.
       </p>
     </>
   );

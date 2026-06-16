@@ -11,7 +11,6 @@ import Recette from "./components/Recette.jsx";
 import Referentiel from "./components/Referentiel.jsx";
 import Projets from "./components/Projets.jsx";
 import Hygiene from "./components/Hygiene.jsx";
-import Cadence from "./components/Cadence.jsx";
 import Connaissance from "./components/Connaissance.jsx";
 import Admin from "./components/Admin.jsx";
 import ExportBar from "./components/ExportBar.jsx";
@@ -57,7 +56,6 @@ const SUBTABS = {
   ],
   devs: [
     { id: "devs", label: "Développeurs" },
-    { id: "cadence", label: "Cadence" },
   ],
   qualite: [
     { id: "hygiene", label: "Qualité" },
@@ -622,7 +620,6 @@ export default function App() {
       {tab === "cockpit" && sub === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
-      {tab === "devs" && sub === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
       {tab === "qualite" && sub === "memoire" && role === "owner" && <Connaissance />}
       {tab === "admin" && role === "owner" && <Admin />}
 

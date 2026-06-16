@@ -326,10 +326,18 @@ export default function Meetings({ issues = [] }) {
   const [mode, setMode] = useState("prep");
   return (
     <>
-      <div className="section-title">Réunions</div>
-      <div className="ctabs">
-        <button className={`ctab ${mode === "prep" ? "active" : ""}`} onClick={() => setMode("prep")}>Préparation réunion</button>
-        {!ro && <button className={`ctab ${mode === "cr" ? "active" : ""}`} onClick={() => setMode("cr")}>Compte rendu de réunion</button>}
+      <div className="meet-hero">
+        <span className="meet-hero-k">Espace réunions</span>
+        <h2>{mode === "cr" ? "Compte rendu de réunion" : "Préparation de réunion"}</h2>
+        <p>{mode === "cr"
+          ? "Transforme des notes brutes — texte, audio, photos de tableau — en compte rendu à la charte Armonie."
+          : "cp|WIRE assemble le contexte depuis Jira : point, intervenants, livrables, frictions. Tu ajustes tout, puis tu exportes ou colles dans un e-mail."}</p>
+        {!ro && (
+          <div className="meet-seg" role="tablist">
+            <button className={mode === "prep" ? "on" : ""} onClick={() => setMode("prep")}>Préparation</button>
+            <button className={mode === "cr" ? "on" : ""} onClick={() => setMode("cr")}>Compte rendu</button>
+          </div>
+        )}
       </div>
       {(ro || mode === "prep") ? <PrepReunion issues={issues} /> : <CompteRendu />}
     </>

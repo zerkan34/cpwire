@@ -1940,3 +1940,126 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 
 /* v88 : fiche projet centrée à l'écran */
 .pf-modal-back { align-items: center; padding: 24px 16px; }
+
+/* ===== v90 : refonte page Recette — structurée, lisible, à la charte ===== */
+.rec-card { border-radius: 16px; padding: 0; overflow: hidden; box-shadow: var(--shadow); border: 1px solid var(--line); margin-bottom: 16px; }
+.rec-hd { align-items: center; gap: 12px; padding: 14px 18px; background: var(--purple-soft); border-bottom: 1px solid var(--purple-line); }
+.rec-name { font-family: "Poppins", sans-serif; font-size: 17px; font-weight: 800; color: var(--indigo-deep); }
+.rec-metrics { gap: 10px; margin-left: auto; }
+.rec-m { flex-direction: column; align-items: flex-start; gap: 0; min-width: 96px; padding: 9px 13px; border: 1px solid var(--line); border-radius: 12px; background: #fff; transition: transform .12s ease, box-shadow .12s ease; }
+.rec-m b { font-family: "Poppins", sans-serif; font-size: 23px; font-weight: 800; line-height: 1; color: var(--ink); }
+.rec-m small { font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; margin-top: 6px; }
+.rec-m:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.rec-m.is-on { box-shadow: inset 0 0 0 2px var(--purple); }
+.rec-m.rec-big { background: var(--purple-soft); border-color: var(--purple-line); } .rec-m.rec-big b { color: var(--purple-strong); }
+.rec-m.rec-rew { background: var(--orange-soft); border-color: #f3d6bd; } .rec-m.rec-rew b { color: var(--orange-deep); }
+.rec-m.rec-done { background: #eef7f0; border-color: #cfe8d6; } .rec-m.rec-done b { color: #1f7a44; }
+
+.rec-chips { padding: 13px 18px; margin-top: 0; gap: 7px; align-items: center; }
+.rec-chip { font-size: 11.5px; font-weight: 700; padding: 4px 5px 4px 11px; gap: 0; border-radius: 99px; }
+.rec-chip b { margin-left: 8px; background: rgba(20,16,40,.07); border-radius: 99px; padding: 1px 8px; font-weight: 800; }
+.rec-chip.cat-annule { margin-left: auto; text-decoration: none; opacity: .65; }
+.rec-chip.cat-annule b { background: rgba(20,16,40,.06); }
+
+.rec-drill { margin: 0; padding: 14px 18px 16px; background: var(--row-alt); border-top: 1px solid var(--line); }
+.rec-drill-hd { font-size: 13px; }
+.rec-rew-list li { background: #fff; }
+
+/* v91 : « Welcome to the jungle » = même typo que « Cockpit de pilotage » (eyebrow) */
+.hdr-title { font-family: "Inter", system-ui, -apple-system, sans-serif; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; }
+.hdr-tagline { font-family: "Inter", system-ui, -apple-system, sans-serif; font-style: normal; font-weight: 700; font-size: .58em; letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* ===== v92 : refonte page Contrôle qualité Jira (hygiène) ===== */
+/* KPI en cartes-stat avec accent latéral coloré selon l'état */
+.sla-kpis { gap: 12px; margin: 10px 0 18px; }
+.sla-kpi { position: relative; text-align: left; padding: 15px 16px 15px 19px; border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; }
+.sla-kpi::before { content: ""; position: absolute; left: 0; top: 12px; bottom: 12px; width: 4px; border-radius: 3px; background: var(--purple); }
+.sla-kpi:has(.sla-ok)::before { background: var(--green); }
+.sla-kpi:has(.sla-warn)::before { background: var(--amber); }
+.sla-kpi:has(.sla-bad)::before { background: var(--red); }
+.sla-kpi .v { font-family: "Poppins", sans-serif; font-size: 30px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.sla-kpi .l { font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; font-weight: 700; color: var(--muted); margin-top: 7px; }
+
+/* Tableau client en carte */
+.sla-wrap table.data { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; box-shadow: var(--shadow); }
+.sla-wrap .data th { background: var(--purple-soft); border-bottom: 1px solid var(--purple-line); padding: 11px 13px; }
+.sla-wrap .data td { border-bottom: 1px solid var(--line-soft); padding: 11px 13px; }
+.sla-wrap .data tbody tr:last-child td { border-bottom: 0; }
+.sla-wrap .data th:nth-child(n+2), .sla-wrap .data td:nth-child(n+2) { text-align: right; font-variant-numeric: tabular-nums; }
+.sla-wrap .data td:nth-child(n+2) b { font-family: "Poppins", sans-serif; }
+/* score Qualité en pastille colorée */
+.sla-wrap .data td:last-child b { display: inline-block; min-width: 50px; text-align: center; padding: 3px 10px; border-radius: 99px; background: var(--purple-soft); }
+.sla-wrap .data td.sla-ok:last-child b { background: #e3f6ea; }
+.sla-wrap .data td.sla-warn:last-child b { background: #fbf2dc; }
+.sla-wrap .data td.sla-bad:last-child b { background: #fbe6e3; }
+
+/* Anomalies en cartes */
+.sla-h { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; color: var(--indigo-deep); margin: 26px 0 12px; display: flex; align-items: center; gap: 10px; }
+.hyg-checks { gap: 10px; }
+.hyg-check { border: 1px solid var(--line); border-radius: 13px; box-shadow: var(--shadow); }
+.hyg-head { padding: 13px 15px; gap: 13px; }
+.hyg-count { min-width: 46px; font-size: 16px; padding: 6px 10px; border-radius: 10px; background: var(--purple-soft); color: var(--purple-strong); }
+.hyg-label { font-weight: 700; font-size: 14px; color: var(--ink); }
+.hyg-toggle { color: var(--muted); font-size: 13px; }
+.hyg-hint { padding: 0 15px 13px 74px; font-size: 12px; margin-top: -4px; }
+
+/* ===== v93 : fusion Développeurs + Cadence — rythme sous le nom ===== */
+.dev-id { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; min-width: 190px; }
+.dev-id .dev-name { min-width: 0; }
+.dev-rythme { font-size: 11px; font-weight: 600; color: var(--muted); display: inline-flex; gap: 12px; flex-wrap: wrap; line-height: 1.25; }
+.dev-rythme b { color: var(--indigo); font-weight: 800; }
+.dev-rythme .souffrance { color: var(--orange-deep); font-weight: 700; }
+@media (max-width: 760px) { .dev-id { flex: 1 1 100%; min-width: 0; } }
+
+/* ===== v94 : refonte complète page Réunions ===== */
+/* En-tête de page brandé */
+.meet-hero { position: relative; background: var(--hd-grad); border-radius: 18px; padding: 22px 26px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 18px; }
+.meet-hero::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.16) 1.1px, transparent 1.3px); background-size: 16px 16px; opacity: .5; pointer-events: none; }
+.meet-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.meet-hero > * { position: relative; }
+.meet-hero-k { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.meet-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 24px; color: #fff; margin: 5px 0 0; }
+.meet-hero p { margin: 6px 0 0; color: #d9d3f0; font-size: 13px; max-width: 700px; line-height: 1.5; }
+/* Sélecteur segmenté */
+.meet-seg { display: inline-flex; gap: 3px; margin-top: 16px; background: rgba(255,255,255,.10); border: 1px solid rgba(255,255,255,.18); border-radius: 99px; padding: 4px; }
+.meet-seg button { border: 0; background: transparent; color: rgba(255,255,255,.78); font-weight: 700; font-size: 13px; padding: 7px 20px; border-radius: 99px; cursor: pointer; transition: all .14s ease; }
+.meet-seg button:hover { color: #fff; }
+.meet-seg button.on { background: #fff; color: var(--indigo-deep); box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+
+/* Carte : le hero porte le titre -> on masque l'ancien bandeau sombre */
+.meet-hd { display: none; }
+.meet-card { border-radius: 16px; }
+.meet-bd { padding: 20px 20px 22px; }
+.meet-grid2 { gap: 16px; }
+
+/* Champs plus soignés */
+.field label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); margin-bottom: 6px; }
+.field input[type=text], .ta, .fselect.block { border: 1px solid var(--line); border-radius: 12px; background: #fff; transition: border-color .12s, box-shadow .12s; }
+.field input[type=text]:focus, .ta:focus, .fselect.block:focus { outline: 0; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+
+/* Zone d'import */
+.drop { border: 1.5px dashed var(--purple-line); border-radius: 14px; padding: 22px 16px; background: var(--purple-soft); color: var(--purple-strong); font-weight: 600; transition: all .14s ease; }
+.drop:hover { border-color: var(--purple); background: #efeafc; }
+
+/* CTA IA mis en valeur (orange marque) */
+.meet-bd .row-actions { margin-top: 18px; }
+.meet-bd .row-actions .btn-solid { background: linear-gradient(120deg, var(--orange) 0%, var(--orange-deep) 100%); font-size: 14px; font-weight: 700; padding: 13px 24px; border-radius: 12px; box-shadow: 0 6px 16px rgba(251,122,40,.28); letter-spacing: .01em; }
+.meet-bd .row-actions .btn-solid:hover { filter: brightness(1.05); }
+.meet-bd .row-actions .btn-solid:disabled { background: var(--muted); box-shadow: none; filter: none; }
+
+/* Composer : en-tête accentué, plus de simple filet */
+.prep-edit { border-top: 0; margin-top: 22px; padding-top: 0; }
+.prep-edit-h { font-family: "Poppins", sans-serif; font-size: 16px; color: var(--indigo-deep); padding: 12px 16px; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; margin-bottom: 16px; }
+.prep-edit-h::before { content: "✦ "; color: var(--gold); }
+
+/* Listes (livrables / frictions / qui) -> cartes sélectionnables */
+.chk-list { border: 0; padding: 2px; gap: 8px; max-height: 320px; }
+.chk { border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; background: #fff; align-items: center; transition: border-color .12s, background .12s; }
+.chk:hover { border-color: var(--purple-line); background: var(--row-alt); }
+.chk:has(input:checked) { border-color: var(--purple); background: var(--purple-soft); }
+.chk input { margin-top: 0; width: 17px; height: 17px; }
+
+/* Aperçu doc */
+.prep-result { border-top: 0; padding-top: 0; margin-top: 20px; }
+.prep-result-t { font-family: "Poppins", sans-serif; font-size: 15px; color: var(--indigo-deep); }
+.doc-frame { border-radius: 14px; box-shadow: var(--shadow); }
