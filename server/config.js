@@ -81,6 +81,11 @@ export function categoryFromStatus(statusName = "") {
   return "afaire";
 }
 
+// Vrai si le statut est mappé EXPLICITEMENT (pas via repli heuristique) — sert au contrôle d'exactitude.
+export function statusIsExplicit(name = "") {
+  return Object.prototype.hasOwnProperty.call(STATUS_CATEGORY, norm(name));
+}
+
 // Libellés lisibles par catégorie (pour les rapports et l'onglet Développeurs).
 export const CATEGORY_LABEL = {
   afaire: "À faire",

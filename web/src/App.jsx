@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
-  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite } from "./api.js";
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets } from "./api.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -17,6 +17,7 @@ import DailyCRModal from "./components/DailyCRModal.jsx";
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 import TicketModal from "./components/TicketModal.jsx";
 import DossierModal from "./components/DossierModal.jsx";
+import Client360 from "./components/Client360.jsx";
 import DeveloperModal from "./components/DeveloperModal.jsx";
 import DailyRecap from "./components/DailyRecap.jsx";
 import Developers from "./components/Developers.jsx";
@@ -99,6 +100,8 @@ export default function App() {
   const [changedKeys, setChangedKeys] = useState(null);
   const [ticket, setTicket] = useState(null);
   const [fiche, setFiche] = useState(null);        // dossier (client)
+  const [sel360, setSel360] = useState(null);      // objet client pour la Fiche 360
+  const [projetsData, setProjetsData] = useState(null);
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [showTop, setShowTop] = useState(false);
@@ -196,6 +199,7 @@ export default function App() {
       }
       setBootMsg("");
       setData(p); setDossiers(d.dossiers || {});
+      fetchProjets().then(setProjetsData).catch(() => {});
       if (p && p.importError && !(p.issues && p.issues.length)) setError(`Import impossible : ${p.importError}`);
       if (refresh || full) {
         const ch = Array.isArray(p.changed) ? p.changed : [];
@@ -361,6 +365,17 @@ export default function App() {
     Object.entries(m).forEach(([d, set]) => { set.delete("—"); const a = [...set]; out[d] = a.length === 0 ? "" : a.length === 1 ? a[0] : "TMA + Projet"; });
     return out;
   }, [issues]);
+  // Correspondance nom de client (cockpit) -> objet complet de la Fiche 360 (données /api/projets).
+  const c360Map = useMemo(() => {
+    const m = new Map();
+    (projetsData?.clients || []).forEach((c) => m.set(String(c.client).toUpperCase(), c));
+    return m;
+  }, [projetsData]);
+  // Ouvre la Fiche 360 si on a les données du client ; sinon repli sur la fiche dossier classique.
+  const openClient = useCallback((d) => {
+    const c = c360Map.get(String(d).toUpperCase());
+    if (c) setSel360(c); else setFiche({ nom: d });
+  }, [c360Map]);
   // pour qu'un compteur ne contredise jamais le tableau (ex. plus de "26" alors que le tableau est vide).
   const counts = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -466,7 +481,7 @@ export default function App() {
             </p>
           )}
           <div className="section-title">Portefeuille <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
-          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={(d) => setFiche({ nom: d })} />
+          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} />
 
           <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
@@ -517,6 +532,7 @@ export default function App() {
       )}
       {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
+      {sel360 && <Client360 c={sel360} issues={issues} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
       {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
       {dailyCrOpen && <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />}
 

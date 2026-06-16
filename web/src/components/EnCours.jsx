@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 
 const DONE = ["termine", "miseEnProd"];
 const ACTIVE = ["encours", "retourTest", "retourProd"];
@@ -14,6 +14,7 @@ const scrollToClient = (name) => { const el = document.getElementById(slug(name)
 // Onglet « En cours » : avancement par client (jauge) + qui travaille sur quoi, en temps réel.
 export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = [] }) {
   const delSet = new Set(deletedDevs);
+  const [view, setView] = useState("client");
 
   const clients = useMemo(() => {
     const m = {};
@@ -78,6 +79,12 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
         Jauge d'avancement par client (terminés / total) et qui travaille sur quoi. Reflète la dernière synchronisation Jira — clique un ticket pour l'ouvrir.
       </p>
 
+      <div className="enc-toggle" role="tablist">
+        <button className={`enc-tg ${view === "client" ? "on" : ""}`} onClick={() => setView("client")} role="tab" aria-selected={view === "client"}>Par client</button>
+        <button className={`enc-tg ${view === "dev" ? "on" : ""}`} onClick={() => setView("dev")} role="tab" aria-selected={view === "dev"}>Par développeur</button>
+      </div>
+
+      {view === "client" && (<>
       <div className="enc-clienttabs" aria-label="Accès rapide aux clients">
         {clients.map((c) => (
           <button key={c.client} className="enc-ctab" onClick={() => scrollToClient(c.client)} title={`Aller à ${c.client}`}>
@@ -133,8 +140,10 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
           </div>
         ))}
       </div>
+      </>)}
 
-      <div className="section-title" style={{ marginTop: 28 }}>Par développeur — qui fait quoi en ce moment
+      {view === "dev" && (<>
+      <div className="section-title">Par développeur — qui fait quoi en ce moment
         <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
           {" "}— {devsList.length} en activité · clique un nom pour ses heures &amp; son activité
         </span>
@@ -176,6 +185,7 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
           ))}
         </div>
       )}
+      </>)}
     </>
   );
 }

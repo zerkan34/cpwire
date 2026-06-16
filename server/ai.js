@@ -1,7 +1,7 @@
 // ai.js — rédaction assistée. Utilise l'API Claude si ANTHROPIC_API_KEY est défini,
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
-import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus } from "./config.js";
+import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus, statusIsExplicit } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
@@ -296,6 +296,115 @@ function makeWithin(range) {
 }
 
 
+// ──────────────────────────────────────────────────────────────────────────
+// Activité par intervenant — COMPTAGE DE TICKETS (jamais de transitions).
+// Regroupement : périmètre (engagement TMA/Projet, déduit de la clé) → intervenant
+// réel (assignee courant, sinon développeur identifié) → ventilation par statut courant.
+// Chaque ticket est compté UNE seule fois. Tout le monde est inclus (aucun filtre période).
+// ──────────────────────────────────────────────────────────────────────────
+const ACT_COLS = [
+  ["afaire", "À faire"],
+  ["encours", "En cours"],
+  ["retours", "Retours"],
+  ["recArm", "Rec. Armonie"],
+  ["recCli", "Rec. client"],
+  ["attCli", "Attente cli."],
+  ["doneMep", "Terminé / MEP"],
+];
+const PERIM_LABEL = { TMA: "TMA — maintenance courante", Projet: "Projet", Autre: "Autre" };
+function actBucket(cat) {
+  if (cat === "afaire") return "afaire";
+  if (cat === "encours") return "encours";
+  if (cat === "retourTest" || cat === "retourProd") return "retours";
+  if (cat === "recetteArmonie") return "recArm";
+  if (cat === "recetteClient") return "recCli";
+  if (cat === "attenteClient") return "attCli";
+  if (cat === "termine" || cat === "miseEnProd") return "doneMep";
+  if (cat === "annule") return "annule";
+  return "autre";
+}
+function intervenantOf(i) {
+  if (i.assigne && i.assigne !== "Non assigné") return i.assigne;        // assignee courant prioritaire
+  if (i.dev && i.dev !== "Non assigné") return i.dev;                    // sinon dev identifié (titre/étiquette)
+  return "Non assigné";
+}
+export function buildActivite(issues = []) {
+  const seen = new Set();
+  const doublons = [];
+  const distinct = new Set();
+  const PERIM = {};
+  const heur = new Map(); // statuts Jira NON mappés explicitement (résolus par heuristique → à vérifier)
+  for (const i of issues) {
+    if (seen.has(i.cle)) { doublons.push(i.cle); continue; } // garde-fou anti double comptage
+    seen.add(i.cle);
+    if (i.statutJira && !statusIsExplicit(i.statutJira)) heur.set(i.statutJira, categoryFromStatus(i.statutJira));
+    const eng = i.engagement && i.engagement !== "—" ? i.engagement : "Autre";
+    const P = (PERIM[eng] ||= { code: eng, label: PERIM_LABEL[eng] || eng, projets: new Set(), total: 0, nonAssignes: [], _w: {} });
+    P.projets.add(String(i.cle).split("-")[0].toUpperCase());
+    P.total += 1;
+    const who = intervenantOf(i);
+    if (who === "Non assigné") P.nonAssignes.push(i.cle); else distinct.add(who);
+    const w = (P._w[who] ||= { nom: who, afaire: 0, encours: 0, retours: 0, recArm: 0, recCli: 0, attCli: 0, doneMep: 0, annule: 0, autre: 0, total: 0 });
+    w[actBucket(i.categorie)] += 1; w.total += 1;
+  }
+  const perimetres = Object.values(PERIM).map((P) => {
+    const intervenants = Object.values(P._w).sort((a, b) => b.total - a.total || a.nom.localeCompare(b.nom));
+    const parStatut = { afaire: 0, encours: 0, retours: 0, recArm: 0, recCli: 0, attCli: 0, doneMep: 0, annule: 0, autre: 0, total: 0 };
+    intervenants.forEach((w) => Object.keys(parStatut).forEach((k) => (parStatut[k] += w[k] || 0)));
+    return { code: P.code, label: P.label, projets: [...P.projets], total: P.total, nbNonAssignes: P.nonAssignes.length, nonAssignes: P.nonAssignes, intervenants, parStatut };
+  }).sort((a, b) => (a.code === "TMA" ? -1 : 1) - (b.code === "TMA" ? -1 : 1));
+  const sommeParPerimetre = {}; perimetres.forEach((p) => (sommeParPerimetre[p.code] = p.total));
+  const sommePerim = perimetres.reduce((s, p) => s + p.total, 0);
+  return {
+    perimetres,
+    controles: {
+      intervenantsDistincts: [...distinct].sort((a, b) => a.localeCompare(b)),
+      nbIntervenants: distinct.size,
+      ticketsUniques: seen.size,
+      ticketsRecus: issues.length,
+      doublons,                                   // doit rester vide
+      ticketsNonAssignes: perimetres.flatMap((p) => p.nonAssignes),
+      sommeParPerimetre,
+      reconciliationOK: sommePerim === seen.size,  // somme des périmètres == total unique
+      statutsHeuristiques: [...heur.entries()].map(([s, c]) => ({ statut: s, categorie: CATEGORY_LABEL[c] || c })),
+    },
+  };
+}
+// Tableau intervenant × statut pour UN périmètre.
+function activiteTableHtml(P) {
+  const th = ACT_COLS.map(([, lib]) => `<th class="r">${lib}</th>`).join("");
+  const rows = P.intervenants.map((w) =>
+    `<tr><td><span class="who">${esc(w.nom)}</span></td>${ACT_COLS.map(([k]) => `<td class="r">${w[k] || "—"}</td>`).join("")}<td class="r"><b>${w.total}</b></td></tr>`
+  ).join("");
+  const tot = `<tr class="act-tot"><td><b>Total ${esc(P.code)}</b></td>${ACT_COLS.map(([k]) => `<td class="r"><b>${P.parStatut[k] || "—"}</b></td>`).join("")}<td class="r"><b>${P.total}</b></td></tr>`;
+  const na = P.nbNonAssignes ? `<p class="cr-scope">⚠ ${P.nbNonAssignes} ticket(s) non assigné(s) dans ce périmètre : ${P.nonAssignes.map(esc).join(", ")}.</p>` : "";
+  return `<h3>${esc(P.label)} — ${P.total} ticket(s) · ${P.projets.map(esc).join(" / ")}</h3>
+    <table class="data act-tbl"><thead><tr><th>Intervenant</th>${th}<th class="r">Total</th></tr></thead><tbody>${rows}${tot}</tbody></table>${na}`;
+}
+// Bloc « contrôles » (vérifications anti-erreur) — discret, repliable.
+function controlesHtml(act) {
+  const c = act.controles;
+  const recon = c.reconciliationOK ? "✓ cohérent" : "⚠ écart à vérifier";
+  const perBits = Object.entries(c.sommeParPerimetre).map(([k, v]) => `${esc(k)} = ${v}`).join(" + ");
+  return `<details class="cr-more"><summary>Contrôles de cohérence</summary>
+    <ul class="cr-list">
+      <li><b>${c.nbIntervenants}</b> intervenant(s) distinct(s) : ${c.intervenantsDistincts.map(esc).join(", ") || "—"}</li>
+      <li>Total : ${perBits || "—"} = <b>${c.ticketsUniques}</b> ticket(s) uniques (${recon}).</li>
+      <li>Tickets non assignés : ${c.ticketsNonAssignes.length ? `<b>${c.ticketsNonAssignes.length}</b> (${c.ticketsNonAssignes.map(esc).join(", ")})` : "aucun"}.</li>
+      <li>Doublons (ticket compté 2×) : ${c.doublons.length ? `<b>${c.doublons.map(esc).join(", ")}</b>` : "aucun"}.</li>
+      ${(c.statutsHeuristiques && c.statutsHeuristiques.length) ? `<li>⚠ Statuts Jira non reconnus, classés par déduction <b>(à vérifier)</b> : ${c.statutsHeuristiques.map((x) => `« ${esc(x.statut)} » → ${esc(x.categorie)}`).join(" ; ")}.</li>` : `<li>Statuts Jira : tous reconnus explicitement. ✓</li>`}
+    </ul></details>`;
+}
+// Ventile une liste de tickets par périmètre, et rend chaque sous-liste avec tkList.
+function tkListByPerim(arr, multi) {
+  if (!multi) return tkList(arr);
+  const groups = {};
+  arr.forEach((i) => { const e = i.engagement && i.engagement !== "—" ? i.engagement : "Autre"; (groups[e] ||= []).push(i); });
+  const order = ["TMA", "Projet", "Autre"].filter((k) => groups[k]);
+  if (!order.length) return tkList(arr);
+  return order.map((k) => `<h4 class="cr-perim">${esc(PERIM_LABEL[k] || k)} (${groups[k].length})</h4>${tkList(groups[k])}`).join("");
+}
+
 function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false, actorAct = null, dayLabel = "") {
   const W = isPeriod ? "sur la période" : (dayLabel ? `pour la journée du ${dayLabel}` : "ce jour");
   const inCat = (c) => issues.filter((i) => i.categorie === c);
@@ -310,59 +419,49 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
   const g = { "Terminé": [], "En cours": [], "À faire": [], "Bloqué": [] };
   issues.forEach((i) => { (g[i.statut] || (g[i.statut] = [])).push(i); });
 
-  // Activité par personne.
-  let tablePersonnes;
-  if (actorAct && actorAct.actors.length) {
-    // Acteurs RÉELS des transitions (qui a fait avancer / clôturé), pas le dev d'origine.
-    tablePersonnes = `<table class="data"><tr><th>Personne (a fait avancer)</th><th>Recette client</th><th>Recette Armonie</th><th>Attente client</th><th>Terminés / clôtures</th><th>Total actions</th></tr>` +
-      actorAct.actors.map((a) => `<tr><td><span class="who">${esc(a.who)}</span></td><td>${a.recC || "—"}</td><td>${a.recA || "—"}</td><td>${a.att || "—"}</td><td>${a.term || "—"}</td><td><b>${a.total}</b></td></tr>`).join("") +
-      `</table><p style="font-size:11.5px;color:#74718a;margin-top:4px;">Chaque ligne = la personne qui a <b>réellement effectué</b> le passage de statut (recette / clôture) ${W}, d'après l'historique Jira — et non le développeur d'origine. Les 4 colonnes s'additionnent dans « Total actions ».</p>`;
-  } else {
-    // Repli (pas d'historique chargé) : activité par assigné.
-    const touchedToday = issues.filter((i) => within(i.maj));
-    const parPersonne = {};
-    touchedToday.forEach((i) => {
-      const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné");
-      (parPersonne[d] ||= { dev: d, faits: 0, encours: 0, total: 0 });
-      parPersonne[d].total += 1;
-      if (DONE_CATS.includes(i.categorie)) parPersonne[d].faits += 1;
-      else if (ACTIVE_CATS.includes(i.categorie)) parPersonne[d].encours += 1;
-    });
-    const personnes = Object.values(parPersonne).sort((a, b) => b.total - a.total);
-    tablePersonnes = personnes.length
-      ? `<table class="data"><tr><th>Personne</th><th>Terminés</th><th>En cours</th><th>Total ${isPeriod ? "période" : "du jour"}</th></tr>` +
-        personnes.map((p) => `<tr><td><span class="who">${esc(p.dev)}</span></td><td>${p.faits}</td><td>${p.encours}</td><td><b>${p.total}</b></td></tr>`).join("") +
-        `</table>`
-      : `<p>Aucun ticket mis à jour ${W}.</p>`;
-  }
+  // Périmètres présents (TMA vs Projet, déduits des clés) — on sépare partout s'il y en a plusieurs.
+  const act = buildActivite(issues);
+  const multi = act.perimetres.length > 1;
+
+  // Activité par INTERVENANT réel (assignee courant / dev) × statut courant × périmètre.
+  // Comptage de TICKETS (jamais de transitions), tout le monde inclus, un ticket compté une fois.
+  const tablePersonnes = act.perimetres.length
+    ? act.perimetres.map(activiteTableHtml).join("") + controlesHtml(act)
+    : `<p>Aucun ticket sur le périmètre.</p>`;
 
   // Recette SÉPARÉE : Armonie = à valider PAR NOUS ; client = à valider par le CLIENT.
+  // Séparée AUSSI par périmètre (TMA / Projet) quand le dossier en a plusieurs.
   const recArmBloc = recArmonie.length
-    ? `<h3>Recette Armonie — ${recArmonie.length} ticket(s) · à valider par Armonie</h3>${tkList(recArmonie)}`
+    ? `<h3>Recette Armonie — ${recArmonie.length} ticket(s) · à valider par Armonie</h3>${tkListByPerim(recArmonie, multi)}`
     : `<h3>Recette Armonie</h3><p class="cr-scope">Aucun ticket en recette Armonie.</p>`;
   const recCliBloc = recClient.length
-    ? `<h3>Recette client — ${recClient.length} ticket(s) · à valider par le client</h3>${tkList(recClient)}`
+    ? `<h3>Recette client — ${recClient.length} ticket(s) · à valider par le client</h3>${tkListByPerim(recClient, multi)}`
     : "";
 
   const attenteBloc = attenteClient.length
-    ? `<h3>En attente client (${attenteClient.length})</h3>${tkList(attenteClient)}`
+    ? `<h3>En attente client (${attenteClient.length})</h3>${tkListByPerim(attenteClient, multi)}`
     : "";
 
   // Points bloquants : seulement les tickets OUVERTS réellement bloqués (on exclut terminés/annulés/MEP).
   const bloquantsOpen = bloquants.filter((i) => !DONE_CATS.includes(i.categorie) && i.categorie !== "annule");
   const bloquantsBloc = bloquantsOpen.length
-    ? `<h3>⚠ Points bloquants (${bloquantsOpen.length})</h3>${tkList(bloquantsOpen)}`
+    ? `<h3>⚠ Points bloquants (${bloquantsOpen.length})</h3>${tkListByPerim(bloquantsOpen, multi)}`
     : `<h3>Points bloquants</h3><p>Aucun point bloquant ouvert.</p>`;
 
-  // Synthèse page 1 : seulement les états qui comptent (pas Total/En cours/À faire).
-  const mep = inCat("miseEnProd"); const term = inCat("termine");
-  const synthRow = `<div class="kpi-row">
-    <div class="kpi"><div class="v">${recArmonie.length}</div><div class="l">Recette Armonie</div></div>
-    <div class="kpi"><div class="v">${recClient.length}</div><div class="l">Recette client</div></div>
-    <div class="kpi"><div class="v">${attenteClient.length}</div><div class="l">Attente client</div></div>
-    <div class="kpi"><div class="v">${mep.length}</div><div class="l">Mise en prod.</div></div>
-    <div class="kpi"><div class="v">${term.length}</div><div class="l">Terminés</div></div>
+  // Synthèse page 1 : seulement les états qui comptent. Séparée par périmètre si plusieurs.
+  const synthFor = (subset, title) => {
+    const c = (cat) => subset.filter((i) => i.categorie === cat).length;
+    return `${title ? `<h3 class="cr-perim">${esc(title)}</h3>` : ""}<div class="kpi-row">
+    <div class="kpi"><div class="v">${c("recetteArmonie")}</div><div class="l">Recette Armonie</div></div>
+    <div class="kpi"><div class="v">${c("recetteClient")}</div><div class="l">Recette client</div></div>
+    <div class="kpi"><div class="v">${c("attenteClient")}</div><div class="l">Attente client</div></div>
+    <div class="kpi"><div class="v">${c("miseEnProd")}</div><div class="l">Mise en prod.</div></div>
+    <div class="kpi"><div class="v">${c("termine")}</div><div class="l">Terminés</div></div>
   </div>`;
+  };
+  const synthRow = multi
+    ? act.perimetres.map((p) => synthFor(issues.filter((i) => (i.engagement && i.engagement !== "—" ? i.engagement : "Autre") === p.code), p.label)).join("")
+    : synthFor(issues, "");
 
   return `<h2>Synthèse ${isPeriod ? "de la période" : `de la journée${dayLabel ? " du " + dayLabel : ""}`}</h2>
     ${synthRow}
@@ -374,7 +473,7 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
     ${recCliBloc}
     ${attenteBloc}
     ${bloquantsBloc}
-    <h2>Activité ${isPeriod ? "sur la période" : "de la journée"} par personne</h2>${tablePersonnes}`;
+    <h2>Activité par intervenant${multi ? " et par périmètre" : ""}</h2>${tablePersonnes}`;
 }
 
 // À partir de l'historique Jira (transitions de statut sur la période), agrège QUI a réellement
@@ -498,7 +597,20 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
   const seen = new Set();
   let detailSource = [...dayDone, ...dayActive].filter((i) => { if (seen.has(i.cle)) return false; seen.add(i.cle); return true; });
   if (!detailSource.length) detailSource = [...issues].sort(byMajDesc).slice(0, 10);
-  const detailedHtml = await detailedTicketsHtml(detailSource);
+  // Détail scindé par périmètre (TMA / Projet) quand le dossier en a plusieurs — sinon à plat.
+  const engOf = (i) => (i.engagement && i.engagement !== "—" ? i.engagement : "Autre");
+  const perimsDetail = [...new Set(detailSource.map(engOf))];
+  let detailedHtml;
+  if (perimsDetail.length > 1) {
+    const parts = [];
+    for (const code of ["TMA", "Projet", "Autre"]) {
+      const sub = detailSource.filter((i) => engOf(i) === code);
+      if (sub.length) parts.push(`<h3 class="cr-perim">${esc(PERIM_LABEL[code] || code)} (${sub.length})</h3>` + (await detailedTicketsHtml(sub)));
+    }
+    detailedHtml = parts.join("");
+  } else {
+    detailedHtml = await detailedTicketsHtml(detailSource);
+  }
 
   const body = templateDaily(dossier, issues, analyseHtml, detailedHtml, within, isPeriod, act, singleDay ? dayLabel : "");
 
@@ -1030,7 +1142,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
 // Vocabulaire spécifique à employer dans les récaps / CR / briefs générés.
 // EDL : les commerciaux de l'école des loisirs s'appellent les « animateurs » (animatrices).
 const DOSSIER_LEXIQUE = {
-  EDL: "VOCABULAIRE DU DOSSIER — IMPÉRATIF : chez EDL (l'école des loisirs), les commerciaux sont appelés « animateurs » (au féminin « animatrices »). Emploie systématiquement « animateur » / « animatrice » pour désigner cette fonction commerciale, jamais le mot « commercial ».",
+  EDL: "VOCABULAIRE DU DOSSIER — IMPÉRATIF : chez EDL (l'école des loisirs), « animateur » / « animatrice » désigne UNIQUEMENT les COMMERCIAUX CÔTÉ CLIENT (la force de vente d'EDL). Emploie ce terme à la place de « commercial » pour cette fonction. INTERDIT ABSOLU : ne qualifie JAMAIS un développeur, intervenant ou membre de l'équipe Armonie d'« animateur » — eux sont des « développeurs » / « intervenants Armonie ». Un nom listé comme intervenant/assigné d'un ticket est un développeur Armonie, jamais un animateur.",
 };
 function lexique(dossier) {
   const k = DOSSIER_LEXIQUE[dossier];

@@ -71,6 +71,12 @@ const CSS = `
   table.tk-tbl .tk-res{color:#2c2945;} table.tk-tbl .tk-who .who{color:#5a48b0;font-weight:600;}
   table.tk-tbl .tk-prog{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   table.tk-tbl .tk-st{text-align:right;white-space:nowrap;font-weight:700;color:#2c2945;font-size:11px;}
+  table.data td.r,table.data th.r{text-align:right;}
+  table.act-tbl{font-size:11.5px;}
+  table.act-tbl td:first-child,table.act-tbl th:first-child{text-align:left;}
+  table.act-tbl tr.act-tot td{border-top:2px solid #d9d4ee;background:#f6f4fc;}
+  h3.cr-perim,h4.cr-perim{color:#3a3658;border-left:3px solid #c7a14a;padding-left:8px;margin:14px 0 6px;font-size:13px;}
+  h4.cr-perim{font-size:12px;color:#6e5cc4;border-left-color:#6e5cc4;margin:10px 0 4px;}
   details.cr-more{margin:-4px 0 14px;}
   details.cr-more>summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:#6e5cc4;padding:4px 0;display:inline-block;}
   details.cr-more>summary::-webkit-details-marker{display:none;}
