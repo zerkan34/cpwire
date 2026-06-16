@@ -370,6 +370,8 @@ export function buildActivite(issues = []) {
     },
   };
 }
+// Affiche au plus n clés, puis « … (+X autres) » — JAMAIS la liste complète (peut faire 1000+).
+const capKeys = (arr, n = 6) => (arr.length <= n ? arr.map(esc).join(", ") : arr.slice(0, n).map(esc).join(", ") + ` … (+${arr.length - n} autres)`);
 // Tableau intervenant × statut pour UN périmètre.
 function activiteTableHtml(P) {
   const th = ACT_COLS.map(([, lib]) => `<th class="r">${lib}</th>`).join("");
@@ -377,9 +379,8 @@ function activiteTableHtml(P) {
     `<tr><td><span class="who">${esc(w.nom)}</span></td>${ACT_COLS.map(([k]) => `<td class="r">${w[k] || "—"}</td>`).join("")}<td class="r"><b>${w.total}</b></td></tr>`
   ).join("");
   const tot = `<tr class="act-tot"><td><b>Total ${esc(P.code)}</b></td>${ACT_COLS.map(([k]) => `<td class="r"><b>${P.parStatut[k] || "—"}</b></td>`).join("")}<td class="r"><b>${P.total}</b></td></tr>`;
-  const na = P.nbNonAssignes ? `<p class="cr-scope">⚠ ${P.nbNonAssignes} ticket(s) non assigné(s) dans ce périmètre : ${P.nonAssignes.map(esc).join(", ")}.</p>` : "";
   return `<h3>${esc(P.label)} — ${P.total} ticket(s) · ${P.projets.map(esc).join(" / ")}</h3>
-    <table class="data act-tbl"><thead><tr><th>Intervenant</th>${th}<th class="r">Total</th></tr></thead><tbody>${rows}${tot}</tbody></table>${na}`;
+    <table class="data act-tbl"><thead><tr><th>Intervenant</th>${th}<th class="r">Total</th></tr></thead><tbody>${rows}${tot}</tbody></table>`;
 }
 // Bloc « contrôles » (vérifications anti-erreur) — discret, repliable.
 function controlesHtml(act) {
@@ -388,10 +389,10 @@ function controlesHtml(act) {
   const perBits = Object.entries(c.sommeParPerimetre).map(([k, v]) => `${esc(k)} = ${v}`).join(" + ");
   return `<details class="cr-more"><summary>Contrôles de cohérence</summary>
     <ul class="cr-list">
-      <li><b>${c.nbIntervenants}</b> intervenant(s) distinct(s) : ${c.intervenantsDistincts.map(esc).join(", ") || "—"}</li>
+      <li><b>${c.nbIntervenants}</b> intervenant(s) distinct(s) : ${c.intervenantsDistincts.length ? capKeys(c.intervenantsDistincts, 25) : "—"}</li>
       <li>Total : ${perBits || "—"} = <b>${c.ticketsUniques}</b> ticket(s) uniques (${recon}).</li>
-      <li>Tickets non assignés : ${c.ticketsNonAssignes.length ? `<b>${c.ticketsNonAssignes.length}</b> (${c.ticketsNonAssignes.map(esc).join(", ")})` : "aucun"}.</li>
-      <li>Doublons (ticket compté 2×) : ${c.doublons.length ? `<b>${c.doublons.map(esc).join(", ")}</b>` : "aucun"}.</li>
+      <li>Tickets non assignés : ${c.ticketsNonAssignes.length ? `<b>${c.ticketsNonAssignes.length}</b> (ex. ${capKeys(c.ticketsNonAssignes, 6)})` : "aucun"}.</li>
+      <li>Doublons (ticket compté 2×) : ${c.doublons.length ? `<b>${c.doublons.length}</b> (${capKeys(c.doublons, 6)})` : "aucun"}.</li>
       ${(c.statutsHeuristiques && c.statutsHeuristiques.length) ? `<li>⚠ Statuts Jira non reconnus, classés par déduction <b>(à vérifier)</b> : ${c.statutsHeuristiques.map((x) => `« ${esc(x.statut)} » → ${esc(x.categorie)}`).join(" ; ")}.</li>` : `<li>Statuts Jira : tous reconnus explicitement. ✓</li>`}
     </ul></details>`;
 }
@@ -419,15 +420,17 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
   const g = { "Terminé": [], "En cours": [], "À faire": [], "Bloqué": [] };
   issues.forEach((i) => { (g[i.statut] || (g[i.statut] = [])).push(i); });
 
-  // Périmètres présents (TMA vs Projet, déduits des clés) — on sépare partout s'il y en a plusieurs.
-  const act = buildActivite(issues);
-  const multi = act.perimetres.length > 1;
+  // Périmètres présents sur le dossier (TMA vs Projet) — pour scinder synthèse/recette/détail.
+  const engOf2 = (i) => (i.engagement && i.engagement !== "—" ? i.engagement : "Autre");
+  const multi = new Set(issues.map(engOf2)).size > 1;
 
-  // Activité par INTERVENANT réel (assignee courant / dev) × statut courant × périmètre.
-  // Comptage de TICKETS (jamais de transitions), tout le monde inclus, un ticket compté une fois.
+  // ACTIVITÉ DE LA JOURNÉE (ou de la période) : UNIQUEMENT les tickets touchés sur la fenêtre.
+  // On ne compte pas le backlog, on ne parle pas des tickets non attribués : c'est un CR du jour.
+  const dayIssues = issues.filter((i) => within(i.maj));
+  const act = buildActivite(dayIssues);
   const tablePersonnes = act.perimetres.length
-    ? act.perimetres.map(activiteTableHtml).join("") + controlesHtml(act)
-    : `<p>Aucun ticket sur le périmètre.</p>`;
+    ? act.perimetres.map(activiteTableHtml).join("")
+    : `<p>Aucune activité enregistrée ${W}.</p>`;
 
   // Recette SÉPARÉE : Armonie = à valider PAR NOUS ; client = à valider par le CLIENT.
   // Séparée AUSSI par périmètre (TMA / Projet) quand le dossier en a plusieurs.
@@ -473,7 +476,7 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
     ${recCliBloc}
     ${attenteBloc}
     ${bloquantsBloc}
-    <h2>Activité par intervenant${multi ? " et par périmètre" : ""}</h2>${tablePersonnes}`;
+    <h2>Activité ${isPeriod ? "sur la période" : "de la journée"} par intervenant${act.perimetres.length > 1 ? " et par périmètre" : ""}</h2>${tablePersonnes}`;
 }
 
 // À partir de l'historique Jira (transitions de statut sur la période), agrège QUI a réellement
