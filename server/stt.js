@@ -1,21 +1,30 @@
-// stt.js — transcription audio. Utilise un service Whisper si OPENAI_API_KEY est défini.
-// Sans clé, renvoie une erreur claire invitant à coller la transcription manuellement.
-const KEY = process.env.OPENAI_API_KEY || "";
-const STT_URL = process.env.STT_URL || "https://api.openai.com/v1/audio/transcriptions";
-const STT_MODEL = process.env.STT_MODEL || "whisper-1";
+// Cache persistant du portefeuille de tickets.
+// On garde une "photo" (snapshot) de tous les tickets connus sur le disque,
+// pour ne plus tout recharger depuis Jira à chaque actualisation.
+import fs from "fs";
+import path from "path";
+import { dataDir } from "./paths.js";
 
-export function sttAvailable() { return Boolean(KEY); }
+const DIR = dataDir();
+const FILE = path.join(DIR, "portfolio.json");
 
-export async function transcribe(buffer, filename = "audio.webm", mime = "audio/webm") {
-  if (!KEY) {
-    throw new Error("Transcription non configurée (OPENAI_API_KEY absent). Colle la transcription manuellement, ou ajoute une clé.");
+export function loadSnapshot() {
+  try {
+    const data = JSON.parse(fs.readFileSync(FILE, "utf8"));
+    if (data && Array.isArray(data.issues)) {
+      return { syncedAt: data.syncedAt || null, issues: data.issues };
+    }
+  } catch { /* pas de snapshot encore */ }
+  return { syncedAt: null, issues: [] };
+}
+
+export function saveSnapshot(snap) {
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+    fs.writeFileSync(FILE, JSON.stringify({ syncedAt: snap.syncedAt, issues: snap.issues }));
+    return true;
+  } catch (e) {
+    console.error("saveSnapshot:", e.message);
+    return false;
   }
-  const form = new FormData();
-  form.append("file", new Blob([buffer], { type: mime }), filename);
-  form.append("model", STT_MODEL);
-  form.append("language", "fr");
-  const res = await fetch(STT_URL, { method: "POST", headers: { Authorization: `Bearer ${KEY}` }, body: form });
-  if (!res.ok) throw new Error(`Transcription échouée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
-  const data = await res.json();
-  return data.text || "";
 }

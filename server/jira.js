@@ -1,431 +1,686 @@
-// jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
-// Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
+// index.js — serveur CPwire.
+import express from "express";
+import cors from "cors";
+import multer from "multer";
+import crypto from "crypto";
+import path from "path";
+import fs from "fs";
+import { fileURLToPath } from "url";
+import "dotenv/config";
 
-import { dossierFromKey, engagementFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
-import { displayName } from "./personnes.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions } from "./jira.js";
+import { loadSnapshot, saveSnapshot } from "./store.js";
+import { STATUTS, ME, TARGET_DONE } from "./config.js";
+import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
+import { buildSlaReport, slaStatus } from "./sla.js";
+import { buildHygiene } from "./hygiene.js";
+import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
+import { crossReferentiel, referentielClients } from "./referentiel.js";
+import { buildProjets } from "./projets.js";
+import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { addComment, transition } from "./jira-write.js";
+import { transcribe, sttAvailable } from "./stt.js";
+import { logEvent, read as readHistory } from "./history.js";
+import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
+import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
+import { parseCraXlsx } from "./cra-xlsx.js";
+import { sendMail, uploadToSharePoint, msConfigured } from "./microsoft.js";
 
-const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
-const EMAIL = process.env.JIRA_EMAIL || "";
-const TOKEN = process.env.JIRA_API_TOKEN || "";
+const app = express();
+const PORT = process.env.PORT || 4000;
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 30 * 1024 * 1024 } });
 
-// En-tête d'authentification "Basic" attendu par Jira Cloud : base64(email:token).
-function authHeader() {
-  const raw = `${EMAIL}:${TOKEN}`;
-  return "Basic " + Buffer.from(raw).toString("base64");
+const PROJECTS = (process.env.PROJECTS || "TEDL,PEM,TDSS,PDFP,TMT,PTAF,TBEL,TBAL,TIMA,PIMA2,TDIA").split(",").map((s) => s.trim()).filter(Boolean);
+// Import EXHAUSTIF : tous les tickets des projets, aucun filtre excluant.
+const DEFAULT_JQL = process.env.JQL || `project in (${PROJECTS.join(",")}) ORDER BY created ASC`;
+const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
+
+// ---- Authentification ----
+const AUTH_EMAIL = process.env.AUTH_EMAIL || "";
+const AUTH_PASSWORD = process.env.AUTH_PASSWORD || "";
+const AUTH_ENABLED = Boolean(AUTH_EMAIL && AUTH_PASSWORD);
+const sessions = new Set();
+// Secret de signature des liens d'invitation (dérivé du mot de passe : pas de config en plus).
+const SIGN_SECRET = AUTH_PASSWORD || "cpwire-invite-secret";
+
+// Jeton déterministe (dérivé des identifiants) : il reste valable même après
+// un redémarrage de Render, contrairement à l'ancien jeton aléatoire stocké en mémoire.
+function expectedToken() {
+  return crypto.createHash("sha256").update(`cpwire|${AUTH_EMAIL}|${AUTH_PASSWORD}`).digest("hex");
 }
 
-export function isConfigured() {
-  return Boolean(BASE_URL && EMAIL && TOKEN);
+// ---- Invitation lecture seule : jeton "invité" signé, avec expiration ----
+// Format : g.<expirationMs>.<signature>  — auto-vérifiable, sans stockage (survit aux redémarrages).
+function sign(payload) {
+  return crypto.createHmac("sha256", SIGN_SECRET).update(payload).digest("hex");
 }
-
-// Champs récupérés pour chaque ticket (l'API enrichie ne renvoie que ce qu'on demande).
-const FIELDS = [
-  "summary",
-  "status",
-  "assignee",
-  "priority",
-  "duedate",
-  "project",
-  "updated",
-  "created",
-  "resolutiondate",
-  "labels",
-];
-
-// Le drapeau "Flagged" (impediment) est un champ personnalisé dont l'id varie selon l'instance.
-// On le découvre une fois via /rest/api/3/field, puis on l'ajoute aux champs récupérés.
-let flaggedFieldId = null;
-let flaggedResolved = false;
-async function ensureFlaggedField() {
-  if (flaggedResolved) return;
-  flaggedResolved = true;
+function safeEqual(a, b) {
   try {
-    const res = await fetch(`${BASE_URL}/rest/api/3/field`, {
-      headers: { Authorization: authHeader(), Accept: "application/json" },
-    });
-    if (!res.ok) return;
-    const fields = await res.json();
-    const f = (fields || []).find((x) => (x.name || "").toLowerCase() === "flagged");
-    if (f) flaggedFieldId = f.id;
-  } catch { /* on continue sans le drapeau */ }
+    const ba = Buffer.from(a || "", "utf8"), bb = Buffer.from(b || "", "utf8");
+    return ba.length === bb.length && crypto.timingSafeEqual(ba, bb);
+  } catch { return false; }
 }
-function isFlagged(f) {
-  const v = flaggedFieldId ? f[flaggedFieldId] : f.flagged;
-  if (Array.isArray(v)) return v.length > 0;
-  return Boolean(v);
+function makeGuestToken(expMs) {
+  return `g.${expMs}.${sign(`guest|${expMs}`)}`;
+}
+function checkGuestToken(t) {
+  if (!t || typeof t !== "string" || !t.startsWith("g.")) return null;
+  const parts = t.split(".");
+  if (parts.length !== 3) return null;
+  const expMs = Number(parts[1]);
+  if (!Number.isFinite(expMs) || Date.now() > expMs) return null;       // expiré
+  if (!safeEqual(parts[2], sign(`guest|${expMs}`))) return null;        // signature invalide
+  return { expMs };
 }
 
-// Appelle l'endpoint de recherche enrichie et suit la pagination jusqu'au bout.
-// fetch avec délai maximum : évite qu'une requête Jira qui ne répond pas bloque l'import à l'infini
-// (sinon l'actualisation reste figée, la barre simulée parquée à ~92 %).
-async function fetchWithTimeout(url, opts = {}, ms = 30000) {
-  const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), ms);
-  try {
-    return await fetch(url, { ...opts, signal: ctrl.signal });
-  } catch (e) {
-    if (e && e.name === "AbortError") throw new Error(`Jira n'a pas répondu sous ${Math.round(ms / 1000)} s (page d'import interrompue). Réessaie « Tout recharger ».`);
-    throw e;
-  } finally {
-    clearTimeout(timer);
+// Détermine le rôle de la requête : "owner" (accès total) ou "guest" (lecture seule).
+function guard(req, res, next) {
+  if (!AUTH_ENABLED) { req.role = "owner"; return next(); }
+  const t = req.headers["x-access-token"];
+  if (t && (t === expectedToken() || sessions.has(t))) { req.role = "owner"; return next(); }
+  if (checkGuestToken(t)) { req.role = "guest"; return next(); }
+  return res.status(401).json({ error: "Authentification requise." });
+}
+
+// À placer APRÈS guard sur toute route qui modifie des données ou déclenche un envoi :
+// un invité (lecture seule) reçoit 403.
+function writeGuard(req, res, next) {
+  if (req.role === "guest") {
+    return res.status(403).json({ error: "Action non autorisée : accès invité en lecture seule." });
   }
+  next();
 }
 
-export async function searchIssues(jql) {
-  if (!isConfigured()) {
-    throw new Error(
-      "Jira non configuré : renseigne JIRA_BASE_URL, JIRA_EMAIL et JIRA_API_TOKEN dans server/.env"
-    );
-  }
+app.use(cors());
+app.use(express.json({ limit: "8mb" }));
 
-  await ensureFlaggedField();
-  const fields = flaggedFieldId ? [...FIELDS, flaggedFieldId] : FIELDS;
+// Photo persistante du portefeuille (chargée au démarrage si elle existe).
+let snap = loadSnapshot();                                   // { syncedAt, issues }
+let snapMap = new Map((snap.issues || []).map((i) => [i.cle, i]));
+let importing = false;       // un import complet tourne-t-il en arrière-plan ?
+let importError = null;      // dernière erreur d'import (affichée à l'utilisateur)
 
-  const url = `${BASE_URL}/rest/api/3/search/jql`;
-  const issues = [];
-  let nextPageToken;
-  let guard = 0;
-  const MAX_PAGES = 2000;
+// Import complet EN ARRIÈRE-PLAN : ne bloque jamais une requête HTTP (évite les coupures
+// proxy de Render sur requête longue, et donc le gel de la barre à 92 %).
+async function runFullImport() {
+  if (importing) return;
+  importing = true; importError = null;
   const t0 = Date.now();
-  console.log(`[import v2] début · jql="${String(jql).slice(0, 90)}"`);
-
-  do {
-    const body = { jql, maxResults: 100, fields };
-    if (nextPageToken) body.nextPageToken = nextPageToken;
-
-    const res = await fetchWithTimeout(url, {
-      method: "POST",
-      headers: {
-        Authorization: authHeader(),
-        Accept: "application/json",
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    }, 30000);
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      console.error(`[import v2] ERREUR Jira ${res.status} à la page ${guard + 1} : ${text.slice(0, 200)}`);
-      throw new Error(`Jira a répondu ${res.status} : ${text.slice(0, 300)}`);
-    }
-
-    const data = await res.json();
-    (data.issues || []).forEach((it) => issues.push(normalize(it)));
-    guard += 1;
-    console.log(`[import v2] page ${guard} · +${(data.issues || []).length} (total ${issues.length}) · isLast=${data.isLast === true}`);
-    nextPageToken = data.isLast ? undefined : data.nextPageToken;
-  } while (nextPageToken && guard < MAX_PAGES);
-
-  console.log(`[import v2] TERMINÉ · ${issues.length} tickets · ${guard} page(s) · ${Date.now() - t0} ms`);
-  return issues;
-}
-
-
-// Extrait le texte brut d'un contenu ADF (format riche de Jira).
-function adfToText(node) {
-  if (!node) return "";
-  if (typeof node === "string") return node;
-  let out = "";
-  if (node.text) out += node.text;
-  if (Array.isArray(node.content)) out += node.content.map(adfToText).join(node.type === "paragraph" ? "" : " ");
-  if (node.type === "paragraph" || node.type === "heading") out += "\n";
-  return out;
-}
-
-// Transforme un ticket Jira brut en objet simple et stable pour le cockpit.
-function normalize(it) {
-  const f = it.fields || {};
-  const statusName = f.status?.name || "";
-  const statusCat = f.status?.statusCategory?.key || "";
-  const flagged = isFlagged(f);
-  const labels = f.labels || [];
-  const statut = bucketFromStatus(statusName, statusCat, flagged, labels);
-
-  const due = f.duedate ? new Date(f.duedate) : null;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const enRetard = Boolean(due && due < today && statut !== "Terminé");
-
-  const assigne = f.assignee?.displayName ? displayName(f.assignee.displayName) : "Non assigné";
-  const summary = f.summary || "";
-  return {
-    cle: it.key,
-    mine: assigne === ME,
-    projet: f.project?.key || "",
-    dossier: dossierFromKey(it.key),
-    engagement: engagementFromKey(it.key), // "TMA" (projet T…) ou "Projet" (projet P…)
-    resume: summary,
-    prog: findProgram(summary), // localisation IBM i du programme (référentiel Arcad), ou repère "à compléter"
-    assigne,
-    assigneEmail: f.assignee?.emailAddress || "", // souvent masqué par Jira (vie privée)
-    dev: devFromIssue(assigne, summary, labels), // dév principal (assigné, sinon titre, sinon étiquette)
-    contributors: contributorsFromIssue(assigne, summary, labels), // tous les intervenants (assigné + titre + étiquettes)
-    labels,
-    priorite: f.priority?.name || "",
-    statutJira: statusName,
-    statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)
-    categorie: categoryFromStatus(statusName), // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
-    echeance: f.duedate || null,
-    enRetard,
-    flagged,
-    descriptionText: "", // chargée à la demande (voir fetchIssueDescription) pour accélérer l'import
-    maj: f.updated || null,
-    cree: f.created || null,
-    resolu: f.resolutiondate || null,
-    url: `${BASE_URL}/browse/${it.key}`,
-  };
-}
-
-// Met en forme une durée Jira (secondes) en "Xh Ym".
-function fmtSeconds(sec) {
-  if (!sec) return "0h";
-  const h = Math.floor(sec / 3600);
-  const m = Math.round((sec % 3600) / 60);
-  return [h ? `${h}h` : "", m ? `${m}m` : ""].filter(Boolean).join(" ") || "0h";
-}
-
-// Récupère, pour UN ticket, l'historique (qui a fait quoi, quand) et les heures saisies (worklogs).
-// Appel à la demande (ouverture d'un ticket), donc sans impact sur la vitesse d'actualisation.
-export async function fetchIssueActivity(key) {
-  if (!isConfigured() || !key) return { timeline: [], worklogs: [], totalTime: "0h", totalSeconds: 0 };
-  const headers = { Authorization: authHeader(), Accept: "application/json" };
-  const enc = encodeURIComponent(key);
-
-  // 1) Historique des changements (statut, assigné, drapeau, etc.)
-  const timeline = [];
+  console.log("[import] arrière-plan : démarrage");
   try {
-    const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}?expand=changelog&fields=summary`, { headers });
-    if (r.ok) {
-      const data = await r.json();
-      const histories = data.changelog?.histories || [];
-      const KEEP = new Set(["status", "assignee", "resolution", "Flagged", "priority"]);
-      histories.forEach((h) => {
-        const who = displayName(h.author?.displayName || "—");
-        const date = h.created;
-        (h.items || []).forEach((it) => {
-          if (!KEEP.has(it.field) && !KEEP.has(it.fieldId)) return;
-          const champ = it.field === "status" ? "Statut"
-            : it.field === "assignee" ? "Assigné"
-            : it.field === "resolution" ? "Résolution"
-            : it.field === "priority" ? "Priorité"
-            : it.field === "Flagged" ? "Drapeau" : it.field;
-          const from = it.fromString || "∅";
-          const to = it.toString || "∅";
-          timeline.push({ date, who, champ, from, to });
-        });
-      });
-    }
-  } catch { /* ignore */ }
-
-  // 2) Heures saisies (worklogs)
-  const worklogs = [];
-  let totalSeconds = 0;
-  try {
-    const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}/worklog`, { headers });
-    if (r.ok) {
-      const data = await r.json();
-      (data.worklogs || []).forEach((w) => {
-        const seconds = w.timeSpentSeconds || 0;
-        totalSeconds += seconds;
-        worklogs.push({
-          who: displayName(w.author?.displayName || "—"),
-          date: w.started || w.created || null,
-          time: w.timeSpent || fmtSeconds(seconds),
-          seconds,
-          comment: adfToText(w.comment).trim().slice(0, 300),
-        });
-      });
-    }
-  } catch { /* ignore */ }
-
-  timeline.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-  worklogs.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
-
-  return { timeline, worklogs, totalTime: fmtSeconds(totalSeconds), totalSeconds };
-}
-
-// Pour les RÉCAPS : QUI a réellement fait avancer chaque ticket sur une période.
-// On lit UNIQUEMENT le changelog (pas les worklogs) → 2× moins d'appels.
-// Concurrence limitée (6 en parallèle) + plafond pour rester rapide sur les grosses périodes.
-export async function fetchStatusTransitions(keys = [], startISO = null, endISO = null, cap = 90) {
-  if (!isConfigured() || !keys.length) return { configured: isConfigured(), items: [], scanned: 0, total: keys.length, capped: false };
-  const headers = { Authorization: authHeader(), Accept: "application/json" };
-  const sT = startISO ? new Date(startISO).getTime() : -Infinity;
-  const eT = endISO ? new Date(endISO).getTime() : Infinity;
-  const inRange = (d) => { const t = new Date(d).getTime(); return !isNaN(t) && t >= sT && t < eT; };
-  const list = keys.slice(0, cap);
-  const capped = keys.length > cap;
-  const items = [];
-  const fetchOne = async (key) => {
-    const enc = encodeURIComponent(key);
-    try {
-      const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}?expand=changelog&fields=summary`, { headers });
-      if (!r.ok) return { cle: key, transitions: [] };
-      const data = await r.json();
-      const transitions = [];
-      (data.changelog?.histories || []).forEach((h) => {
-        if (!inRange(h.created)) return;
-        const who = displayName(h.author?.displayName || "—");
-        (h.items || []).forEach((it) => {
-          if (it.field !== "status") return;
-          transitions.push({ to: it.toString || "", from: it.fromString || "", who, date: h.created });
-        });
-      });
-      return { cle: key, transitions };
-    } catch { return { cle: key, transitions: [] }; }
-  };
-  const CONC = 6;
-  for (let i = 0; i < list.length; i += CONC) {
-    const res = await Promise.all(list.slice(i, i + CONC).map(fetchOne));
-    items.push(...res);
+    const issues = await searchIssues(DEFAULT_JQL);
+    snapMap = new Map(issues.map((i) => [i.cle, i]));
+    snap = { syncedAt: new Date().toISOString(), issues };
+    saveSnapshot(snap);
+    console.log(`[import] arrière-plan : PRÊT — ${issues.length} tickets en ${Date.now() - t0} ms`);
+  } catch (e) {
+    importError = String(e.message || e);
+    console.error(`[import] arrière-plan : ÉCHEC — ${importError}`);
+  } finally {
+    importing = false;
   }
-  return { configured: true, items, scanned: list.length, total: keys.length, capped };
 }
 
-// Récupère la description d'UN seul ticket, à la demande (ouverture d'un ticket).
-export async function fetchIssueDescription(key) {
-  if (!isConfigured() || !key) return "";
-  const url = `${BASE_URL}/rest/api/3/issue/${encodeURIComponent(key)}?fields=description`;
-  try {
-    const res = await fetch(url, {
-      headers: { Authorization: authHeader(), Accept: "application/json" },
+function isToday(iso) {
+  if (!iso) return false;
+  const d = new Date(iso), n = new Date();
+  return d.getFullYear() === n.getFullYear() && d.getMonth() === n.getMonth() && d.getDate() === n.getDate();
+}
+
+function aggregate(issues, source) {
+  const by = (key) => {
+    const m = {};
+    issues.forEach((i) => {
+      const k = i[key];
+      m[k] = m[k] || { total: 0, ...Object.fromEntries(STATUTS.map((s) => [s, 0])), enRetard: 0 };
+      m[k].total += 1; m[k][i.statut] += 1; if (i.enRetard) m[k].enRetard += 1;
     });
-    if (!res.ok) return "";
-    const data = await res.json();
-    return adfToText(data.fields?.description).trim().slice(0, 4000);
-  } catch {
-    return "";
-  }
+    return m;
+  };
+  const total = issues.length;
+  const termines = issues.filter((i) => i.statut === "Terminé").length;
+  const parProjet = {};
+  issues.forEach((i) => { parProjet[i.projet] = (parProjet[i.projet] || 0) + 1; });
+  // Diagnostic d'import : un projet configuré qui remonte 0 = clé erronée ou accès manquant.
+  const manquants = PROJECTS.filter((pk) => !parProjet[pk]);
+  return {
+    source, generatedAt: new Date().toISOString(), me: ME,
+    diagnostic: { configuredProjects: PROJECTS, parProjet, projetsSansTicket: manquants, totalImporte: total },
+    kpis: {
+      total, "À faire": issues.filter((i) => i.statut === "À faire").length,
+      "En cours": issues.filter((i) => i.statut === "En cours").length,
+      "Bloqué": issues.filter((i) => i.statut === "Bloqué").length, "Terminé": termines,
+      enRetard: issues.filter((i) => i.enRetard).length, mine: issues.filter((i) => i.mine).length,
+      avancement: total ? Math.round((termines / total) * 100) : 0,
+    },
+    parDossier: by("dossier"), issues,
+  };
 }
 
-// Pour la fiche développeur : sur ses tickets ACTIFS, combien d'heures CE dev a saisi,
-// depuis quand il en est assigné, et sa dernière activité réelle. Appels à la demande.
-export async function fetchDevWork(devName, keys = []) {
-  if (!isConfigured() || !devName || !keys.length) return { configured: isConfigured(), items: [] };
-  const dn = String(devName).trim().toLowerCase();
-  const out = [];
-  for (const key of keys.slice(0, 10)) {
-    try {
-      const a = await fetchIssueActivity(key);
-      let sec = 0, lastWork = null;
-      (a.worklogs || []).forEach((w) => {
-        if (String(w.who || "").trim().toLowerCase() === dn) {
-          sec += w.seconds || 0;
-          if (w.date && (!lastWork || String(w.date) > String(lastWork))) lastWork = w.date;
-        }
-      });
-      let since = null;
-      (a.timeline || []).forEach((t) => {
-        if (t.champ === "Assigné" && String(t.to || "").trim().toLowerCase() === dn) {
-          if (!since || String(t.date) > String(since)) since = t.date;
-        }
-      });
-      out.push({ cle: key, heuresDevSec: sec, heuresDev: fmtSeconds(sec), depuisAssigne: since, derniereActivite: lastWork, totalTime: a.totalTime });
-    } catch {
-      out.push({ cle: key, heuresDevSec: 0, heuresDev: "0h", depuisAssigne: null, derniereActivite: null, totalTime: "0h" });
+// Format de date attendu par JQL : "yyyy/MM/dd HH:mm".
+function jqlDate(d) {
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+// JQL incrémental : uniquement les tickets modifiés depuis la dernière synchro (avec 5 min de marge).
+function incrementalJql(sinceIso) {
+  const d = new Date(new Date(sinceIso).getTime() - 5 * 60 * 1000);
+  return `project in (${PROJECTS.join(",")}) AND updated >= "${jqlDate(d)}" ORDER BY updated DESC`;
+}
+// Recalcule "en retard" à la lecture (la date du jour avance même sans mouvement du ticket).
+function withLate(issues) {
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  return issues.map((i) => {
+    const due = i.echeance ? new Date(i.echeance) : null;
+    const enRetard = Boolean(due && due < today && i.statut !== "Terminé");
+    return enRetard === i.enRetard ? i : { ...i, enRetard };
+  });
+}
+
+// Récupère les tickets. Stratégie :
+//  - 1er chargement (aucune photo) ou « Tout recharger » -> récupération COMPLÈTE depuis Jira.
+//  - lecture simple -> on sert la mémoire (aucun appel réseau).
+//  - actualisation -> INCRÉMENTALE : on ne va chercher que ce qui a bougé.
+async function getIssues(arg, jqlArg) {
+  const opts = (typeof arg === "object" && arg !== null) ? arg : { refresh: Boolean(arg), jql: jqlArg };
+
+  if (isConfigured()) {
+    // Requête personnalisée (avancé) : recherche complète sans toucher à la photo.
+    if (opts.jql) {
+      const issues = await searchIssues(opts.jql);
+      return { issues: withLate(issues), source: "Jira (requête)", changed: [] };
     }
-  }
-  return { configured: true, items: out };
-}
 
-// Pour les NOTIFICATIONS : sur les tickets modifiés, renvoie le dernier évènement réel
-// (qui a changé quoi, ou qui a saisi du temps, et quand) — même source que "Historique & temps".
-export async function fetchChangesSummary(keys = []) {
-  if (!isConfigured() || !keys.length) return { configured: isConfigured(), items: [] };
-  const out = [];
-  for (const key of keys.slice(0, 8)) {
-    try {
-      const a = await fetchIssueActivity(key);
-      const tl = (a.timeline && a.timeline[0]) || null;
-      const wl = (a.worklogs && a.worklogs[0]) || null;
-      const cand = [];
-      if (tl) cand.push({ kind: "change", date: tl.date, who: tl.who, text: `${tl.champ} : ${tl.from} → ${tl.to}` });
-      if (wl) cand.push({ kind: "time", date: wl.date, who: wl.who, text: `a saisi ${wl.time}` });
-      cand.sort((x, y) => String(y.date || "").localeCompare(String(x.date || "")));
-      const e = cand[0];
-      out.push(e
-        ? { cle: key, who: e.who, action: e.text, kind: e.kind, at: e.date }
-        : { cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
-    } catch {
-      out.push({ cle: key, who: "", action: "Mis à jour", kind: "update", at: null });
+    const haveSnap = snapMap.size > 0 && snap.syncedAt;
+    if (opts.full || !haveSnap) {
+      // Déclenche l'import EN ARRIÈRE-PLAN (réponse immédiate). On ne relance pas à chaque sondage :
+      //  - full demandé -> on force (re)l'import ;
+      //  - sinon, on ne lance que s'il n'y a ni import en cours ni erreur précédente (sinon on rapporte l'état).
+      if (opts.full || (!importing && !importError)) runFullImport();
+      return {
+        issues: withLate(snap.issues || []),
+        source: haveSnap ? "mémoire (réimport en cours)" : (importing ? "import initial en cours" : (importError ? "import en échec" : "import initial")),
+        changed: [],
+        importing,
+        importError,
+      };
     }
+
+    if (!opts.refresh) {
+      return { issues: withLate(snap.issues), source: "mémoire", changed: [], importing, importError };
+    }
+
+    // Actualisation incrémentale.
+    console.log(`[getIssues] incrémental depuis ${snap.syncedAt}`);
+    const updated = await searchIssues(incrementalJql(snap.syncedAt));
+    const changed = [];
+    for (const it of updated) {
+      const prev = snapMap.get(it.cle);
+      if (!prev || prev.maj !== it.maj || prev.statut !== it.statut || prev.categorie !== it.categorie) changed.push(it.cle);
+      snapMap.set(it.cle, it);
+    }
+    snap = { syncedAt: new Date().toISOString(), issues: Array.from(snapMap.values()) };
+    saveSnapshot(snap);
+    return {
+      issues: withLate(snap.issues),
+      source: `Jira (incrémental · ${updated.length} vérifié${updated.length > 1 ? "s" : ""})`,
+      changed,
+      importing,
+      importError,
+    };
   }
-  return { configured: true, items: out };
+
+  if (ALLOW_DEMO) return { issues: DEMO_ISSUES.map((i) => ({ ...i, mine: i.assigne === ME, prog: findProgram(i.resume) })), source: "DÉMO (ALLOW_DEMO=1)", changed: [] };
+  return null; // ni Jira, ni démo -> écran de configuration
 }
 
-// CRA — Compte rendu d'activité : consolide les temps saisis (worklogs Jira) sur une période,
-// par projet/client ET par personne. C'est la matière du « qui a fait quoi, sur quel projet, combien de temps ».
-// Honnêteté : ne reflète QUE les temps réellement saisis dans Jira (pas de temps inventé).
-async function mapLimit(items, limit, fn) {
-  const out = [];
-  for (let i = 0; i < items.length; i += limit) {
-    const res = await Promise.all(items.slice(i, i + limit).map(fn));
-    out.push(...res);
+// ---- Auth ----
+app.post("/api/login", (req, res) => {
+  const { email, password } = req.body || {};
+  if (!AUTH_ENABLED) {
+    const t = crypto.randomUUID(); sessions.add(t);
+    return res.json({ token: t, me: ME, note: "Auth non configurée côté serveur." });
   }
+  if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
+    const t = expectedToken(); sessions.add(t);
+    return res.json({ token: t, me: ME });
+  }
+  return res.status(401).json({ error: "Identifiants incorrects." });
+});
+
+// Rôle de la session courante : l'interface s'en sert pour activer le mode lecture seule.
+app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: ME }));
+
+// Génère un lien d'invitation en lecture seule (réservé à l'owner). hours = durée de validité.
+app.post("/api/invite", guard, writeGuard, (req, res) => {
+  const raw = Number(req.body?.hours);
+  const hours = Math.min(Math.max(Number.isFinite(raw) ? raw : 24, 1), 720); // 1 h … 30 jours
+  const expMs = Date.now() + hours * 3600 * 1000;
+  const token = makeGuestToken(expMs);
+  res.json({ token, expiresAt: new Date(expMs).toISOString(), hours });
+});
+
+app.get("/api/health", (_req, res) =>
+  res.json({ ok: true, app: "CPwire", authEnabled: AUTH_ENABLED, jiraConfigured: isConfigured(),
+    ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), me: ME, projects: PROJECTS, allowDemo: ALLOW_DEMO }));
+
+app.get("/api/portfolio", guard, async (req, res) => {
+  try {
+    const got = await getIssues({ refresh: req.query.refresh === "1", full: req.query.full === "1", jql: req.query.jql });
+    if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
+    const payload = aggregate(got.issues, got.source);
+    payload.inactiveDevs = inactiveDevNames(got.issues, INACTIVE_MONTHS);
+    payload.inactiveMonths = INACTIVE_MONTHS;
+    payload.changed = got.changed || [];
+    payload.syncedAt = snap.syncedAt || null;
+    payload.importing = Boolean(got.importing);
+    payload.importError = got.importError || null;
+    res.json(payload);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Retire des tickets les personnes SANS activité depuis N mois (par défaut 2) :
+// elles ne doivent plus apparaître comme développeurs nulle part dans l'app.
+// L'activité = dernière mise à jour (maj) d'un ticket où la personne intervient,
+// calculée sur TOUT le jeu de tickets (donc une personne active ailleurs est conservée).
+const INACTIVE_MONTHS = Number(process.env.DEV_INACTIVITY_MONTHS) || 2;
+function pruneInactiveDevs(issues, months = INACTIVE_MONTHS) {
+  if (!Array.isArray(issues) || !issues.length || months <= 0) return issues;
+  const cutoff = Date.now() - months * 30 * 24 * 3600 * 1000; // ~N mois
+  const last = new Map(); // personne -> date de dernière activité (ms)
+  const bump = (name, t) => { if (!name || name === "Non assigné") return; if (t > (last.get(name) || 0)) last.set(name, t); };
+  for (const i of issues) {
+    const t = new Date(i.maj || i.resolu || i.cree || 0).getTime();
+    if (isNaN(t)) continue;
+    bump(i.dev, t); bump(i.assigne, t);
+    for (const c of (i.contributors || [])) bump(c, t);
+  }
+  let any = false; for (const t of last.values()) if (t < cutoff) { any = true; break; }
+  if (!any) return issues;
+  const stale = (name) => !!name && name !== "Non assigné" && (last.get(name) || 0) < cutoff;
+  return issues.map((i) => {
+    const dev = stale(i.dev) ? "" : i.dev;
+    const assigne = stale(i.assigne) ? "" : i.assigne;
+    const contributors = (i.contributors || []).filter((c) => !stale(c));
+    if (dev === i.dev && assigne === i.assigne && contributors.length === (i.contributors || []).length) return i;
+    return { ...i, dev, assigne, contributors };
+  });
+}
+
+// Renvoie la LISTE des personnes sans activité depuis N mois (même calcul que le prune),
+// mais SANS vider leur nom : on les signale pour les ranger en « Anciens développeurs ».
+function inactiveDevNames(issues, months = INACTIVE_MONTHS) {
+  if (!Array.isArray(issues) || !issues.length || months <= 0) return [];
+  const cutoff = Date.now() - months * 30 * 24 * 3600 * 1000;
+  const last = new Map();
+  const bump = (name, t) => { if (!name || name === "Non assigné") return; if (t > (last.get(name) || 0)) last.set(name, t); };
+  for (const i of issues) {
+    const t = new Date(i.maj || i.resolu || i.cree || 0).getTime();
+    if (isNaN(t)) continue;
+    bump(i.dev, t); bump(i.assigne, t);
+    for (const c of (i.contributors || [])) bump(c, t);
+  }
+  const out = [];
+  for (const [name, t] of last.entries()) if (t < cutoff) out.push(name);
   return out;
 }
 
-export async function fetchCRA({ start, end } = {}) {
-  if (!isConfigured()) throw new Error("Jira non configuré : renseigne JIRA_BASE_URL, JIRA_EMAIL et JIRA_API_TOKEN.");
-  if (!start || !end) return { start, end, byPerson: [], byProject: [], totalSeconds: 0, totalTime: "0h", scanned: 0, total: 0, capped: false };
-
-  // 1) Tickets ayant AU MOINS un temps saisi dans la période (JQL worklogDate).
-  const jql = `worklogDate >= "${start}" AND worklogDate <= "${end}" ORDER BY updated DESC`;
-  const issues = await searchIssues(jql); // déjà normalisés (cle, dossier, resume, statut, categorie…)
-  const CAP = 150; // garde-fou : on plafonne le nombre de tickets scannés pour le détail des worklogs
-  const capped = issues.length > CAP;
-  const scan = issues.slice(0, CAP);
-
-  // 2) Pour chaque ticket, on récupère ses worklogs (en parallèle par lots) et on ne garde que ceux de la période.
-  const headers = { Authorization: authHeader(), Accept: "application/json" };
-  const inRange = (iso) => { if (!iso) return false; const d = String(iso).slice(0, 10); return d >= start && d <= end; };
-  const rows = await mapLimit(scan, 8, async (it) => {
-    let data = null;
-    try { const r = await fetch(`${BASE_URL}/rest/api/3/issue/${encodeURIComponent(it.cle)}/worklog`, { headers }); if (r.ok) data = await r.json(); } catch { /* ignore */ }
-    const wls = ((data && data.worklogs) || [])
-      .filter((w) => inRange(w.started || w.created))
-      .map((w) => ({ who: displayName(w.author?.displayName || "—"), seconds: w.timeSpentSeconds || 0, date: w.started || w.created || null }))
-      .filter((w) => w.seconds > 0);
-    return { it, wls };
-  });
-
-  // 3) Agrégation par personne et par projet.
-  const personMap = {}; // who -> { who, seconds, projects: { dossier: { dossier, seconds, tickets: {cle:{...}} } } }
-  const projectMap = {}; // dossier -> { dossier, seconds, persons: {who:sec}, tickets: {cle:{...}} }
-  let totalSeconds = 0;
-  for (const { it, wls } of rows) {
-    const dossier = it.dossier || it.projet || "Autre";
-    for (const w of wls) {
-      totalSeconds += w.seconds;
-      // par personne
-      const P = (personMap[w.who] ||= { who: w.who, seconds: 0, projects: {} });
-      P.seconds += w.seconds;
-      const PP = (P.projects[dossier] ||= { dossier, seconds: 0, tickets: {} });
-      PP.seconds += w.seconds;
-      const PT = (PP.tickets[it.cle] ||= { cle: it.cle, resume: it.resume, statut: it.statut, statutJira: it.statutJira, done: DONE_CATS.includes(it.categorie), seconds: 0 });
-      PT.seconds += w.seconds;
-      // par projet
-      const J = (projectMap[dossier] ||= { dossier, seconds: 0, persons: {}, tickets: {} });
-      J.seconds += w.seconds;
-      J.persons[w.who] = (J.persons[w.who] || 0) + w.seconds;
-      const JT = (J.tickets[it.cle] ||= { cle: it.cle, resume: it.resume, statut: it.statut, statutJira: it.statutJira, done: DONE_CATS.includes(it.categorie), seconds: 0, who: {} });
-      JT.seconds += w.seconds;
-      JT.who[w.who] = (JT.who[w.who] || 0) + w.seconds;
-    }
-  }
-
-  const tList = (tk) => Object.values(tk).sort((a, b) => b.seconds - a.seconds).map((t) => ({ ...t, time: fmtSeconds(t.seconds), who: t.who ? Object.keys(t.who) : undefined }));
-  const byPerson = Object.values(personMap).map((p) => ({
-    who: p.who, seconds: p.seconds, time: fmtSeconds(p.seconds),
-    projects: Object.values(p.projects).sort((a, b) => b.seconds - a.seconds)
-      .map((pr) => ({ dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds), tickets: tList(pr.tickets) })),
-  })).sort((a, b) => b.seconds - a.seconds);
-  const byProject = Object.values(projectMap).map((pr) => ({
-    dossier: pr.dossier, seconds: pr.seconds, time: fmtSeconds(pr.seconds),
-    persons: Object.entries(pr.persons).map(([who, sec]) => ({ who, seconds: sec, time: fmtSeconds(sec) })).sort((a, b) => b.seconds - a.seconds),
-    tickets: tList(pr.tickets),
-  })).sort((a, b) => b.seconds - a.seconds);
-
-  return { start, end, totalSeconds, totalTime: fmtSeconds(totalSeconds), byPerson, byProject, scanned: scan.length, total: issues.length, capped };
+// Exclut les tickets dont le développeur (ou l'assigné) a été supprimé/masqué :
+// ces personnes ne doivent plus apparaître dans les récaps ni les comptes rendus.
+// On y applique aussi le filtrage des développeurs inactifs (> 2 mois).
+function withoutDeletedDevs(issues) {
+  const pruned = pruneInactiveDevs(issues);
+  const del = new Set(readDeleted());
+  if (!del.size) return pruned;
+  return pruned.filter((i) => !del.has(i.dev) && !del.has(i.assigne));
 }
+
+app.get("/api/recap", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
+    const visible = withoutDeletedDevs(got.issues);
+    const useToday = visible.some((i) => isToday(i.maj));
+    const todays = useToday ? visible.filter((i) => isToday(i.maj)) : visible;
+    const byDossier = {};
+    todays.forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
+    res.json({ generatedAt: new Date().toISOString(), basis: useToday ? "aujourd'hui" : "tout l'historique", byDossier });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/daily", guard, async (req, res) => {
+  try {
+    const dossier = req.body.dossier;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
+    // Qui a réellement fait avancer les tickets aujourd'hui (historique Jira).
+    const startToday = new Date(); startToday.setHours(0, 0, 0, 0);
+    const todayKeys = sub.filter((i) => i.maj && new Date(i.maj) >= startToday).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(todayKeys, startToday.toISOString(), null);
+    const out = await dailyReport(dossier, sub, null, tr.items);
+    logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/daily-period", guard, async (req, res) => {
+  try {
+    const { dossier, startISO, endISO, label } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const scope = (!dossier || dossier === "Tous" || dossier === "Tous les clients") ? null : dossier;
+    const sub = withoutDeletedDevs(got.issues).filter((i) => !scope || i.dossier === scope);
+    // Candidats = tickets modifiés sur la période ; on lit leur historique pour créditer le bon acteur.
+    const sT = startISO ? new Date(startISO).getTime() : -Infinity;
+    const eT = endISO ? new Date(endISO).getTime() : Infinity;
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const keys = sub.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(keys, startISO, endISO);
+    const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label }, tr.items);
+    logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, scanned: tr.scanned, capped: tr.capped, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Pilotage des engagements (SLA) : respect du GTR par dossier, calculé depuis le snapshot.
+app.get("/api/sla", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = withoutDeletedDevs(got.issues);
+    res.json(buildSlaReport(sub));
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Contrôle qualité : on lit le snapshot BRUT (pas de filtre devs) pour pouvoir
+// justement signaler les tickets encore assignés à un parti.
+app.get("/api/hygiene", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    res.json(buildHygiene(got.issues, readDeleted()));
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Dolibarr (lecture seule) — sonde de découverte : que des noms de champs, aucune valeur client.
+app.get("/api/dolibarr/status", guard, (_req, res) => res.json(dolibarrStatus()));
+app.get("/api/dolibarr/probe", guard, async (_req, res) => {
+  try { res.json(await dolibarrProbe()); }
+  catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Référentiel Recette (socle) : Domaine → Option → Programmes → tickets Jira (rapprochement auto).
+app.get("/api/referentiel/clients", guard, (_req, res) => res.json({ clients: referentielClients() }));
+app.get("/api/projets", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    const data = buildProjets(got ? withoutDeletedDevs(got.issues) : []);
+    res.json(data);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+app.get("/api/referentiel", guard, async (req, res) => {
+  try {
+    const client = req.query.client || (referentielClients()[0] || "");
+    if (!client) return res.json({ client: "", domaines: [], nbOptions: 0, nbProgrammes: 0 });
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const data = crossReferentiel(got.issues, client);
+    if (!data) return res.status(404).json({ error: `Aucun référentiel pour « ${client} ».` });
+    res.json(data);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/written", guard, async (req, res) => {
+  try {
+    const dossier = req.body.dossier;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
+    const out = await writtenDailyReport(dossier, sub);
+    logEvent("cr_ecrit", `CR écrit - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/date", guard, async (req, res) => {
+  try {
+    const { dossier, dateISO, startISO, endISO, label } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const visible = withoutDeletedDevs(got.issues);
+    const range = (startISO || endISO || label) ? { startISO, endISO, label } : dateISO; // plage, sinon compat jour unique
+    const out = await writtenDateReport(dossier, range, visible);
+    logEvent("cr_date", `CR rédigé - ${dossier || "Tous"} - ${label || dateISO || "?"}`, { dossier: dossier || "Tous", periode: label || dateISO, via: out.generatedBy });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/cr/morning", guard, async (req, res) => {
+  try {
+    const dossier = req.body.dossier;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = dossier && dossier !== "Tous" ? got.issues.filter((i) => i.dossier === dossier) : got.issues;
+    // Ensemble des contacts côté CLIENT (pour ne garder que les gens d'Armonie dans le brief).
+    const clientNames = new Set();
+    try {
+      for (const d of readDossiers()) {
+        for (const m of (d.team || [])) {
+          if (m && m.cote === "Client" && m.nom) clientNames.add(m.nom.trim().toLowerCase());
+        }
+      }
+    } catch {}
+    const out = await morningReport(dossier || "Tous les clients", sub, clientNames);
+    logEvent("brief_matin", `Brief matinal - ${dossier || "tous"}`, { dossier: dossier || "Tous", count: sub.length });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Cache des explications (clé + date de maj) pour ne pas régénérer/repayer inutilement.
+const explainCache = new Map();
+
+// Explication SIMPLE d'un ticket, pour non-technique.
+app.post("/api/ticket/explain", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    const t = (got?.issues || []).find((i) => i.cle === req.body.cle);
+    if (!t) return res.status(404).json({ error: "Ticket introuvable." });
+    const cacheKey = `${t.cle}@${t.maj}`;
+    if (explainCache.has(cacheKey)) return res.json({ explication: explainCache.get(cacheKey), cached: true });
+    // La description n'est plus chargée en masse : on va la chercher pour CE ticket.
+    let ticket = t;
+    if (isConfigured() && !t.descriptionText) {
+      const desc = await fetchIssueDescription(t.cle);
+      if (desc) ticket = { ...t, descriptionText: desc };
+    }
+    const explication = await explainTicket(ticket);
+    explainCache.set(cacheKey, explication);
+    res.json({ explication, cached: false });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Historique (qui a fait quoi, quand) + heures saisies (worklogs) d'un ticket — à la demande.
+app.post("/api/ticket/activity", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, timeline: [], worklogs: [], totalTime: "0h" });
+    const out = await fetchIssueActivity(req.body.cle);
+    res.json({ configured: true, ...out });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/dev/work", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, items: [] });
+    const { dev, keys } = req.body || {};
+    const out = await fetchDevWork(dev, Array.isArray(keys) ? keys : []);
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/changes/summary", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, items: [] });
+    const { keys } = req.body || {};
+    const out = await fetchChangesSummary(Array.isArray(keys) ? keys : []);
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// CRA — Compte rendu d'activité : temps saisis consolidés par projet et par personne sur une période.
+app.post("/api/cra", guard, async (req, res) => {
+  try {
+    if (!isConfigured()) return res.json({ configured: false, byPerson: [], byProject: [], totalSeconds: 0, totalTime: "0h" });
+    const { start, end } = req.body || {};
+    const out = await fetchCRA({ start, end });
+    res.json({ configured: true, ...out });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// CRA depuis un fichier Excel/CSV importé (sans Jira). Renvoie la même structure que /api/cra.
+app.post("/api/cra/import", guard, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
+    const basis = Number(req.body?.basis) || 7;
+    const out = parseCraXlsx(req.file.buffer, { basis });
+    logEvent("cra_import", "CRA importé depuis Excel", { lignes: out.scanned, fichier: req.file.originalname });
+    res.json(out);
+  } catch (err) { res.status(400).json({ error: String(err.message || err) }); }
+});
+
+
+// Rapport global : tous les clients, organisé par client.
+app.post("/api/cr/global", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const byDossier = {};
+    withoutDeletedDevs(got.issues).forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
+    const out = await globalReport(byDossier);
+    logEvent("cr_global", "Rapport journalier global", { clients: Object.keys(byDossier).length });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/ticket/report", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    const t = (got?.issues || []).find((i) => i.cle === req.body.cle) || { cle: req.body.cle, resume: req.body.resume || "" };
+    const text = await ticketReport(t, req.body.note);
+    res.json({ text });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/ticket/push", guard, writeGuard, async (req, res) => {
+  try {
+    const { cle, comment, markDone } = req.body;
+    if (!isConfigured()) return res.status(409).json({ error: "Jira non configuré : impossible d'écrire dans le ticket." });
+    const result = {};
+    if (comment) result.comment = await addComment(cle, comment);
+    if (markDone) result.transition = await transition(cle, TARGET_DONE);
+    logEvent("ticket_push", `Mise a jour Jira - ${cle}`, { cle, markDone: !!markDone });
+    res.json({ ok: true, ...result });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/transcribe", guard, writeGuard, upload.single("audio"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier audio." });
+    res.json({ text: await transcribe(req.file.buffer, req.file.originalname, req.file.mimetype) });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/meeting/report", guard, writeGuard, upload.fields([{ name: "audio", maxCount: 1 }, { name: "images", maxCount: 8 }]), async (req, res) => {
+  try {
+    const { titre, participants, notes, equipe } = req.body;
+    let transcript = req.body.transcript || "";
+    const audio = req.files?.audio?.[0];
+    if (audio && !transcript && sttAvailable()) transcript = await transcribe(audio.buffer, audio.originalname, audio.mimetype);
+    const images = (req.files?.images || []).map((f) => ({ media_type: f.mimetype, dataBase64: f.buffer.toString("base64") }));
+    const out = await meetingReport({ titre, participants, notes, transcript, images, equipe });
+    logEvent("cr_reunion", `CR reunion - ${titre || "sans titre"}`, { via: out.generatedBy, images: images.length, audio: !!audio });
+    res.json({ ...out, transcript });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// ---- Fiches dossiers (éditables) ----
+app.post("/api/meeting/prep", guard, async (req, res) => {
+  try {
+    const { dossier, sujet, type, notes, importedText } = req.body || {};
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const sub = dossier && dossier !== "Tous" ? got.issues.filter((i) => i.dossier === dossier) : got.issues;
+    const clientNames = new Set();
+    try {
+      for (const d of readDossiers()) {
+        for (const m of (d.team || [])) {
+          if (m && m.cote === "Client" && m.nom) clientNames.add(m.nom.trim().toLowerCase());
+        }
+      }
+    } catch {}
+    const out = await meetingPrep({ dossier: dossier || "Tous les clients", sujet, type, notes, importedText, issues: sub, clientNames });
+    logEvent("prep_reunion", `Préparation réunion - ${dossier || "tous"}${sujet ? " · " + sujet : ""}`, { dossier: dossier || "Tous", sujet: sujet || type || "" });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.get("/api/dossiers", guard, (_req, res) => res.json({ dossiers: readDossiers() }));
+app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
+  try {
+    const saved = saveDossier(req.params.nom, req.body || {});
+    logEvent("fiche_dossier", `Fiche mise à jour - ${req.params.nom}`, {});
+    res.json({ ok: true, fiche: saved });
+  } catch (err) { res.status(500).json({ error: String(err.message || err) }); }
+});
+
+// ---- Partage Microsoft 365 (optionnel, nécessite app Azure) ----
+app.post("/api/share/mail", guard, writeGuard, async (req, res) => {
+  try {
+    const { to, subject, html } = req.body;
+    const r = await sendMail({ to, subject, html });
+    logEvent("partage_mail", `E-mail Outlook envoyé`, { to });
+    res.json(r);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/share/sharepoint", guard, writeGuard, async (req, res) => {
+  try {
+    const { folderPath, filename, html } = req.body;
+    const r = await uploadToSharePoint({ folderPath, filename, html });
+    logEvent("partage_sharepoint", `Rapport déposé sur SharePoint`, { folderPath, filename });
+    res.json(r);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.get("/api/history", guard, (_req, res) => res.json({ events: readHistory() }));
+
+// Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).
+app.get("/api/devs/deleted", guard, (_req, res) => res.json({ deleted: readDeleted() }));
+app.post("/api/devs/delete", guard, writeGuard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  if (!name) return res.status(400).json({ error: "Nom manquant." });
+  const deleted = addDeleted(name);
+  logEvent("dev_delete", `Fiche développeur masquée : ${name}`);
+  res.json({ deleted });
+});
+app.post("/api/devs/restore", guard, writeGuard, (req, res) => {
+  const name = (req.body?.name || "").trim();
+  const deleted = removeDeleted(name);
+  logEvent("dev_restore", `Fiche développeur restaurée : ${name}`);
+  res.json({ deleted });
+});
+
+// ---- Sert l'interface (build) en production : un seul service à déployer ----
+const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
+const WEB_DIST = process.env.WEB_DIST || path.join(__dirname2, "../web/dist");
+if (fs.existsSync(WEB_DIST)) {
+  app.use(express.static(WEB_DIST));
+  app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, "index.html")));
+  console.log(`Interface servie depuis ${WEB_DIST}`);
+}
+
+app.listen(PORT, () => {
+  console.log(`CPwire API sur http://localhost:${PORT}`);
+  console.log(`Auth: ${AUTH_ENABLED ? "oui" : "non"} | Jira: ${isConfigured() ? "oui" : (ALLOW_DEMO ? "démo" : "non configuré")} | IA: ${aiAvailable() ? "oui" : "gabarit"} | moi: ${ME}`);
+});

@@ -1,132 +1,29 @@
-// Référentiel Recette : le SOCLE qui fait parler la même langue.
-// Domaine → Option → liste de Programmes (saisie/validée par le dev),
-// puis rapprochement AUTOMATIQUE de chaque programme à son/ses ticket(s) Jira
-// (le programme est déjà extrait du titre « Réécriture XXX » par programmes.js → i.prog).
-// Aucune invention : si un programme n'a pas de ticket, il est marqué « non lié ».
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
+{
+  "_doc": "Suivi de projets — couche commerciale/portefeuille (éditable). Le serveur (projets.js) l'enrichit en temps réel avec Jira (activité, recette, retards) et, pour Tafanel, avec le référentiel de recette. États : AVV Pipe -> Propal envoyée -> Signé -> En cours -> Terminé. Météo : vert / orange / rouge / neutre.",
+  "majSource": "Reprise portefeuille + enrichissement Jira/Référentiel",
+  "projets": [
+    { "client": "IMA", "type": "Projet", "nom": "Purge Higgins", "perimetre": "Lot 1", "etat": "Terminé", "num": "PJ2411-0595", "debut": "", "fin": "", "jh": 10, "budgete": 8500, "facture": 8500, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
+    { "client": "IMA", "type": "Projet", "nom": "Purge Higgins", "perimetre": "Lot 2", "etat": "Terminé", "num": "PJ2411-0595", "debut": "", "fin": "", "jh": 3, "budgete": 2550, "facture": 2550, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
+    { "client": "IMA", "type": "TMA", "nom": "Automatisation purge MCS", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Prévu 2026" },
+    { "client": "IMA", "type": "Projet", "nom": "Sesame Espagne", "perimetre": "", "etat": "Propal envoyée", "num": "PJ2507-0651", "debut": "", "fin": "", "jh": null, "budgete": 16100, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Prévu 2026" },
+    { "client": "IMA", "type": "Projet", "nom": "Décommissionnement UK", "perimetre": "", "etat": "En cours", "num": "PJ2507-0650", "debut": "2025-10-01", "fin": "", "jh": 5, "budgete": 4950, "facture": null, "avancement": 0.4, "meteo": "vert", "attention": [], "raf": [], "comment": "Reprise à partir du 20/11" },
+    { "client": "IMA", "type": "Projet", "nom": "Rétro documentation REF-BEN", "perimetre": "", "etat": "Propal envoyée", "num": "PJ2406-0536", "debut": "", "fin": "", "jh": null, "budgete": 12240, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const REF_PATH = path.join(__dirname, "referentiel.json");
+    { "client": "EDL", "type": "Projet", "nom": "Campagne des abonnements", "perimetre": "", "etat": "Signé", "num": "PJ2509-0666", "debut": "", "fin": "2026-07-01", "jh": 63, "budgete": 43650, "facture": null, "avancement": 0.1, "meteo": "vert", "attention": [], "raf": ["Réunion EDL le 05/12"], "comment": "" },
 
-export function loadReferentiel() {
-  try { return JSON.parse(fs.readFileSync(REF_PATH, "utf8")); }
-  catch { return {}; }
-}
-export function referentielClients() {
-  return Object.keys(loadReferentiel()).filter((k) => k !== "_doc");
-}
+    { "client": "TAFANEL", "type": "Projet", "nom": "Modernisation code et applicatif", "perimetre": "Création nouvelle partition", "etat": "Terminé", "num": "PJ2412-0601", "debut": "2025-04-01", "fin": "2025-06-01", "jh": 16, "budgete": 10893, "facture": 10000, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
+    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "Réécriture programmes & chaînes", "etat": "En cours", "num": "PJ2506-0643", "debut": "2025-05-01", "fin": "2026-02-28", "jh": 308, "budgete": 177100, "facture": 205750, "avancement": 0.85, "meteo": "orange", "attention": ["Ressources si changement d'équipe", "Figer le périmètre et le plan de travail", "Risque de décalage : charge de recette trop importante côté client (effet tunnel)", "Relais de Lionel non identifié"], "raf": ["Faire valider la liste des programmes et des chaînes", "Finir l'écriture des programmes et les tests"], "comment": "", "refacette": "Tafanel" },
+    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "POC Mobile", "etat": "En cours", "num": "PJ2506-0643", "debut": "2025-07-01", "fin": "2026-02-28", "jh": null, "budgete": null, "facture": null, "avancement": 0.6, "meteo": "vert", "attention": [], "raf": ["Recette client sur tablettes et correction des bugs"], "comment": "" },
+    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "Étude modules", "etat": "Signé", "num": "PJ2506-0643", "debut": "", "fin": "", "jh": null, "budgete": 44650, "facture": 0, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Non démarré" },
 
-// Normalisation d'un nom de programme : majuscules, sans joker ni espaces de fin.
-const norm = (s) => String(s || "").toUpperCase().replace(/[*\s]+$/g, "").trim();
+    { "client": "SEGUREL", "type": "Projet", "nom": "Implémentation GLog sur AS/400", "perimetre": "Phase #0 — Analyse & chiffrage Ph.1", "etat": "En cours", "num": "PJ2507-0652", "debut": "2025-07-01", "fin": "2025-10-24", "jh": 9, "budgete": 8400, "facture": 8400, "avancement": 0.9, "meteo": "vert", "attention": ["Validation CDC"], "raf": ["Modifier le CDC", "Réunion de transfert, validation planning et kick-off"], "comment": "" },
+    { "client": "SEGUREL", "type": "Projet", "nom": "Implémentation GLog sur AS/400", "perimetre": "Phase #1 — Paie, Primes, Gestion des Employés", "etat": "Propal envoyée", "num": "PJ2507-0652", "debut": "", "fin": "", "jh": null, "budgete": 33350, "facture": 0, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": ["Compléter l'estimation et faire valider la nouvelle proposition"], "comment": "" },
 
-const DONE = ["termine", "miseEnProd"];
-const RECETTE = ["recetteArmonie", "recetteClient"];
-const RETOUR = ["retourTest", "retourProd"];
+    { "client": "BELLION", "type": "Projet", "nom": "Modernisation SI", "perimetre": "Phase #1", "etat": "En cours", "num": "PJ2503-0631", "debut": "2025-04-01", "fin": "2025-11-21", "jh": 146, "budgete": 96780, "facture": 136641, "avancement": 0.95, "meteo": "vert", "attention": ["Finalisation du run à blanc par Belmet", "Contrat jeton TMA et contrat traitements récurrents"], "raf": ["Bascule sur la nouvelle infra les 22-23/11"], "comment": "" },
+    { "client": "BELLION", "type": "Projet", "nom": "Modernisation SI", "perimetre": "Phase #2 — GESCOM", "etat": "AVV Pipe", "num": "PJ2503-0631", "debut": "2026-01-01", "fin": "2026-12-31", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": ["Contrats phase #2", "Cadrage phase #2"], "raf": [], "comment": "≈ 671 J/H (à confirmer)" },
 
-// Repli : statut texte de l'export Excel → catégorie interne (si le ticket n'est pas dans le snapshot live).
-const EXCEL_TO_CAT = {
-  "MISE EN PRODUCTION": "miseEnProd",
-  "Terminé": "termine",
-  "RECETTE CLIENT": "recetteClient",
-  "EN ATTENTE CLIENT": "attenteClient",
-  "RECETTE ARMONIE": "recetteArmonie",
-  "annulé": "annule",
-};
-const excelCat = (s) => EXCEL_TO_CAT[String(s || "").trim()] || null;
-const JIRA_BASE = "https://armonie.atlassian.net/browse/";
-
-// Index programme → tickets, à partir des tickets live.
-function indexByProgramme(issues) {
-  const idx = new Map();
-  const add = (name, issue) => {
-    const n = norm(name);
-    if (!n) return;
-    if (!idx.has(n)) idx.set(n, []);
-    if (!idx.get(n).some((x) => x.cle === issue.cle)) idx.get(n).push(issue);
-  };
-  for (const i of issues) {
-    if (i.prog && i.prog.name) add(i.prog.name, i);
-    // repli : tente d'attraper le programme dans un titre « Réécriture XXX »
-    const m = String(i.resume || "").match(/r[ée]+criture\s+([A-Z0-9_]{3,12})/i);
-    if (m) add(m[1], i);
-  }
-  return idx;
-}
-
-// État représentatif d'un programme = catégorie du ticket le plus « avancé » trouvé.
-const RANK = ["annule", "afaire", "encours", "retourProd", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine"];
-function bestCategory(tickets) {
-  let best = null, bestRank = -1;
-  for (const t of tickets) {
-    const r = RANK.indexOf(t.categorie);
-    if (r > bestRank) { bestRank = r; best = t.categorie; }
-  }
-  return best;
-}
-
-// Croise le référentiel d'un client avec les tickets Jira live.
-export function crossReferentiel(issues, client) {
-  const ref = loadReferentiel()[client];
-  if (!ref) return null;
-  const idx = indexByProgramme(issues || []);               // repli par nom de programme
-  const byCle = new Map((issues || []).map((i) => [i.cle, i])); // rattachement exact par clé
-  const byDomaine = {};
-
-  for (const opt of ref.options) {
-    const programmes = (opt.programmes || []).map((p) => {
-      const nom = typeof p === "string" ? p : (p.nom || "");
-      const tkKey = (typeof p === "object" && p.ticket) ? String(p.ticket).trim() : "";
-      const stExcel = (typeof p === "object" && p.statutExcel) ? p.statutExcel : "";
-      let tickets;
-      if (tkKey && byCle.has(tkKey)) {
-        const i = byCle.get(tkKey);
-        tickets = [{
-          cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie, url: i.url,
-          qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
-        }];
-      } else if (tkKey) {
-        // ticket connu de l'export mais absent du snapshot Jira live → statut Excel en repli
-        tickets = [{ cle: tkKey, resume: nom, statut: stExcel || "—", categorie: excelCat(stExcel), url: JIRA_BASE + tkKey, qui: "" }];
-      } else {
-        // aucun ticket connu : repli par nom de programme sur les titres Jira live
-        tickets = (idx.get(norm(nom)) || []).map((i) => ({
-          cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie, url: i.url,
-          qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
-        }));
-      }
-      return { nom, lie: tickets.length > 0, etat: bestCategory(tickets), tickets };
-    });
-
-    const cats = {};
-    programmes.forEach((p) => p.tickets.forEach((t) => { cats[t.categorie] = (cats[t.categorie] || 0) + 1; }));
-    const total = programmes.length;
-    const lies = programmes.filter((p) => p.lie).length;
-    const done = DONE.reduce((s, k) => s + (cats[k] || 0), 0);
-    const enRecette = RECETTE.reduce((s, k) => s + (cats[k] || 0), 0);
-    const retours = RETOUR.reduce((s, k) => s + (cats[k] || 0), 0);
-    // Avancement : part de programmes liés qui sont validés (MEP/terminé). 0 si rien de lié.
-    const pct = lies ? Math.round((done / lies) * 100) : 0;
-
-    const enriched = {
-      domaine: opt.domaine, code: opt.code, libelle: opt.libelle,
-      statutRecette: opt.statutRecette || "", echeance: opt.echeance || "", livraison: opt.livraison || "",
-      grosseChaine: !!opt.grosseChaine, noteChaine: opt.noteChaine || "",
-      total, lies, nonLies: total - lies, done, enRecette, retours, pct,
-      programmes,
-    };
-    (byDomaine[opt.domaine] ||= []).push(enriched);
-  }
-
-  const domaines = Object.entries(byDomaine)
-    .map(([domaine, options]) => ({ domaine, options }))
-    .sort((a, b) => a.domaine.localeCompare(b.domaine, "fr"));
-
-  const nbProgrammes = ref.options.reduce((s, o) => s + (o.programmes ? o.programmes.length : 0), 0);
-  return {
-    client, majSource: ref.majSource || "",
-    nbOptions: ref.options.length, nbProgrammes,
-    domaines,
-  };
+    { "client": "DIAPAR", "type": "TMA", "nom": "Création nouvelle partition DEV", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
+    { "client": "DIAPAR", "type": "TMA", "nom": "Formulaire papier vers page intranet", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
+    { "client": "DIAPAR", "type": "TMA", "nom": "Optimisation des tournées (« 986 »)", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" }
+  ]
 }

@@ -1,29 +1,109 @@
-{
-  "_doc": "Suivi de projets — couche commerciale/portefeuille (éditable). Le serveur (projets.js) l'enrichit en temps réel avec Jira (activité, recette, retards) et, pour Tafanel, avec le référentiel de recette. États : AVV Pipe -> Propal envoyée -> Signé -> En cours -> Terminé. Météo : vert / orange / rouge / neutre.",
-  "majSource": "Reprise portefeuille + enrichissement Jira/Référentiel",
-  "projets": [
-    { "client": "IMA", "type": "Projet", "nom": "Purge Higgins", "perimetre": "Lot 1", "etat": "Terminé", "num": "PJ2411-0595", "debut": "", "fin": "", "jh": 10, "budgete": 8500, "facture": 8500, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
-    { "client": "IMA", "type": "Projet", "nom": "Purge Higgins", "perimetre": "Lot 2", "etat": "Terminé", "num": "PJ2411-0595", "debut": "", "fin": "", "jh": 3, "budgete": 2550, "facture": 2550, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
-    { "client": "IMA", "type": "TMA", "nom": "Automatisation purge MCS", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Prévu 2026" },
-    { "client": "IMA", "type": "Projet", "nom": "Sesame Espagne", "perimetre": "", "etat": "Propal envoyée", "num": "PJ2507-0651", "debut": "", "fin": "", "jh": null, "budgete": 16100, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Prévu 2026" },
-    { "client": "IMA", "type": "Projet", "nom": "Décommissionnement UK", "perimetre": "", "etat": "En cours", "num": "PJ2507-0650", "debut": "2025-10-01", "fin": "", "jh": 5, "budgete": 4950, "facture": null, "avancement": 0.4, "meteo": "vert", "attention": [], "raf": [], "comment": "Reprise à partir du 20/11" },
-    { "client": "IMA", "type": "Projet", "nom": "Rétro documentation REF-BEN", "perimetre": "", "etat": "Propal envoyée", "num": "PJ2406-0536", "debut": "", "fin": "", "jh": null, "budgete": 12240, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
+// Suivi de projets : la couche commerciale (projets.json) enrichie EN TEMPS RÉEL
+// par les données Jira (activité, recette, retards) et, pour Tafanel, par le
+// référentiel de recette. L'outil "pense comme le CP" mais reste honnête : les
+// chiffres d'avancement/santé sont confrontés à la réalité des tickets.
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { crossReferentiel } from "./referentiel.js";
 
-    { "client": "EDL", "type": "Projet", "nom": "Campagne des abonnements", "perimetre": "", "etat": "Signé", "num": "PJ2509-0666", "debut": "", "fin": "2026-07-01", "jh": 63, "budgete": 43650, "facture": null, "avancement": 0.1, "meteo": "vert", "attention": [], "raf": ["Réunion EDL le 05/12"], "comment": "" },
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const P_PATH = path.join(__dirname, "projets.json");
 
-    { "client": "TAFANEL", "type": "Projet", "nom": "Modernisation code et applicatif", "perimetre": "Création nouvelle partition", "etat": "Terminé", "num": "PJ2412-0601", "debut": "2025-04-01", "fin": "2025-06-01", "jh": 16, "budgete": 10893, "facture": 10000, "avancement": 1.0, "meteo": "vert", "attention": [], "raf": [], "comment": "" },
-    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "Réécriture programmes & chaînes", "etat": "En cours", "num": "PJ2506-0643", "debut": "2025-05-01", "fin": "2026-02-28", "jh": 308, "budgete": 177100, "facture": 205750, "avancement": 0.85, "meteo": "orange", "attention": ["Ressources si changement d'équipe", "Figer le périmètre et le plan de travail", "Risque de décalage : charge de recette trop importante côté client (effet tunnel)", "Relais de Lionel non identifié"], "raf": ["Faire valider la liste des programmes et des chaînes", "Finir l'écriture des programmes et les tests"], "comment": "", "refacette": "Tafanel" },
-    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "POC Mobile", "etat": "En cours", "num": "PJ2506-0643", "debut": "2025-07-01", "fin": "2026-02-28", "jh": null, "budgete": null, "facture": null, "avancement": 0.6, "meteo": "vert", "attention": [], "raf": ["Recette client sur tablettes et correction des bugs"], "comment": "" },
-    { "client": "TAFANEL", "type": "Projet", "nom": "Refonte applicative RPG", "perimetre": "Étude modules", "etat": "Signé", "num": "PJ2506-0643", "debut": "", "fin": "", "jh": null, "budgete": 44650, "facture": 0, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "Non démarré" },
+export function loadProjets() {
+  try { return JSON.parse(fs.readFileSync(P_PATH, "utf8")); }
+  catch { return { projets: [] }; }
+}
 
-    { "client": "SEGUREL", "type": "Projet", "nom": "Implémentation GLog sur AS/400", "perimetre": "Phase #0 — Analyse & chiffrage Ph.1", "etat": "En cours", "num": "PJ2507-0652", "debut": "2025-07-01", "fin": "2025-10-24", "jh": 9, "budgete": 8400, "facture": 8400, "avancement": 0.9, "meteo": "vert", "attention": ["Validation CDC"], "raf": ["Modifier le CDC", "Réunion de transfert, validation planning et kick-off"], "comment": "" },
-    { "client": "SEGUREL", "type": "Projet", "nom": "Implémentation GLog sur AS/400", "perimetre": "Phase #1 — Paie, Primes, Gestion des Employés", "etat": "Propal envoyée", "num": "PJ2507-0652", "debut": "", "fin": "", "jh": null, "budgete": 33350, "facture": 0, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": ["Compléter l'estimation et faire valider la nouvelle proposition"], "comment": "" },
+const ACTIVE = ["encours", "retourTest", "retourProd"];
+const RECETTE = ["recetteArmonie", "recetteClient", "attenteClient"];
+const DONE = ["termine", "miseEnProd"];
+const RETOUR = ["retourTest", "retourProd"];
+const ETATS = ["AVV Pipe", "Propal envoyée", "Signé", "En cours", "Terminé"];
+const num = (v) => (typeof v === "number" && !isNaN(v) ? v : 0);
 
-    { "client": "BELLION", "type": "Projet", "nom": "Modernisation SI", "perimetre": "Phase #1", "etat": "En cours", "num": "PJ2503-0631", "debut": "2025-04-01", "fin": "2025-11-21", "jh": 146, "budgete": 96780, "facture": 136641, "avancement": 0.95, "meteo": "vert", "attention": ["Finalisation du run à blanc par Belmet", "Contrat jeton TMA et contrat traitements récurrents"], "raf": ["Bascule sur la nouvelle infra les 22-23/11"], "comment": "" },
-    { "client": "BELLION", "type": "Projet", "nom": "Modernisation SI", "perimetre": "Phase #2 — GESCOM", "etat": "AVV Pipe", "num": "PJ2503-0631", "debut": "2026-01-01", "fin": "2026-12-31", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": ["Contrats phase #2", "Cadrage phase #2"], "raf": [], "comment": "≈ 671 J/H (à confirmer)" },
+// Pouls Jira d'un client (à partir des tickets de son dossier).
+function jiraPulse(issues, client) {
+  const cu = String(client).toUpperCase();
+  const sub = (issues || []).filter((i) => String(i.dossier || "").toUpperCase() === cu);
+  if (!sub.length) return { present: false, total: 0 };
+  const cnt = (cats) => sub.filter((i) => cats.includes(i.categorie)).length;
+  let last = null;
+  for (const i of sub) { const d = i.maj ? new Date(i.maj) : null; if (d && (!last || d > last)) last = d; }
+  return {
+    present: true, total: sub.length,
+    actifs: cnt(ACTIVE), recette: cnt(RECETTE), done: cnt(DONE),
+    retours: cnt(RETOUR), retard: sub.filter((i) => i.enRetard).length,
+    lastActivity: last ? last.toISOString() : null,
+  };
+}
 
-    { "client": "DIAPAR", "type": "TMA", "nom": "Création nouvelle partition DEV", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
-    { "client": "DIAPAR", "type": "TMA", "nom": "Formulaire papier vers page intranet", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" },
-    { "client": "DIAPAR", "type": "TMA", "nom": "Optimisation des tournées (« 986 »)", "perimetre": "", "etat": "AVV Pipe", "num": "TMA", "debut": "", "fin": "", "jh": null, "budgete": null, "facture": null, "avancement": 0.0, "meteo": "neutre", "attention": [], "raf": [], "comment": "ARC" }
-  ]
+export function buildProjets(issues) {
+  const ref = loadProjets();
+  const projets = ref.projets || [];
+
+  // --- groupement par client (ordre d'apparition) ---
+  const order = [];
+  const byClient = {};
+  for (const p of projets) {
+    if (!byClient[p.client]) { byClient[p.client] = []; order.push(p.client); }
+    byClient[p.client].push(p);
+  }
+
+  const clients = order.map((client) => {
+    const items = byClient[client];
+    const fin = items.reduce((a, p) => ({
+      budgete: a.budgete + num(p.budgete), facture: a.facture + num(p.facture), jh: a.jh + num(p.jh),
+    }), { budgete: 0, facture: 0, jh: 0 });
+    const pulse = jiraPulse(issues, client);
+
+    // Enrichissement recette réel (clients dotés d'un référentiel, ex. Tafanel)
+    let recette = null;
+    try {
+      const cross = crossReferentiel(issues || [], client.charAt(0) + client.slice(1).toLowerCase()); // "TAFANEL" -> "Tafanel"
+      if (cross && cross.domaines && cross.domaines.length) {
+        let total = 0, done = 0, enRec = 0, retours = 0;
+        for (const d of cross.domaines) for (const o of d.options) {
+          total += o.total; done += o.done; enRec += o.enRecette; retours += o.retours;
+        }
+        recette = { nbOptions: cross.nbOptions, nbProgrammes: total, done, enRecette: enRec, retours,
+          pct: total ? Math.round((done / total) * 100) : 0, majSource: cross.majSource || "" };
+      }
+    } catch { /* pas de référentiel pour ce client */ }
+
+    const projetsOut = items.map((p) => {
+      const reste = (p.budgete == null && p.facture == null) ? null : num(p.budgete) - num(p.facture);
+      return { ...p, reste };
+    });
+
+    // santé "data" suggérée : rouge si retards/retours marqués, orange si quelques retours
+    let sante = "neutre";
+    if (pulse.present) {
+      if (pulse.retard >= 3 || pulse.retours >= 5) sante = "rouge";
+      else if (pulse.retard >= 1 || pulse.retours >= 1) sante = "orange";
+      else sante = "vert";
+    }
+
+    return { client, type: items[0].type, finances: fin, jira: pulse, recette, santeData: sante, projets: projetsOut };
+  });
+
+  // --- KPIs globaux ---
+  const all = projets;
+  const kpis = {
+    budgete: all.reduce((s, p) => s + num(p.budgete), 0),
+    facture: all.reduce((s, p) => s + num(p.facture), 0),
+    jh: all.reduce((s, p) => s + num(p.jh), 0),
+    nbProjets: all.length,
+    actifs: all.filter((p) => p.etat === "En cours").length,
+    nbClients: order.length,
+  };
+  kpis.reste = kpis.budgete - kpis.facture;
+
+  // --- pipeline (funnel commercial) ---
+  const pipeline = ETATS.map((etat) => {
+    const sub = all.filter((p) => p.etat === etat);
+    return { etat, n: sub.length, montant: sub.reduce((s, p) => s + num(p.budgete), 0) };
+  });
+
+  return { majSource: ref.majSource || "", generatedAt: new Date().toISOString(), kpis, pipeline, clients };
 }
