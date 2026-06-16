@@ -164,14 +164,15 @@ export async function projetsWorkbookBuffer(issues) {
   dt.font = { name: "Inter", size: 9, color: { argb: "FFCFC9EC" } }; dt.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; dt.alignment = { indent: 1 };
 
   // Bande KPI (ligne 5-6) : 6 cartes
-  const kpis = [["Budget total", d.kpis.budgete + " €"], ["Facturé", d.kpis.facture + " €"], ["Reste à facturer", d.kpis.reste + " €"],
-    ["J/H vendus", d.kpis.jh], ["Projets actifs", d.kpis.actifs], ["Clients", d.kpis.nbClients]];
+  const kpis = [["Budget total", d.kpis.budgete, 1], ["Facturé", d.kpis.facture, 1], ["Reste à facturer", d.kpis.reste, 1],
+    ["J/H vendus", d.kpis.jh, 0], ["Projets actifs", d.kpis.actifs, 0], ["Clients", d.kpis.nbClients, 0]];
   const span = Math.max(1, Math.floor(N / 6));
   kpis.forEach((k, i) => {
     const c0 = i * span + 1, c1 = i === 5 ? N : c0 + span - 1;
     const a = ws.getRow(5).getCell(c0), b = ws.getRow(6).getCell(c0);
     ws.mergeCells(5, c0, 5, c1); ws.mergeCells(6, c0, 6, c1);
-    a.value = String(k[1]); a.font = { name: "Poppins", size: 15, bold: true, color: { argb: INDIGO } }; a.alignment = { indent: 1, vertical: "middle" };
+    a.value = k[1]; if (k[2]) a.numFmt = '#,##0 "€"';
+    a.font = { name: "Poppins", size: 15, bold: true, color: { argb: INDIGO } }; a.alignment = { indent: 1, vertical: "middle" };
     a.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LILAS } };
     b.value = k[0].toUpperCase(); b.font = { name: "Inter", size: 8, color: { argb: MUTED } }; b.alignment = { indent: 1 };
     b.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LILAS } };
@@ -237,61 +238,88 @@ export async function projetsWorkbookBuffer(issues) {
 // Document PDF/HTML à la charte Armonie (réutilise docgen.buildDoc -> identique aux CR).
 export function projetsDocHtml(issues) {
   const d = buildProjets(issues);
-  const eur = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR").format(Math.round(n)) + " €");
-  const PILL = { "Terminé": "done", "Mise en prod": "done", "En cours": "prog", "Signé": "prog", "Propal envoyée": "todo", "AVV Pipe": "todo" };
+  const eur = (n) => (n == null || n === "" ? "—" : new Intl.NumberFormat("fr-FR").format(Math.round(n)).replace(/\u202f/g, "\u00a0") + "\u00a0€");
   const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-  const meteoDot = (m) => `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${({ vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b" }[m]) || "#c7c4d6"};vertical-align:middle"></span>`;
+  const PILL = { "Terminé": "done", "Mise en prod": "done", "En cours": "prog", "Signé": "prog", "Propal envoyée": "todo", "AVV Pipe": "todo" };
+  const DOT = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#c7c4d6" };
+  const fr = (s) => { if (!s) return "—"; const x = new Date(s); if (isNaN(x)) return s; return x.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }); };
+  const cdp = (d.clients[0] && d.clients[0].cdp) || "Nicolas Durand";
 
   const kpis = [["Budget total", eur(d.kpis.budgete)], ["Facturé", eur(d.kpis.facture)], ["Reste à facturer", eur(d.kpis.reste)],
-    ["J/H vendus", d.kpis.jh], ["Projets actifs", d.kpis.actifs], ["Clients", d.kpis.nbClients]];
-  const kpiRow = `<div class="kpi-row">${kpis.map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>`;
+    ["J/H vendus", String(d.kpis.jh)], ["Projets actifs", String(d.kpis.actifs)], ["Clients", String(d.kpis.nbClients)]];
+  const kpiBand = `<div class="pp-kpis">${kpis.map(([l, v]) => `<div class="pp-kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>`;
 
   const alertes = d.recap.alertes.length
-    ? `<ul class="pp-al">${d.recap.alertes.map((a) => `<li><span class="pill ${a.niveau === "rouge" ? "block" : "todo"}">${esc(a.type)}</span> <b>${esc(a.client)}</b> — ${esc(a.projet)}${a.perimetre ? " · " + esc(a.perimetre) : ""} <span class="pp-det">${esc(a.detail)}</span></li>`).join("")}</ul>`
+    ? `<table class="pp-tbl"><tbody>${d.recap.alertes.map((a) => `<tr><td class="w-pill"><span class="pill ${a.niveau === "rouge" ? "block" : "todo"}">${esc(a.type)}</span></td><td class="w-cli"><b>${esc(a.client)}</b></td><td>${esc(a.projet)}${a.perimetre ? " · " + esc(a.perimetre) : ""}</td><td class="pp-det">${esc(a.detail)}</td></tr>`).join("")}</tbody></table>`
     : `<p class="pp-ok">Rien d'urgent — portefeuille sous contrôle.</p>`;
+  const pipe = `<table class="pp-tbl pp-pipe"><thead><tr><th>Étape</th><th class="r">Affaires</th><th class="r">Montant</th></tr></thead><tbody>${d.pipeline.map((p) => `<tr><td>${esc(p.etat)}</td><td class="r">${p.n}</td><td class="r">${p.montant ? eur(p.montant) : "—"}</td></tr>`).join("")}</tbody></table>`;
 
-  const pipe = `<table class="pp-tbl"><thead><tr><th>Étape</th><th class="r">Affaires</th><th class="r">Montant</th></tr></thead><tbody>${d.pipeline.map((p) => `<tr><td>${esc(p.etat)}</td><td class="r">${p.n}</td><td class="r">${p.montant ? eur(p.montant) : "—"}</td></tr>`).join("")}</tbody></table>`;
-
-  const clientsHtml = d.clients.map((c) => {
-    const rows = c.projets.map((p) => `<tr>
-      <td><b>${esc(p.nom)}</b>${p.perimetre ? `<br><span class="pp-sub">${esc(p.perimetre)}</span>` : ""}</td>
-      <td>${meteoDot(p.meteo)} <span class="pill ${PILL[p.etat] || "todo"}">${esc(p.etat)}</span></td>
-      <td class="mono">${esc(p.num)}</td>
-      <td class="r">${p.jh ?? "—"}</td>
-      <td class="r">${eur(p.budgete)}</td>
-      <td class="r">${eur(p.facture)}</td>
-      <td class="r ${p.reste < 0 ? "neg" : ""}">${eur(p.reste)}</td>
-      <td class="r">${p.avancement != null ? Math.round(p.avancement * 100) + " %" : "—"}</td>
-      <td>${(p.attention || []).map(esc).join(" • ") || "—"}</td>
-    </tr>`).join("");
-    const rec = c.recette ? ` · recette ${c.recette.pct} % (${c.recette.nbProgrammes} prog.)` : "";
-    return `<h2>${esc(c.client)} <span class="pp-cdp">CDP ${esc(c.cdp || "—")} · ${esc(c.type)}${rec}</span></h2>
-    <table class="pp-tbl"><thead><tr><th>Projet</th><th>État</th><th>N° projet</th><th class="r">J/H</th><th class="r">Budgété</th><th class="r">Facturé</th><th class="r">Reste</th><th class="r">Av.</th><th>Points d'attention</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }).join("");
+  let rows = "";
+  for (const c of d.clients) {
+    c.projets.forEach((p, i) => {
+      rows += `<tr class="${i === 0 ? "grp" : ""}">
+        <td class="pp-cli">${i === 0 ? esc(c.client) : ""}</td>
+        <td class="pp-pj">${esc(p.nom)}${p.perimetre ? `<span class="pm">${esc(p.perimetre)}</span>` : ""}</td>
+        <td><span class="dot" style="background:${DOT[p.meteo] || DOT.neutre}"></span><span class="pill ${PILL[p.etat] || "todo"}">${esc(p.etat)}</span></td>
+        <td class="pp-num">${esc(p.num) || "—"}</td>
+        <td class="ctr">${fr(p.debut)}</td>
+        <td class="ctr">${fr(p.fin)}</td>
+        <td class="r">${p.jh ?? "—"}</td>
+        <td class="r">${eur(p.budgete)}</td>
+        <td class="r">${eur(p.facture)}</td>
+        <td class="r ${p.reste < 0 ? "pp-neg" : ""}">${eur(p.reste)}</td>
+        <td class="r">${p.avancement != null ? Math.round(p.avancement * 100) + "\u00a0%" : "—"}</td>
+        <td class="pp-att">${(p.attention || []).map(esc).join(" · ") || "—"}</td>
+      </tr>`;
+    });
+  }
+  const mainTable = `<table class="pp-main">
+    <colgroup><col style="width:8%"><col style="width:18%"><col style="width:9%"><col style="width:9%"><col style="width:5.5%"><col style="width:5.5%"><col style="width:4%"><col style="width:8.5%"><col style="width:8.5%"><col style="width:8.5%"><col style="width:5%"><col style="width:14%"></colgroup>
+    <thead><tr><th>Client</th><th>Projet</th><th>État</th><th>N° projet</th><th>Début</th><th>Fin</th><th class="r">J/H</th><th class="r">Budgété</th><th class="r">Facturé</th><th class="r">Reste</th><th class="r">Av.</th><th>Points d'attention</th></tr></thead>
+    <tbody>${rows}</tbody></table>`;
 
   const style = `<style>
-    .pp-tbl{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:11.5px;}
-    .pp-tbl th{background:#f6f5fb;color:#3a3658;text-align:left;font-weight:700;padding:7px 9px;border-bottom:2px solid #c7a14a;font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
-    .pp-tbl th.r{text-align:right;} .pp-tbl td{padding:7px 9px;border-bottom:1px solid #eceaf4;vertical-align:top;}
-    .pp-tbl td.r{text-align:right;white-space:nowrap;} .pp-tbl td.mono{font-family:ui-monospace,monospace;font-size:10.5px;color:#74718a;}
-    .pp-tbl td.neg{color:#c0392b;font-weight:700;} .pp-sub{color:#74718a;font-size:10.5px;} .pp-cdp{font-size:12px;font-weight:500;color:#74718a;}
-    .pp-al{list-style:none;padding:0;margin:6px 0 16px;} .pp-al li{padding:6px 0;border-bottom:1px solid #f0eef7;font-size:12.5px;}
-    .pp-det{color:#74718a;} .pp-ok{color:#1f8a5f;font-size:13px;} h2 .pp-cdp{margin-left:6px;}
+    @page{size:A4 landscape;margin:11mm;}
+    .page{max-width:none;}
+    .pp-kpis{display:flex;margin:14px 0 4px;border:1px solid #e7e5f1;border-radius:12px;overflow:hidden;border-bottom:2px solid #c7a14a;}
+    .pp-kpi{flex:1;padding:11px 14px;background:#f8f7fc;border-right:1px solid #ece9f6;}
+    .pp-kpi:last-child{border-right:0;}
+    .pp-kpi .v{font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:#2c2945;white-space:nowrap;}
+    .pp-kpi .l{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#74718a;margin-top:3px;}
+    .pp-main{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;margin:4px 0 14px;}
+    .pp-main th{background:#3a3658;color:#fff;font-size:8.5px;text-transform:uppercase;letter-spacing:.02em;font-weight:700;padding:7px 7px;text-align:left;}
+    .pp-main th.r{text-align:right;}
+    .pp-main td{padding:7px 7px;border-bottom:1px solid #eceaf4;vertical-align:top;line-height:1.3;word-break:normal;overflow-wrap:break-word;}
+    .pp-main td.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
+    .pp-main td.ctr{text-align:center;white-space:nowrap;}
+    .pp-main tr.grp td{border-top:2px solid #d8d3ec;}
+    .pp-cli{font-family:'Poppins',sans-serif;font-weight:800;color:#2c2945;}
+    .pp-pj{font-weight:700;color:#2c2945;} .pp-pj .pm{display:block;color:#74718a;font-weight:400;font-size:9px;margin-top:1px;}
+    .pp-num{font-family:ui-monospace,monospace;color:#74718a;font-size:9px;white-space:nowrap;}
+    .pp-neg{color:#c0392b;font-weight:700;}
+    .pp-att{color:#555168;font-size:9.5px;}
+    .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
+    .pill{vertical-align:middle;}
+    .pp-tbl{width:100%;border-collapse:collapse;margin:4px 0 16px;font-size:11px;}
+    .pp-tbl th{background:#f6f5fb;color:#3a3658;text-align:left;font-weight:700;padding:6px 9px;border-bottom:2px solid #c7a14a;font-size:9.5px;text-transform:uppercase;}
+    .pp-tbl th.r{text-align:right;} .pp-tbl td{padding:6px 9px;border-bottom:1px solid #f0eef7;vertical-align:top;}
+    .pp-tbl td.r{text-align:right;white-space:nowrap;} .pp-tbl .w-pill{width:130px;} .pp-tbl .w-cli{width:90px;}
+    .pp-pipe{max-width:360px;} .pp-det{color:#74718a;} .pp-ok{color:#1f8a5f;}
+    @media (max-width:480px){ body{background:#fff !important;color:#3d3b4d !important;} .page{padding:16px 12px !important;} h1{color:#2c2945 !important;} h2{color:#2c2945 !important;} h3{color:#2c2945 !important;} .sub,.conf{color:#74718a !important;} p,li,td{color:#3d3b4d !important;} .cartouche td:first-child{background:#f6f5fb !important;color:#3a3658 !important;} .pp-main th{background:#3a3658 !important;color:#fff !important;} }
   </style>`;
 
-  const body = `${style}${kpiRow}
+  const body = `${style}${kpiBand}
+    ${mainTable}
     <h2>Ce qui demande l'attention</h2>${alertes}
-    <h2>Pipeline commercial</h2>${pipe}
-    ${clientsHtml}`;
+    <h2>Pipeline commercial</h2>${pipe}`;
 
   return buildDoc({
     kicker: "Portefeuille de projets",
     title: "Suivi de projets",
     subtitle: "Vue chef de projet — couche commerciale confrontée aux tickets Jira en direct.",
-    cartouche: [["Date", new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })],
-      ["Budget total", eur(d.kpis.budgete)], ["Facturé", eur(d.kpis.facture)], ["Reste à facturer", eur(d.kpis.reste)],
-      ["Projets actifs", String(d.kpis.actifs)], ["Source", d.majSource || "Jira"]],
+    cartouche: [["Chef de projet", cdp], ["Date", new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })],
+      ["Budget total", eur(d.kpis.budgete)], ["Facturé", eur(d.kpis.facture)], ["Reste à facturer", eur(d.kpis.reste)], ["Source", d.majSource || "Jira"]],
     bodyHtml: body,
-    etabliPar: "cp|WIRE",
+    etabliPar: cdp,
   });
 }

@@ -1598,3 +1598,17 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .pf-cbar i { display: block; height: 100%; border-radius: 99px; }
 .pf-cbar-v { font-size: 11px; font-weight: 700; color: var(--ink); margin-left: 7px; }
 .pf-c-att { font-size: 11.5px; color: var(--muted); max-width: 340px; }
+
+/* ===== Suivi de projets : robustesse mobile (iPhone) ===== */
+.pf-table { min-width: 760px; }              /* défile dans son conteneur au lieu d'écraser la page */
+.pf-tablewrap { -webkit-overflow-scrolling: touch; }
+@media (max-width: 680px) {
+  .pf-hero { flex-direction: column; align-items: flex-start; }
+  .pf-toolbar { width: 100%; }
+  .pf-toolbar .pf-tb-btn { flex: 1; text-align: center; }
+  .pf-client { padding: 14px 12px; }
+  .pf-client-hd { gap: 8px; }
+  .pf-client-fin { margin-left: 0; gap: 14px; }
+  .pf-kpi-v { font-size: 17px; }
+  .pf-pipe-seg b { font-size: 16px; }
+}
