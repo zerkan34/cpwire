@@ -1853,3 +1853,87 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .hist-period .period-sum { margin: 12px 0 0; padding-top: 12px; border-top: 1px solid var(--line); display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
 .hist-period .period-sum .btn-solid, .hist-period .period-sum .btn-line { margin-left: 0 !important; }
 .hist-period .period-sum .btn-line.sm:last-of-type { margin-left: auto !important; }
+
+/* ===== Fiche projet (modale) — refonte v85 : plus grande, plus claire, plus ergonomique, à la charte ===== */
+.pf-modal { width: min(820px, 100%); border-top: 0; }
+.pf-modal-hero {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 22px;
+  padding: 26px 30px 24px; color: #fff; background: var(--hd-grad);
+}
+.pf-modal-hero::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.16) 1.1px, transparent 1.3px); background-size: 15px 15px; opacity: .45; pointer-events: none; }
+.pf-modal-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 4px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.pf-modal-hero-l { position: relative; min-width: 0; }
+.pf-modal-hero .pf-modal-cli { color: var(--gold); font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.pf-modal-hero h3 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 25px; line-height: 1.15; margin: 7px 0 11px; color: #fff; }
+.pf-modal-hero .pf-modal-perim { font-weight: 600; font-size: .66em; color: rgba(255,255,255,.82); }
+.pf-modal-hero .pf-modal-tags { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+.pf-modal-meteo { display: inline-flex; align-items: center; gap: 7px; font-size: 11.5px; font-weight: 700; color: #fff; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: 4px 12px; }
+.pf-modal-meteo::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: var(--mc, #fff); box-shadow: 0 0 0 2px rgba(255,255,255,.25); }
+.pf-modal-hero .pf-modal-num { color: rgba(255,255,255,.72); font-family: "JetBrains Mono", monospace; font-size: 11px; }
+.pf-modal-ring { position: relative; flex: none; }
+.pf-modal-ring .pf-ring-t { fill: #fff; font-weight: 800; }
+.pf-modal-ring .pf-ring circle:first-of-type { stroke: rgba(255,255,255,.28); }
+.pf-modal-hero .pf-modal-x { position: absolute; top: 14px; right: 14px; background: rgba(255,255,255,.16); color: #fff; border: 1px solid rgba(255,255,255,.3); width: 34px; height: 34px; border-radius: 10px; font-size: 20px; line-height: 1; cursor: pointer; z-index: 2; }
+.pf-modal-hero .pf-modal-x:hover { background: rgba(255,255,255,.28); }
+
+.pf-modal-body { padding: 8px 30px 26px; }
+.pf-modal-h { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--indigo-deep); border-left: 4px solid var(--purple); padding-left: 10px; margin: 20px 0 12px; }
+.pf-modal-fin { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.pf-fin-c { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 13px; padding: 13px 15px; }
+.pf-fin-c span { display: block; font-size: 10.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; margin-bottom: 4px; }
+.pf-fin-c b { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 22px; color: var(--ink); line-height: 1.1; }
+.pf-fin-c.neg b { color: var(--red); }
+.pf-modal-meta { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+.pf-modal-meta > div { background: var(--row-alt); border: 1px solid var(--line); border-radius: 11px; padding: 10px 12px; }
+.pf-modal-meta span { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); font-weight: 700; margin-bottom: 3px; }
+.pf-modal-meta b { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; color: var(--ink); }
+.pf-modal-body .pf-modal-sec { padding: 0; }
+.pf-modal-body .pf-modal-sec h4 { border-left: 4px solid var(--purple); padding-left: 10px; font-family: "Poppins", sans-serif; font-weight: 700; font-size: 12.5px; text-transform: uppercase; letter-spacing: .05em; color: var(--indigo-deep); margin: 20px 0 11px; }
+.pf-modal-body .pf-att { gap: 6px; }
+.pf-modal-body .pf-att li { font-size: 13px; padding: 7px 11px; border-radius: 9px; }
+.pf-modal-body .pf-raf { padding-left: 20px; gap: 5px; }
+.pf-modal-body .pf-raf li { font-size: 13px; }
+.pf-modal-com { margin: 0; font-size: 13.5px; line-height: 1.55; color: var(--body); background: var(--purple-soft); border-left: 3px solid var(--indigo); border-radius: 8px; padding: 11px 14px; }
+
+@media (max-width: 680px) {
+  .pf-modal-hero { flex-direction: column-reverse; align-items: flex-start; padding: 22px 20px 20px; }
+  .pf-modal-body { padding: 4px 20px 22px; }
+  .pf-modal-fin { grid-template-columns: 1fr; }
+  .pf-modal-meta { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ===== v87 : espacements, onglets, sous-onglets, cartes, alignement Développeurs ===== */
+/* (A) air entre la bannière d'import et le contenu */
+.banner.import-warning { margin-bottom: 18px; }
+.pf-wrap { margin-top: 2px; }
+
+/* (C) onglets principaux un peu plus grands */
+.tab { font-size: 14.5px; padding: 11px 18px; }
+.tab.active { box-shadow: 0 6px 16px rgba(44,41,69,.18); }
+.tab .b { font-size: 11.5px; }
+
+/* (B) sous-onglets : vrai look « onglets » (soulignement) au lieu de la capsule */
+.subtabs { gap: 2px; margin: 2px 0 20px; padding: 0; background: none; border: 0; border-bottom: 2px solid var(--line); border-radius: 0; width: 100%; }
+.subtab { font-weight: 700; font-size: 13.5px; padding: 9px 18px 11px; border-radius: 0; border-bottom: 2px solid transparent; margin-bottom: -2px; color: var(--muted); }
+.subtab:hover { color: var(--indigo); background: none; }
+.subtab.active { background: none; color: var(--indigo-deep); border-bottom-color: var(--purple); box-shadow: none; }
+
+/* (D) cartes portefeuille : finition plus aboutie, cohérente avec la fiche projet */
+.pf-grid { gap: 14px; }
+.pf-card { padding: 15px 16px 15px 19px; gap: 11px; border-radius: 16px; }
+.pf-nom { font-size: 15px; }
+.pf-meteo { width: 11px; height: 11px; box-shadow: 0 0 0 3px rgba(110,92,196,.10); }
+.pf-fin { gap: 8px; border-top: 1px dashed var(--line); padding-top: 11px; }
+.pf-fin div { background: var(--row-alt); border: 1px solid var(--line-soft); border-radius: 10px; padding: 7px 10px; }
+.pf-fin span { font-size: 9.5px; letter-spacing: .03em; font-weight: 700; }
+.pf-fin b { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 13px; }
+
+/* (F) liste Développeurs : colonnes numériques parfaitement alignées */
+@media (min-width: 760px) {
+  .dev-counts { display: grid; grid-template-columns: repeat(5, 46px) 118px 16px; align-items: center; gap: 6px; justify-items: end; }
+  .dev-counts .dev-tot { text-align: right; font-variant-numeric: tabular-nums; }
+  .dev-counts .pill { padding: 4px 9px; font-variant-numeric: tabular-nums; }
+  .dev-counts .pill.pf-z { background: none; color: var(--line); }
+  .dev-counts .dev-hide { justify-self: end; }
+  .dev-counts .dev-caret { justify-self: end; margin: 0; }
+}

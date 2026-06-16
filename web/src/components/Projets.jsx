@@ -62,42 +62,51 @@ export function ProjetModal({ p, onClose }) {
   }, [onClose]);
   if (!p) return null;
   const color = METEO[p.meteo] || METEO.neutre;
+  const meteoLabel = { vert: "Au vert", orange: "Vigilance", rouge: "Critique", neutre: "Non évaluée" }[p.meteo] || "Non évaluée";
   return (
     <div className="pf-modal-back" onMouseDown={onClose}>
       <div className="pf-modal" onMouseDown={(e) => e.stopPropagation()}>
-        <div className="pf-modal-hd">
-          <div className="pf-modal-hd-l">
-            <Ring pct={p.avancement} color={p.meteo === "neutre" ? "var(--purple)" : color} size={54} />
-            <div>
-              <div className="pf-modal-cli">{p.client}</div>
-              <h3>{p.nom}{p.perimetre ? <span className="pf-modal-perim"> — {p.perimetre}</span> : null}</h3>
-              <div className="pf-modal-tags">
-                <span className={`pf-etat ${ETAT_CLS[p.etat] || ""}`}>{p.etat}</span>
-                <span className={`pf-type ${p.type === "TMA" ? "tma" : ""}`}>{p.type}</span>
-                <span className="pf-meteo" style={{ background: color }} title={`Météo : ${p.meteo}`} />
-                {p.num ? <span className="pf-modal-num">{p.num}</span> : null}
-              </div>
+        <div className="pf-modal-hero">
+          <button className="pf-modal-x" onClick={onClose} title="Fermer (Échap)">×</button>
+          <div className="pf-modal-hero-l">
+            <div className="pf-modal-cli">{p.client} · {p.type}</div>
+            <h3>{p.nom}{p.perimetre ? <span className="pf-modal-perim"> — {p.perimetre}</span> : null}</h3>
+            <div className="pf-modal-tags">
+              <span className={`pf-etat ${ETAT_CLS[p.etat] || ""}`}>{p.etat}</span>
+              <span className="pf-modal-meteo" style={{ "--mc": color }}>Météo : {meteoLabel}</span>
+              {p.num ? <span className="pf-modal-num">{p.num}</span> : null}
             </div>
           </div>
-          <button className="pf-modal-x" onClick={onClose} title="Fermer (Échap)">×</button>
+          <div className="pf-modal-ring">
+            <Ring pct={p.avancement} color={p.meteo === "neutre" ? "#ffffff" : color} size={92} />
+          </div>
         </div>
-        <div className="pf-modal-grid">
-          <div><span>Chef de projet</span><b>{p.cdp || "—"}</b></div>
-          <div><span>Avancement</span><b>{Math.round((p.avancement || 0) * 100)}%</b></div>
-          <div><span>Début</span><b>{frMonth(p.debut) || "—"}</b></div>
-          <div><span>Fin</span><b>{frMonth(p.fin) || "—"}</b></div>
-          <div><span>J/H vendus</span><b>{p.jh ?? "—"}</b></div>
-          <div><span>Budgété</span><b>{EUR(p.budgete)}</b></div>
-          <div><span>Facturé</span><b>{EUR(p.facture)}</b></div>
-          <div><span>Reste à fact.</span><b className={p.reste < 0 ? "neg" : ""}>{EUR(p.reste)}</b></div>
+
+        <div className="pf-modal-body">
+          <h4 className="pf-modal-h">Finances</h4>
+          <div className="pf-modal-fin">
+            <div className="pf-fin-c"><span>Budgété</span><b>{EUR(p.budgete)}</b></div>
+            <div className="pf-fin-c"><span>Facturé</span><b>{EUR(p.facture)}</b></div>
+            <div className={`pf-fin-c ${p.reste < 0 ? "neg" : ""}`}><span>Reste à facturer</span><b>{EUR(p.reste)}</b></div>
+          </div>
+
+          <h4 className="pf-modal-h">Cadre du projet</h4>
+          <div className="pf-modal-meta">
+            <div><span>Chef de projet</span><b>{p.cdp || "—"}</b></div>
+            <div><span>Avancement</span><b>{Math.round((p.avancement || 0) * 100)}%</b></div>
+            <div><span>J/H vendus</span><b>{p.jh ?? "—"}</b></div>
+            <div><span>Début</span><b>{frMonth(p.debut) || "—"}</b></div>
+            <div><span>Fin</span><b>{frMonth(p.fin) || "—"}</b></div>
+          </div>
+
+          {p.attention && p.attention.length ? (
+            <div className="pf-modal-sec"><h4>Points d'attention</h4><ul className="pf-att">{p.attention.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
+          ) : null}
+          {p.raf && p.raf.length ? (
+            <div className="pf-modal-sec"><h4>Reste à faire</h4><ul className="pf-raf">{p.raf.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
+          ) : null}
+          {p.comment ? <div className="pf-modal-sec"><h4>Commentaire</h4><p className="pf-modal-com">{p.comment}</p></div> : null}
         </div>
-        {p.attention && p.attention.length ? (
-          <div className="pf-modal-sec"><h4>Points d'attention</h4><ul className="pf-att">{p.attention.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
-        ) : null}
-        {p.raf && p.raf.length ? (
-          <div className="pf-modal-sec"><h4>Reste à faire</h4><ul className="pf-raf">{p.raf.map((a, i) => <li key={i}>{a}</li>)}</ul></div>
-        ) : null}
-        {p.comment ? <div className="pf-modal-sec"><h4>Commentaire</h4><p className="pf-modal-com">{p.comment}</p></div> : null}
       </div>
     </div>
   );

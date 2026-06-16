@@ -56,11 +56,11 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
 
   const counts = (r) => (
     <>
-      <span className="dev-tot">{r.total}</span>
-      <span className="pill done">{r.termine}</span>
-      <span className="pill prog">{r.encours}</span>
-      {r.recette ? <span className="pill todo">{r.recette}</span> : null}
-      {r.retard ? <span className="pill block">{r.retard} retard</span> : null}
+      <span className="dev-tot" title="Tickets pris">{r.total}</span>
+      <span className="pill done" title="Terminés">{r.termine}</span>
+      <span className="pill prog" title="En cours">{r.encours}</span>
+      <span className={`pill todo ${r.recette ? "" : "pf-z"}`} title="En recette">{r.recette || "–"}</span>
+      <span className={`pill block ${r.retard ? "" : "pf-z"}`} title="En retard">{r.retard || "–"}</span>
     </>
   );
 
@@ -97,7 +97,7 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
                   <span className="dev-bar"><span className="dev-bar-fill" style={{ width: `${Math.round((r.total / maxTotal) * 100)}%` }} /></span>
                   <span className="dev-counts">
                     {counts(r)}
-                    {onMarkLeft && r.dev !== "Non assigné" ? <button className="dev-hide" title="Marquer ce développeur comme parti d'Armonie" onClick={(e) => { e.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : null}
+                    {onMarkLeft && r.dev !== "Non assigné" ? <button className="dev-hide" title="Marquer ce développeur comme parti d'Armonie" onClick={(e) => { e.stopPropagation(); onMarkLeft(r.dev); }}>Marquer parti</button> : <span className="dev-hide-ph" />}
                     <span className="dev-caret">›</span>
                   </span>
                 </div>
