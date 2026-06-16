@@ -7,6 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as XLSX from "xlsx";
 import { crossReferentiel } from "./referentiel.js";
+import { buildDoc } from "./docgen.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const P_PATH = path.join(__dirname, "projets.json");
@@ -85,7 +86,7 @@ export function buildProjets(issues) {
       else sante = "vert";
     }
 
-    return { client, type: items[0].type, finances: fin, jira: pulse, recette, santeData: sante, projets: projetsOut };
+    return { client, type: items[0].type, cdp: items[0].cdp || "", finances: fin, jira: pulse, recette, santeData: sante, projets: projetsOut };
   });
 
   // --- KPIs globaux ---
@@ -169,4 +170,66 @@ export function projetsWorkbookBuffer(issues) {
   XLSX.utils.book_append_sheet(wb, ws, "Suivi");
 
   return XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+}
+
+// Document PDF/HTML à la charte Armonie (réutilise docgen.buildDoc -> identique aux CR).
+export function projetsDocHtml(issues) {
+  const d = buildProjets(issues);
+  const eur = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR").format(Math.round(n)) + " €");
+  const PILL = { "Terminé": "done", "Mise en prod": "done", "En cours": "prog", "Signé": "prog", "Propal envoyée": "todo", "AVV Pipe": "todo" };
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const meteoDot = (m) => `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${({ vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b" }[m]) || "#c7c4d6"};vertical-align:middle"></span>`;
+
+  const kpis = [["Budget total", eur(d.kpis.budgete)], ["Facturé", eur(d.kpis.facture)], ["Reste à facturer", eur(d.kpis.reste)],
+    ["J/H vendus", d.kpis.jh], ["Projets actifs", d.kpis.actifs], ["Clients", d.kpis.nbClients]];
+  const kpiRow = `<div class="kpi-row">${kpis.map(([l, v]) => `<div class="kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>`;
+
+  const alertes = d.recap.alertes.length
+    ? `<ul class="pp-al">${d.recap.alertes.map((a) => `<li><span class="pill ${a.niveau === "rouge" ? "block" : "todo"}">${esc(a.type)}</span> <b>${esc(a.client)}</b> — ${esc(a.projet)}${a.perimetre ? " · " + esc(a.perimetre) : ""} <span class="pp-det">${esc(a.detail)}</span></li>`).join("")}</ul>`
+    : `<p class="pp-ok">Rien d'urgent — portefeuille sous contrôle.</p>`;
+
+  const pipe = `<table class="pp-tbl"><thead><tr><th>Étape</th><th class="r">Affaires</th><th class="r">Montant</th></tr></thead><tbody>${d.pipeline.map((p) => `<tr><td>${esc(p.etat)}</td><td class="r">${p.n}</td><td class="r">${p.montant ? eur(p.montant) : "—"}</td></tr>`).join("")}</tbody></table>`;
+
+  const clientsHtml = d.clients.map((c) => {
+    const rows = c.projets.map((p) => `<tr>
+      <td><b>${esc(p.nom)}</b>${p.perimetre ? `<br><span class="pp-sub">${esc(p.perimetre)}</span>` : ""}</td>
+      <td>${meteoDot(p.meteo)} <span class="pill ${PILL[p.etat] || "todo"}">${esc(p.etat)}</span></td>
+      <td class="mono">${esc(p.num)}</td>
+      <td class="r">${p.jh ?? "—"}</td>
+      <td class="r">${eur(p.budgete)}</td>
+      <td class="r">${eur(p.facture)}</td>
+      <td class="r ${p.reste < 0 ? "neg" : ""}">${eur(p.reste)}</td>
+      <td class="r">${p.avancement != null ? Math.round(p.avancement * 100) + " %" : "—"}</td>
+      <td>${(p.attention || []).map(esc).join(" • ") || "—"}</td>
+    </tr>`).join("");
+    const rec = c.recette ? ` · recette ${c.recette.pct} % (${c.recette.nbProgrammes} prog.)` : "";
+    return `<h2>${esc(c.client)} <span class="pp-cdp">CDP ${esc(c.cdp || "—")} · ${esc(c.type)}${rec}</span></h2>
+    <table class="pp-tbl"><thead><tr><th>Projet</th><th>État</th><th>N° projet</th><th class="r">J/H</th><th class="r">Budgété</th><th class="r">Facturé</th><th class="r">Reste</th><th class="r">Av.</th><th>Points d'attention</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }).join("");
+
+  const style = `<style>
+    .pp-tbl{width:100%;border-collapse:collapse;margin:6px 0 18px;font-size:11.5px;}
+    .pp-tbl th{background:#f6f5fb;color:#3a3658;text-align:left;font-weight:700;padding:7px 9px;border-bottom:2px solid #c7a14a;font-size:10px;text-transform:uppercase;letter-spacing:.03em;}
+    .pp-tbl th.r{text-align:right;} .pp-tbl td{padding:7px 9px;border-bottom:1px solid #eceaf4;vertical-align:top;}
+    .pp-tbl td.r{text-align:right;white-space:nowrap;} .pp-tbl td.mono{font-family:ui-monospace,monospace;font-size:10.5px;color:#74718a;}
+    .pp-tbl td.neg{color:#c0392b;font-weight:700;} .pp-sub{color:#74718a;font-size:10.5px;} .pp-cdp{font-size:12px;font-weight:500;color:#74718a;}
+    .pp-al{list-style:none;padding:0;margin:6px 0 16px;} .pp-al li{padding:6px 0;border-bottom:1px solid #f0eef7;font-size:12.5px;}
+    .pp-det{color:#74718a;} .pp-ok{color:#1f8a5f;font-size:13px;} h2 .pp-cdp{margin-left:6px;}
+  </style>`;
+
+  const body = `${style}${kpiRow}
+    <h2>Ce qui demande l'attention</h2>${alertes}
+    <h2>Pipeline commercial</h2>${pipe}
+    ${clientsHtml}`;
+
+  return buildDoc({
+    kicker: "Portefeuille de projets",
+    title: "Suivi de projets",
+    subtitle: "Vue chef de projet — couche commerciale confrontée aux tickets Jira en direct.",
+    cartouche: [["Date", new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" })],
+      ["Budget total", eur(d.kpis.budgete)], ["Facturé", eur(d.kpis.facture)], ["Reste à facturer", eur(d.kpis.reste)],
+      ["Projets actifs", String(d.kpis.actifs)], ["Source", d.majSource || "Jira"]],
+    bodyHtml: body,
+    etabliPar: "cp|WIRE",
+  });
 }

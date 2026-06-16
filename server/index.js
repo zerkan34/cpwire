@@ -17,7 +17,7 @@ import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
-import { buildProjets, projetsWorkbookBuffer } from "./projets.js";
+import { buildProjets, projetsWorkbookBuffer, projetsDocHtml } from "./projets.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -427,6 +427,14 @@ app.get("/api/projets/export", guard, async (_req, res) => {
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", 'attachment; filename="Suivi_de_projets.xlsx"');
     res.send(buf);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+app.get("/api/projets/doc", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    const html = projetsDocHtml(got ? withoutDeletedDevs(got.issues) : []);
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.send(html);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 app.get("/api/referentiel", guard, async (req, res) => {

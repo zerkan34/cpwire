@@ -88,6 +88,15 @@ export async function downloadProjetsXlsx() {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
+export async function openProjetsDoc() {
+  const res = await fetch(`${BASE}/api/projets/doc`, { headers: { ...authHeaders() } });
+  if (!res.ok) throw new Error("Document indisponible");
+  const html = await res.text();
+  const w = window.open("", "_blank");
+  if (!w) throw new Error("Autorise les fenêtres pop-up pour générer le PDF.");
+  w.document.open(); w.document.write(html); w.document.close();
+  setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 600);
+}
 export const fetchReferentiel = (client) => req(`/api/referentiel${client ? `?client=${encodeURIComponent(client)}` : ""}`);
 export function importCRA(file, basis = 7) {
   const fd = new FormData();

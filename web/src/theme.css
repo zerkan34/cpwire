@@ -1490,3 +1490,84 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .pf-card { break-inside: avoid; }
   .pf-client { break-inside: avoid; box-shadow: none; }
 }
+
+/* =========================================================
+   SUIVI DE PROJETS — refonte charte Armonie (bloc prioritaire)
+   Identité : indigo/violet, filet doré, Poppins display + Inter.
+   ========================================================= */
+.pf-wrap { display: flex; flex-direction: column; gap: 16px; }
+.pf-hero { position: relative; background: var(--hd-grad); border: 0; border-radius: 18px; padding: 22px 26px 22px; box-shadow: var(--shadow-lg); overflow: hidden; }
+.pf-hero:after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.pf-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 23px; color: #fff; margin: 0; letter-spacing: .01em; }
+.pf-hero p { margin: 4px 0 0; color: #d9d3f0; font-size: 13px; }
+.pf-tb-btn { background: rgba(255,255,255,.15); color: #fff; border: 1px solid rgba(255,255,255,.28); border-radius: 10px; padding: 9px 14px; font-weight: 700; font-size: 13px; cursor: pointer; }
+.pf-tb-btn:hover { background: rgba(255,255,255,.28); }
+.pf-tb-pdf { background: rgba(199,161,74,.92); border-color: rgba(199,161,74,.55); color: #2c2945; }
+.pf-tb-pdf:hover { background: var(--gold); }
+
+.pf-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.pf-kpi { position: relative; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 14px 18px; box-shadow: var(--shadow); }
+.pf-kpi:before { content: ""; position: absolute; left: 0; top: 14px; bottom: 14px; width: 3px; border-radius: 3px; background: var(--muted); }
+.pf-kpi.t-i:before { background: var(--purple); } .pf-kpi.t-g:before { background: var(--gold); } .pf-kpi.t-o:before { background: var(--orange); }
+.pf-kpi-v { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 20px; color: var(--indigo-deep); line-height: 1.1; }
+.pf-kpi-l { font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); margin-top: 4px; }
+
+.pf-pipe { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.pf-pipe-seg { border-radius: 12px; padding: 12px 14px; color: #fff; display: flex; flex-direction: column; gap: 1px; box-shadow: var(--shadow); }
+.pf-pipe-seg b { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 19px; }
+.pf-pipe-seg span { font-size: 11.5px; font-weight: 700; } .pf-pipe-seg i { font-size: 11px; font-style: normal; opacity: .9; }
+.pf-pipe-seg.pf-av { background: #8d88a8; } .pf-pipe-seg.pf-pr { background: var(--orange); } .pf-pipe-seg.pf-si { background: var(--gold); } .pf-pipe-seg.pf-en { background: var(--purple); } .pf-pipe-seg.pf-te { background: #1f8a5f; }
+
+.pf-recap { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--gold); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+.pf-recap-hd h3 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 15px; color: var(--indigo-deep); margin: 0; }
+
+.pf-client { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; box-shadow: var(--shadow); }
+.pf-client-hd { position: relative; display: flex; align-items: center; gap: 14px; flex-wrap: wrap; padding-bottom: 13px; margin-bottom: 14px; border-bottom: 1px solid var(--line); }
+.pf-client-hd:after { content: ""; position: absolute; left: 0; bottom: -1px; width: 54px; height: 3px; background: var(--gold); }
+.pf-client-id { display: flex; align-items: center; gap: 10px; }
+.pf-client-id h3 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 18px; color: var(--indigo-deep); margin: 0; padding-left: 12px; border-left: 4px solid var(--purple); }
+.pf-client-cdp { font-size: 11.5px; font-weight: 700; color: var(--purple-strong); background: var(--purple-soft); padding: 3px 10px; border-radius: 99px; }
+.pf-client-fin { display: flex; gap: 18px; margin-left: auto; }
+.pf-client-fin span { display: block; font-size: 9.5px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.pf-client-fin b { font-size: 14px; color: var(--ink); font-family: "Poppins", sans-serif; font-weight: 700; }
+
+.pf-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+
+.pf-card { position: relative; width: 100%; text-align: left; font: inherit; cursor: pointer; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px 14px 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: var(--shadow); transition: transform .12s ease, box-shadow .12s ease, border-color .12s; overflow: hidden; }
+.pf-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--purple-line); }
+.pf-accent { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--muted); }
+.pf-card.pf-en .pf-accent { background: var(--purple); } .pf-card.pf-si .pf-accent { background: var(--gold); } .pf-card.pf-pr .pf-accent { background: var(--orange); } .pf-card.pf-av .pf-accent { background: #b9b6ca; } .pf-card.pf-te .pf-accent { background: #1f8a5f; }
+.pf-card-top { display: flex; align-items: center; gap: 8px; }
+.pf-etat { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 99px; background: var(--row-alt); color: var(--ink); }
+.pf-etat.pf-en { background: var(--purple-soft); color: var(--purple-strong); } .pf-etat.pf-si { background: #fbf2dc; color: #8a6a1e; } .pf-etat.pf-pr { background: var(--orange-soft); color: var(--orange-deep); } .pf-etat.pf-av { background: #eef0f4; color: #6b6880; } .pf-etat.pf-te { background: #e3f6ea; color: #1f7a44; }
+.pf-type { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: #eef0ff; color: #3a3d9e; }
+.pf-type.tma { background: #fff0e6; color: #9a5a12; }
+.pf-meteo { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+.pf-cdp { margin-left: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
+.pf-cdp-none { background: var(--row-alt); color: var(--muted); }
+.pf-card-h { min-width: 0; }
+.pf-nom { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 14.5px; color: var(--indigo-deep); line-height: 1.2; }
+.pf-perim { font-size: 12px; color: var(--body); margin-top: 1px; }
+.pf-num { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.pf-prog { display: flex; align-items: center; gap: 8px; }
+.pf-prog-bar { flex: 1; height: 6px; border-radius: 99px; background: var(--row-alt); overflow: hidden; }
+.pf-prog-bar i { display: block; height: 100%; border-radius: 99px; }
+.pf-prog-v { font-size: 11px; font-weight: 800; color: var(--ink); min-width: 30px; text-align: right; }
+.pf-fin { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--line-soft); padding-top: 9px; }
+.pf-fin div { padding: 0 10px; border-right: 1px solid var(--line-soft); }
+.pf-fin div:first-child { padding-left: 0; } .pf-fin div:last-child { border-right: 0; padding-right: 0; }
+.pf-fin span { display: block; font-size: 9px; text-transform: uppercase; letter-spacing: .03em; color: var(--muted); }
+.pf-fin b { font-size: 13px; color: var(--ink); } .pf-fin b.neg { color: var(--red); }
+.pf-att { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.pf-att li { font-size: 11.5px; color: var(--orange-deep); background: var(--orange-soft); border-radius: 7px; padding: 3px 8px; }
+.pf-att li.pf-more { background: none; color: var(--muted); font-style: italic; padding-left: 0; }
+.pf-foot { font-size: 11px; color: var(--muted); text-align: center; margin: 4px 0 0; }
+
+/* Fiche modale : filet doré + marqueurs violets (echo charte) */
+.pf-modal { border-top: 4px solid var(--gold); }
+.pf-modal-hd h3 { font-family: "Poppins", sans-serif; }
+.pf-modal-grid { grid-template-columns: repeat(4, 1fr); }
+.pf-modal-sec h4 { border-left: 4px solid var(--purple); padding-left: 9px; font-family: "Poppins", sans-serif; font-weight: 700; color: var(--indigo-deep); }
+
+@media (max-width: 1000px) { .pf-grid { grid-template-columns: repeat(2, 1fr); } .pf-kpis { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 680px) { .pf-grid { grid-template-columns: 1fr; } .pf-kpis { grid-template-columns: repeat(2, 1fr); } .pf-pipe { grid-template-columns: repeat(2, 1fr); } .pf-modal-grid { grid-template-columns: repeat(2, 1fr); } .pf-alerte { grid-template-columns: 12px 1fr; } .pf-alerte-det { grid-column: 2; } }

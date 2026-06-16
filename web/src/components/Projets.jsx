@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { fetchProjets, downloadProjetsXlsx } from "../api.js";
+import { fetchProjets, downloadProjetsXlsx, openProjetsDoc } from "../api.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -18,28 +18,34 @@ function Ring({ pct, color, size = 44 }) {
   );
 }
 
+const initials = (s) => String(s || "").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+
 function Card({ p, onOpen }) {
   const color = METEO[p.meteo] || METEO.neutre;
+  const pct = Math.round((p.avancement || 0) * 100);
   const period = (p.debut || p.fin) ? `${frMonth(p.debut) || "?"} → ${frMonth(p.fin) || "?"}` : "";
   return (
-    <button className="pf-card" onClick={() => onOpen(p)} title="Voir le détail">
+    <button className={`pf-card ${ETAT_CLS[p.etat] || ""}`} onClick={() => onOpen(p)} title="Voir le détail">
+      <span className="pf-accent" />
       <div className="pf-card-top">
         <span className={`pf-etat ${ETAT_CLS[p.etat] || ""}`}>{p.etat}</span>
         <span className={`pf-type ${p.type === "TMA" ? "tma" : ""}`}>{p.type}</span>
         <span className="pf-meteo" style={{ background: color }} title={`Météo : ${p.meteo}`} />
+        {p.cdp ? <span className="pf-cdp" title={`Chef de projet : ${p.cdp}`}>{initials(p.cdp)}</span> : <span className="pf-cdp pf-cdp-none" title="CDP non défini">—</span>}
       </div>
-      <div className="pf-card-body">
-        <Ring pct={p.avancement} color={p.meteo === "neutre" ? "var(--purple)" : color} />
-        <div className="pf-card-h">
-          <div className="pf-nom">{p.nom}</div>
-          {p.perimetre ? <div className="pf-perim">{p.perimetre}</div> : null}
-          <div className="pf-num">{p.num}{period ? ` · ${period}` : ""}</div>
-        </div>
+      <div className="pf-card-h">
+        <div className="pf-nom">{p.nom}</div>
+        {p.perimetre ? <div className="pf-perim">{p.perimetre}</div> : null}
+        <div className="pf-num">{p.num}{period ? ` · ${period}` : ""}</div>
+      </div>
+      <div className="pf-prog">
+        <div className="pf-prog-bar"><i style={{ width: `${pct}%`, background: p.meteo === "neutre" ? "var(--purple)" : color }} /></div>
+        <span className="pf-prog-v">{pct}%</span>
       </div>
       <div className="pf-fin">
         <div><span>Budgété</span><b>{EUR(p.budgete)}</b></div>
         <div><span>Facturé</span><b>{EUR(p.facture)}</b></div>
-        <div><span>Reste à fact.</span><b className={p.reste < 0 ? "neg" : ""}>{EUR(p.reste)}</b></div>
+        <div><span>Reste</span><b className={p.reste < 0 ? "neg" : ""}>{EUR(p.reste)}</b></div>
       </div>
       {p.attention && p.attention.length > 0 ? (
         <ul className="pf-att">{p.attention.slice(0, 2).map((a, i) => <li key={i}>{a}</li>)}{p.attention.length > 2 ? <li className="pf-more">+{p.attention.length - 2} autre(s)…</li> : null}</ul>
@@ -75,6 +81,7 @@ function ProjetModal({ p, onClose }) {
           <button className="pf-modal-x" onClick={onClose} title="Fermer (Échap)">×</button>
         </div>
         <div className="pf-modal-grid">
+          <div><span>Chef de projet</span><b>{p.cdp || "—"}</b></div>
           <div><span>Avancement</span><b>{Math.round((p.avancement || 0) * 100)}%</b></div>
           <div><span>Début</span><b>{frMonth(p.debut) || "—"}</b></div>
           <div><span>Fin</span><b>{frMonth(p.fin) || "—"}</b></div>
@@ -103,6 +110,7 @@ function ClientBlock({ c, onOpen }) {
         <div className="pf-client-id">
           <h3>{c.client}</h3>
           <span className={`pf-type ${c.type === "TMA" ? "tma" : ""}`}>{c.type}</span>
+          {c.cdp ? <span className="pf-client-cdp">CDP {c.cdp}</span> : null}
         </div>
         <div className="pf-client-fin">
           <div><span>Budgété</span><b>{EUR(c.finances.budgete)}</b></div>
@@ -152,6 +160,7 @@ export default function Projets() {
     }
   };
   const exportXlsx = async () => { setDl(true); try { await downloadProjetsXlsx(); } catch (e) { alert("Export indisponible : " + (e.message || e)); } finally { setDl(false); } };
+  const exportPdf = async () => { try { await openProjetsDoc(); } catch (e) { alert(e.message || String(e)); } };
 
   if (loading) return <div className="empty">Chargement du portefeuille…</div>;
   if (err) return <div className="empty">Suivi de projets indisponible : {err}</div>;
@@ -170,7 +179,7 @@ export default function Projets() {
         </div>
         <div className="pf-toolbar">
           <button className="pf-tb-btn" onClick={exportXlsx} disabled={dl}>{dl ? "Export…" : "⬇ Excel"}</button>
-          <button className="pf-tb-btn" onClick={() => window.print()}>🖨 Imprimer / PDF</button>
+          <button className="pf-tb-btn pf-tb-pdf" onClick={exportPdf}>📄 PDF (charte)</button>
         </div>
       </div>
 
