@@ -1711,3 +1711,27 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .enc-tg { border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 13px; padding: 6px 16px; border-radius: 99px; cursor: pointer; }
 .enc-tg.on { background: var(--indigo); color: #fff; }
 .enc-tg:not(.on):hover { color: var(--ink); }
+
+/* ===== Cadence — rythme de l'équipe ===== */
+.cad-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+@media (max-width: 900px) { .cad-kpis { grid-template-columns: repeat(2, 1fr); } }
+.cad-kpi { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 14px; box-shadow: var(--shadow); }
+.cad-kpi .cad-n { font-family: Poppins, sans-serif; font-weight: 700; font-size: 26px; color: var(--indigo); line-height: 1; }
+.cad-kpi .cad-l { margin-top: 6px; font-size: 12px; color: var(--muted); font-weight: 600; }
+.cad-kpi.cad-alert { border-color: var(--orange); background: linear-gradient(180deg, #fff7f0, var(--card)); }
+.cad-kpi.cad-alert .cad-n { color: var(--orange-deep); }
+
+.cad-chart { display: flex; align-items: flex-end; gap: 10px; height: 200px; padding: 10px 4px 0; border-bottom: 2px solid var(--line); }
+.cad-bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; }
+.cad-bar-v { font-size: 12px; font-weight: 700; color: var(--indigo); margin-bottom: 4px; }
+.cad-bar { width: 100%; max-width: 46px; min-height: 2px; border-radius: 6px 6px 0 0; background: linear-gradient(180deg, var(--purple), var(--indigo)); transition: height .3s ease; }
+.cad-bar-x { margin-top: 6px; font-size: 11px; color: var(--muted); }
+
+.cad-table-wrap { overflow-x: auto; }
+.cad-table { width: 100%; }
+.cad-table .who { font-weight: 600; color: var(--indigo); }
+.cad-muted { color: var(--muted); text-align: center; padding: 16px; }
+.cad-old { white-space: nowrap; }
+.cad-old-bad { color: var(--orange-deep); font-weight: 700; }
+.cad-link { border: 0; background: none; padding: 0; font: inherit; color: inherit; cursor: pointer; text-decoration: underline; font-family: "JetBrains Mono", monospace; }
+.cad-foot { margin-top: 16px; font-size: 12px; color: var(--muted); line-height: 1.6; }

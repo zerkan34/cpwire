@@ -76,6 +76,7 @@ export const fetchChangesSummary = (keys) => post(`/api/changes/summary`, { keys
 export const fetchCRA = (start, end) => post(`/api/cra`, { start, end });
 export const fetchSla = () => req(`/api/sla`);
 export const fetchHygiene = () => req(`/api/hygiene`);
+export const fetchCadence = (weeks = 8) => req(`/api/cadence?weeks=${weeks}`);
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 export const fetchProjets = () => req(`/api/projets`);

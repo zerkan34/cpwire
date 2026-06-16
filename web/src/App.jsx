@@ -11,6 +11,7 @@ import Recette from "./components/Recette.jsx";
 import Referentiel from "./components/Referentiel.jsx";
 import Projets from "./components/Projets.jsx";
 import Hygiene from "./components/Hygiene.jsx";
+import Cadence from "./components/Cadence.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 import DailyCRModal from "./components/DailyCRModal.jsx";
 
@@ -36,6 +37,7 @@ const TABS = [
   { id: "recap", label: "Récap du jour" },
   { id: "morning", label: "Brief matin" },
   { id: "devs", label: "Développeurs" },
+  { id: "cadence", label: "Cadence" },
   { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
   { id: "recette", label: "Recette" },
   { id: "referentiel", label: "Référentiel" },
@@ -44,7 +46,7 @@ const TABS = [
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
 const PRIMARY = ["cockpit", "encours", "recap", "morning"];
-const SECONDARY = ["projets", "recette", "referentiel", "hygiene", "devs", "meetings", "cra", "history"];
+const SECONDARY = ["projets", "recette", "referentiel", "hygiene", "devs", "cadence", "meetings", "cra", "history"];
 const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
 
 // Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
@@ -61,6 +63,7 @@ function NavIcon({ id }) {
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
     case "recette": return (<svg viewBox="0 0 24 24" {...p}><path d="M9 11.5l2.2 2.2L15 9.5" /><path d="M12 3l7 3v5c0 4.2-2.8 7.7-7 9-4.2-1.3-7-4.8-7-9V6l7-3z" /></svg>);
     case "hygiene": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
+    case "cadence": return (<svg viewBox="0 0 24 24" {...p}><path d="M3 12h3l2-6 4 14 3-9 2 4h4" /></svg>);
     case "referentiel": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 16l9 5 9-5" /></svg>);
     case "projets": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" /><line x1="3" y1="12" x2="21" y2="12" /></svg>);
     default: return null;
@@ -521,6 +524,7 @@ export default function App() {
       {tab === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
       {tab === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
+      {tab === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
 

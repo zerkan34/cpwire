@@ -15,6 +15,7 @@ import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
+import { buildCadence } from "./cadence.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
@@ -402,6 +403,16 @@ app.get("/api/hygiene", guard, async (req, res) => {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     res.json(buildHygiene(got.issues, readDeleted()));
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Rythme/cadence de l'équipe — calculé depuis Jira (déterministe, aucune IA).
+app.get("/api/cadence", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const weeks = Math.min(16, Math.max(4, parseInt(req.query.weeks, 10) || 8));
+    res.json(buildCadence(withoutDeletedDevs(got.issues), { weeks }));
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
