@@ -93,6 +93,7 @@ export const fetchHygiene = () => req(`/api/hygiene`);
 export const fetchCadence = (weeks = 8) => req(`/api/cadence?weeks=${weeks}`);
 export const fetchConnaissance = () => req(`/api/connaissance`);
 export const saveConnaissance = (data) => put(`/api/connaissance`, data);
+export const learnConnaissance = () => post(`/api/connaissance/learn`, {});
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 export const fetchProjets = () => req(`/api/projets`);

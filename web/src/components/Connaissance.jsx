@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchConnaissance, saveConnaissance } from "../api.js";
+import { fetchConnaissance, saveConnaissance, learnConnaissance } from "../api.js";
 
 const arrToText = (a) => (Array.isArray(a) ? a.join("\n") : "");
 const textToArr = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -15,6 +15,7 @@ export default function Connaissance() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [learning, setLearning] = useState(false);
 
   const [conv, setConv] = useState("");
   const [glossG, setGlossG] = useState("");
@@ -69,6 +70,20 @@ export default function Connaissance() {
     URL.revokeObjectURL(url);
   };
 
+  // Déclenche l'apprentissage IA tout de suite (sinon il tourne seul en tâche de fond).
+  const onLearn = async () => {
+    setLearning(true); setMsg(""); setErr("");
+    try {
+      const r = await learnConnaissance();
+      if (r.connaissance) setK(r.connaissance);
+      const n = (r.learned || []).length;
+      setMsg(n ? `Mémoire enrichie automatiquement pour ${n} client${n > 1 ? "s" : ""}.` : "Apprentissage à jour (rien de neuf à analyser).");
+    } catch (e) { setErr(e.message || "Apprentissage impossible"); }
+    finally { setLearning(false); }
+  };
+
+  const fmtAt = (iso) => { try { return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; } };
+
   if (loading) return <div className="empty">Chargement de la mémoire d'équipe…</div>;
   if (err && !k) return <div className="empty">Mémoire indisponible : {err}</div>;
   if (!k) return null;
@@ -94,6 +109,9 @@ export default function Connaissance() {
       </div>
 
       <div className="section-title" style={{ marginTop: 24 }}>Par client</div>
+      <p className="hint" style={{ marginTop: -6 }}>
+        En plus de ce que vous écrivez, l'IA <b>apprend toute seule</b> : elle observe l'activité Jira de chaque client et met à jour un « contexte observé » (bloc 🤖 plus bas), automatiquement et en tâche de fond. Vous n'avez rien à faire.
+      </p>
       <div className="enc-toggle cn-clients" role="tablist">
         {clientKeys.map((key) => (
           <button key={key} className={`enc-tg ${sel === key ? "on" : ""}`} onClick={() => setSel(key)}>{key}</button>
@@ -110,11 +128,21 @@ export default function Connaissance() {
           <textarea className="cn-ta" rows={3} value={glossC[sel] || ""} onChange={(e) => setGlossC((p) => ({ ...p, [sel]: e.target.value }))} placeholder="terme = définition (une par ligne)" />
           <h3>Notes / consignes</h3>
           <textarea className="cn-ta" rows={4} value={notes[sel] || ""} onChange={(e) => setNotes((p) => ({ ...p, [sel]: e.target.value }))} placeholder="Tout ce que l'assistant doit garder en tête pour ce client…" />
+          {k.clients[sel]?.auto?.points?.length > 0 && (
+            <div className="cn-auto">
+              <h3>🤖 Appris automatiquement par l'IA <span className="cn-auto-meta">— mis à jour le {fmtAt(k.clients[sel].auto.at)}</span></h3>
+              <ul className="cn-auto-list">
+                {k.clients[sel].auto.points.map((p, idx) => <li key={idx}>{p}</li>)}
+              </ul>
+              <p className="cn-auto-note">Observé à partir de l'activité Jira — indicatif, non modifiable. L'IA le réactualise toute seule et en tient compte dans les comptes rendus.</p>
+            </div>
+          )}
         </div>
       )}
 
       <div className="cn-actions">
         <button className="btn cn-save" onClick={onSave} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer la mémoire"}</button>
+        <button className="btn cn-ghost" onClick={onLearn} disabled={learning} title="Forcer l'analyse IA de tous les clients maintenant">{learning ? "Apprentissage…" : "🤖 Mettre à jour l'apprentissage"}</button>
         <button className="btn cn-ghost" onClick={onExport}>Exporter (connaissance.json)</button>
         {msg && <span className="cn-ok">{msg}</span>}
         {err && <span className="cn-err">{err}</span>}

@@ -1,19 +1,22 @@
 // ai.js — rédaction assistée. Utilise l'API Claude si ANTHROPIC_API_KEY est défini,
 // sinon des gabarits structurés (l'outil reste utilisable sans clé).
 import { buildDoc } from "./docgen.js";
-import { knowledgeForPrompt } from "./connaissance.js";
+import { knowledgeForPrompt, saveAuto, autoAgeMs } from "./connaissance.js";
 import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus, statusIsExplicit } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
 const MISTRAL_KEY = process.env.MISTRAL_API_KEY || "";   // gratuit, UE, compatible OpenAI (recommandé)
 const GROQ_KEY = process.env.GROQ_API_KEY || "";          // gratuit mais bloque les IP cloud (ne marche pas sur Render)
+const QWEN_KEY = process.env.QWEN_API_KEY || "";          // Qwen (Alibaba DashScope / OpenRouter), compatible OpenAI
+const QWEN_BASE = (process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs.com/compatible-mode/v1").replace(/\/$/, "");
 const AI_API_KEY = process.env.AI_API_KEY || "";          // fournisseur générique compatible OpenAI
 const AI_BASE_URL = (process.env.AI_BASE_URL || "").replace(/\/$/, ""); // ex. https://api.mistral.ai/v1
 
 // Modèle par défaut selon le fournisseur présent (surchargé par AI_MODEL).
 function defaultModel() {
   if (process.env.AI_MODEL) return process.env.AI_MODEL;
+  if (QWEN_KEY) return "qwen-plus";
   if (ANTHROPIC_KEY) return "claude-sonnet-4-6";
   if (MISTRAL_KEY) return "mistral-small-latest";
   if (GROQ_KEY) return "llama-3.3-70b-versatile";
@@ -22,12 +25,13 @@ function defaultModel() {
 const MODEL = defaultModel();
 
 export function aiAvailable() {
-  return Boolean(ANTHROPIC_KEY || MISTRAL_KEY || GROQ_KEY || (AI_API_KEY && AI_BASE_URL));
+  return Boolean(QWEN_KEY || ANTHROPIC_KEY || MISTRAL_KEY || GROQ_KEY || (AI_API_KEY && AI_BASE_URL));
 }
 
-// Aiguilleur d'appel IA. Priorité : Anthropic (privé) → Mistral (gratuit, UE) → Groq → générique.
+// Aiguilleur d'appel IA. Priorité : Qwen (si configuré) → Anthropic → Mistral → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
 async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
+  if (QWEN_KEY) return callOpenAICompat(QWEN_BASE, QWEN_KEY, system, userText, maxTokens, temperature);
   if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature);
   if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature);
   if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature);
@@ -1151,4 +1155,53 @@ const DOSSIER_LEXIQUE = {
 function lexique(dossier) {
   const k = DOSSIER_LEXIQUE[dossier];
   return (k ? "\n\n" + k : "") + knowledgeForPrompt(dossier);
+}
+
+// ===== Mémoire auto-apprenante =====================================================
+// L'IA lit l'activité Jira de chaque client et écrit, seule, un « contexte observé »
+// (3 à 5 puces) dans la couche `auto` de la mémoire. Rien à faire côté utilisateur.
+// Tourne en tâche de fond, throttlé, et NE FAIT RIEN sans clé IA.
+
+const LEARN_TTL_MS = 20 * 3600 * 1000;   // au plus une fois ~par 20 h et par client
+let learnRunning = false;
+
+function summarizeForLearn(list) {
+  if (!list.length) return "";
+  const now = Date.now();
+  const recent = list.filter((i) => { const t = new Date(i.maj || i.cree || 0).getTime(); return t && now - t < 60 * 86400000; });
+  const scope = recent.length ? recent : list;
+  const eng = {}, dev = {}, cat = {};
+  scope.forEach((i) => {
+    const e = i.engagement && i.engagement !== "—" ? i.engagement : "Autre"; eng[e] = (eng[e] || 0) + 1;
+    const d = i.dev || i.assigne; if (d) dev[d] = (dev[d] || 0) + 1;
+    cat[i.categorie] = (cat[i.categorie] || 0) + 1;
+  });
+  const top = (o, n) => Object.entries(o).sort((a, b) => b[1] - a[1]).slice(0, n).map(([k, v]) => `${k} (${v})`).join(", ");
+  const samples = scope.slice().sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))).slice(0, 12)
+    .map((i) => `- ${i.cle} [${i.statut}] ${i.resume}`).join("\n");
+  return `Client : ${scope[0].dossier}\nTickets analyses : ${scope.length}\nPerimetres : ${top(eng, 4) || "-"}\nIntervenants : ${top(dev, 5) || "-"}\nRepartition par statut : ${top(cat, 6) || "-"}\nTickets recents :\n${samples}`;
+}
+
+export async function runAutoLearn(issues = [], { force = false } = {}) {
+  if (!aiAvailable() || learnRunning) return { ran: false, learned: [] };
+  learnRunning = true;
+  const learned = [];
+  try {
+    const byDossier = {};
+    for (const i of issues) { const d = i.dossier; if (d) (byDossier[d] ||= []).push(i); }
+    for (const [dossier, list] of Object.entries(byDossier)) {
+      if (!force && autoAgeMs(dossier) < LEARN_TTL_MS) continue;
+      const summary = summarizeForLearn(list);
+      if (!summary) continue;
+      try {
+        const raw = await callClaude(
+          "Tu es analyste PMO. A partir de l'activite Jira d'un client, degage le CONTEXTE OBSERVE : perimetres actifs, themes recurrents, intervenants principaux, tendances. Strictement factuel, aucune invention. Reponds par 3 a 5 puces courtes, une par ligne, chacune commencant par tiret, sans titre ni phrase d'introduction.",
+          summary, [], 400, 0.2
+        );
+        const points = String(raw || "").split("\n").map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter((l) => l.length > 3).slice(0, 6);
+        if (points.length) { saveAuto(dossier, points); learned.push(dossier); }
+      } catch { /* un client echoue, on continue */ }
+    }
+  } finally { learnRunning = false; }
+  return { ran: true, learned };
 }

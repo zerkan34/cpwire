@@ -35,25 +35,52 @@ const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 const TABS = [
   { id: "cockpit", label: "Cockpit" },
   { id: "projets", label: "Suivi projets" },
-  { id: "encours", label: "En cours" },
-  { id: "recap", label: "Récap du jour" },
-  { id: "morning", label: "Brief matin" },
+  { id: "recap", label: "Récap" },
   { id: "devs", label: "Développeurs" },
-  { id: "cadence", label: "Cadence" },
-  { id: "memoire", label: "Mémoire" },
-  { id: "meetings", label: "Réunions" }, { id: "cra", label: "CRA" }, { id: "history", label: "Historique" },
-  { id: "recette", label: "Recette" },
-  { id: "referentiel", label: "Référentiel" },
-  { id: "hygiene", label: "Qualité" },
+  { id: "qualite", label: "Qualité & Mémoire" },
+  { id: "meetings", label: "Réunions" },
+  { id: "cra", label: "CRA" },
+  { id: "history", label: "Historique" },
 ];
 
+// Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
+const SUBTABS = {
+  cockpit: [
+    { id: "portefeuille", label: "Portefeuille" },
+    { id: "recette", label: "Recette" },
+    { id: "referentiel", label: "Référentiel" },
+  ],
+  projets: [
+    { id: "projets", label: "Suivi projets" },
+    { id: "encours", label: "En cours" },
+  ],
+  recap: [
+    { id: "recap", label: "Récap du jour" },
+    { id: "morning", label: "Brief du matin" },
+  ],
+  devs: [
+    { id: "devs", label: "Développeurs" },
+    { id: "cadence", label: "Cadence" },
+  ],
+  qualite: [
+    { id: "hygiene", label: "Qualité" },
+    { id: "memoire", label: "Mémoire" },
+  ],
+};
+
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "encours", "recap", "morning"];
-const SECONDARY = ["projets", "recette", "referentiel", "hygiene", "devs", "cadence", "memoire", "meetings", "cra", "history"];
-// Rôle "consultation" : onglets autorisés (aucun récap, aucun CR, aucune réunion, pas la Mémoire).
-const CONSULT_TABS = ["cockpit", "projets", "encours", "devs", "cadence", "cra", "recette", "referentiel", "hygiene", "history"];
+const PRIMARY = ["cockpit", "projets", "recap", "devs"];
+const SECONDARY = ["qualite", "meetings", "cra", "history"];
+// Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
+const CONSULT_TABS = ["cockpit", "projets", "devs", "qualite", "cra", "history"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Cockpit", encours: "En cours", recap: "Récap", morning: "Brief" };
+const TAB_SHORT = { cockpit: "Cockpit", projets: "Projets", recap: "Récap", devs: "Devs", qualite: "Qualité", history: "Histo." };
+
+// Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
+function subsForRole(groupId, role) {
+  const subs = SUBTABS[groupId] || [];
+  return role === "owner" ? subs : subs.filter((s) => s.id !== "memoire");
+}
 
 // Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
 function NavIcon({ id }) {
@@ -69,6 +96,7 @@ function NavIcon({ id }) {
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
     case "recette": return (<svg viewBox="0 0 24 24" {...p}><path d="M9 11.5l2.2 2.2L15 9.5" /><path d="M12 3l7 3v5c0 4.2-2.8 7.7-7 9-4.2-1.3-7-4.8-7-9V6l7-3z" /></svg>);
     case "hygiene": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
+    case "qualite": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
     case "memoire": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" /><line x1="8" y1="7" x2="15" y2="7" /></svg>);
     case "admin": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="3.2" /><path d="M5.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5" /><path d="M18 4l1 1.6L20.8 6l-1.3 1.2.3 1.8L18 8.1 16.2 9l.3-1.8L15.2 6l1.8-.4z" /></svg>);
     case "cadence": return (<svg viewBox="0 0 24 24" {...p}><path d="M3 12h3l2-6 4 14 3-9 2 4h4" /></svg>);
@@ -95,6 +123,7 @@ export default function App() {
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
+  const [sub, setSub] = useState("portefeuille");   // sous-onglet actif dans un onglet groupé
   const [drawer, setDrawer] = useState(false);
   const [data, setData] = useState(null);
   const [dossiers, setDossiers] = useState({});
@@ -274,6 +303,9 @@ export default function App() {
 
   // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
   useEffect(() => { if (role === "consultation" && !CONSULT_TABS.includes(tab)) setTab("cockpit"); }, [role, tab]);
+
+  // À chaque changement d'onglet groupé, on positionne le sous-onglet sur le 1er autorisé.
+  useEffect(() => { const subs = subsForRole(tab, role); setSub(subs.length ? subs[0].id : ""); }, [tab, role]);
 
   // Battement de cœur (présence) : permet au super-admin de voir qui est en ligne.
   useEffect(() => {
@@ -470,7 +502,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : role === "owner" ? [...TABS, ADMIN_TAB] : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "encours", "cadence", "history"] : PRIMARY;
+  const primaryTabs = role === "consultation" ? ["cockpit", "projets", "devs", "history"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : role === "owner" ? [...SECONDARY, "admin"] : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -521,6 +553,14 @@ export default function App() {
         ))}
       </div>
 
+      {subsForRole(tab, role).length > 1 && (
+        <div className="subtabs">
+          {subsForRole(tab, role).map((s) => (
+            <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>{s.label}</button>
+          ))}
+        </div>
+      )}
+
       {needsConfig && (
         <div className="banner">
           Jira n'est pas configuré côté serveur. Renseigne <b>JIRA_BASE_URL</b>, <b>JIRA_EMAIL</b> et
@@ -537,7 +577,7 @@ export default function App() {
         </div>
       )}
 
-      {tab === "cockpit" && (
+      {tab === "cockpit" && sub === "portefeuille" && (
         <>
           {diag && (
             <p className="hint" style={{ marginTop: 4 }}>
@@ -574,19 +614,19 @@ export default function App() {
         </>
       )}
 
-      {tab === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "morning" && <Morning issues={issues} onTicket={setTicket} />}
-      {tab === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
+      {tab === "recap" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "projets" && sub === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "recap" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
+      {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "meetings" && <Meetings issues={issues} />}
       {tab === "cra" && <CRA onTicket={setTicket} />}
       {tab === "history" && <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
-      {tab === "recette" && <Recette issues={issues} onTicket={setTicket} />}
-      {tab === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
-      {tab === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
-      {tab === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
-      {tab === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
-      {tab === "memoire" && <Connaissance />}
+      {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
+      {tab === "cockpit" && sub === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
+      {tab === "projets" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
+      {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
+      {tab === "devs" && sub === "cadence" && <Cadence issues={issues} onTicket={setTicket} />}
+      {tab === "qualite" && sub === "memoire" && role === "owner" && <Connaissance />}
       {tab === "admin" && role === "owner" && <Admin />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>

@@ -1799,3 +1799,17 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .hdr-presence { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .pres-dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(255,255,255,.45); display: inline-block; }
 .pres-dot.on { background: #43d17a; box-shadow: 0 0 0 3px rgba(67,209,122,.25); }
+
+/* ===== Sous-onglets (onglets groupés) ===== */
+.subtabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 2px 0 14px; }
+.subtab { border: 1px solid var(--line); background: var(--card); color: var(--muted); font-family: Poppins, sans-serif; font-weight: 600; font-size: 12.5px; padding: 6px 14px; border-radius: 999px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.subtab:hover { border-color: var(--purple-line); color: var(--ink); }
+.subtab.active { background: var(--purple-soft); border-color: var(--purple); color: var(--purple-strong); }
+
+/* ===== Mémoire : bloc appris automatiquement (IA) ===== */
+.cn-auto { margin-top: 16px; padding: 14px 16px; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; }
+.cn-auto h3 { margin: 0 0 8px; color: var(--purple-strong); font-size: 14px; }
+.cn-auto-meta { font-weight: 400; font-size: 12px; color: var(--muted); }
+.cn-auto-list { margin: 0 0 8px; padding-left: 18px; }
+.cn-auto-list li { font-size: 13.5px; color: var(--ink); margin: 3px 0; }
+.cn-auto-note { font-size: 12px; color: var(--muted); margin: 0; font-style: italic; }

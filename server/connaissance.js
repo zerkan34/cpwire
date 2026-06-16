@@ -114,6 +114,7 @@ export function saveConnaissance(data) {
     clients: {},
   };
   const src = data?.clients || {};
+  const current = readConnaissance();   // pour préserver la couche « auto » (apprise par l'IA), non éditée à la main
   for (const k of Object.keys(src)) {
     const c = src[k] || {};
     safe.clients[k] = {
@@ -122,6 +123,10 @@ export function saveConnaissance(data) {
       glossaire: Array.isArray(c.glossaire) ? c.glossaire.filter((g) => g && g.terme).map((g) => ({ terme: String(g.terme), sens: String(g.sens || "") })) : [],
       notes: Array.isArray(c.notes) ? c.notes.map(String).filter(Boolean) : [],
     };
+    const keptAuto = (c.auto && Array.isArray(c.auto.points)) ? c.auto : (current.clients[k] && current.clients[k].auto);
+    if (keptAuto && Array.isArray(keptAuto.points) && keptAuto.points.length) {
+      safe.clients[k].auto = { points: keptAuto.points.map(String).filter(Boolean).slice(0, 6), at: String(keptAuto.at || "") };
+    }
   }
   try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(safe, null, 2)); }
   catch (e) { console.error("[connaissance] écriture impossible:", e.message); }
@@ -140,6 +145,24 @@ export function knowledgeForPrompt(dossier) {
     if (c.attentes?.length) lines.push(`Attentes ${dossier} : ${c.attentes.join(" ; ")}`);
     if (c.glossaire?.length) lines.push(`Vocabulaire ${dossier} : ` + c.glossaire.map((g) => `${g.terme} = ${g.sens}`).join(" ; "));
     if (c.notes?.length) lines.push(`Notes ${dossier} : ${c.notes.join(" ; ")}`);
+    if (c.auto?.points?.length) lines.push(`Observé automatiquement sur ${dossier} (activité Jira récente, indicatif) : ${c.auto.points.join(" ; ")}`);
   }
   return lines.length > 1 ? lines.join("\n") : "";
+}
+
+// ---- Couche « apprise automatiquement » par l'IA (séparée des notes manuelles) ----
+// Écrit l'observation IA pour un client sans toucher au reste (contexte/attentes/glossaire/notes).
+export function saveAuto(dossier, points) {
+  const k = readConnaissance();
+  if (!k.clients[dossier]) k.clients[dossier] = { contexte: "", attentes: [], glossaire: [], notes: [] };
+  k.clients[dossier].auto = { points: (points || []).map(String).filter(Boolean).slice(0, 6), at: new Date().toISOString() };
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); }
+  catch (e) { console.error("[connaissance] saveAuto impossible:", e.message); }
+  return k.clients[dossier].auto;
+}
+
+// Ancienneté (ms) de la dernière observation IA d'un client (Infinity si jamais apprise).
+export function autoAgeMs(dossier) {
+  const at = readConnaissance().clients[dossier]?.auto?.at;
+  return at ? Date.now() - new Date(at).getTime() : Infinity;
 }

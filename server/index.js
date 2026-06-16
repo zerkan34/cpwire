@@ -22,7 +22,7 @@ import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
 import { recentMailsFor, mailsConfigured } from "./mails.js";
-import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
+import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable, runAutoLearn } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -381,6 +381,8 @@ app.get("/api/portfolio", guard, async (req, res) => {
     payload.importing = Boolean(got.importing);
     payload.importError = got.importError || null;
     res.json(payload);
+    // Mémoire auto-apprenante : en tâche de fond, throttlé, sans bloquer la réponse (ne fait rien sans clé IA).
+    if (aiAvailable() && !got.importing) { runAutoLearn(got.issues).catch(() => {}); }
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
@@ -777,6 +779,16 @@ app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
 
 // Mémoire d'équipe (connaissance) — lue par l'IA à chaque rapport.
 app.get("/api/connaissance", guard, (_req, res) => res.json(readConnaissance()));
+// Déclenchement manuel de l'apprentissage IA (owner). Force l'analyse de tous les clients.
+app.post("/api/connaissance/learn", guard, writeGuard, async (_req, res) => {
+  try {
+    if (!aiAvailable()) return res.status(409).json({ error: "Aucune clé IA configurée : l'apprentissage automatique nécessite une IA (Qwen, Mistral ou Anthropic)." });
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const r = await runAutoLearn(got.issues, { force: true });
+    res.json({ ok: true, learned: r.learned, connaissance: readConnaissance() });
+  } catch (e) { res.status(502).json({ error: String(e.message || e) }); }
+});
 app.put("/api/connaissance", guard, writeGuard, (req, res) => {
   try {
     const k = saveConnaissance(req.body || {});
