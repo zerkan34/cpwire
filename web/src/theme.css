@@ -1694,3 +1694,14 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
   .c360-kpis { grid-template-columns: repeat(3, 1fr); }
   .c360-hero h2 { font-size: 22px; }
 }
+
+/* ===== Fiche 360 : derniers échanges (mails) ===== */
+.c360-mails { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.c360-mails li { display: flex; flex-direction: column; gap: 1px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--card); }
+.c360-mail-subj { font-size: 12.5px; font-weight: 600; color: var(--purple-strong); text-decoration: none; }
+.c360-mail-subj:hover { text-decoration: underline; }
+.c360-mail-meta { font-size: 11px; color: var(--muted); }
+.c360-mails-off { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 10px; padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; }
+.c360-mails-off b { font-size: 12.5px; color: var(--purple-strong); }
+.c360-mails-off span { font-size: 11.5px; color: var(--body); line-height: 1.45; }
+.c360-mails-off code { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; background: var(--card); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }

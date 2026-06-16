@@ -17,7 +17,7 @@ export function loadProjets() {
   try { return JSON.parse(fs.readFileSync(P_PATH, "utf8")); }
   catch { return { projets: [] }; }
 }
-function loadAcces() {
+export function loadAcces() {
   try { return JSON.parse(fs.readFileSync(A_PATH, "utf8")); }
   catch { return {}; }
 }

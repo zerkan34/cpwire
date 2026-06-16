@@ -17,7 +17,8 @@ import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
-import { buildProjets, projetsWorkbookBuffer, projetsDocHtml } from "./projets.js";
+import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
+import { recentMailsFor, mailsConfigured } from "./mails.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable } from "./ai.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
@@ -419,6 +420,16 @@ app.get("/api/projets", guard, async (_req, res) => {
     const data = buildProjets(got ? withoutDeletedDevs(got.issues) : []);
     res.json(data);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+// Derniers échanges (mails) d'un client — lecture seule, Gmail via variables d'env.
+app.get("/api/client/mails", guard, async (req, res) => {
+  try {
+    const dossier = String(req.query.dossier || "");
+    const acces = loadAcces();
+    const domaines = (acces[dossier] && acces[dossier].domaines) || [];
+    const out = await recentMailsFor(domaines);
+    res.json(out);
+  } catch (err) { res.json({ configured: mailsConfigured(), mails: [], note: String(err.message || err) }); }
 });
 app.get("/api/projets/export", guard, async (_req, res) => {
   try {

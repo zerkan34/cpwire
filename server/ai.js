@@ -133,15 +133,15 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
 
 function byMajDesc(a, b) { return String(b.maj || "").localeCompare(String(a.maj || "")); }
 
-// Liste alignée en colonnes : Clé · Description · Intervenant · État.
+// Liste alignée en colonnes : Clé · Description · Programme · Intervenant · État.
 // Affiche les 10 premiers, puis replie le reste dans un accordéon « Afficher les N autre(s) »
 // — les deux tables partagent la même largeur de colonnes (table-layout fixe) pour rester alignées.
-const TK_COLGROUP = `<colgroup><col style="width:11%"><col style="width:53%"><col style="width:20%"><col style="width:16%"></colgroup>`;
+const TK_COLGROUP = `<colgroup><col style="width:10%"><col style="width:40%"><col style="width:16%"><col style="width:18%"><col style="width:16%"></colgroup>`;
 function tkRow(i) {
   const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
   const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
-  const prog = i.prog && i.prog.name ? ` <span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : "";
-  return `<tr><td class="tk-k"><b>${esc(i.cle)}</b></td><td class="tk-res">${esc(i.resume)}${prog}</td><td class="tk-who"><span class="who">${esc(who)}</span></td><td class="tk-st">${esc(st)}</td></tr>`;
+  const prog = i.prog && i.prog.name ? `<span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : "";
+  return `<tr><td class="tk-k"><b>${esc(i.cle)}</b></td><td class="tk-res">${esc(i.resume)}</td><td class="tk-prog">${prog}</td><td class="tk-who"><span class="who">${esc(who)}</span></td><td class="tk-st">${esc(st)}</td></tr>`;
 }
 function tkList(arr) {
   if (!arr.length) return `<p class="cr-scope">—</p>`;
@@ -226,7 +226,7 @@ async function detailedTicketsHtml(tickets) {
       : `Statut actuel : <b>${esc(statut)}</b>`;
     const tps = act.totalSeconds ? ` · ${esc(act.totalTime)} saisies` : "";
     return `<details class="cr-tk">
-      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)}${i.prog && i.prog.name ? ` <span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : ""} <span class="cr-tk-who">${esc(who || "—")}</span> <span class="cr-tk-st">${esc(statut)}</span></summary>
+      <summary><span class="cr-tk-k">${esc(i.cle)}</span><span class="cr-tk-res">${esc(i.resume)}</span><span class="cr-prog-cell">${i.prog && i.prog.name ? `<span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : ""}</span><span class="cr-tk-who">${esc(who || "—")}</span><span class="cr-tk-st">${esc(statut)}</span></summary>
       <div class="cr-tk-bd">
         <p class="cr-row"><span class="cr-lbl">Problématique / contexte</span>${prob}</p>
         <div class="cr-row"><span class="cr-lbl">Travaux réalisés</span>${travaux}</div>

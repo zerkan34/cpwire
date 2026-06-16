@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ProjetModal } from "./Projets.jsx";
-import { genDailyCR, genWrittenCR } from "../api.js";
+import { genDailyCR, genWrittenCR, fetchClientMails } from "../api.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -20,6 +20,13 @@ const CAT_PILL = {
 export default function Client360({ c, issues = [], onClose, onTicket, onDev }) {
   const [selP, setSelP] = useState(null);
   const [busy, setBusy] = useState("");
+  const [mails, setMails] = useState({ loading: true });
+  useEffect(() => {
+    let on = true;
+    setMails({ loading: true });
+    fetchClientMails(c.client).then((r) => on && setMails({ loading: false, ...r })).catch(() => on && setMails({ loading: false, configured: false, mails: [] }));
+    return () => { on = false; };
+  }, [c.client]);
   useEffect(() => {
     const k = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
@@ -133,6 +140,22 @@ export default function Client360({ c, issues = [], onClose, onTicket, onDev }) 
                   ))}
                 </ul>
               )}
+
+              {!mails.loading && mails.configured ? (
+                <>
+                  <h3 className="c360-sec">Derniers échanges</h3>
+                  {mails.mails && mails.mails.length ? (
+                    <ul className="c360-mails">
+                      {mails.mails.map((m) => (
+                        <li key={m.id}>
+                          <a href={m.link} target="_blank" rel="noopener noreferrer" className="c360-mail-subj" title="Ouvrir dans Outlook">{m.subject}</a>
+                          <span className="c360-mail-meta">{m.from}{m.date ? ` · ${frDay(m.date)}` : ""}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : <p className="c360-empty">{mails.note || "Aucun échange récent."}</p>}
+                </>
+              ) : null}
             </div>
 
             {/* Colonne droite : accès & contacts */}

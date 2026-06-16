@@ -77,6 +77,7 @@ export const fetchCRA = (start, end) => post(`/api/cra`, { start, end });
 export const fetchSla = () => req(`/api/sla`);
 export const fetchHygiene = () => req(`/api/hygiene`);
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
+export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 export const fetchProjets = () => req(`/api/projets`);
 export async function downloadProjetsXlsx() {
   const res = await fetch(`${BASE}/api/projets/export`, { headers: { ...authHeaders() } });

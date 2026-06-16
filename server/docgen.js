@@ -46,8 +46,12 @@ const CSS = `
   details.cr-tk>summary::-webkit-details-marker{display:none;}
   details.cr-tk>summary:before{content:"\\25B8";color:#6e5cc4;font-size:11px;}
   details.cr-tk[open]>summary:before{content:"\\25BE";}
-  details.cr-tk>summary .cr-tk-k{font-family:monospace;font-weight:700;color:#5a48b0;font-size:12px;}
-  details.cr-tk>summary .cr-tk-st{margin-left:auto;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#74718a;font-weight:700;white-space:nowrap;}
+  details.cr-tk>summary .cr-tk-k{font-family:monospace;font-weight:700;color:#5a48b0;font-size:12px;flex:0 0 auto;white-space:nowrap;}
+  details.cr-tk>summary .cr-tk-res{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  details.cr-tk>summary .cr-prog-cell{flex:0 0 132px;overflow:hidden;white-space:nowrap;}
+  details.cr-tk>summary .cr-tk-who{flex:0 0 130px;text-align:right;font-size:11px;color:#74718a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  details.cr-tk>summary .cr-tk-st{flex:0 0 92px;text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#74718a;font-weight:700;white-space:nowrap;}
+  @media (max-width:560px){ details.cr-tk>summary{flex-wrap:wrap;} details.cr-tk>summary .cr-tk-res{flex:1 1 100%;} details.cr-tk>summary .cr-prog-cell,details.cr-tk>summary .cr-tk-who,details.cr-tk>summary .cr-tk-st{flex:0 0 auto;text-align:left;} }
   .cr-tk-bd{padding:11px 14px 13px;border-top:1px solid #f0eef7;}
   .cr-row{margin:8px 0;font-size:13px;}
   .cr-lbl{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6e5cc4;font-weight:800;margin-bottom:2px;}
@@ -65,6 +69,7 @@ const CSS = `
   table.tk-tbl td{padding:6px 9px;border-bottom:1px solid #f0eef7;vertical-align:top;line-height:1.35;font-size:12px;overflow-wrap:anywhere;}
   table.tk-tbl .tk-k{white-space:nowrap;} table.tk-tbl .tk-k b{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:11px;color:#3a3658;}
   table.tk-tbl .tk-res{color:#2c2945;} table.tk-tbl .tk-who .who{color:#5a48b0;font-weight:600;}
+  table.tk-tbl .tk-prog{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   table.tk-tbl .tk-st{text-align:right;white-space:nowrap;font-weight:700;color:#2c2945;font-size:11px;}
   details.cr-more{margin:-4px 0 14px;}
   details.cr-more>summary{cursor:pointer;list-style:none;font-size:12px;font-weight:700;color:#6e5cc4;padding:4px 0;display:inline-block;}
