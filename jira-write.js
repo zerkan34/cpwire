@@ -1,48 +1,126 @@
-// jira-write.js — actions retour vers Jira : ajouter un commentaire, changer le statut.
-import { isConfigured } from "./jira.js";
+// programmes.js — Référentiel des programmes : OÙ vit chaque programme côté IBM i
+// (bibliothèque, fichier/membre source, type, version, dernière compilation).
+//
+// SOURCE : un export Arcad (ou une extraction SQL IBM i) déposé dans server/programmes.csv.
+// Chargé au démarrage, en mémoire. Pour rafraîchir : remplacer le fichier et redéployer.
+//
+// Le ticket Jira ne contient PAS la localisation — seulement le nom du programme dans le titre
+// (« Réécriture ACHVTE … » → ACHVTE). Ce module fait le pont : il repère le programme dans le
+// titre et renvoie sa localisation depuis le référentiel.
 
-const BASE_URL = (process.env.JIRA_BASE_URL || "").replace(/\/+$/, "");
-const EMAIL = process.env.JIRA_EMAIL || "";
-const TOKEN = process.env.JIRA_API_TOKEN || "";
-function auth() { return "Basic " + Buffer.from(`${EMAIL}:${TOKEN}`).toString("base64"); }
-function headers() { return { Authorization: auth(), Accept: "application/json", "Content-Type": "application/json" }; }
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-// L'API v3 attend un commentaire au format ADF (Atlassian Document Format).
-function textToADF(text) {
-  const paras = String(text).split(/\n{2,}/).map((p) => ({
-    type: "paragraph",
-    content: [{ type: "text", text: p.replace(/\n/g, " ") }],
-  }));
-  return { type: "doc", version: 1, content: paras.length ? paras : [{ type: "paragraph", content: [] }] };
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const CSV_PATH = process.env.PROGRAMMES_CSV || path.join(__dirname, "programmes.csv");
+
+const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+
+// En-têtes acceptés (tolérant aux noms de colonnes de l'export Arcad / SQL).
+const FIELD_SYNONYMS = {
+  name:      ["programme", "program", "objet", "object", "nom", "name", "composant", "component", "pgm"],
+  lib:       ["bibliotheque", "biblio", "library", "lib", "objlib", "library_name", "obj_lib"],
+  srcFile:   ["fichier_source", "fichier source", "source_file", "srcfile", "fichier", "sourcefile", "src_pf", "srcpf"],
+  srcMember: ["membre_source", "membre source", "source_member", "srcmbr", "member", "membre", "source_mbr", "src_mbr"],
+  type:      ["type", "objtype", "langage", "language", "attribut", "attribute", "srctype", "src_type"],
+  version:   ["version", "niveau", "level", "release", "etat_arcad", "statut_arcad"],
+  compile:   ["derniere_compil", "derniere compilation", "compile", "compiled", "date_compil", "creation", "last_compile", "objcreated", "date_creation"],
+  text:      ["texte", "text", "description", "objtext", "libelle", "commentaire", "comment"],
+};
+
+// --- Parseur CSV minimal : gère guillemets, "" échappés, et détecte ; ou , comme séparateur. ---
+function parseCSV(text) {
+  text = String(text || "").replace(/^\uFEFF/, "");
+  const nl = text.indexOf("\n");
+  const head = nl >= 0 ? text.slice(0, nl) : text;
+  const delim = (head.split(";").length > head.split(",").length) ? ";" : ",";
+  const rows = []; let field = "", row = [], inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') { if (text[i + 1] === '"') { field += '"'; i++; } else inQ = false; }
+      else field += c;
+    } else if (c === '"') inQ = true;
+    else if (c === delim) { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== "\r") field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  return rows.filter((r) => r.some((x) => String(x).trim() !== ""));
 }
 
-export async function addComment(key, body) {
-  if (!isConfigured()) return { simulated: true, message: "Mode démo : commentaire non envoyé." };
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/comment`, {
-    method: "POST", headers: headers(), body: JSON.stringify({ body: textToADF(body) }),
-  });
-  if (!res.ok) throw new Error(`Commentaire refusé (${res.status}) : ${(await res.text()).slice(0, 200)}`);
-  return { ok: true };
+function buildCatalog(rows) {
+  if (!rows.length) return { map: new Map(), count: 0 };
+  const header = rows[0].map(norm);
+  const colOf = {};
+  for (const [field, syns] of Object.entries(FIELD_SYNONYMS)) {
+    let idx = -1;
+    for (const s of syns) { idx = header.indexOf(norm(s)); if (idx >= 0) break; }
+    colOf[field] = idx;
+  }
+  const map = new Map();
+  for (let r = 1; r < rows.length; r++) {
+    const cols = rows[r];
+    const get = (f) => (colOf[f] >= 0 ? String(cols[colOf[f]] || "").trim() : "");
+    const name = (get("name") || get("srcMember")).toUpperCase();
+    if (!name) continue;
+    map.set(name, {
+      name,
+      lib: get("lib"),
+      srcFile: get("srcFile"),
+      srcMember: get("srcMember") || name,
+      type: get("type"),
+      version: get("version"),
+      compile: get("compile"),
+      text: get("text"),
+      found: true,
+    });
+  }
+  return { map, count: map.size };
 }
 
-export async function listTransitions(key) {
-  if (!isConfigured()) return [{ id: "demo", name: "Terminé" }];
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/transitions`, { headers: headers() });
-  if (!res.ok) throw new Error(`Transitions indisponibles (${res.status})`);
-  const data = await res.json();
-  return (data.transitions || []).map((t) => ({ id: t.id, name: t.name, to: t.to?.name }));
+let CATALOG = { map: new Map(), count: 0 };
+try {
+  if (fs.existsSync(CSV_PATH)) {
+    CATALOG = buildCatalog(parseCSV(fs.readFileSync(CSV_PATH, "utf8")));
+    console.log(`[programmes] référentiel chargé : ${CATALOG.count} programme(s) depuis ${CSV_PATH}`);
+  } else {
+    console.log(`[programmes] aucun référentiel (${CSV_PATH} absent) — fonctionnalité dormante.`);
+  }
+} catch (e) { console.log(`[programmes] erreur de chargement : ${e.message}`); }
+
+const VERBS = new Set(["reecriture", "reecrit", "reecrire", "modification", "modif", "modifier", "creation", "creer", "correction", "corriger", "refonte", "ajout", "suppression", "analyse", "developpement", "dev", "mise", "migration", "portage", "evolution", "bug", "anomalie"]);
+
+// Repère le programme cité dans le titre et renvoie sa localisation (ou un repère "à compléter").
+export function findProgram(title) {
+  const raw = String(title || "");
+  if (!raw) return null;
+
+  // 1) Correspondance avec le catalogue (la plus fiable) : on cherche un token connu.
+  const tokens = raw.toUpperCase().match(/[A-Z0-9_]{3,}/g) || [];
+  let best = null;
+  for (const t of tokens) {
+    const rec = CATALOG.map.get(t);
+    if (rec && (!best || t.length > best.name.length)) best = rec;
+  }
+  if (best) return { ...best };
+
+  // 2) Hors catalogue : on devine le nom du programme pour afficher "localisation à compléter".
+  let guess = null;
+  const words = raw.split(/\s+/);
+  for (let i = 0; i < words.length; i++) {
+    if (VERBS.has(norm(words[i]).replace(/[^a-z0-9]/g, ""))) {
+      for (let j = i + 1; j < words.length; j++) {
+        const nx = words[j].replace(/[^A-Za-z0-9_]/g, "");
+        if (nx.length >= 3 && /[A-Z0-9]/.test(nx) && !VERBS.has(norm(nx))) { guess = nx.toUpperCase(); break; }
+      }
+      break;
+    }
+  }
+  if (!guess) { const m = raw.match(/^([A-Z][A-Z0-9_]{2,9})\b/); if (m) guess = m[1]; }
+  if (!guess) return null;
+  return { name: guess, found: false, lib: "", srcFile: "", srcMember: "", type: "", version: "", compile: "", text: "" };
 }
 
-export async function transition(key, targetStatus) {
-  if (!isConfigured()) return { simulated: true, message: `Mode démo : passage à "${targetStatus}" non envoyé.` };
-  const trans = await listTransitions(key);
-  const norm = (s) => String(s).toLowerCase();
-  const match = trans.find((t) => norm(t.to) === norm(targetStatus) || norm(t.name) === norm(targetStatus)) ||
-    trans.find((t) => /(termin|done|fait|clos)/.test(norm(t.to) + norm(t.name)));
-  if (!match) throw new Error(`Aucune transition vers "${targetStatus}" disponible pour ${key}.`);
-  const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/transitions`, {
-    method: "POST", headers: headers(), body: JSON.stringify({ transition: { id: match.id } }),
-  });
-  if (!res.ok) throw new Error(`Transition refusée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
-  return { ok: true, applied: match.name };
-}
+export function catalogStatus() { return { loaded: CATALOG.count > 0, count: CATALOG.count, path: CSV_PATH }; }
