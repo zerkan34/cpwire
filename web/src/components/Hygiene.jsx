@@ -29,10 +29,11 @@ export default function Hygiene({ issues = [], onTicket }) {
   const g = rep.global || {};
   return (
     <div className="sla-wrap">
-      <h2 className="section-title">Contrôle qualité Jira</h2>
-      <p className="sla-note" style={{ marginTop: 0 }}>
-        Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.
-      </p>
+      <div className="page-hero">
+        <span className="page-hero-k">Qualité</span>
+        <h2>Contrôle qualité Jira</h2>
+        <p>Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.</p>
+      </div>
 
       <div className="sla-kpis">
         <div className="sla-kpi"><div className={`v ${scoreClass(g.score)}`}>{g.score == null ? "—" : `${g.score}%`}</div><div className="l">Ouverts « propres »</div></div>

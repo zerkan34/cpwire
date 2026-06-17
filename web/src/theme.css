@@ -2089,7 +2089,7 @@ html.is-desktop { background: transparent !important; }
 html.is-desktop body { background: rgba(244, 243, 248, 0.66) !important; }
 
 /* ===== v97 : fond plus transparent + fenêtre sans cadre (desktop) ===== */
-html.is-desktop body { background: rgba(244, 243, 248, 0.42) !important; }
+html.is-desktop body { background: rgba(244, 243, 248, 0.30) !important; }
 /* boutons fenêtre custom (réduire / agrandir / fermer) intégrés au bandeau */
 .winctl { display: inline-flex; gap: 2px; margin-left: 8px; }
 .winbtn { width: 32px; height: 27px; border: 0; border-radius: 7px; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .12s; }
@@ -2105,3 +2105,37 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.42) !important; }
 .enc-tix li.enc-changed { background: #fbf3df; box-shadow: inset 3px 0 0 var(--gold); border-radius: 8px; }
 .chg-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 99px; background: var(--orange); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; vertical-align: middle; }
 .sub-badge { display: inline-flex; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 7px; border-radius: 99px; background: var(--orange); color: #fff; font-size: 11px; font-weight: 800; align-items: center; justify-content: center; vertical-align: middle; }
+
+/* ===== v102 : modale détail "débit hebdomadaire" (tickets résolus de la semaine) ===== */
+.wk-back { position: fixed; inset: 0; background: rgba(26,22,45,.55); backdrop-filter: blur(3px); display: flex; align-items: center; justify-content: center; z-index: 1200; padding: 24px 16px; }
+.wk-modal { width: min(620px, 96vw); max-height: 86vh; overflow: hidden; background: var(--card); border-radius: 18px; box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.wk-hero { position: relative; background: var(--hd-grad); color: #fff; padding: 18px 22px; }
+.wk-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.wk-k { font-family: "JetBrains Mono", monospace; font-size: 10.5px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.wk-hero h3 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 19px; margin: 4px 0 0; }
+.wk-hero p { margin: 3px 0 0; color: #d9d3f0; font-size: 12.5px; }
+.wk-close { position: absolute; top: 14px; right: 16px; width: 30px; height: 30px; border: 0; border-radius: 9px; background: rgba(255,255,255,.14); color: #fff; cursor: pointer; font-size: 14px; }
+.wk-close:hover { background: rgba(255,255,255,.28); }
+.wk-body { padding: 14px 18px 18px; overflow-y: auto; }
+.wk-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.wk-list li { display: flex; align-items: center; gap: 10px; padding: 9px 11px; border: 1px solid var(--line); border-radius: 11px; cursor: pointer; transition: background .12s, border-color .12s; }
+.wk-list li:hover { background: var(--row-alt); border-color: var(--purple-line); }
+.wk-list .k { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 12px; color: var(--purple-strong); }
+.wk-res { flex: 1; font-size: 13px; color: var(--ink); }
+.cad-bar-wrap[role="button"]:hover .cad-bar { filter: brightness(1.08); }
+
+/* ===== v102 : barre d'onglets principale façon nav mobile (arrondie, couleurs du header) ===== */
+.tabs { background: var(--hd-grad); border-radius: 16px; padding: 6px; gap: 4px; box-shadow: var(--shadow); border: 0; }
+.tabs .tab { color: rgba(255,255,255,.82); background: transparent; border: 0; border-radius: 11px; font-weight: 700; font-size: 14px; padding: 10px 18px; transition: all .14s ease; }
+.tabs .tab:hover { color: #fff; background: rgba(255,255,255,.10); }
+.tabs .tab.active { color: var(--indigo-deep); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
+.tabs .tab .b { background: var(--orange); color: #fff; }
+
+/* ===== v103 : en-tête de page brandé PARTAGÉ (harmonisation de toutes les pages) ===== */
+.page-hero { position: relative; background: var(--hd-grad); border-radius: 18px; padding: 22px 26px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 18px; }
+.page-hero::before { content: ""; position: absolute; inset: 0; background-image: radial-gradient(rgba(255,255,255,.16) 1.1px, transparent 1.3px); background-size: 16px 16px; opacity: .5; pointer-events: none; }
+.page-hero::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); }
+.page-hero > * { position: relative; }
+.page-hero-k { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
+.page-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 24px; color: #fff; margin: 5px 0 0; }
+.page-hero p { margin: 6px 0 0; color: #d9d3f0; font-size: 13px; max-width: 760px; line-height: 1.5; }

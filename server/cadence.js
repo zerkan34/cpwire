@@ -55,7 +55,7 @@ export function buildCadence(issues = [], opts = {}) {
   // Débit hebdomadaire (8 dernières semaines) — par date de résolution.
   const firstWeek = weekStart(windowStart);
   const buckets = [];
-  for (let w = firstWeek; w <= now; w += 7 * DAY) buckets.push({ start: w, label: ddMM(w), count: 0 });
+  for (let w = firstWeek; w <= now; w += 7 * DAY) buckets.push({ start: w, label: ddMM(w), count: 0, keys: [] });
   const bucketAt = (t) => {
     const ws = weekStart(t);
     return buckets.find((b) => b.start === ws);
@@ -74,7 +74,7 @@ export function buildCadence(issues = [], opts = {}) {
     const r = parseT(i.resolu), c = parseT(i.cree);
 
     if (DONE(i) && r && r <= now) {
-      if (r >= windowStart) { const b = bucketAt(r); if (b) b.count++; }
+      if (r >= windowStart) { const b = bucketAt(r); if (b) { b.count++; b.keys.push(i.cle); } }
       if (r >= days30) {
         resolus30++;
         if (who !== "Non assigné") dev(who).resolus30++;
@@ -117,7 +117,7 @@ export function buildCadence(issues = [], opts = {}) {
       enSouffrance,
       devsActifs: devsArr.filter((d) => d.resolus30 > 0 || d.enCours > 0).length,
     },
-    hebdo: buckets.map((b) => ({ label: b.label, count: b.count })),
+    hebdo: buckets.map((b) => ({ label: b.label, count: b.count, keys: b.keys })),
     devs: devsArr,
   };
 }

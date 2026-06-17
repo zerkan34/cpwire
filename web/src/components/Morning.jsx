@@ -51,10 +51,10 @@ export default function Morning({ issues = [], onTicket }) {
 
   return (
     <>
-      <div className="section-title">Brief du matin
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— état des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""})
-        </span>
+      <div className="page-hero">
+        <span className="page-hero-k">Comptes rendus</span>
+        <h2>Brief du matin</h2>
+        <p>État des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""}).</p>
       </div>
       <p className="hint" style={{ marginTop: -6 }}>
         Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.

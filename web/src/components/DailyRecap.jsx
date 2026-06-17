@@ -117,7 +117,11 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
 
   return (
     <>
-      <div className="section-title">Récap de la journée</div>
+      <div className="page-hero">
+        <span className="page-hero-k">Comptes rendus</span>
+        <h2>Récap de la journée</h2>
+        <p>Synthèse de l'activité Jira du jour — bâtie sur les vraies transitions.</p>
+      </div>
       <p className="hint" style={{ marginTop: -6 }}>
         Base : {recap.basis}. Clique sur un ticket pour le détailler, ou génère le compte rendu journalier d'un client.
       </p>

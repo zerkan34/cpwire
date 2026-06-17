@@ -12,6 +12,7 @@ const fmt = (v, suffix = "") => (v === null || v === undefined ? "—" : `${v}${
 export default function Developers({ issues = [], onTicket, onDev, deletedDevs = [], inactiveDevs = [], inactiveMonths = 2, onMarkLeft, onRestoreDev }) {
   const [dossier, setDossier] = useState("Tous");
   const [weeks, setWeeks] = useState(8);
+  const [weekModal, setWeekModal] = useState(null); // détail d'une semaine (tickets résolus)
   const [rep, setRep] = useState(null);     // cadence (serveur)
   const delSet = new Set(deletedDevs);        // marqués manuellement "parti d'Armonie"
   const inactiveSet = new Set(inactiveDevs);  // détectés sans activité Jira depuis N mois
@@ -101,10 +102,10 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
 
   return (
     <>
-      <div className="section-title">Développeurs
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {realDevs} en activité{ancienRows.length ? ` · ${ancienRows.length} ancien(s)` : ""} · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}
-        </span>
+      <div className="page-hero">
+        <span className="page-hero-k">Équipe</span>
+        <h2>Développeurs</h2>
+        <p>{realDevs} en activité{ancienRows.length ? ` · ${ancienRows.length} ancien(s)` : ""} · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}</p>
       </div>
 
       {/* ---- Pouls de l'équipe (cadence réelle, déduite des dates Jira) ---- */}
@@ -123,19 +124,10 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
                   <button key={w} className={`enc-tg ${weeks === w ? "on" : ""}`} onClick={() => setWeeks(w)}>{w} sem.</button>
                 ))}
               </div>
-              <div className="cad-kpis">
-                <div className="cad-kpi"><div className="cad-n">{fmt(e.resolus30)}</div><div className="cad-l">Résolus (30 j)</div></div>
-                <div className="cad-kpi"><div className="cad-n">{fmt(e.debitHebdoMoyen)}</div><div className="cad-l">Débit moyen / semaine</div></div>
-                <div className="cad-kpi"><div className="cad-n">{fmt(e.delaiMedianJours, " j")}</div><div className="cad-l">Délai médian de résolution</div></div>
-                <div className="cad-kpi"><div className="cad-n">{fmt(e.enCours)}</div><div className="cad-l">Tickets ouverts</div></div>
-                <div className={`cad-kpi ${e.enSouffrance ? "cad-alert" : ""}`}><div className="cad-n">{fmt(e.enSouffrance)}</div><div className="cad-l">En souffrance (&gt; {seuil} j)</div></div>
-                <div className="cad-kpi"><div className="cad-n">{fmt(e.devsActifs)}</div><div className="cad-l">Développeurs actifs</div></div>
-              </div>
-
               <div className="section-title" style={{ marginTop: 22, fontSize: 15 }}>Débit hebdomadaire — tickets résolus</div>
               <div className="cad-chart">
                 {(rep.hebdo || []).map((h, idx) => (
-                  <div className="cad-bar-wrap" key={idx} title={`Semaine du ${h.label} : ${h.count} résolu(s)`}>
+                  <div className="cad-bar-wrap" key={idx} title={h.count ? `Semaine du ${h.label} : ${h.count} résolu(s) — cliquer pour le détail` : `Semaine du ${h.label} : 0`} role={h.count ? "button" : undefined} style={{ cursor: h.count ? "pointer" : "default" }} onClick={() => h.count && setWeekModal(h)}>
                     <div className="cad-bar-v">{h.count || ""}</div>
                     <div className="cad-bar" style={{ height: `${Math.round((h.count / maxW) * 100)}%` }} />
                     <div className="cad-bar-x">{h.label}</div>
@@ -235,6 +227,38 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         <br />
         <b>Comment c'est compté :</b> un ticket est rattaché à <b>toutes</b> les personnes qui y ont contribué — la personne <b>assignée</b> dans Jira, un nom « (Prénom Nom) » écrit en fin de titre, et les <b>initiales en étiquette</b> (ex. « HRE » → Hamza). Un même ticket peut donc compter pour deux personnes. Les tickets sans personne tombent dans <b>« Non assigné&nbsp;⚠ »</b> ({nonAssigne} ici). Le rythme (résolus, délais) est attribué à l'assigné courant.
       </p>
+
+      {weekModal && (
+        <div className="wk-back" onClick={() => setWeekModal(null)}>
+          <div className="wk-modal" onClick={(ev) => ev.stopPropagation()}>
+            <div className="wk-hero">
+              <span className="wk-k">Débit hebdomadaire</span>
+              <h3>Semaine du {weekModal.label}</h3>
+              <p>{weekModal.count} ticket(s) résolu(s) cette semaine</p>
+              <button className="wk-close" title="Fermer" onClick={() => setWeekModal(null)}>✕</button>
+            </div>
+            <div className="wk-body">
+              {(weekModal.keys || []).length === 0 ? (
+                <div className="empty">Aucun détail disponible pour cette semaine.</div>
+              ) : (
+                <ul className="wk-list">
+                  {(weekModal.keys || []).map((k) => {
+                    const it = issues.find((i) => i.cle === k);
+                    return (
+                      <li key={k} role="button" onClick={() => { if (it && onTicket) { onTicket(it); setWeekModal(null); } }}>
+                        <span className="k">{k}</span>
+                        <span className="wk-res">{it ? it.resume : "(ticket hors périmètre courant)"}</span>
+                        {it ? <span className="tag">{it.dossier}</span> : null}
+                        {it ? <span className={`pill ${it.categorie === "termine" || it.categorie === "miseEnProd" ? "done" : "prog"}`}>{it.statutJira || it.statut}</span> : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

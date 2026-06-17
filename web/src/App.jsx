@@ -31,6 +31,17 @@ import CRA from "./components/CRA.jsx";
 import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
+
+// En-tête de page brandé, partagé par toutes les pages (harmonisation visuelle).
+function PageHero({ k, title, sub }) {
+  return (
+    <div className="page-hero">
+      {k ? <span className="page-hero-k">{k}</span> : null}
+      <h2>{title}</h2>
+      {sub ? <p>{sub}</p> : null}
+    </div>
+  );
+}
 const TABS = [
   { id: "cockpit", label: "Portefeuille" },
   { id: "devs", label: "Développeurs" },
@@ -42,10 +53,10 @@ const TABS = [
 const SUBTABS = {
   cockpit: [
     { id: "portefeuille", label: "Vue d'ensemble" },
-    { id: "projets", label: "Suivi projets" },
     { id: "activite", label: "Activité" },
     { id: "recette", label: "Recette" },
     { id: "reference", label: "Référence" },
+    { id: "projets", label: "Suivi projets" },
   ],
   devs: [
     { id: "devs", label: "Développeurs" },
@@ -615,6 +626,7 @@ export default function App() {
       {tab === "comptesrendus" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "cockpit" && sub === "activite" && (
         <>
+          <PageHero k="Portefeuille" title="Activité" sub="Tickets actifs et historique des mouvements Jira — génère un récap quand tu veux." />
           {role === "owner" && (
             <div className="cr-jump">
               <button className="btn-solid" onClick={() => { setTab("comptesrendus"); setSub("recap"); }}>📝 Générer un récap de l'activité</button>
@@ -627,10 +639,11 @@ export default function App() {
       {tab === "comptesrendus" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "comptesrendus" && sub === "reunions" && <Meetings issues={issues} />}
-      {tab === "comptesrendus" && sub === "cra" && <CRA onTicket={setTicket} />}
+      {tab === "comptesrendus" && sub === "cra" && (<><PageHero k="Comptes rendus" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "reference" && (
         <>
+          <PageHero k="Portefeuille" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
           <Referentiel issues={issues} onTicket={setTicket} />
           {role === "owner" && <Connaissance />}
         </>
