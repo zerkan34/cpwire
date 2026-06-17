@@ -1,117 +1,133 @@
-// recapChiffres.js — RÉCAP CHIFFRÉ DU JOUR, PAR DOSSIER. 100 % déterministe, AUCUNE IA.
-// Objet : un document « boss-ready » avec des chiffres vérifiables, sans interprétation.
-// On distingue explicitement :
-//   - ÉTAT (stock) : combien de tickets sont ACTUELLEMENT dans chaque catégorie (snapshot Jira) ;
-//   - ACTIVITÉ DU JOUR (flux) : tickets RÉSOLUS le jour même (date de résolution Jira).
-// Aucune phrase rédigée, aucun « passage » ambigu : on compte des tickets, point.
+// recapChiffres.js — RÉCAP DU JOUR = MOUVEMENTS DU JOUR. 100 % déterministe, AUCUNE IA.
+// Principe : on lit les VRAIES transitions de statut Jira de la journée. Chaque ticket qui a
+// bougé apparaît UNE SEULE FOIS, classé là où il a ATTERRI en fin de journée, crédité à la
+// personne qui a effectué la transition (le « qui a fait quoi »). Pas de stock, pas de totaux
+// de périmètre, pas de « à recetter par le client ». Juste : qui a fait quoi, où ça en est,
+// ce qui reste (en une ligne), et les points d'attention — séparés.
 
 import { buildDoc } from "./docgen.js";
+import { categoryFromStatus, CATEGORY_LABEL } from "./config.js";
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
-// Regroupements lisibles pour un comité de direction.
-const isAfaire = (c) => c === "afaire";
-const isEnCours = (c) => c === "encours" || c === "retourTest" || c === "retourProd";
-const isRecArm = (c) => c === "recetteArmonie";
-const isRecCli = (c) => c === "recetteClient";
-const isAttCli = (c) => c === "attenteClient";
-const isClos = (c) => c === "termine" || c === "miseEnProd";
-const isOuvert = (c) => c !== "termine" && c !== "miseEnProd" && c !== "annule";
+// Catégories d'atterrissage, dans l'ordre d'importance pour un comité (recettes en tête).
+const LAND = [
+  ["termine",        "✅ Clôturés / terminés"],
+  ["miseEnProd",     "✅ Mis en production"],
+  ["recetteClient",  "→ Passés en recette client"],
+  ["recetteArmonie", "→ Passés en recette Armonie"],
+  ["attenteClient",  "⏸ Passés en attente client"],
+  ["encours",        "↻ Repris / mis en cours"],
+  ["retourTest",     "↩ Retour test"],
+  ["retourProd",     "↩ Retour production"],
+  ["afaire",         "↺ Replacés à faire"],
+  ["annule",         "✖ Annulés"],
+];
+const LAND_ORDER = LAND.map((x) => x[0]);
+const LAND_LABEL = Object.fromEntries(LAND);
+const isOpen = (c) => c !== "termine" && c !== "miseEnProd" && c !== "annule";
 
-function countsFor(items, dayISO) {
-  const k = { afaire: 0, encours: 0, recArm: 0, recCli: 0, attCli: 0, ouverts: 0, retard: 0, closJour: 0, closJourKeys: [] };
-  for (const i of items) {
-    const c = i.categorie;
-    if (isAfaire(c)) k.afaire++;
-    else if (isEnCours(c)) k.encours++;
-    else if (isRecArm(c)) k.recArm++;
-    else if (isRecCli(c)) k.recCli++;
-    else if (isAttCli(c)) k.attCli++;
-    if (isOuvert(c)) { k.ouverts++; if (i.enRetard) k.retard++; }
-    if ((i.resolu || "").slice(0, 10) === dayISO) { k.closJour++; k.closJourKeys.push(i.cle); }
-  }
-  return k;
-}
-
-export function buildRecapChiffres(issues, opts = {}) {
+export function buildRecapChiffres(issues, trItems = [], opts = {}) {
   const day = opts.dateISO ? new Date(opts.dateISO) : new Date();
-  const dayISO = day.toISOString().slice(0, 10);
   const dayFR = day.toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const byKey = {};
+  for (const i of (issues || [])) byKey[i.cle] = i;
 
-  // On ignore les tickets annulés (hors périmètre de pilotage).
-  const live = (issues || []).filter((i) => i.categorie !== "annule");
+  // 1) Atterrissage du jour, par ticket (dernière transition de statut de la journée).
+  const moved = []; // { cle, dossier, resume, who, toCat, flagged, enRetard }
+  for (const it of (trItems || [])) {
+    const trs = (it.transitions || []).filter((t) => t.field === undefined || t.field === "status" || t.to)
+      .slice().sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    if (!trs.length) continue;
+    const last = trs[trs.length - 1];
+    const toCat = categoryFromStatus(last.to);
+    const iss = byKey[it.cle] || {};
+    moved.push({
+      cle: it.cle,
+      dossier: iss.dossier || "Autre",
+      resume: iss.resume || "",
+      who: (last.who && last.who !== "—") ? last.who : "Inconnu",
+      toCat,
+      flagged: !!iss.flagged,
+      enRetard: !!iss.enRetard,
+    });
+  }
 
+  if (!moved.length) {
+    const body = `<p class="cr-none">Aucun mouvement de ticket enregistré dans Jira pour le ${esc(dayFR)}.</p>`;
+    return buildDoc({
+      kicker: "Récap du jour", title: "Récap du jour — mouvements",
+      subtitle: `Activité Jira du ${dayFR}`, cartouche: [["Date", dayFR]],
+      bodyHtml: body, etabliPar: "cp|WIRE (données Jira)",
+    });
+  }
+
+  // 2) Synthèse « qui a fait quoi » (par personne, tickets distincts).
+  const perWho = {};
+  for (const m of moved) {
+    const a = (perWho[m.who] ||= { who: m.who, n: 0, recC: 0, recA: 0, term: 0 });
+    a.n++;
+    if (m.toCat === "recetteClient") a.recC++;
+    else if (m.toCat === "recetteArmonie") a.recA++;
+    else if (m.toCat === "termine" || m.toCat === "miseEnProd") a.term++;
+  }
+  const whoRows = Object.values(perWho).sort((x, y) => y.n - x.n).map((a) => {
+    const bits = [];
+    if (a.term) bits.push(`${a.term} clôturé${a.term > 1 ? "s" : ""}`);
+    if (a.recC) bits.push(`${a.recC} en recette client`);
+    if (a.recA) bits.push(`${a.recA} en recette Armonie`);
+    const detail = bits.length ? ` <span class="cr-meta">(${bits.join(", ")})</span>` : "";
+    return `<li><span class="who">${esc(a.who)}</span> — ${a.n} ticket${a.n > 1 ? "s" : ""} fait${a.n > 1 ? "s" : ""} avancer${detail}</li>`;
+  }).join("");
+
+  // 3) Mouvements par dossier (recettes en tête), un ticket = une ligne.
   const byD = {};
-  for (const i of live) { (byD[i.dossier || "Autre"] ||= []).push(i); }
+  for (const m of moved) { ((byD[m.dossier] ||= {})[m.toCat] ||= []).push(m); }
   const dossiers = Object.keys(byD).sort((a, b) => a.localeCompare(b, "fr"));
+  const openByD = {};
+  for (const i of (issues || [])) { if (i.categorie !== "annule" && isOpen(i.categorie)) openByD[i.dossier || "Autre"] = (openByD[i.dossier || "Autre"] || 0) + 1; }
 
-  // Lignes du tableau + totaux.
-  const tot = { afaire: 0, encours: 0, recArm: 0, recCli: 0, attCli: 0, ouverts: 0, retard: 0, closJour: 0 };
-  const rows = dossiers.map((d) => {
-    const k = countsFor(byD[d], dayISO);
-    for (const key of Object.keys(tot)) tot[key] += k[key];
-    return { d, k };
-  });
+  const dossierBlocks = dossiers.map((d) => {
+    const groups = byD[d];
+    const movedCount = Object.values(groups).reduce((s, arr) => s + arr.length, 0);
+    let inner = "";
+    for (const cat of LAND_ORDER) {
+      const arr = groups[cat];
+      if (!arr || !arr.length) continue;
+      const lis = arr.map((m) =>
+        `<li><span class="tk">${esc(m.cle)}</span> ${esc(m.resume)} — <span class="who">${esc(m.who)}</span>${m.flagged ? ' <span class="pill block">🚩</span>' : ""}</li>`
+      ).join("");
+      inner += `<h3 class="cr-perim">${LAND_LABEL[cat]} (${arr.length})</h3><ul class="cr-list">${lis}</ul>`;
+    }
+    const reste = openByD[d] || 0;
+    return `<h2>${esc(d)} — ${movedCount} mouvement${movedCount > 1 ? "s" : ""}</h2>${inner}` +
+      `<p class="cr-meta" style="margin-top:6px">Reste ouvert sur le dossier : ${reste} ticket${reste > 1 ? "s" : ""}.</p>`;
+  }).join("");
 
-  const cell = (v) => `<td class="r">${v || "0"}</td>`;
-  const bodyRows = rows.map(({ d, k }) =>
-    `<tr><td><b>${esc(d)}</b></td>${cell(k.afaire)}${cell(k.encours)}${cell(k.recArm)}${cell(k.recCli)}${cell(k.attCli)}` +
-    `<td class="r">${k.retard ? `<span class="pill block">${k.retard}</span>` : "0"}</td>` +
-    `<td class="r"><b>${k.ouverts}</b></td>${cell(k.closJour)}</tr>`
-  ).join("");
+  // 4) Points d'attention : tickets ayant bougé aujourd'hui qui sont flaggés ou en retard.
+  const attention = moved.filter((m) => m.flagged || m.enRetard);
+  const attHtml = attention.length
+    ? `<ul class="cr-list">${attention.map((m) =>
+        `<li><span class="tk">${esc(m.cle)}</span> ${esc(m.resume)} — ${m.flagged ? "🚩 signalé" : ""}${m.flagged && m.enRetard ? " · " : ""}${m.enRetard ? "⏰ en retard" : ""} <span class="cr-meta">(${esc(m.dossier)})</span></li>`
+      ).join("")}</ul>`
+    : `<p class="cr-none">Aucun ticket signalé ou en retard parmi les mouvements du jour.</p>`;
 
-  const totRow =
-    `<tr class="act-tot"><td><b>Total</b></td>` +
-    `<td class="r"><b>${tot.afaire}</b></td><td class="r"><b>${tot.encours}</b></td><td class="r"><b>${tot.recArm}</b></td>` +
-    `<td class="r"><b>${tot.recCli}</b></td><td class="r"><b>${tot.attCli}</b></td><td class="r"><b>${tot.retard}</b></td>` +
-    `<td class="r"><b>${tot.ouverts}</b></td><td class="r"><b>${tot.closJour}</b></td></tr>`;
+  const summary = `<p class="cr-scope">${moved.length} ticket${moved.length > 1 ? "s ont" : " a"} bougé le ${esc(dayFR)}, par ${Object.keys(perWho).length} personne${Object.keys(perWho).length > 1 ? "s" : ""}.${opts.capped ? " (volume élevé : liste plafonnée aux tickets les plus récents)" : ""}</p>`;
 
-  const table =
-    `<table class="data act-tbl"><thead><tr>` +
-    `<th>Dossier</th><th class="r">À faire</th><th class="r">En cours</th><th class="r">Rec. Armonie</th>` +
-    `<th class="r">Rec. client</th><th class="r">Att. client</th><th class="r">En retard</th>` +
-    `<th class="r">Ouverts</th><th class="r">Clos le jour</th>` +
-    `</tr></thead><tbody>${bodyRows}${totRow}</tbody></table>`;
-
-  // KPI globaux.
-  const kpi =
-    `<div class="kpi-row">` +
-    `<div class="kpi"><div class="v">${dossiers.length}</div><div class="l">Dossiers</div></div>` +
-    `<div class="kpi"><div class="v">${tot.ouverts}</div><div class="l">Tickets ouverts</div></div>` +
-    `<div class="kpi"><div class="v">${tot.retard}</div><div class="l">En retard</div></div>` +
-    `<div class="kpi"><div class="v">${tot.closJour}</div><div class="l">Clos le ${day.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })}</div></div>` +
-    `</div>`;
-
-  // Activité du jour : seulement les dossiers ayant clos au moins un ticket ce jour-là.
-  const closLines = rows
-    .filter(({ k }) => k.closJour > 0)
-    .map(({ d, k }) => `<li><b>${esc(d)}</b> — ${k.closJour} clos : ${k.closJourKeys.map((c) => `<span class="tk">${esc(c)}</span>`).join(", ")}</li>`)
-    .join("");
-  const closBlock = closLines
-    ? `<h2>Activité du jour — tickets clos le ${esc(dayFR)}</h2><ul class="cr-list">${closLines}</ul>`
-    : `<h2>Activité du jour — tickets clos le ${esc(dayFR)}</h2><p class="cr-none">Aucun ticket clos ce jour.</p>`;
-
-  const note =
-    `<div class="indic" style="margin-top:22px"><b>Lecture des chiffres.</b> ` +
-    `« Ouverts » = tickets non terminés et non annulés à l'instant de l'extraction Jira (état/stock). ` +
-    `« En cours » regroupe les tickets en traitement et les retours test/production. ` +
-    `« En retard » = échéance dépassée, parmi les ouverts. ` +
-    `« Clos le jour » = tickets dont la date de résolution Jira est le ${esc(dayFR)} (activité/flux). ` +
-    `<span class="hint">Chiffres calculés directement depuis Jira, sans interprétation.</span></div>`;
-
-  const body = kpi + `<div class="eyebrow">État du périmètre par dossier</div>` + table + closBlock + note;
+  const body =
+    summary +
+    `<h2>Qui a fait quoi</h2><ul class="cr-list">${whoRows}</ul>` +
+    `<div class="eyebrow">Mouvements par dossier</div>` + dossierBlocks +
+    `<h2>Points d'attention</h2>${attHtml}` +
+    `<div class="indic" style="margin-top:20px"><span class="hint">Mouvements = transitions de statut Jira datées du ${esc(dayFR)}. Chaque ticket est compté une fois, là où il a atterri, crédité à la personne ayant effectué la transition. Aucune interprétation.</span></div>`;
 
   return buildDoc({
-    kicker: "Récap chiffré du jour",
-    title: "Récap du jour — par dossier",
-    subtitle: `Chiffres déterministes au ${dayFR} · tous dossiers`,
-    cartouche: [
-      ["Date", dayFR],
-      ["Périmètre", `${dossiers.length} dossier(s)`],
-      ["Établi par", "cp|WIRE — extraction Jira"],
-    ],
+    kicker: "Récap du jour",
+    title: "Récap du jour — mouvements",
+    subtitle: `Qui a fait quoi · ${dayFR}`,
+    cartouche: [["Date", dayFR], ["Tickets ayant bougé", String(moved.length)], ["Établi par", "cp|WIRE — transitions Jira"]],
     bodyHtml: body,
-    etabliPar: "cp|WIRE (données Jira)",
+    etabliPar: "cp|WIRE (transitions Jira)",
   });
 }

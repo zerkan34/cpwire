@@ -456,13 +456,24 @@ app.get("/api/recap", guard, async (_req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-// Récap CHIFFRÉ du jour, par dossier — 100 % déterministe (aucune IA), document prêt à transmettre.
+// Récap DU JOUR = mouvements du jour, par dossier — 100 % déterministe (aucune IA).
+// On lit les vraies transitions de statut Jira de la journée : qui a fait quoi, où ça a atterri.
 app.get("/api/recap/chiffres", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
-    const html = buildRecapChiffres(withoutDeletedDevs(got.issues), {});
-    logEvent("recap_chiffres", "Récap chiffré du jour (tous dossiers)");
+    const issues = withoutDeletedDevs(got.issues);
+    // Fenêtre = aujourd'hui (00:00 → 24:00, heure locale serveur).
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start.getTime() + 24 * 3600 * 1000);
+    const startISO = start.toISOString(), endISO = end.toISOString();
+    const sT = start.getTime(), eT = end.getTime();
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const keys = issues.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(keys, startISO, endISO);
+    const html = buildRecapChiffres(issues, tr.items, { dateISO: startISO, capped: tr.capped });
+    logEvent("recap_chiffres", "Récap du jour — mouvements (tous dossiers)", { mouvements: (tr.items || []).filter((x) => (x.transitions || []).length).length, scanned: tr.scanned, capped: tr.capped });
     res.json({ generatedAt: new Date().toISOString(), html });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
