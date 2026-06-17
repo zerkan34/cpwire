@@ -2328,13 +2328,9 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 }
 
 /* ===== v117 : en-tête figé au scroll (version ordinateur) ===== */
-.is-desktop .hdr { position: sticky; top: 6px; z-index: 60; }
+.is-desktop .hdr { position: sticky; top: 0; z-index: 60; }
 
-/* ===== v118 : desktop sans blanc derrière le header + rien ne déborde des coins ===== */
-html.is-desktop, html.is-desktop body { height: 100%; }
-html.is-desktop body { border-radius: 14px; overflow: hidden; }          /* clippe toute l'app aux coins arrondis */
-.is-desktop .wrap { height: 100vh; overflow-y: auto; overflow-x: hidden; max-width: 100%; padding-top: 0; }
-.is-desktop .hdr { top: 0; margin-left: -24px; margin-right: -24px; border-radius: 0 0 18px 18px; }  /* header plein bord en haut, zéro blanc */
+/* (v118 plein écran retiré — layout centré conservé) */
 
 /* ===== v118 : plus de menu burger (la barre du bas + sous-onglets suffisent) ===== */
 .hdr-burger { display: none !important; }
