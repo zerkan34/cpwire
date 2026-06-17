@@ -78,7 +78,7 @@ export function ProjetModal({ p, onClose }) {
             </div>
           </div>
           <div className="pf-modal-ring">
-            <Ring pct={p.avancement} color={p.meteo === "neutre" ? "#ffffff" : color} size={92} />
+            <Ring pct={p.avancement} color={p.meteo === "neutre" ? "#ffffff" : color} size={64} />
           </div>
         </div>
 

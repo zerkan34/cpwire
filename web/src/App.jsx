@@ -593,7 +593,7 @@ export default function App() {
               Import vérifié — {diag.totalImporte} tickets : {Object.entries(diag.parProjet).map(([k, v]) => `${k} (${v})`).join(" · ") || "—"}
             </p>
           )}
-          <div className="section-title">Cockpit <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
+          <PageHero k="Cockpit" title="Vue d'ensemble" sub="Tous les dossiers d'un coup d'œil — clique une carte pour ouvrir sa fiche." />
           <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} />
 
           <div className="section-title">

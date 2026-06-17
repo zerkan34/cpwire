@@ -2,8 +2,8 @@ import React from "react";
 
 // Détermine un indicateur de santé simple à partir des blocages / retards.
 function health(stats) {
-  if (stats["Bloqué"] > 0 || stats.enRetard > 1) return ["red", "Risque"];
-  if (stats.enRetard > 0) return ["amber", "Attention"];
+  if (stats["Bloqué"] > 0 || stats.enRetard > 1) return ["amber", "À suivre"];
+  if (stats.enRetard > 0) return ["amber", "À surveiller"];
   return ["green", "Conforme"];
 }
 
@@ -14,9 +14,13 @@ function Card({ dossier, stats, eng, onClick }) {
   const [hCls, hLbl] = health(stats);
   return (
     <div className="pcard" onClick={onClick}>
-      <span className={`health ${hCls}`}>{hLbl}</span>
-      <h3>{dossier}</h3>
-      {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
+      <div className="pc-head">
+        <div className="pc-title">
+          <h3>{dossier}</h3>
+          {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
+        </div>
+        <span className={`health ${hCls}`}>{hLbl}</span>
+      </div>
       <div className="meta">{total} ticket{total > 1 ? "s" : ""} · {pct}% terminé</div>
       <div className="pbar"><span style={{ width: `${pct}%` }} /></div>
       <div className="stats">

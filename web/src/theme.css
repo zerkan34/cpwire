@@ -2126,15 +2126,12 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===== v102 : barre d'onglets principale façon nav mobile (arrondie, couleurs du header) ===== */
 /* Barre d'onglets = footbar flottante (desktop), exactement le dégradé du header */
-.tabs { background: var(--hd-logo); border-radius: 18px; padding: 7px; gap: 4px; box-shadow: var(--shadow); border: 0; }
+.tabs { background: var(--hd-logo); border-radius: 18px; padding: 7px; gap: 4px; box-shadow: var(--shadow); border: 0; margin: 22px 0 12px; }
 .tabs .tab { color: rgba(255,255,255,.82); background: transparent; border: 0; border-radius: 12px; font-weight: 700; font-size: 14px; padding: 10px 18px; transition: all .14s ease; }
 .tabs .tab:hover { color: #fff; background: rgba(255,255,255,.12); }
 .tabs .tab.active { color: var(--indigo-deep); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .tabs .tab .b { background: var(--orange); color: #fff; }
-@media (min-width: 769px) {
-  .tabs { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 96; margin: 0; max-width: calc(100vw - 32px); box-shadow: 0 14px 38px rgba(44,41,69,.42); }
-  .wrap { padding-bottom: 120px; }
-}
+
 
 /* ===== v103 : en-tête de page brandé PARTAGÉ (harmonisation de toutes les pages) ===== */
 .page-hero { position: relative; background: var(--hd-grad); border-radius: 18px; padding: 22px 26px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 18px; }
@@ -2188,15 +2185,23 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pcard h3 { font-size: 18px; }
 
 /* ===== v108 : header — boutons carrés icônes (taille cloche) + recherche élargie ===== */
-.hdr-ic { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; background: rgba(255,255,255,.12); color: #fff; border: 1px solid rgba(255,255,255,.22); cursor: pointer; transition: background .14s, border-color .14s, transform .12s, filter .14s; flex: 0 0 auto; position: relative; }
+.hdr-ic { width: 40px; height: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; background: rgba(255,255,255,.15); color: #fff; border: 1px solid transparent; cursor: pointer; transition: background .14s, border-color .14s, transform .12s, filter .14s; flex: 0 0 auto; position: relative; }
 .hdr-ic:hover { background: rgba(255,255,255,.22); }
 .hdr-ic:active { transform: translateY(1px); }
 .hdr-ic:disabled { opacity: .55; cursor: default; }
 .hdr-ic svg { display: block; }
-.hdr-ic.refresh { background: var(--wire-grad); border-color: transparent; }
-.hdr-ic.refresh:hover { filter: brightness(1.07); background: var(--wire-grad); }
+.hdr-ic.refresh { background: linear-gradient(135deg, #fb8a3a, #ef6a0c); border-color: transparent; }
+.hdr-ic.refresh:hover { filter: brightness(1.07); background: linear-gradient(135deg, #fb8a3a, #ef6a0c); }
 .hdr-ic.spin svg { animation: spin360 .9s linear infinite; }
 .hdr-ic.pres.on { background: rgba(67,209,122,.24); border-color: rgba(67,209,122,.65); color: #e7fff1; }
 .hdr-ic .ic-badge { position: absolute; top: -6px; right: -6px; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 99px; background: var(--green); color: #fff; font-size: 10.5px; font-weight: 700; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px var(--indigo-deep); }
 /* cloche : même carré 40×40 */
-.btn.bell { width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; font-size: 18px; }
+.btn.bell { width: 40px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 11px; font-size: 18px; border-color: transparent; }
+
+
+/* ===== v110 : cartes Cockpit/Suivi projets — en-tête réorganisé ===== */
+.pc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.pc-title { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.pc-title h3 { margin: 0; }
+.pcard .health { float: none; }
+.pcard .eng-badge { margin-top: 0; margin-bottom: 10px; }
