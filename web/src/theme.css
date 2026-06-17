@@ -2329,3 +2329,27 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===== v117 : en-tête figé au scroll (version ordinateur) ===== */
 .is-desktop .hdr { position: sticky; top: 6px; z-index: 60; }
+
+/* ===== v118 : desktop sans blanc derrière le header + rien ne déborde des coins ===== */
+html.is-desktop, html.is-desktop body { height: 100%; }
+html.is-desktop body { border-radius: 14px; overflow: hidden; }          /* clippe toute l'app aux coins arrondis */
+.is-desktop .wrap { height: 100vh; overflow-y: auto; overflow-x: hidden; max-width: 100%; padding-top: 0; }
+.is-desktop .hdr { top: 0; margin-left: -24px; margin-right: -24px; border-radius: 0 0 18px 18px; }  /* header plein bord en haut, zéro blanc */
+
+/* ===== v118 : plus de menu burger (la barre du bas + sous-onglets suffisent) ===== */
+.hdr-burger { display: none !important; }
+.drawer, .drawer-backdrop { display: none !important; }
+
+/* ===== v118 : Synthèse par développeur — un cran plus compact (moins grossier) ===== */
+.dev-row { padding: 9px 12px; gap: 12px; }
+.dev-name { min-width: 148px; font-size: 14px; }
+.dev-bar { height: 6px; }
+.dev-tot { font-size: 14px; }
+.dev-rythme { font-size: 10.5px; }
+.dev-counts { grid-template-columns: repeat(5, 42px) 104px 14px; gap: 5px; }
+.dev-counts .pill { padding: 3px 8px; font-size: 11.5px; }
+.dev-hide { font-size: 10.5px; padding: 3px 9px; }
+
+/* ===== v119 : bannière d'import (apparition douce) ===== */
+.import-fade { animation: fade-in .4s ease; }
+@keyframes fade-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }

@@ -66,7 +66,7 @@ const TABS = [
   { id: "cockpit", label: "Cockpit" },
   { id: "devs", label: "Développeurs" },
   { id: "qualite", label: "Qualité" },
-  { id: "comptesrendus", label: "CRA" },
+  { id: "comptesrendus", label: "Récap" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -89,6 +89,7 @@ const SUBTABS = {
     { id: "morning", label: "Brief du matin" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
+    { id: "historique", label: "Historique" },
   ],
 };
 
@@ -98,7 +99,7 @@ const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
 const CONSULT_TABS = ["cockpit", "devs", "qualite", "comptesrendus"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "CRA" };
+const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "Récap" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
@@ -159,6 +160,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [needsConfig, setNeedsConfig] = useState(false);
   const [bootMsg, setBootMsg] = useState("");
+  const [diagBannerOn, setDiagBannerOn] = useState(true);
   const [loading, setLoading] = useState(true);
   const [dossier, setDossier] = useState("Tous");
   const [statut, setStatut] = useState("Tous");
@@ -346,6 +348,15 @@ export default function App() {
 
   // Charge les fiches 360 dès le démarrage (indépendamment du portefeuille).
   useEffect(() => { fetchProjets().then(setProjetsData).catch(() => {}); }, []);
+
+  // Bannière d'import : visible au démarrage puis s'efface.
+  useEffect(() => {
+    if (diag && diag.projetsSansTicket && diag.projetsSansTicket.length) {
+      setDiagBannerOn(true);
+      const t = setTimeout(() => setDiagBannerOn(false), 8000);
+      return () => clearTimeout(t);
+    }
+  }, [diag]);
 
   // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
   useEffect(() => { if (role === "consultation" && !CONSULT_TABS.includes(tab)) setTab("cockpit"); }, [role, tab]);
@@ -594,6 +605,13 @@ export default function App() {
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification.</div>
       ) : null}
 
+      {diagBannerOn && diag && diag.projetsSansTicket?.length > 0 && (
+        <div className="banner import-warning import-fade">
+          Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
+          <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
+        </div>
+      )}
+
       <div className="tabs">
         {visibleTabs.map((t) => (
           <button key={t.id} className={`tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
@@ -618,13 +636,6 @@ export default function App() {
       )}
       {bootMsg && <div className="banner" style={{ background: "var(--hd-grad)", color: "#fff", borderColor: "transparent" }}>{bootMsg}</div>}
       {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
-
-      {diag && diag.projetsSansTicket?.length > 0 && (
-        <div className="banner import-warning">
-          Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
-          <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
-        </div>
-      )}
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "portefeuille" && (
@@ -675,7 +686,8 @@ export default function App() {
       {tab === "comptesrendus" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "comptesrendus" && sub === "reunions" && <Meetings issues={issues} />}
-      {tab === "comptesrendus" && sub === "cra" && (<><PageHero k="Comptes rendus" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "comptesrendus" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "comptesrendus" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "reference" && (
         <>

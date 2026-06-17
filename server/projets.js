@@ -238,6 +238,79 @@ export async function projetsWorkbookBuffer(issues) {
   if (!d.recap.alertes.length) { sy.getCell(`A${rr}`).value = "Rien d'urgent."; rr++; }
   d.recap.alertes.forEach((a) => { sy.getRow(rr).values = [a.type, a.client, "", `${a.projet}${a.perimetre ? " — " + a.perimetre : ""} · ${a.detail}`]; sy.getCell(`A${rr}`).font = { bold: true, size: 9, color: { argb: a.niveau === "rouge" ? RED : "FFB0581A" } }; rr++; });
 
+  // ---------- Feuille CLIENTS (pouls Jira + finances + recette par client) ----------
+  const cl = wb.addWorksheet("Clients", { views: [{ state: "frozen", ySplit: 2 }], pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  const CCOLS = [
+    { h: "Client", w: 14 }, { h: "Type", w: 13 }, { h: "CDP", w: 17 },
+    { h: "Tickets", w: 9 }, { h: "Actifs", w: 8 }, { h: "En recette", w: 11 }, { h: "Retours", w: 9 }, { h: "En retard", w: 10 },
+    { h: "Budgété", w: 13 }, { h: "Facturé", w: 13 }, { h: "Reste à fact.", w: 13 }, { h: "J/H", w: 7 },
+    { h: "Recette %", w: 10 }, { h: "Options", w: 9 }, { h: "Programmes", w: 12 }, { h: "Santé", w: 13 },
+  ];
+  cl.columns = CCOLS.map((c) => ({ width: c.w }));
+  const CN = CCOLS.length, clLast = String.fromCharCode(64 + CN);
+  cl.mergeCells(`A1:${clLast}1`);
+  const ct = cl.getCell("A1"); ct.value = "CLIENTS — POULS JIRA & FINANCES"; ct.font = { name: "Poppins", size: 15, bold: true, color: { argb: "FFFFFFFF" } };
+  ct.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; ct.alignment = { vertical: "middle", indent: 1 }; cl.getRow(1).height = 26;
+  const chr = cl.getRow(2);
+  CCOLS.forEach((c, i) => {
+    const cell = chr.getCell(i + 1); cell.value = c.h;
+    cell.font = { name: "Inter", size: 9, bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } };
+    cell.alignment = { vertical: "middle", horizontal: i >= 3 ? "right" : "left", wrapText: true };
+    cell.border = { bottom: { style: "thin", color: { argb: GOLD } } };
+  });
+  chr.height = 20;
+  const SANTE_LBL = { vert: "🟢 OK", orange: "🟠 Vigilance", rouge: "🔴 Risque", neutre: "⚪ —" };
+  let cr = 3;
+  for (const c of d.clients) {
+    const j = c.jira || {}; const f = c.finances || {}; const reste = num(f.budgete) - num(f.facture); const rec = c.recette;
+    const row = cl.getRow(cr);
+    const vals = [c.client, c.type || "", c.cdp || "",
+      j.present ? j.total : "", j.present ? (j.actifs || 0) : "", j.present ? (j.recette || 0) : "", j.present ? (j.retours || 0) : "", j.present ? (j.retard || 0) : "",
+      num(f.budgete), num(f.facture), reste, num(f.jh),
+      rec ? rec.pct / 100 : "", rec ? rec.nbOptions : "", rec ? rec.nbProgrammes : "",
+      SANTE_LBL[c.santeData] || "⚪ —"];
+    vals.forEach((v, i) => { row.getCell(i + 1).value = v; });
+    if (cr % 2) for (let i = 1; i <= CN; i++) row.getCell(i).fill = { type: "pattern", pattern: "solid", fgColor: { argb: ROWALT } };
+    row.getCell(1).font = { bold: true, color: { argb: INK } };
+    [9, 10, 11].forEach((i) => { row.getCell(i).numFmt = '#,##0 "€"'; });
+    if (reste < 0) row.getCell(11).font = { bold: true, color: { argb: RED } };
+    row.getCell(13).numFmt = "0 %";
+    [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15].forEach((i) => { row.getCell(i).alignment = { horizontal: "right" }; });
+    cr++;
+  }
+  cl.autoFilter = `A2:${clLast}2`;
+
+  // ---------- Feuille ACCÈS & CONTACTS ----------
+  const ac = wb.addWorksheet("Accès & contacts", { pageSetup: { orientation: "portrait", fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+  ac.columns = [{ width: 22 }, { width: 32 }, { width: 46 }];
+  ac.mergeCells("A1:C1"); const at = ac.getCell("A1"); at.value = "ACCÈS & CONTACTS";
+  at.font = { name: "Poppins", size: 15, bold: true, color: { argb: "FFFFFFFF" } }; at.fill = { type: "pattern", pattern: "solid", fgColor: { argb: INDIGO } }; ac.getRow(1).height = 26; at.alignment = { vertical: "middle", indent: 1 };
+  ac.mergeCells("A2:C2"); ac.getCell("A2").value = "Sans secret — identifiants et mots de passe restent dans le gestionnaire de mots de passe."; ac.getCell("A2").font = { name: "Inter", italic: true, size: 9, color: { argb: MUTED } };
+  let ar = 4;
+  const acLine = (label, value) => {
+    const rw = ac.getRow(ar);
+    rw.getCell(1).value = label; rw.getCell(1).font = { name: "Inter", size: 9, bold: true, color: { argb: MUTED } }; rw.getCell(1).alignment = { vertical: "top" };
+    ac.mergeCells(ar, 2, ar, 3); rw.getCell(2).value = value; rw.getCell(2).alignment = { wrapText: true, vertical: "top" }; rw.getCell(2).font = { size: 10, color: { argb: INK } };
+    ar++;
+  };
+  for (const c of d.clients) {
+    const a = c.acces; if (!a) continue;
+    ac.mergeCells(ar, 1, ar, 3);
+    const h = ac.getRow(ar).getCell(1); h.value = `${c.client}${c.type ? "   ·   " + c.type : ""}${c.cdp ? "   ·   CDP " + c.cdp : ""}`;
+    h.font = { name: "Poppins", bold: true, size: 12, color: { argb: INDIGO } }; h.fill = { type: "pattern", pattern: "solid", fgColor: { argb: LILAS } }; ac.getRow(ar).height = 20; ar++;
+    if (a.contexte) acLine("Contexte", a.contexte);
+    if (a.portail && a.portail.nom) acLine("Portail", a.portail.nom + (a.portail.url ? `   (${a.portail.url})` : ""));
+    if (a.sharepoint && a.sharepoint.nom) acLine("SharePoint", a.sharepoint.nom + (a.sharepoint.url ? `   (${a.sharepoint.url})` : ""));
+    if (a.environnements && a.environnements.length) acLine("Environnements", a.environnements.join("  ·  "));
+    if (a.connexion && a.connexion.length) acLine("Connexion", a.connexion.map((x, i) => `${i + 1}. ${x}`).join("\n"));
+    const cc = a.contacts || [];
+    const cli = cc.filter((x) => /client/i.test(x.cote || "")); const arm = cc.filter((x) => !/client/i.test(x.cote || ""));
+    if (cli.length) acLine("Contacts client", cli.map((x) => `${x.nom}${x.role ? " — " + x.role : ""}`).join("\n"));
+    if (arm.length) acLine("Contacts Armonie", arm.map((x) => `${x.nom}${x.role ? " — " + x.role : ""}`).join("\n"));
+    ar++;
+  }
+
   return await wb.xlsx.writeBuffer();
 }
 
