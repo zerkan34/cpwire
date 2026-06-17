@@ -76,7 +76,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     setBusy("__chiffres__"); setErr("");
     try {
       const { html } = await fetchRecapChiffres();
-      setDoc({ title: "Récap chiffré du jour", html, filename: `Recap_chiffre_${new Date().toISOString().slice(0, 10)}.html` });
+      setDoc({ title: "Récap du jour — mouvements", html, filename: `Recap_du_jour_${new Date().toISOString().slice(0, 10)}.html` });
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }
   };
@@ -137,7 +137,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
       </p>
       <div className="row-actions" style={{ marginBottom: 16 }}>
         <button className="btn-solid gold" onClick={makeChiffres} disabled={busy === "__chiffres__"}>
-          {busy === "__chiffres__" ? "Calcul…" : "📊 Récap chiffré du jour (tous dossiers — chiffres seuls)"}
+          {busy === "__chiffres__" ? "Calcul…" : "📊 Récap du jour — mouvements (qui a fait quoi · tous dossiers)"}
         </button>
         <button className="btn-solid" onClick={makeGlobalZip} disabled={busy === "__global__"}>
           {busy === "__global__" ? "Génération…" : "📦 Récap global du jour (ZIP — détaillé + écrit / client)"}
