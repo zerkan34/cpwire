@@ -475,7 +475,7 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
     ${synthRow}
     ${analyseHtml || ""}
     <h2>État des lieux détaillé</h2>
-    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. Cliquez sur un ticket pour le détail.</p>
+    <p style="font-size:12px;color:#74718a;margin-top:-2px;">${(doneToday.length || enCoursToday.length) ? `${doneToday.length} terminé(s) · ${enCoursToday.length} en cours ${W}. ` : `Recette et suivi en cours ${W}. `}Cliquez sur un ticket pour le détail.</p>
     ${detailedHtml || `<p>Aucun ticket travaillé ${W}.</p>`}
     ${recArmBloc}
     ${recCliBloc}
@@ -555,9 +555,10 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         const parActeur = act.actors.slice(0, 12).map((a) => `${a.who} : ${a.recC} passage(s) en recette client, ${a.term} clôture(s)/terminé(s), ${a.recA} en recette Armonie (${a.nbTickets} ticket(s))`).join("\n");
         const tRecC = act.actors.reduce((s, a) => s + a.recC, 0), tTerm = act.actors.reduce((s, a) => s + a.term, 0), tRecA = act.actors.reduce((s, a) => s + a.recA, 0), tAtt = act.actors.reduce((s, a) => s + a.att, 0);
         prompt = `Tu es un chef de projet senior. Rédige une ANALYSE pour le dossier "${dossier}" sur « ${periodLabel} », en 2 à 4 paragraphes factuels.\n` +
-          `RÈGLE ABSOLUE : sur cette période l'activité consiste surtout à FAIRE AVANCER les tickets en RECETTE et à les CLÔTURER. La personne à créditer pour un passage en recette client ou en Terminé est CELLE QUI A EFFECTUÉ LA TRANSITION (le recetteur), JAMAIS le développeur d'origine. Le développeur a souvent codé des semaines avant et n'a pas travaillé sur la période : ne lui attribue aucune clôture. Mentionne « développé par … » uniquement comme contexte.\n` +
-          `Cite les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets et personnes listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action absent des données ; n'affirme jamais qu'un ticket est « en production », « déployé » ou « validé » si ce n'est pas son statut réel ; reformule en langage clair, sans recopier les libellés techniques.\n` +
-          `TOTAUX EXACTS de la période — reprends CES chiffres tels quels, n'en calcule ni n'en invente AUCUN autre : ${tTerm} clôture(s)/terminé(s), ${tRecC} passage(s) en recette client, ${tRecA} en recette Armonie, ${tAtt} en attente client. ${recA} ticket(s) restent en attente de recette Armonie.\n` +
+          `ATTRIBUTION (à appliquer SANS jamais l'expliquer dans le texte) : crédite la personne qui a EFFECTUÉ la transition (recette / clôture), pas le développeur d'origine. N'écris AUCUNE phrase sur la méthode (interdits : « le recetteur est crédité », « rôle du développeur contextuel », « seuls les recetteurs… »). Attribue simplement, naturellement.\n` +
+          `INTERDICTIONS ABSOLUES : (1) ne mentionne JAMAIS la mise en production / le déploiement / la « prod » NI leur absence — Armonie réalise la RECETTE, la mise en production est faite par le client ; (2) ne cite AUCUN total de périmètre ni « X tickets couverts » — parle seulement de ce qui a bougé ; (3) ne fais AUCUNE affirmation négative globale (ex. « aucun ticket en attente client ») : les chiffres ci-dessous ne portent QUE sur les transitions de la période, pas sur le stock du dossier.\n` +
+          `Cite les personnes par leur nom et les tickets par leur clé. N'invente AUCUN ticket, client, sujet, nom ou action ; reformule en langage clair.\n` +
+          `Chiffres de la période (à reprendre tels quels, sans en inventer d'autres, sans les présenter comme un stock total) : ${tTerm} clôture(s)/terminé(s), ${tRecC} passage(s) en recette client, ${tRecA} en recette Armonie.\n` +
           `Qui a fait avancer quoi (acteur réel des transitions) :\n${parActeur || "(aucune transition)"}\n` +
           `Détail des passages (ticket → nouveau statut · par qui · dev d'origine en contexte) :\n${moves || "(aucun)"}\n` +
           `Réponds UNIQUEMENT par 1 à 4 paragraphes HTML <p>…</p>, sans titre.`;
@@ -567,7 +568,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         const activeList = dayActive.slice(0, 25).map((i) => `- ${i.cle} : ${i.resume}${dev(i)} (${CATEGORY_LABEL[i.categorie] || i.statut})`).join("\n");
         prompt = `Tu es un chef de projet senior. Rédige une ANALYSE rédigée pour le dossier "${dossier}" ${singleDay ? `pour la journée du ${dayLabel}` : `sur la période « ${periodLabel} »`}, ` +
           `comme si tu l'écrivais toi-même : explique CE QUI A AVANCÉ et QUI a travaillé sur QUOI, en 2 à 4 paragraphes clairs et factuels, ` +
-          `en citant les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action absent des données ; n'affirme jamais qu'un ticket est « en production », « déployé » ou « validé » si ce n'est pas son statut réel. Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
+          `en citant les personnes par leur nom et les tickets par leur clé. CONTRAINTE STRICTE : utilise UNIQUEMENT les tickets listés ci-dessous ; n'invente AUCUN ticket, client, sujet, nom ou action. INTERDICTIONS : ne mentionne JAMAIS la mise en production / le déploiement / la « prod » ni leur absence (Armonie fait la recette, le client met en production) ; ne cite aucun total de périmètre ; ne fais aucune affirmation négative globale sur le stock (ex. « aucun ticket en attente client »). Termine par un point d'attention si pertinent. Ne réinvente aucun chiffre.\n` +
           `Données réelles : ${dayDone.length} terminé(s) ${W}, ${dayActive.length} en cours ${W}, ${recA} en attente de recette Armonie. Terminés par personne : ${topWho || "—"}.\n` +
           `Tickets terminés (${periodLabel}) :\n${doneList || "(aucun)"}\n` +
           `Tickets en cours (${periodLabel}) :\n${activeList || "(aucun)"}\n` +
@@ -671,7 +672,7 @@ function writtenTemplate(dossier, issues) {
   const sBloq = bloquants.length
     ? `<p>${bloquants.length} sujet(s) demandent une attention particulière : ${exList(bloquants)}.</p>`
     : `<p>Aucun blocage n'est signalé à ce jour.</p>`;
-  const sChiffres = `<p>${dayDone.length} terminé(s) · ${dayActive.length} en cours · ${recTot} en validation · ${bloquants.length} à surveiller · ${issues.length} sujet(s) suivis au total sur le dossier.</p>`;
+  const sChiffres = `<p>${dayDone.length} terminé(s) · ${dayActive.length} en cours · ${recTot} en validation · ${bloquants.length} à surveiller.</p>`;
 
   return `<h2>En bref</h2>${enBref}
     <h2>Ce qui a été terminé</h2>${sTermine}
@@ -696,6 +697,8 @@ export async function writtenDailyReport(dossier, issues) {
         `- N'affiche PAS de références de tickets (pas de "ABC-123") : décris le travail en mots compréhensibles.\n` +
         `- Reformule les intitulés techniques en langage courant. Si un terme technique est indispensable, explique-le en quelques mots (ex. « recette » = phase de vérification avant mise en service).\n` +
         `- Pas de formules de politesse ni de remplissage.\n` +
+        `- Ne mentionne JAMAIS la mise en production, le déploiement ou la « prod » (ni leur absence) : Armonie réalise la recette, la mise en service est faite par le client.\n` +
+        `- Ne cite aucun total de périmètre (« X tickets ») ni aucune affirmation négative globale (ex. « aucun ticket en attente ») : parle seulement de ce qui a avancé.\n` +
         `Structure en sections avec des titres HTML <h2> : "En bref" (2 à 3 phrases), "Ce qui a été terminé", "Ce qui avance", "En cours de validation", "Points d'attention", "En résumé" (les chiffres clés en une phrase).\n` +
         `N'invente AUCUN chiffre, statut NI NOM ; appuie-toi uniquement sur les données ci-dessous. Les SEULES personnes que tu peux citer nommément sont : ${noms.join(", ") || "aucune (dans ce cas écris « l'équipe »)"}. Tout autre nom est interdit. Réponds UNIQUEMENT en HTML (<h2>, <h3>, <p>, <b>), sans <html> ni <body>.\n\n` +
         `Terminés aujourd'hui (${dayDone.length}) :\n${pick(dayDone) || "(aucun)"}\n\n` +

@@ -66,7 +66,7 @@ const TABS = [
   { id: "cockpit", label: "Cockpit" },
   { id: "devs", label: "Développeurs" },
   { id: "qualite", label: "Qualité" },
-  { id: "comptesrendus", label: "Comptes rendus" },
+  { id: "comptesrendus", label: "CRA" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -98,7 +98,7 @@ const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
 const CONSULT_TABS = ["cockpit", "devs", "qualite", "comptesrendus"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "CR" };
+const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "CRA" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {

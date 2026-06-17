@@ -2326,3 +2326,6 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
   100% { opacity: 0; transform: translate(-50%, -54%) scale(.96); }
 }
+
+/* ===== v117 : en-tête figé au scroll (version ordinateur) ===== */
+.is-desktop .hdr { position: sticky; top: 6px; z-index: 60; }
