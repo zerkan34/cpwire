@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { fetchProjets, downloadProjetsXlsx, openProjetsDoc } from "../api.js";
 import Client360 from "./Client360.jsx";
+import { useScrollLock } from "../modalNav.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -56,6 +57,7 @@ function Card({ p, onOpen }) {
 }
 
 export function ProjetModal({ p, onClose }) {
+  useScrollLock();
   useEffect(() => {
     const k = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
@@ -138,8 +140,10 @@ function ClientBlock({ c, onOpen, onOpen360 }) {
             {j.retard > 0 ? <span className="pf-chip late">{j.retard} en retard</span> : null}
           </div>
         ) : null}
-        {a ? <button className="pf-acc-btn" onClick={() => setOpenAcc((v) => !v)} title="Accès, environnements et contacts">{openAcc ? "▾" : "▸"} Accès & contacts</button> : null}
-        <button className="pf-360-btn" onClick={() => onOpen360 && onOpen360(c)} title="Vue complète du client">Fiche 360°</button>
+        <div className="pf-client-actions">
+          {a ? <button className="pf-acc-btn" onClick={() => setOpenAcc((v) => !v)} title="Accès, environnements et contacts">{openAcc ? "▾" : "▸"} Accès & contacts</button> : null}
+          <button className="pf-360-btn" onClick={() => onOpen360 && onOpen360(c)} title="Vue complète du client">Fiche 360°</button>
+        </div>
       </header>
       {c.recette ? (
         <div className="pf-recette" title="Avancement réel de la recette, calculé depuis le référentiel + Jira">

@@ -113,15 +113,8 @@ export default function Referentiel({ issues = [], onTicket }) {
 
   return (
     <>
-      <div className="section-title">Référentiel recette
-        <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {data.nbOptions} option{data.nbOptions > 1 ? "s" : ""} · {data.nbProgrammes} programme{data.nbProgrammes > 1 ? "s" : ""}
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Le socle qui fait parler la même langue : chaque <b>Option</b> (ce que suit le client) regroupe ses <b>Programmes</b>,
-        chacun rapproché automatiquement de son <b>ticket Jira</b>. Un programme sans ticket est marqué « non lié ».
-        {data.majSource ? <> <i>{data.majSource}.</i></> : null}
+      <p className="hint" style={{ marginTop: -2 }}>
+        <b>Référentiel recette</b> — {data.nbOptions} option{data.nbOptions > 1 ? "s" : ""} · {data.nbProgrammes} programme{data.nbProgrammes > 1 ? "s" : ""} · chaque programme est rapproché de son ticket Jira (« non lié » sinon).{data.majSource ? <> <i>{data.majSource}.</i></> : null}
       </p>
 
       {clients.length > 1 && (

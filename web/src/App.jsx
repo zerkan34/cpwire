@@ -42,6 +42,25 @@ function PageHero({ k, title, sub }) {
     </div>
   );
 }
+
+// Salutation contextualisée : heure du jour + prénom + « Re » si reconnexion récente.
+const GREET_NAMES = { groutier: "Guy", fblain: "Fabrice" }; // invités connus (email → prénom), extensible
+function greetMessage(role, me) {
+  let name = "";
+  if (role === "owner") name = "Nikko";
+  else {
+    const local = String(me || "").split("@")[0].toLowerCase();
+    name = GREET_NAMES[local] || (local.replace(/[^a-zàâäéèêëîïôöùûüç]/gi, " ").trim().split(/\s+/)[0] || "");
+    if (name) name = name.charAt(0).toUpperCase() + name.slice(1);
+  }
+  const last = Number(localStorage.getItem("cpwire_greet_at") || 0);
+  const re = last && (Date.now() - last < 8 * 3600 * 1000);
+  localStorage.setItem("cpwire_greet_at", String(Date.now()));
+  if (re) return name ? `Re ${name} !` : "Re !";
+  const h = new Date().getHours();
+  const w = h < 12 ? "Bonjour" : h < 18 ? "Bonne après-midi" : "Bonsoir";
+  return name ? `${w} ${name} !` : `${w} !`;
+}
 const TABS = [
   { id: "cockpit", label: "Cockpit" },
   { id: "devs", label: "Développeurs" },
@@ -155,6 +174,8 @@ export default function App() {
   const [projetsData, setProjetsData] = useState(null);
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
+  const [greet, setGreet] = useState("");
+  const greetedRef = useRef(false);
   const [showTop, setShowTop] = useState(false);
   const [notifs, setNotifs] = useState([]);
   const [notifOn, setNotifOn] = useState(() => { try { return localStorage.getItem("cpwire_notif") === "1"; } catch { return false; } });
@@ -306,7 +327,14 @@ export default function App() {
   // Confirme le rôle auprès du serveur (lecture seule pour un invité).
   useEffect(() => {
     if (!authed) return;
-    fetchSession().then((s) => { setRole(s.role); setReadOnly(s.role !== "owner"); }).catch(() => {});
+    fetchSession().then((s) => {
+      setRole(s.role); setReadOnly(s.role !== "owner");
+      if (!greetedRef.current) {
+        greetedRef.current = true;
+        setGreet(greetMessage(s.role, s.me));
+        setTimeout(() => setGreet(""), 3800);
+      }
+    }).catch(() => {});
   }, [authed]);
 
   // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
@@ -586,6 +614,7 @@ export default function App() {
         </div>
       )}
 
+      <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "portefeuille" && (
         <>
           {diag && (
@@ -594,7 +623,7 @@ export default function App() {
             </p>
           )}
           <PageHero k="Cockpit" title="Vue d'ensemble" sub="Tous les dossiers d'un coup d'œil — clique une carte pour ouvrir sa fiche." />
-          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} />
+          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} onOpen360={openClient} />
 
           <div className="section-title">
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
@@ -647,6 +676,8 @@ export default function App() {
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 
+      </div>
+
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
 
       {devFiche && (
@@ -663,6 +694,7 @@ export default function App() {
 
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
+      {greet && <div className="greet-pop" role="status">{greet}</div>}
       <InstallPWA />
 
       {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}

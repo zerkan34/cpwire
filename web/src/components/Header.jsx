@@ -207,14 +207,14 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v110</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v114</span></span>
         </span>
         <div className="hdr-controls">
           {search}
           {role === "owner" && onPresence && (
             <button className={`hdr-ic pres ${presence.length ? "on" : ""}`} onClick={onPresence}
               title={presence.length ? "Connectés : " + presence.map((u) => u.email).join(", ") + " · Admin & accès" : "Personne d'autre connecté · Admin & accès"} aria-label="Présence et accès">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M18.5 19a5 5 0 0 0-3-4.6"/></svg>
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 19.5a6.5 6.5 0 0 1 13 0"/></svg>
               {presence.length > 0 && <span className="ic-badge">{presence.length}</span>}
             </button>
           )}
@@ -240,7 +240,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v110</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v114</span></div>
       </div>
 
       <div className="progress">

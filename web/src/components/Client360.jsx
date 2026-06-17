@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ProjetModal } from "./Projets.jsx";
 import { genDailyCR, genWrittenCR, fetchClientMails } from "../api.js";
+import { useModalBack } from "../modalNav.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -27,18 +28,18 @@ export default function Client360({ c, issues = [], canCR = true, onClose, onTic
     fetchClientMails(c.client).then((r) => on && setMails({ loading: false, ...r })).catch(() => on && setMails({ loading: false, configured: false, mails: [] }));
     return () => { on = false; };
   }, [c.client]);
-  useEffect(() => {
-    const k = (e) => { if (e.key === "Escape") onClose(); };
-    window.addEventListener("keydown", k); return () => window.removeEventListener("keydown", k);
-  }, [onClose]);
+  useModalBack(onClose);
+  const hasBoth = /TMA/i.test(c.type || "") && /projet/i.test(c.type || "");
+  const [seg, setSeg] = useState("all");
+  const engOf = (k) => (/^P/i.test(k || "") ? "Projet" : "TMA");
   if (!c) return null;
   const j = c.jira || {}, fin = c.finances || {}, a = c.acces;
 
   const recent = useMemo(() => {
-    return issues.filter((i) => i.dossier === c.client)
+    return issues.filter((i) => i.dossier === c.client && (!hasBoth || seg === "all" || engOf(i.cle) === seg))
       .slice().sort((x, y) => String(y.maj || "").localeCompare(String(x.maj || "")))
       .slice(0, 12);
-  }, [issues, c.client]);
+  }, [issues, c.client, seg, hasBoth]);
 
   const reste = (fin.budgete || 0) - (fin.facture || 0);
   const doc = async (kind) => {
@@ -73,6 +74,13 @@ export default function Client360({ c, issues = [], canCR = true, onClose, onTic
         </div>
 
         <div className="c360-body">
+          {hasBoth && (
+            <div className="c360-seg" role="tablist" aria-label="Périmètre">
+              <button className={seg === "all" ? "on" : ""} onClick={() => setSeg("all")} role="tab" aria-selected={seg === "all"}>Vue d'ensemble</button>
+              <button className={seg === "TMA" ? "on" : ""} onClick={() => setSeg("TMA")} role="tab" aria-selected={seg === "TMA"}>TMA</button>
+              <button className={seg === "Projet" ? "on" : ""} onClick={() => setSeg("Projet")} role="tab" aria-selected={seg === "Projet"}>Projet</button>
+            </div>
+          )}
           {/* Contexte */}
           {a && a.contexte ? <p className="c360-ctx">{a.contexte}</p> : null}
 
@@ -119,6 +127,7 @@ export default function Client360({ c, issues = [], canCR = true, onClose, onTic
           <div className="c360-cols">
             {/* Colonne gauche : projets + activité */}
             <div className="c360-main">
+              {seg !== "TMA" && (<>
               <h3 className="c360-sec">Projets ({(c.projets || []).length})</h3>
               <div className="pf-tablewrap">
                 <table className="proj-tbl pf-table">
@@ -141,8 +150,9 @@ export default function Client360({ c, issues = [], canCR = true, onClose, onTic
                   </tbody>
                 </table>
               </div>
+              </>)}
 
-              <h3 className="c360-sec">Activité récente</h3>
+              <h3 className="c360-sec">Activité récente{hasBoth && seg !== "all" ? ` — ${seg}` : ""}</h3>
               {recent.length === 0 ? <p className="c360-empty">Aucun ticket pour ce client.</p> : (
                 <ul className="c360-act">
                   {recent.map((i) => (

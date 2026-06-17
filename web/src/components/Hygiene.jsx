@@ -9,6 +9,7 @@ export default function Hygiene({ issues = [], onTicket }) {
   const [err, setErr] = useState("");
   const [openCheck, setOpenCheck] = useState(null);
   const [selDossier, setSelDossier] = useState(null);
+  const [fullId, setFullId] = useState(null); // anomalie dont on affiche TOUS les tickets
 
   useEffect(() => {
     let alive = true; setLoading(true); setErr("");
@@ -35,12 +36,6 @@ export default function Hygiene({ issues = [], onTicket }) {
         <p>Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.</p>
       </div>
 
-      <div className="sla-kpis">
-        <div className="sla-kpi"><div className={`v ${scoreClass(g.score)}`}>{g.score == null ? "—" : `${g.score}%`}</div><div className="l">Ouverts « propres »</div></div>
-        <div className="sla-kpi"><div className={`v ${g.aCorriger ? "sla-bad" : "sla-ok"}`}>{g.aCorriger}</div><div className="l">Ouverts à corriger</div></div>
-        <div className="sla-kpi"><div className={`v ${g.incoherences ? "sla-warn" : ""}`}>{g.incoherences}</div><div className="l">Incohérences</div></div>
-        <div className="sla-kpi"><div className="v">{g.ouverts}</div><div className="l">Tickets ouverts</div></div>
-      </div>
 
       <table className="data">
         <thead><tr><th>Client / dossier</th><th>Ouverts</th><th>À corriger</th><th>Incohér.</th><th>Qualité</th></tr></thead>
@@ -63,33 +58,43 @@ export default function Hygiene({ issues = [], onTicket }) {
         {rep.checks.map((c) => {
           const tks = selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets;
           if (selDossier && tks.length === 0) return null;
-          const isOpen = selDossier ? true : openCheck === c.id;
+          const isOpen = openCheck === c.id;
           const groups = {};
           tks.forEach((t) => { (groups[t.dossier] ||= []).push(t); });
           const groupNames = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
           return (
             <div className="hyg-check" key={c.id}>
-              <div className="hyg-head" onClick={() => { if (!selDossier) setOpenCheck(openCheck === c.id ? null : c.id); }} title="Voir les tickets">
+              <div className="hyg-head" onClick={() => setOpenCheck(openCheck === c.id ? null : c.id)} title="Voir les tickets">
                 <span className="hyg-count">{tks.length}</span>
                 <span className="hyg-label">{c.label}</span>
-                {!selDossier && <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>}
+                <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>
               </div>
               <div className="hyg-hint">{c.hint}</div>
               {isOpen && (
                 <div className="sla-list">
-                  {groupNames.map((dn) => (
-                    <div key={dn} className="hyg-grp-wrap">
-                      <div className="hyg-grp">{dn} <span>({groups[dn].length})</span></div>
-                      {groups[dn].map((t) => (
-                        <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
-                          <span className="k">{t.cle}</span>
-                          <span className="sla-resume">{t.resume}</span>
-                          {t.who && <span className="sla-prio">{t.who}</span>}
-                          {t.extra && <span className="sla-late">{t.extra}</span>}
-                        </div>
-                      ))}
-                    </div>
-                  ))}
+                  {groupNames.map((dn) => {
+                    const full = fullId === c.id;
+                    const rows = full ? groups[dn] : groups[dn].slice(0, 8);
+                    return (
+                      <div key={dn} className="hyg-grp-wrap">
+                        <div className="hyg-grp">{dn} <span>({groups[dn].length})</span></div>
+                        {rows.map((t) => (
+                          <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                            <span className="k">{t.cle}</span>
+                            <span className="sla-resume">{t.resume}</span>
+                            {t.who && <span className="sla-prio">{t.who}</span>}
+                            {t.extra && <span className="sla-late">{t.extra}</span>}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                  {tks.length > 8 && fullId !== c.id && (
+                    <button className="hyg-more" onClick={(e) => { e.stopPropagation(); setFullId(c.id); }}>Afficher les {tks.length} tickets</button>
+                  )}
+                  {fullId === c.id && tks.length > 8 && (
+                    <button className="hyg-more" onClick={(e) => { e.stopPropagation(); setFullId(null); }}>Réduire</button>
+                  )}
                 </div>
               )}
             </div>

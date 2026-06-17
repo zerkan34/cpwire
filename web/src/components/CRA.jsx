@@ -164,12 +164,7 @@ export default function CRA({ onTicket }) {
 
   return (
     <>
-      <div className="section-title">CRA — Compte rendu d'activité
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— consolide les temps saisis dans Jira : quoi, sur quel projet, combien de temps.
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
+      <p className="hint" style={{ marginTop: -4 }}>
         Choisis une période et un périmètre, puis « Générer » : le CRA agrège le <b>temps réellement saisi dans Jira</b> par projet et par personne. Pas de temps dans Jira ? Clique <b>« Importer un Excel »</b> pour construire le CRA depuis un fichier (colonnes reconnues : <i>Projet/Dossier, Intervenant, Clé, Résumé, Temps (ou Heures/Durée/Jours), Statut</i> — l'ordre et les libellés exacts n'ont pas d'importance).
       </p>
 
