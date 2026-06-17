@@ -7,7 +7,7 @@ function health(stats) {
   return ["green", "Conforme"];
 }
 
-function Card({ dossier, stats, eng, onClick, onOpen360 }) {
+function Card({ dossier, stats, eng, onClick, onOpen360, can360 }) {
   const total = stats.total || 0;
   const done = stats["Terminé"] || 0;
   const pct = total ? Math.round((done / total) * 100) : 0;
@@ -29,18 +29,18 @@ function Card({ dossier, stats, eng, onClick, onOpen360 }) {
         <span className="dot prog">{stats["En cours"] || 0} en cours</span>
         <span className="dot done">{done} fait{done > 1 ? "s" : ""}</span>
       </div>
-      {onOpen360 ? <button className="pcard-360" onClick={(e) => { e.stopPropagation(); onOpen360(dossier); }} title="Vue complète du client">Fiche 360°</button> : null}
+      {onOpen360 && (!can360 || can360(dossier)) ? <button className="pcard-360" onClick={(e) => { e.stopPropagation(); onOpen360(dossier); }} title="Vue complète du client">Fiche 360°</button> : null}
     </div>
   );
 }
 
-export default function Portfolio({ parDossier, engagement = {}, onOpen, onOpen360 }) {
+export default function Portfolio({ parDossier, engagement = {}, onOpen, onOpen360, can360 }) {
   const entries = Object.entries(parDossier || {}).sort((a, b) => b[1].total - a[1].total);
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
   return (
     <div className="cards">
       {entries.map(([dossier, stats]) => (
-        <Card key={dossier} dossier={dossier} stats={stats} eng={engagement[dossier]} onClick={() => onOpen(dossier)} onOpen360={onOpen360} />
+        <Card key={dossier} dossier={dossier} stats={stats} eng={engagement[dossier]} onClick={() => onOpen(dossier)} onOpen360={onOpen360} can360={can360} />
       ))}
     </div>
   );

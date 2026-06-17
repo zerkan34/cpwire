@@ -201,13 +201,13 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
   const isTauri = typeof window !== "undefined" && !!(window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.window.getCurrentWindow);
 
   return (
-    <header className={`hdr ${tab === "cockpit" ? "is-dash" : "is-sub"}`}>
+    <header className={`hdr ${tab === "cockpit" ? "is-dash" : "is-sub"}`} data-tauri-drag-region>
       {/* Barre du haut : marque à gauche, contrôles à droite (même ligne) */}
       <div className="hdr-top" data-tauri-drag-region>
-        <span className="hdr-brand">
+        <span className="hdr-brand" data-tauri-drag-region>
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v114</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v116</span></span>
         </span>
         <div className="hdr-controls">
           {search}
@@ -235,12 +235,12 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
       </div>
 
       {/* Titre + fraîcheur des données */}
-      <div className="hdr-headline">
-        <div className="hdr-left">
+      <div className="hdr-headline" data-tauri-drag-region>
+        <div className="hdr-left" data-tauri-drag-region>
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v114</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v116</span></div>
       </div>
 
       <div className="progress">

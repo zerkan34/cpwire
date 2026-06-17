@@ -44,6 +44,7 @@ function PageHero({ k, title, sub }) {
 }
 
 // Salutation contextualisée : heure du jour + prénom + « Re » si reconnexion récente.
+const norm360 = (x) => String(x || "").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]/g, "");
 const GREET_NAMES = { groutier: "Guy", fblain: "Fabrice" }; // invités connus (email → prénom), extensible
 function greetMessage(role, me) {
   let name = "";
@@ -175,6 +176,7 @@ export default function App() {
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [greet, setGreet] = useState("");
+  const [greetLeaving, setGreetLeaving] = useState(false);
   const greetedRef = useRef(false);
   const [showTop, setShowTop] = useState(false);
   const [notifs, setNotifs] = useState([]);
@@ -327,15 +329,23 @@ export default function App() {
   // Confirme le rôle auprès du serveur (lecture seule pour un invité).
   useEffect(() => {
     if (!authed) return;
+    const fire = (r, m) => {
+      if (greetedRef.current) return;
+      greetedRef.current = true;
+      setGreet(greetMessage(r, m)); setGreetLeaving(false);
+      setTimeout(() => setGreetLeaving(true), 3200);   // déclenche l'animation de sortie
+      setTimeout(() => { setGreet(""); setGreetLeaving(false); }, 3700);
+    };
     fetchSession().then((s) => {
       setRole(s.role); setReadOnly(s.role !== "owner");
-      if (!greetedRef.current) {
-        greetedRef.current = true;
-        setGreet(greetMessage(s.role, s.me));
-        setTimeout(() => setGreet(""), 3800);
-      }
-    }).catch(() => {});
+      fire(s.role, s.me);
+    }).catch(() => fire(role, data?.me));
+    const t = setTimeout(() => fire(role, data?.me), 2500); // filet desktop : si la session traîne/échoue, on salue quand même
+    return () => clearTimeout(t);
   }, [authed]);
+
+  // Charge les fiches 360 dès le démarrage (indépendamment du portefeuille).
+  useEffect(() => { fetchProjets().then(setProjetsData).catch(() => {}); }, []);
 
   // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
   useEffect(() => { if (role === "consultation" && !CONSULT_TABS.includes(tab)) setTab("cockpit"); }, [role, tab]);
@@ -491,12 +501,14 @@ export default function App() {
   // Correspondance nom de client (cockpit) -> objet complet de la Fiche 360 (données /api/projets).
   const c360Map = useMemo(() => {
     const m = new Map();
-    (projetsData?.clients || []).forEach((c) => m.set(String(c.client).toUpperCase(), c));
+    (projetsData?.clients || []).forEach((c) => m.set(norm360(c.client), c));
     return m;
   }, [projetsData]);
+  const can360 = useCallback((d) => c360Map.has(norm360(d)), [c360Map]);
+  const open360 = useCallback((d) => { const c = c360Map.get(norm360(d)); if (c) setSel360(c); }, [c360Map]);
   // Ouvre la Fiche 360 si on a les données du client ; sinon repli sur la fiche dossier classique.
   const openClient = useCallback((d) => {
-    const c = c360Map.get(String(d).toUpperCase());
+    const c = c360Map.get(norm360(d));
     if (c) setSel360(c); else setFiche({ nom: d });
   }, [c360Map]);
   // pour qu'un compteur ne contredise jamais le tableau (ex. plus de "26" alors que le tableau est vide).
@@ -623,7 +635,7 @@ export default function App() {
             </p>
           )}
           <PageHero k="Cockpit" title="Vue d'ensemble" sub="Tous les dossiers d'un coup d'œil — clique une carte pour ouvrir sa fiche." />
-          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} onOpen360={openClient} />
+          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360} />
 
           <div className="section-title">
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
@@ -694,7 +706,7 @@ export default function App() {
 
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
-      {greet && <div className="greet-pop" role="status">{greet}</div>}
+      {greet && <div className={`greet-pop ${greetLeaving ? "leaving" : ""}`} role="status">{greet}</div>}
       <InstallPWA />
 
       {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}

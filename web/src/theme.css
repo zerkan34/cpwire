@@ -2292,3 +2292,37 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .pf-client-fin { align-self: start; }
   .pf-client-fin > div { align-items: flex-start; }
 }
+
+
+/* ===== v115 : déplacement de la fenêtre desktop — tout le fond du header est une poignée ===== */
+/* Les textes/logo décoratifs ne capturent pas la souris : le clic tombe sur la zone de drag dessous. */
+.is-desktop .hdr-title, .is-desktop .hdr-tagline, .is-desktop .hdr-page,
+.is-desktop .src, .is-desktop .eyebrow, .is-desktop .hdr-logo {
+  pointer-events: none; -webkit-user-select: none; user-select: none;
+}
+/* Les contrôles restent pleinement cliquables. */
+.is-desktop .hdr-controls, .is-desktop .hdr-controls *, .is-desktop .hdr-burger { pointer-events: auto; }
+.is-desktop [data-tauri-drag-region] { cursor: default; }
+
+/* ===== v116 : accueil centré + animé, accès Admin garanti en desktop ===== */
+/* Bouton "Admin & accès" toujours visible dans l'app installée (quel que soit l'onglet/la largeur). */
+.is-desktop .owner-bar { display: flex; }
+.is-desktop .invite-btn { display: inline-flex !important; }
+
+/* Message d'accueil : plein centre de l'écran, apparition et disparition douces. */
+.greet-pop {
+  top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 19px; padding: 18px 34px 20px; border-radius: 18px;
+  animation: greet-in .5s cubic-bezier(.18,.85,.25,1) both;
+}
+.greet-pop::before { font-size: 22px; }
+.greet-pop::after { border-radius: 0 0 18px 18px; }
+.greet-pop.leaving { animation: greet-out .42s ease forwards; }
+@keyframes greet-in {
+  0%   { opacity: 0; transform: translate(-50%, -46%) scale(.9); }
+  100% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+@keyframes greet-out {
+  0%   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(.96); }
+}
