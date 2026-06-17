@@ -2089,7 +2089,7 @@ html.is-desktop { background: transparent !important; }
 html.is-desktop body { background: rgba(244, 243, 248, 0.66) !important; }
 
 /* ===== v97 : fond plus transparent + fenêtre sans cadre (desktop) ===== */
-html.is-desktop body { background: rgba(244, 243, 248, 0.30) !important; }
+html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* boutons fenêtre custom (réduire / agrandir / fermer) intégrés au bandeau */
 .winctl { display: inline-flex; gap: 2px; margin-left: 8px; }
 .winbtn { width: 32px; height: 27px; border: 0; border-radius: 7px; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .12s; }
@@ -2125,11 +2125,16 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.30) !important; }
 .cad-bar-wrap[role="button"]:hover .cad-bar { filter: brightness(1.08); }
 
 /* ===== v102 : barre d'onglets principale façon nav mobile (arrondie, couleurs du header) ===== */
-.tabs { background: var(--hd-grad); border-radius: 16px; padding: 6px; gap: 4px; box-shadow: var(--shadow); border: 0; }
-.tabs .tab { color: rgba(255,255,255,.82); background: transparent; border: 0; border-radius: 11px; font-weight: 700; font-size: 14px; padding: 10px 18px; transition: all .14s ease; }
-.tabs .tab:hover { color: #fff; background: rgba(255,255,255,.10); }
+/* Barre d'onglets = footbar flottante (desktop), exactement le dégradé du header */
+.tabs { background: var(--hd-logo); border-radius: 18px; padding: 7px; gap: 4px; box-shadow: var(--shadow); border: 0; }
+.tabs .tab { color: rgba(255,255,255,.82); background: transparent; border: 0; border-radius: 12px; font-weight: 700; font-size: 14px; padding: 10px 18px; transition: all .14s ease; }
+.tabs .tab:hover { color: #fff; background: rgba(255,255,255,.12); }
 .tabs .tab.active { color: var(--indigo-deep); background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,.18); }
 .tabs .tab .b { background: var(--orange); color: #fff; }
+@media (min-width: 769px) {
+  .tabs { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 96; margin: 0; max-width: calc(100vw - 32px); box-shadow: 0 14px 38px rgba(44,41,69,.42); }
+  .wrap { padding-bottom: 120px; }
+}
 
 /* ===== v103 : en-tête de page brandé PARTAGÉ (harmonisation de toutes les pages) ===== */
 .page-hero { position: relative; background: var(--hd-grad); border-radius: 18px; padding: 22px 26px; box-shadow: var(--shadow-lg); overflow: hidden; margin-bottom: 18px; }
@@ -2139,3 +2144,22 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.30) !important; }
 .page-hero-k { font-family: "JetBrains Mono", monospace; font-weight: 600; font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--gold); }
 .page-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 24px; color: #fff; margin: 5px 0 0; }
 .page-hero p { margin: 6px 0 0; color: #d9d3f0; font-size: 13px; max-width: 760px; line-height: 1.5; }
+
+/* ===== v105 : panneau connecteur Dolibarr (Admin) ===== */
+.dol-state { display: flex; align-items: center; gap: 8px; font-size: 13px; flex-wrap: wrap; }
+.dol-mods { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 14px; }
+.dol-mod { border: 1px solid var(--line); border-radius: 12px; padding: 11px 13px; background: var(--card); }
+.dol-mod.ok { border-left: 3px solid var(--green); }
+.dol-mod.ko { border-left: 3px solid var(--red); }
+.dol-mod-hd { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.dol-mod-name { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.dol-badge { font-size: 10.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: .04em; }
+.dol-badge.on { background: #e7f5ee; color: var(--green); }
+.dol-badge.off { background: #fdecea; color: var(--red); }
+.dol-fields { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.dol-f { font-family: "JetBrains Mono", monospace; font-size: 10.5px; background: var(--purple-soft); color: var(--purple-strong); padding: 2px 6px; border-radius: 6px; }
+.dol-mod-err { margin-top: 6px; font-size: 11.5px; color: var(--red); word-break: break-word; }
+
+
+/* ===== v106 : sous-headers alignés sur le dégradé exact du header (--hd-logo) ===== */
+.page-hero, .rec-hero, .meet-hero, .pf-hero { background: var(--hd-logo); }

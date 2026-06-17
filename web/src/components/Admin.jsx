@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { adminInvite, fetchAdminUsers, removeAdminUser } from "../api.js";
+import { adminInvite, fetchAdminUsers, removeAdminUser, dolibarrStatus, dolibarrProbe } from "../api.js";
 
 const sinceLabel = (ts) => {
   if (!ts) return "jamais connecté";
@@ -19,12 +19,24 @@ export default function Admin() {
   const [linkUntil, setLinkUntil] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [dol, setDol] = useState(null);          // { configured, base }
+  const [dolRes, setDolRes] = useState(null);     // résultat de la sonde
+  const [dolBusy, setDolBusy] = useState(false);
+  const [dolErr, setDolErr] = useState("");
 
   const load = useCallback(() => {
     fetchAdminUsers().then((r) => setUsers(r.users || [])).catch((e) => setErr(e.message || "Erreur")).finally(() => setLoading(false));
   }, []);
   // Rafraîchit la présence régulièrement (sans rien afficher à l'invité).
   useEffect(() => { load(); const id = setInterval(load, 20000); return () => clearInterval(id); }, [load]);
+  useEffect(() => { dolibarrStatus().then(setDol).catch(() => setDol({ configured: false })); }, []);
+
+  const probeDolibarr = async () => {
+    setDolBusy(true); setDolErr(""); setDolRes(null);
+    try { setDolRes(await dolibarrProbe()); }
+    catch (e) { setDolErr(e.message || "Erreur"); }
+    finally { setDolBusy(false); }
+  };
 
   const invite = async () => {
     setBusy(true); setErr(""); setCopied(false);
@@ -86,6 +98,43 @@ export default function Admin() {
         </div>
       )}
       {err && <p className="cn-err">{err}</p>}
+
+      <div className="section-title" style={{ marginTop: 28 }}>Connecteur Dolibarr (lecture seule)</div>
+      <p className="hint">
+        Branche cp|WIRE sur ton Dolibarr pour récupérer clients, contrats, factures et projets.
+        Configure <b>DOLIBARR_URL</b> et <b>DOLIBARR_API_KEY</b> côté Render, puis teste ci-dessous.
+        Cette sonde ne lit que des <b>noms de champs</b> — aucune valeur client ne quitte ton instance.
+      </p>
+      <div className="panel">
+        <div className="dol-state">
+          {dol == null ? <span className="adm-muted">Vérification…</span>
+            : dol.configured
+              ? <><span className="adm-on">● Configuré</span><span className="adm-link-meta"> {dol.base}</span></>
+              : <span className="adm-off">○ Non configuré — ajoute DOLIBARR_URL et DOLIBARR_API_KEY dans Render</span>}
+        </div>
+        <button className="btn cn-save" style={{ marginTop: 12 }} onClick={probeDolibarr} disabled={dolBusy || !(dol && dol.configured)}>
+          {dolBusy ? "Test en cours…" : "Tester la connexion & découvrir les modules"}
+        </button>
+        {dolErr && <p className="cn-err">{dolErr}</p>}
+        {dolRes && dolRes.modules && (
+          <div className="dol-mods">
+            {dolRes.modules.map((m) => (
+              <div key={m.module} className={`dol-mod ${m.ok ? "ok" : "ko"}`}>
+                <div className="dol-mod-hd">
+                  <span className="dol-mod-name">{m.label}</span>
+                  {m.ok
+                    ? <span className="dol-badge on">{m.hasData ? "données présentes" : "vide"}</span>
+                    : <span className="dol-badge off">erreur</span>}
+                </div>
+                {m.ok && m.sampleFields && m.sampleFields.length > 0 && (
+                  <div className="dol-fields">{m.sampleFields.map((c) => <span key={c} className="dol-f">{c}</span>)}</div>
+                )}
+                {!m.ok && <div className="dol-mod-err">{m.error}</div>}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

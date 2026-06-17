@@ -139,3 +139,7 @@ export async function genMeetingReport(form) {
   if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
   return data;
 }
+
+// ---- Dolibarr (lecture seule) : statut + sonde de découverte ----
+export const dolibarrStatus = () => req(`/api/dolibarr/status`);
+export const dolibarrProbe = () => req(`/api/dolibarr/probe`, { timeoutMs: 90000 });
