@@ -5,7 +5,13 @@ import React from "react";
 export default class ErrorBoundary extends React.Component {
   constructor(props) { super(props); this.state = { error: null }; }
   static getDerivedStateFromError(error) { return { error }; }
-  componentDidCatch(error, info) { try { console.error("cp|WIRE error:", error, info); } catch { /* */ } }
+  componentDidCatch(error, info) { try { console.error("cp|WIRE error:", error, info); this.setState({ info }); } catch { /* */ } }
+
+  copyDetail = () => {
+    const e = this.state.error;
+    const txt = `cp|WIRE — ${(e && e.message) || e}\n\n${(e && e.stack) || ""}\n\n${(this.state.info && this.state.info.componentStack) || ""}`;
+    try { navigator.clipboard.writeText(txt); } catch { /* */ }
+  };
 
   reload = () => { try { window.location.reload(); } catch { /* */ } };
   hardReload = async () => {
@@ -38,6 +44,14 @@ export default class ErrorBoundary extends React.Component {
               <button className="btn-line" onClick={this.hardReload}>Vider le cache et relancer</button>
             </div>
             <p className="crash-hint">Si le problème persiste après relance, signale-le (capture d'écran utile).</p>
+            {this.state.error && (
+              <details className="crash-detail" open>
+                <summary>Détail technique <button type="button" className="crash-copy" onClick={(e) => { e.preventDefault(); this.copyDetail(); }}>Copier</button></summary>
+                <pre>{String((this.state.error && this.state.error.message) || this.state.error)}
+{String((this.state.error && this.state.error.stack) || "")}
+{String((this.state.info && this.state.info.componentStack) || "")}</pre>
+              </details>
+            )}
           </div>
         </div>
       );

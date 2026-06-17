@@ -351,12 +351,13 @@ export default function App() {
 
   // Bannière d'import : visible au démarrage puis s'efface.
   useEffect(() => {
-    if (diag && diag.projetsSansTicket && diag.projetsSansTicket.length) {
+    const dg = data?.diagnostic;
+    if (dg && dg.projetsSansTicket && dg.projetsSansTicket.length) {
       setDiagBannerOn(true);
       const t = setTimeout(() => setDiagBannerOn(false), 8000);
       return () => clearTimeout(t);
     }
-  }, [diag]);
+  }, [data]);
 
   // Si le rôle consultation a un onglet interdit sélectionné, on revient au Cockpit.
   useEffect(() => { if (role === "consultation" && !CONSULT_TABS.includes(tab)) setTab("cockpit"); }, [role, tab]);
