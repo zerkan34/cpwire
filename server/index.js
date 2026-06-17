@@ -16,6 +16,7 @@ import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { buildCadence } from "./cadence.js";
+import { buildRecapChiffres } from "./recapChiffres.js";
 import { readConnaissance, saveConnaissance } from "./connaissance.js";
 import { listUsers, createUser, verifyUser, removeUser } from "./users.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
@@ -452,6 +453,17 @@ app.get("/api/recap", guard, async (_req, res) => {
     const byDossier = {};
     todays.forEach((i) => { (byDossier[i.dossier] ||= []).push(i); });
     res.json({ generatedAt: new Date().toISOString(), basis: useToday ? "aujourd'hui" : "tout l'historique", byDossier });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Récap CHIFFRÉ du jour, par dossier — 100 % déterministe (aucune IA), document prêt à transmettre.
+app.get("/api/recap/chiffres", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
+    const html = buildRecapChiffres(withoutDeletedDevs(got.issues), {});
+    logEvent("recap_chiffres", "Récap chiffré du jour (tous dossiers)");
+    res.json({ generatedAt: new Date().toISOString(), html });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 

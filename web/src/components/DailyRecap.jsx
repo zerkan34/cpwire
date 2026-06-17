@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import JSZip from "jszip";
-import { fetchRecap, genDailyCR, genWrittenCR } from "../api.js";
+import { fetchRecap, genDailyCR, genWrittenCR, fetchRecapChiffres } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
@@ -71,6 +71,16 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     finally { setBusy(""); }
   };
 
+  // Récap CHIFFRÉ du jour (tous dossiers) — déterministe, sans IA. Document prêt à transmettre.
+  const makeChiffres = async () => {
+    setBusy("__chiffres__"); setErr("");
+    try {
+      const { html } = await fetchRecapChiffres();
+      setDoc({ title: "Récap chiffré du jour", html, filename: `Recap_chiffre_${new Date().toISOString().slice(0, 10)}.html` });
+    } catch (e) { setErr(e.message); }
+    finally { setBusy(""); }
+  };
+
   // ZIP « Récap global du jour » : un dossier par client, contenant le CR détaillé ET le CR écrit.
   // Les deux passent par les générateurs SERVEUR (chiffres cohérents, noms redressés, périmètre à jour).
   const makeGlobalZip = async () => {
@@ -126,6 +136,9 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
         Base : {recap.basis}. Clique sur un ticket pour le détailler, ou génère le compte rendu journalier d'un client.
       </p>
       <div className="row-actions" style={{ marginBottom: 16 }}>
+        <button className="btn-solid gold" onClick={makeChiffres} disabled={busy === "__chiffres__"}>
+          {busy === "__chiffres__" ? "Calcul…" : "📊 Récap chiffré du jour (tous dossiers — chiffres seuls)"}
+        </button>
         <button className="btn-solid" onClick={makeGlobalZip} disabled={busy === "__global__"}>
           {busy === "__global__" ? "Génération…" : "📦 Récap global du jour (ZIP — détaillé + écrit / client)"}
         </button>
