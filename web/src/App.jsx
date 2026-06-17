@@ -178,7 +178,6 @@ export default function App() {
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [greet, setGreet] = useState("");
-  const [greetLeaving, setGreetLeaving] = useState(false);
   const greetedRef = useRef(false);
   const [showTop, setShowTop] = useState(false);
   const [notifs, setNotifs] = useState([]);
@@ -334,9 +333,7 @@ export default function App() {
     const fire = (r, m) => {
       if (greetedRef.current) return;
       greetedRef.current = true;
-      setGreet(greetMessage(r, m)); setGreetLeaving(false);
-      setTimeout(() => setGreetLeaving(true), 3200);   // déclenche l'animation de sortie
-      setTimeout(() => { setGreet(""); setGreetLeaving(false); }, 3700);
+      setGreet(greetMessage(r, m));
     };
     fetchSession().then((s) => {
       setRole(s.role); setReadOnly(s.role !== "owner");
@@ -597,6 +594,7 @@ export default function App() {
 
       {role === "owner" ? (
         <div className="owner-bar">
+          {greet && <span className="greet-inline">{greet}</span>}
           {showDailyCr && (
             <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
           )}
@@ -719,7 +717,6 @@ export default function App() {
 
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
-      {greet && <div className={`greet-pop ${greetLeaving ? "leaving" : ""}`} role="status">{greet}</div>}
       <InstallPWA />
 
       {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}

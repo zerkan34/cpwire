@@ -2355,3 +2355,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .crash-detail summary { cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--muted); display: flex; align-items: center; gap: 10px; }
 .crash-copy { border: 1px solid var(--line); background: #fff; color: var(--purple-strong); font-size: 11px; font-weight: 700; border-radius: 8px; padding: 2px 9px; cursor: pointer; }
 .crash-detail pre { margin-top: 8px; max-height: 220px; overflow: auto; background: #faf9fe; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; font: 11px/1.45 "JetBrains Mono", monospace; color: #5a3030; white-space: pre-wrap; word-break: break-word; }
+
+/* ===== v124 : "Bonjour Nikko" inline dans la barre au-dessus des onglets ===== */
+.greet-inline { margin-right: auto; align-self: center; font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; color: var(--indigo); display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
+.greet-inline::before { content: "👋"; font-size: 16px; }
