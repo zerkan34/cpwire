@@ -12,7 +12,7 @@ const slug = (s) => "enc-" + String(s).toLowerCase().normalize("NFD").replace(/[
 const scrollToClient = (name) => { const el = document.getElementById(slug(name)); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
 
 // Onglet « En cours » : avancement par client (jauge) + qui travaille sur quoi, en temps réel.
-export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = [] }) {
+export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = [], changedKeys }) {
   const delSet = new Set(deletedDevs);
   const [view, setView] = useState("client");
 
@@ -124,9 +124,9 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
                       </div>
                       <ul className="enc-tix">
                         {d.items.slice(0, 6).map((i) => (
-                          <li key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                          <li key={i.cle} id={"enc-" + i.cle} className={changedKeys && changedKeys.has(i.cle) ? "enc-changed" : undefined} onClick={() => onTicket && onTicket(i)}>
                             <span className="k">{i.cle}</span>
-                            <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</span>
+                            <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{changedKeys && changedKeys.has(i.cle) && <span className="chg-badge">MAJ</span>}</span>
                             <span className={`pill ${PILL[i.statut]}`}>{CAT_LABEL[i.categorie] || i.statutJira || i.statut}</span>
                           </li>
                         ))}
@@ -170,10 +170,10 @@ export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = []
                 <div className="enc-sub">Sur quoi il travaille</div>
                 <ul className="enc-tix">
                   {d.activeItems.slice(0, 7).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                    <li key={i.cle} id={"enc-" + i.cle} className={changedKeys && changedKeys.has(i.cle) ? "enc-changed" : undefined} onClick={() => onTicket && onTicket(i)}>
                       <span className="k">{i.cle}</span>
                       <span className="tag">{i.dossier}</span>
-                      <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</span>
+                      <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{changedKeys && changedKeys.has(i.cle) && <span className="chg-badge">MAJ</span>}</span>
                       <span className={`pill ${PILL[i.statut]}`}>{CAT_LABEL[i.categorie] || i.statutJira || i.statut}</span>
                     </li>
                   ))}

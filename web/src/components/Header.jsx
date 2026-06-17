@@ -26,7 +26,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, loading, me, onRefresh, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
+export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -60,7 +60,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
     return () => { window.removeEventListener("resize", upd); window.removeEventListener("scroll", upd, true); };
   }, [showSuggest, q]);
   const k = kpis || {};
-  const when = generatedAt ? new Date(generatedAt).toLocaleString("fr-FR") : "—";
+  const when = (syncedAt || generatedAt) ? new Date(syncedAt || generatedAt).toLocaleString("fr-FR") : "—";
 
   // Jauge de chargement (simulée : progresse vers ~92 %, puis 100 % à la fin).
   const [prog, setProg] = useState(0);
@@ -189,14 +189,18 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
     </div>
   );
 
+  const isDesktop = typeof document !== "undefined" && document.documentElement.classList.contains("is-desktop");
+  // Boutons fenêtre : seulement si la coquille Tauri expose vraiment les contrôles (sinon ils seraient inertes).
+  const isTauri = typeof window !== "undefined" && !!(window.__TAURI__ && window.__TAURI__.window && window.__TAURI__.window.getCurrentWindow);
+
   return (
     <header className={`hdr ${tab === "cockpit" ? "is-dash" : "is-sub"}`}>
       {/* Barre du haut : marque à gauche, contrôles à droite (même ligne) */}
-      <div className="hdr-top">
+      <div className="hdr-top" data-tauri-drag-region>
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v96</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v101</span></span>
         </span>
         <div className="hdr-controls">
           {search}
@@ -209,6 +213,13 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           {refresh}
           {bell}
           <button className="btn ghost hdr-logout" onClick={onLogout} title="Se déconnecter">Déconnexion</button>
+          {isTauri && (
+            <div className="winctl">
+              <button className="winbtn" title="Réduire" onClick={() => window.__TAURI__?.window?.getCurrentWindow?.().minimize?.()}>–</button>
+              <button className="winbtn" title="Agrandir / restaurer" onClick={() => window.__TAURI__?.window?.getCurrentWindow?.().toggleMaximize?.()}>▢</button>
+              <button className="winbtn winbtn-close" title="Fermer" onClick={() => window.__TAURI__?.window?.getCurrentWindow?.().close?.()}>✕</button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -218,7 +229,7 @@ export default function Header({ kpis, source, generatedAt, loading, me, onRefre
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v96</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v101</span></div>
       </div>
 
       <div className="progress">

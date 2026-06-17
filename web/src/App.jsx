@@ -33,12 +33,9 @@ import History from "./components/History.jsx";
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 const TABS = [
   { id: "cockpit", label: "Portefeuille" },
-  { id: "recap", label: "Récap" },
   { id: "devs", label: "Développeurs" },
-  { id: "qualite", label: "Qualité & Mémoire" },
-  { id: "meetings", label: "Réunions" },
-  { id: "cra", label: "CRA" },
-  { id: "history", label: "Historique" },
+  { id: "qualite", label: "Qualité" },
+  { id: "comptesrendus", label: "Comptes rendus" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -46,35 +43,38 @@ const SUBTABS = {
   cockpit: [
     { id: "portefeuille", label: "Vue d'ensemble" },
     { id: "projets", label: "Suivi projets" },
-    { id: "encours", label: "En cours" },
+    { id: "activite", label: "Activité" },
     { id: "recette", label: "Recette" },
-    { id: "referentiel", label: "Référentiel" },
-  ],
-  recap: [
-    { id: "recap", label: "Récap du jour" },
-    { id: "morning", label: "Brief du matin" },
+    { id: "reference", label: "Référence" },
   ],
   devs: [
     { id: "devs", label: "Développeurs" },
   ],
   qualite: [
     { id: "hygiene", label: "Qualité" },
-    { id: "memoire", label: "Mémoire" },
+  ],
+  comptesrendus: [
+    { id: "recap", label: "Récap du jour" },
+    { id: "morning", label: "Brief du matin" },
+    { id: "reunions", label: "Réunions" },
+    { id: "cra", label: "CRA" },
   ],
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "recap", "devs"];
-const SECONDARY = ["qualite", "meetings", "cra", "history"];
+const PRIMARY = ["cockpit", "devs", "qualite", "comptesrendus"];
+const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "devs", "qualite", "cra", "history"];
+const CONSULT_TABS = ["cockpit", "devs", "qualite", "comptesrendus"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Portef.", recap: "Récap", devs: "Devs", qualite: "Qualité", history: "Histo." };
+const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "CR" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
   const subs = SUBTABS[groupId] || [];
-  return role === "owner" ? subs : subs.filter((s) => s.id !== "memoire");
+  if (role === "owner") return subs;
+  const hidden = new Set(["memoire", "recap", "morning", "reunions"]);
+  return subs.filter((s) => !hidden.has(s.id));
 }
 
 // Icônes simples (traits) pour la barre du bas et le tiroir — pas d'émojis.
@@ -90,6 +90,8 @@ function NavIcon({ id }) {
     case "cra": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 2.5h5M12 2.5v2" /></svg>);
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
     case "recette": return (<svg viewBox="0 0 24 24" {...p}><path d="M9 11.5l2.2 2.2L15 9.5" /><path d="M12 3l7 3v5c0 4.2-2.8 7.7-7 9-4.2-1.3-7-4.8-7-9V6l7-3z" /></svg>);
+    case "qualite": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
+    case "comptesrendus": return (<svg viewBox="0 0 24 24" {...p}><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v4h4" /><line x1="9" y1="12" x2="16" y2="12" /><line x1="9" y1="16" x2="16" y2="16" /></svg>);
     case "hygiene": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
     case "qualite": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
     case "memoire": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" /><line x1="8" y1="7" x2="15" y2="7" /></svg>);
@@ -244,7 +246,7 @@ export default function App() {
         if (ch.length) {
           setChangedKeys(new Set(ch));
           if (highlightTimer.current) clearTimeout(highlightTimer.current);
-          highlightTimer.current = setTimeout(() => setChangedKeys(null), 30000);
+          highlightTimer.current = setTimeout(() => setChangedKeys(null), 120000);
         } else {
           setChangedKeys(null);
         }
@@ -287,7 +289,7 @@ export default function App() {
     finally { setLoading(false); inFlight.current = false; }
   }, [showToast]);
 
-  useEffect(() => { if (authed) load(false); }, [authed, load]);
+  useEffect(() => { if (authed) load(false).then(() => load(true, false, true)).catch(() => {}); }, [authed, load]);
   useEffect(() => { if (authed) fetchDeletedDevs().then((r) => setDeletedDevs(r.deleted || [])).catch(() => {}); }, [authed]);
 
   // Confirme le rôle auprès du serveur (lecture seule pour un invité).
@@ -342,12 +344,13 @@ export default function App() {
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
   useEffect(() => { if (query.trim() && tab !== "cockpit") setTab("cockpit"); /* eslint-disable-next-line */ }, [query]);
 
-  // Actualisation automatique (toutes les 90 s) quand les notifications sont activées.
+  // Actualisation automatique EN CONTINU (toutes les 60 s), tant qu'on est connecté —
+  // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
   useEffect(() => {
-    if (!authed || !notifOn) return;
-    const id = setInterval(() => { load(true, false, true); }, 90000);
+    if (!authed) return;
+    const id = setInterval(() => { load(true, false, true); }, 60000);
     return () => clearInterval(id);
-  }, [authed, notifOn, load]);
+  }, [authed, load]);
 
   // Détection des nouveaux tickets flaggés -> notification.
   useEffect(() => {
@@ -497,7 +500,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "devs", "history"] : PRIMARY;
+  const primaryTabs = role === "consultation" ? ["cockpit", "devs", "qualite"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -518,7 +521,7 @@ export default function App() {
   return (
     <ReadOnlyContext.Provider value={readOnly}>
     <div className={`wrap tab-${tab}`}>
-      <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt}
+      <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
         role={role} presence={presence} onPresence={() => setTab("admin")}
@@ -551,7 +554,7 @@ export default function App() {
       {subsForRole(tab, role).length > 1 && (
         <div className="subtabs">
           {subsForRole(tab, role).map((s) => (
-            <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>{s.label}</button>
+            <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>{s.label}{s.id === "activite" && changedKeys && changedKeys.size > 0 && sub !== "activite" && <span className="sub-badge">{changedKeys.size}</span>}</button>
           ))}
         </div>
       )}
@@ -609,18 +612,31 @@ export default function App() {
         </>
       )}
 
-      {tab === "recap" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "cockpit" && sub === "encours" && <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
-      {tab === "recap" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
+      {tab === "comptesrendus" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
+      {tab === "cockpit" && sub === "activite" && (
+        <>
+          {role === "owner" && (
+            <div className="cr-jump">
+              <button className="btn-solid" onClick={() => { setTab("comptesrendus"); setSub("recap"); }}>📝 Générer un récap de l'activité</button>
+            </div>
+          )}
+          <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
+          <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
+        </>
+      )}
+      {tab === "comptesrendus" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
       {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
-      {tab === "meetings" && <Meetings issues={issues} />}
-      {tab === "cra" && <CRA onTicket={setTicket} />}
-      {tab === "history" && <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
+      {tab === "comptesrendus" && sub === "reunions" && <Meetings issues={issues} />}
+      {tab === "comptesrendus" && sub === "cra" && <CRA onTicket={setTicket} />}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
-      {tab === "cockpit" && sub === "referentiel" && <Referentiel issues={issues} onTicket={setTicket} />}
+      {tab === "cockpit" && sub === "reference" && (
+        <>
+          <Referentiel issues={issues} onTicket={setTicket} />
+          {role === "owner" && <Connaissance />}
+        </>
+      )}
       {tab === "cockpit" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
-      {tab === "qualite" && sub === "memoire" && role === "owner" && <Connaissance />}
       {tab === "admin" && role === "owner" && <Admin />}
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>

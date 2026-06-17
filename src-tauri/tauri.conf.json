@@ -18,15 +18,20 @@
         "minWidth": 980,
         "minHeight": 640,
         "transparent": true,
-        "decorations": true,
+        "decorations": false,
         "url": "https://cpwire.onrender.com/?desktop=1",
         "windowEffects": {
-          "effects": ["acrylic"],
+          "effects": [
+            "acrylic"
+          ],
           "state": "active"
         }
       }
     ],
-    "security": { "csp": null }
+    "security": {
+      "csp": null
+    },
+    "withGlobalTauri": true
   },
   "bundle": {
     "active": true,

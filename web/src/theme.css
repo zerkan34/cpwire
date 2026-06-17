@@ -2087,3 +2087,21 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
    Les cartes/tableaux restent opaques (--card) → lisibilité préservée. */
 html.is-desktop { background: transparent !important; }
 html.is-desktop body { background: rgba(244, 243, 248, 0.66) !important; }
+
+/* ===== v97 : fond plus transparent + fenêtre sans cadre (desktop) ===== */
+html.is-desktop body { background: rgba(244, 243, 248, 0.42) !important; }
+/* boutons fenêtre custom (réduire / agrandir / fermer) intégrés au bandeau */
+.winctl { display: inline-flex; gap: 2px; margin-left: 8px; }
+.winbtn { width: 32px; height: 27px; border: 0; border-radius: 7px; background: rgba(255,255,255,.14); color: #fff; font-size: 13px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background .12s; }
+.winbtn:hover { background: rgba(255,255,255,.28); }
+.winbtn-close:hover { background: var(--orange-deep); }
+
+/* ===== v99 : bouton "récap à la demande" dans Activité ===== */
+.cr-jump { margin: 0 0 16px; }
+.cr-jump .btn-solid { background: linear-gradient(120deg, var(--purple) 0%, var(--purple-strong) 100%); box-shadow: 0 4px 12px rgba(110,92,196,.25); }
+.cr-jump .btn-solid:hover { filter: brightness(1.05); }
+
+/* ===== v100 : surlignage lignes modifiées (Activité) + badge numérique ===== */
+.enc-tix li.enc-changed { background: #fbf3df; box-shadow: inset 3px 0 0 var(--gold); border-radius: 8px; }
+.chg-badge { display: inline-block; margin-left: 6px; padding: 1px 6px; border-radius: 99px; background: var(--orange); color: #fff; font-size: 9.5px; font-weight: 800; letter-spacing: .04em; vertical-align: middle; }
+.sub-badge { display: inline-flex; min-width: 18px; height: 18px; padding: 0 5px; margin-left: 7px; border-radius: 99px; background: var(--orange); color: #fff; font-size: 11px; font-weight: 800; align-items: center; justify-content: center; vertical-align: middle; }
