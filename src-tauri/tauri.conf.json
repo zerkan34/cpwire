@@ -19,7 +19,7 @@
         "minHeight": 640,
         "transparent": true,
         "decorations": true,
-        "url": "https://REMPLACE-PAR-TON-URL.onrender.com/?desktop=1",
+        "url": "https://cpwire.onrender.com/?desktop=1",
         "windowEffects": {
           "effects": ["acrylic"],
           "state": "active"
