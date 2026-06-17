@@ -13,6 +13,28 @@ const BASE = (process.env.DOLIBARR_URL || "").replace(/\/+$/, "");
 const KEY = process.env.DOLIBARR_API_KEY || "";
 const API = `${BASE}/api/index.php`;
 
+// Rapprochement de NOS clients (tels qu'affichés dans cp|WIRE) avec leur fiche Tiers Dolibarr.
+// Source : export Dolibarr « Tiers / multicompany ». C'est la CLÉ qui permettra à l'agrégation
+// facturé/impayé d'interroger les factures par tiers (code_client). Données de référence
+// uniquement (aucun secret). Entité de facturation : « iD INFO » (groupe Armonie).
+// `code` = null → tiers présent mais sans code client Dolibarr (à créer/compléter côté ERP).
+export const DOLIBARR_CLIENTS = {
+  EDL:        { tiers: "L'ECOLE DES LOISIRS", code: "9ECOL0", cp: "75006", tel: "", commercial: "Guy Routier", entite: "iD INFO" },
+  "DS Smith": { tiers: "DS SMITH PACKAGING France", code: "9DSSMI", cp: "92800", tel: "", commercial: "", entite: "iD INFO" },
+  Tafanel:    { tiers: "TAFANEL gestion", code: "9TAFAN", cp: "75018", tel: "", commercial: "Fabrice Blain", entite: "iD INFO" },
+  Bellion:    { tiers: "BELMET", code: "Belmet", cp: "29480", tel: "0298286213", commercial: "Guy Routier", entite: "iD INFO", groupe: { tiers: "BELLION Groupe", code: "Bellion", cp: "29000" } },
+  Balas:      { tiers: "BALAS", code: null, cp: "92230", tel: "0149454545", commercial: "Guy Routier", entite: "iD INFO" },
+  IMA:        { tiers: "INTER MUTUELLES ASSISTANCE G.I.E", code: "9GIEMU", cp: "79000", tel: "0549757575", commercial: "", entite: "iD INFO" },
+  DIAPAR:     { tiers: "DIAPAR", code: "DIAPAR", cp: "91380", tel: "0164542300", commercial: "", entite: "iD INFO" },
+  Segurel:    { tiers: "ETS SEGUREL & FILS", code: "9SEGUR", cp: "28500", tel: "0234650100", commercial: "", entite: "iD INFO" },
+};
+
+// Code Tiers Dolibarr d'un client cp|WIRE (null si non rapproché).
+export function dolibarrCodeFor(client) {
+  const c = DOLIBARR_CLIENTS[client];
+  return c ? c.code : null;
+}
+
 export function dolibarrConfigured() { return !!(BASE && KEY); }
 export function dolibarrStatus() { return { configured: dolibarrConfigured(), base: BASE || null }; }
 

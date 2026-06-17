@@ -116,6 +116,15 @@ export const SEED = {
       p("R. Dahmane", "Développeur", "", "Actif", "Armonie"),
     ],
   },
+  Segurel: {
+    description:
+      "Segurel — réécriture / réimplémentation de l'applicatif logistique GLOG sur IBM i (AS/400), en mode projet. Périmètre : reprise GLOG puis projet Paie / Primes / Gestion des employés. Les conventions de développement servent de référence à d'autres projets (dont EDL / MINIKILI+).",
+    tech: ["IBM i / AS-400", "GLOG", "RPG ILE", "SQL embarqué"],
+    team: [
+      p("Nicolas Durand", "Chef de projet", "nikkodurand@gmail.com", "Actif", "Armonie"),
+      p("Lionel Kieffer", "Référent technique (TEC Réécriture GLOG)", "", "Actif", "Armonie"),
+    ],
+  },
 };
 
 function ensure() {

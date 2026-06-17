@@ -66,43 +66,64 @@ const SEED = {
         "Décisions COPROJ : écrans passés en 132 colonnes pour afficher les 10 clubs ; ordre d'affichage des clubs piloté par une zone « ordre » paramétrable (Minimax+/Kilimax+ après le Médium, exigence des opératrices de saisie) ; gestion des « Remis » par séquence via sous-fichier ; couleurs des nouveaux clubs reprises de leur club d'origine (palette IBM i limitée).",
         "Webservice LiteSoft : données structurées par abonnement (principe validé), consommations historisées ; ~5 J/H, positionné début avril, non prioritaire vs les modifications d'écrans.",
         "Impacts queries utilisateur limités : les queries existants n'ont pas à être modifiés mais doivent être rouverts puis réenregistrés ; les nouvelles zones (id, séquence) sont à ajouter manuellement si besoin.",
+        "Base documentaire SharePoint TMA : rubriques Facturations, Documents & Supports Métiers, Projets, Archives, Astuces, Clôtures & RAZ. Deux sujets connexes au projet : une analyse « colis privé » (A. Quillère, nov. 2025) qui recoupe les longueurs d'adresse (colis privé limité à 32 car., DPD à 30) ; une procédure Clôture/RAZ documentée (oct. 2025) qui recoupe la priorité 2 « arrêt de l'ajout en colonne + RAZ scriptée ».",
       ],
     },
     "DS Smith": {
       contexte: "DS Smith Packaging — emballage carton de luxe. Application eMage (gestion industrielle) sur IBM i.",
       attentes: ["À préciser : livrables et délais attendus côté DS Smith."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Base documentaire SharePoint TMA volumineuse (≈ 570 dossiers / 410 fichiers) : rubriques Gouvernance, Documents & Supports Métiers, Projets, Wiki export, Qualité, Contrat. Documents récents autour de la gestion industrielle (« Système global gestion industrielle », « Process création produit », oct. 2025).",
+      ],
     },
     Tafanel: {
       contexte: "Tafanel — engagement en MODE PROJET (à ne pas présenter comme de la TMA).",
       attentes: ["À préciser : lots, jalons et livrables attendus."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Dossier SharePoint très actif (≈ 930 fichiers) : rubriques LES PROJETS, Contexte, Propositions commerciales, CR réunions internes, et une « TaskForce RPGFree ». Activité courante (juin 2026) sur la refonte RPG free et les tests fonctionnels (ISO_PROG, GESCOM CONDEC, ECRECO).",
+      ],
     },
     Bellion: {
       contexte: "Groupe Bellion / Belmet — projet ERP 2026, module Gestion Commerciale (GesCo).",
       attentes: ["À préciser : périmètre de recette et jalons COPIL."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Dossier SharePoint volumineux (≈ 950 fichiers) : LES PROJETS, Contexte & Processus, Propositions commerciales, Architecture, Hébergement, Facture Électronique, plus Assistance IBM i (jetons) et Phase #02. Jalons tracés : COPIL #05 (17/11/2025), PV de migration vers le nouvel environnement (05/12/2025).",
+      ],
     },
     IMA: {
       contexte: "IMA — TMA, périmètres Dataware / MCS sur IBM i.",
       attentes: ["À préciser : SLA et livrables contractuels."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Base SharePoint : Gouvernance, Documents & Supports Métiers, Facturations, et un chantier dédié « Migration JIRA » (CDC_Migration_Jira_IMA_Armonie, versions V1.1 → V1.2). Pilotage par COPIL ; dernier COPIL Mars 2026 (dernière mise à jour juin 2026, N. Durand).",
+      ],
     },
     DIAPAR: {
       contexte: "DIAPAR — grossiste alimentaire. Gestion commerciale (GC) sur IBM i, interface compta ANAEL.",
       attentes: ["À préciser : livrables et délais attendus."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Base SharePoint : Gouvernance + dossier partagé. Pilotage par COPIL mensuels (CR du 09/01/2026, présentations février et mars 2026).",
+      ],
     },
     Balas: {
       contexte: "Groupe Balas.",
       attentes: ["À préciser."],
       glossaire: [],
-      notes: [],
+      notes: [
+        "Base SharePoint : Gouvernance, Prise d'empreinte, Documents & Support Métiers, Projets, Wiki export. Contient la liste des accès et des éléments d'audit (prise d'empreinte) ; dernière activité sept. 2025 — dossier en phase d'amorçage.",
+      ],
+    },
+    Segurel: {
+      contexte: "Segurel — réécriture / réimplémentation de l'applicatif GLOG sur IBM i (AS/400), engagement en MODE PROJET. Inclut un projet Paie / Primes / Gestion des employés.",
+      attentes: ["Valider le cahier des charges du projet Paie.", "Planning projet GLOG."],
+      glossaire: [{ terme: "GLOG", sens: "Applicatif logistique réécrit / réimplémenté sur AS/400 chez Segurel." }],
+      notes: [
+        "Base SharePoint : LES PROJETS, Contexte & Processus, Propositions commerciales, Facturations, Documentation technique + utilisateurs GLOG. Documents de référence : TEC « Réécriture GLOG » (L. Kieffer, janv. 2026), LDM Segurel, commande de reprise GLOG, planning projet. Les conventions de développement EDL/MINIKILI+ s'inspirent de l'applicatif Segurel.",
+      ],
     },
   },
 };
