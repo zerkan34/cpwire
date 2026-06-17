@@ -43,7 +43,7 @@ export const SEED = {
   },
   Tafanel: {
     description:
-      "Tafanel — premier distributeur de boissons d'Île-de-France pour le CHR (depuis 1932). Modernisation du socle IBM i : refonte RPG & déploiement PHL Mobile. Suivi Jira PTAF.",
+      "Tafanel — premier distributeur de boissons d'Île-de-France pour le CHR (depuis 1932). Modernisation du socle IBM i : refonte RPG & déploiement PHL Mobile. Suivi Jira PTAF. Chantier courant : Task Force « RPG free » et tests fonctionnels (GESCOM CONDEC / ECRECO, ISO_PROG).",
     tech: ["IBM i / AS-400", "GestCom", "Suite PHL", "PHL Mobile", "RPG"],
     team: [
       p("Yann-André Roehrig", "Référent langage / refonte RPG", "", "Actif", "Armonie"),
@@ -52,7 +52,7 @@ export const SEED = {
   },
   Bellion: {
     description:
-      "Belmet (groupe Bellion) — refonte du SI de gestion commerciale (projet ERP26). Armonie en maîtrise d'œuvre (MOE) + AMOA. Approche « 1 pour 1 ». Réunion de lancement le 03/06/2026 ; CDC final attendu le 30/06, kick-off le 01/07.",
+      "Belmet (groupe Bellion) — refonte du SI de gestion commerciale (projet ERP26). Armonie en maîtrise d'œuvre (MOE) + AMOA. Approche « 1 pour 1 ». Réunion de lancement le 03/06/2026 ; CDC final attendu le 30/06, kick-off le 01/07. Phase #1 : migration vers le nouvel environnement actée (PV du 05/12/2025, COPIL #05 le 17/11/2025).",
     tech: ["ERP26 (cible)", "Système modulaire", "Reprise à l'identique"],
     team: [
       p("Nicolas Durand", "Chef de projet (MOE)", "nikkodurand@gmail.com", "Actif", "Armonie"),

@@ -49,7 +49,7 @@ const SEED = {
         { terme: "MAX (« l'école des max »)", sens: "Application IBM i de gestion des abonnements de livres jeunesse d'EDL." },
         { terme: "MINIKILI+", sens: "Projet d'offre enrichie MAX : création des clubs Minimax+ et Kilimax+." },
         { terme: "Minimax+ / Kilimax+", sens: "Deux nouveaux clubs à 11 livres/an (au lieu de 8 ; +1 livre en décembre, mars, juin)." },
-        { terme: "club", sens: "Formule d'abonnement MAX par tranche d'âge (Bébémax, Titoumax, Minimax, Kilimax, Médium…)." },
+        { terme: "club", sens: "Formule d'abonnement MAX par tranche d'âge. Les 8 clubs actuels : Bébémax, Titoumax, Minimax, Kilimax, Animax, Maximax, Supermax, Mediummax — auxquels s'ajoutent Minimax+ et Kilimax+ (10 au total)." },
         { terme: "tirage", sens: "Envoi mensuel ; un tirage peut désormais comporter plusieurs livres (plusieurs séquences)." },
         { terme: "séquence", sens: "Rang d'un livre à l'intérieur d'un tirage (la base gère jusqu'à 99 séquences ; affichage limité à 2 cette campagne)." },
         { terme: "Remis", sens: "Indique qu'un livre d'un tirage ne doit pas être envoyé à un abonné ; géré par séquence depuis MINIKILI+." },
@@ -67,6 +67,8 @@ const SEED = {
         "Webservice LiteSoft : données structurées par abonnement (principe validé), consommations historisées ; ~5 J/H, positionné début avril, non prioritaire vs les modifications d'écrans.",
         "Impacts queries utilisateur limités : les queries existants n'ont pas à être modifiés mais doivent être rouverts puis réenregistrés ; les nouvelles zones (id, séquence) sont à ajouter manuellement si besoin.",
         "Base documentaire SharePoint TMA : rubriques Facturations, Documents & Supports Métiers, Projets, Archives, Astuces, Clôtures & RAZ. Deux sujets connexes au projet : une analyse « colis privé » (A. Quillère, nov. 2025) qui recoupe les longueurs d'adresse (colis privé limité à 32 car., DPD à 30) ; une procédure Clôture/RAZ documentée (oct. 2025) qui recoupe la priorité 2 « arrêt de l'ajout en colonne + RAZ scriptée ».",
+        "Offre enrichie : 11 livres répartis sur l'année (1 nov., 2 déc., 1 janv., 1 févr., 2 mars, 1 avr., 1 mai, 2 juin). Lancement 2026/2027, réservé France métropolitaine, Belgique, Luxembourg, Suisse ; abonnements individuels ET regroupés ; papier ET web. Les évolutions DB2 lèvent trois limites historiques : nombre de clubs (8 → n), livres par club (8 → n), livres par tirage (1 → n), n compris entre 1 et 99.",
+        "Chiffrage atelier (indicatif) : webservice à créer 5 J/H (+ ~1,5 J/H d'impact programmes) ; index ABO_ABO + ABO_ADR ~12 J/H ; extensions de longueurs (prospects, établissements, animatrices, auteurs, enveloppes) ~11 J/H ; fusion MX_II ~3,5 J/H + 2 J/H sur 8 programmes ; suppression edlmy ~1 J/H + PRI_CDE16 ~1 J/H ; refonte stockage stats à la clôture ~5 J/H (priorité 2).",
       ],
     },
     "DS Smith": {

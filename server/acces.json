@@ -1,7 +1,7 @@
 {
   "_note": "Couche d'accès SANS SECRET. Aucun mot de passe / token / lien de partage ici : ils restent dans le coffre (gestionnaire de mots de passe). On ne stocke que la structure : où se connecter, comment (en mots), les environnements et les contacts.",
   "IMA": {
-    "contexte": "Inter Mutuelles Assistance — TMA des périmètres Dataware / MCS sur IBM i. Accès distant via VPN puis intranet de maintenance.",
+    "contexte": "Inter Mutuelles Assistance — TMA des périmètres Dataware / MCS sur IBM i. Accès distant via VPN puis intranet de maintenance. Réf. Dolibarr : INTER MUTUELLES ASSISTANCE G.I.E (code 9GIEMU), entité iD INFO · 79000 Niort · tél 05 49 75 75 75.",
     "portail": {
       "nom": "Intranet de maintenance IMA",
       "url": ""
@@ -50,7 +50,7 @@
     "domaines": []
   },
   "EDL": {
-    "contexte": "L'école des loisirs — TMA de l'application MAX (abonnements « l'école des max ») sur IBM i, et projet MINIKILI+ (offre enrichie : clubs Minimax+ / Kilimax+ à 11 livres + évolutions du modèle de données). Les commerciaux d'EDL sont les animateurs / animatrices. Développements sur la partition DEV du client.",
+    "contexte": "L'école des loisirs — TMA de l'application MAX (abonnements « l'école des max ») sur IBM i, et projet MINIKILI+ (offre enrichie : clubs Minimax+ / Kilimax+ à 11 livres + évolutions du modèle de données). Les commerciaux d'EDL sont les animateurs / animatrices. Développements sur la partition DEV du client. Réf. Dolibarr : L'ECOLE DES LOISIRS (code 9ECOL0), entité iD INFO · 75006 Paris.",
     "portail": {
       "nom": "",
       "url": ""
@@ -84,7 +84,7 @@
     "domaines": []
   },
   "TAFANEL": {
-    "contexte": "Tafanel — refonte applicative RPG (mode projet). Périmètre piloté via le référentiel + Jira.",
+    "contexte": "Tafanel — refonte applicative RPG (mode projet). Périmètre piloté via le référentiel + Jira. Réf. Dolibarr : TAFANEL gestion (code 9TAFAN), entité iD INFO · 75018 Paris.",
     "portail": {
       "nom": "",
       "url": ""
@@ -98,12 +98,14 @@
       "Production",
       "Recette"
     ],
-    "contacts": [],
+    "contacts": [
+      { "nom": "Fabrice Blain", "role": "Commercial / account manager (réf. Dolibarr)", "cote": "Armonie" }
+    ],
     "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe.",
     "domaines": []
   },
   "SEGUREL": {
-    "contexte": "Segurel — implémentation GLog sur AS/400.",
+    "contexte": "Segurel — réécriture / réimplémentation de l'applicatif GLOG sur AS/400 (mode projet) ; inclut un projet Paie / Primes / Gestion des employés. Réf. Dolibarr : ETS SEGUREL & FILS (code 9SEGUR), entité iD INFO · 28500 · tél 02 34 65 01 00.",
     "portail": {
       "nom": "",
       "url": ""
@@ -122,7 +124,7 @@
     "domaines": []
   },
   "BELLION": {
-    "contexte": "Belmet (groupe Bellion) — refonte du SI de gestion commerciale (projet ERP26). Armonie en MOE + AMOA.",
+    "contexte": "Belmet (groupe Bellion) — refonte du SI de gestion commerciale (projet ERP26). Armonie en MOE + AMOA. Réf. Dolibarr : BELMET (code Belmet) + BELLION Groupe (code Bellion), entité iD INFO · 29480 / 29000 · tél 02 98 28 62 13.",
     "portail": {
       "nom": "",
       "url": ""
@@ -136,12 +138,14 @@
       "Production",
       "Recette"
     ],
-    "contacts": [],
+    "contacts": [
+      { "nom": "Guy Routier", "role": "Commercial / account manager (réf. Dolibarr)", "cote": "Armonie" }
+    ],
     "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe.",
     "domaines": []
   },
   "DIAPAR": {
-    "contexte": "DIAPAR — TMA de la gestion commerciale spécifique (RPG) & finance Anaël sur IBM i.",
+    "contexte": "DIAPAR — TMA de la gestion commerciale spécifique (RPG) & finance Anaël sur IBM i. Réf. Dolibarr : DIAPAR (code DIAPAR), entité iD INFO · 91380 Chilly-Mazarin · tél 01 64 54 23 00.",
     "portail": {
       "nom": "",
       "url": ""
