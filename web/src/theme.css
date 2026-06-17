@@ -2080,3 +2080,10 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .rec-hk-rew b { color: #ffcf9e; }
 .rec-hk-done b { color: #aee7c4; }
 @media (max-width: 640px) { .rec-hk { min-width: calc(50% - 6px); } }
+
+/* ===== v96 : mode desktop (Tauri) — fond « verre » translucide ===== */
+/* La fenêtre native (acrylic Windows / vibrancy macOS) floute le bureau ; ici on tinte
+   légèrement pour rester dans les tons de la marque tout en laissant passer le flou.
+   Les cartes/tableaux restent opaques (--card) → lisibilité préservée. */
+html.is-desktop { background: transparent !important; }
+html.is-desktop body { background: rgba(244, 243, 248, 0.66) !important; }

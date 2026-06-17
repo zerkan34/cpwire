@@ -1,21 +1,13 @@
 {
-  "name": "pmo-cockpit-web",
-  "version": "1.0.0",
+  "name": "cpwire-desktop",
   "private": true,
-  "type": "module",
-  "description": "Cockpit de pilotage — interface React.",
+  "version": "0.1.0",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "jszip": "^3.10.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "tauri": "tauri",
+    "desktop:dev": "tauri dev",
+    "desktop:build": "tauri build"
   },
   "devDependencies": {
-    "@vitejs/plugin-react": "^4.3.1",
-    "vite": "^5.4.2"
+    "@tauri-apps/cli": "^2"
   }
 }
