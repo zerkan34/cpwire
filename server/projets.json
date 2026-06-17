@@ -119,22 +119,52 @@
     {
       "client": "EDL",
       "type": "Projet",
-      "nom": "Campagne des abonnements",
-      "perimetre": "",
-      "etat": "Signé",
+      "nom": "MINIKILI+ — Offre enrichie MAX",
+      "perimetre": "Lot #01 — Offre enrichie & socle données",
+      "etat": "En cours",
       "num": "PJ2509-0666",
-      "debut": "",
-      "fin": "2026-07-01",
-      "jh": 63,
+      "debut": "2026-02-02",
+      "fin": "2026-06-12",
+      "jh": 62,
       "budgete": 43650,
       "facture": null,
-      "avancement": 0.1,
+      "avancement": 0.4,
       "meteo": "vert",
-      "attention": [],
-      "raf": [
-        "Réunion EDL le 05/12"
+      "attention": [
+        "Disponibilité de Franck (LiteSoft) pour les ateliers webservice"
       ],
-      "comment": "",
+      "raf": [
+        "Mettre à jour et diffuser le document de conception (Lionel)",
+        "Confirmer le sort de l'écran COM500FM, peu utilisé (Lionel)",
+        "Associer Laetitia aux écrans lots & chaîne",
+        "Tests & recette EDL — cible de terminaison 15/05"
+      ],
+      "comment": "Clubs Minimax+ / Kilimax+ (11 livres). Commercial PR 25 09 218. MEP prévisionnelle 01/06, assistance post-MEP via TMA jusqu'au 12/06.",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "EDL",
+      "type": "Projet",
+      "nom": "MINIKILI+ — Offre enrichie MAX",
+      "perimetre": "Lot #02 — Modèle de données & webservice",
+      "etat": "Signé",
+      "num": "PJ2509-0666",
+      "debut": "2026-02-02",
+      "fin": "2026-06-12",
+      "jh": 34,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.2,
+      "meteo": "vert",
+      "attention": [
+        "Webservice LiteSoft : calendrier d'avril à confirmer côté LiteSoft",
+        "Impacts sur applicatifs externes (GECKO, INTRAMAX) consommant la base DB2"
+      ],
+      "raf": [
+        "Webservice structuré par abonnement (~5 J/H), positionné début avril",
+        "Suppression des tables tampons + bascule queries (réouverture / réenregistrement)"
+      ],
+      "comment": "Suppression edlmy, fusion MX_II, index ABO_ABO / ABO_ADR, extensions de longueurs. Commercial PR 26 02 196 (≈ 32–34 J/H).",
       "cdp": "Nicolas Durand"
     },
     {

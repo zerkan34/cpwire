@@ -50,21 +50,36 @@
     "domaines": []
   },
   "EDL": {
-    "contexte": "L'école des loisirs — TMA de l'application MAX (abonnements « l'école des max ») sur IBM i. Les commerciaux d'EDL sont les animateurs / animatrices.",
+    "contexte": "L'école des loisirs — TMA de l'application MAX (abonnements « l'école des max ») sur IBM i, et projet MINIKILI+ (offre enrichie : clubs Minimax+ / Kilimax+ à 11 livres + évolutions du modèle de données). Les commerciaux d'EDL sont les animateurs / animatrices. Développements sur la partition DEV du client.",
     "portail": {
       "nom": "",
       "url": ""
     },
     "connexion": [],
     "sharepoint": {
-      "nom": "SharePoint TMA (NOTOS)",
+      "nom": "SharePoint Armonie — espace projet MINIKILI+ (partagé avec EDL)",
       "url": ""
     },
     "environnements": [
+      "Développement — partition DEV du client (172.22.0.44, IBM i V7.3), bibliothèques suffixées « _D » (MAX_D, GENERAL_D…)",
+      "Tests fonctionnels — profil TEST_EDL",
+      "Tests de chaîne (applicatifs externes GECKO / INTRAMAX) — profil GECO_T",
       "Production",
       "Recette"
     ],
-    "contacts": [],
+    "contacts": [
+      { "nom": "Aline Giron", "role": "Cheffe de projet IT — sponsor / validation des CR", "cote": "Client" },
+      { "nom": "Jennifer Salaun", "role": "Cheffe de projet métier", "cote": "Client" },
+      { "nom": "Jean-Luc Cardinot", "role": "Analyste-développeur AS/400 (interface Sage) — rattachement à confirmer", "cote": "Client" },
+      { "nom": "Hugues Quénioux", "role": "Membre comité de projet", "cote": "Client" },
+      { "nom": "Thierry Capot", "role": "Membre comité de projet", "cote": "Client" },
+      { "nom": "Laetitia", "role": "Utilisatrice clé — écrans lots & chaîne", "cote": "Client" },
+      { "nom": "Guy Routier", "role": "Président de comité de projet", "cote": "Armonie" },
+      { "nom": "Mélanie Senebier", "role": "Pilotage projet & comptes rendus", "cote": "Armonie" },
+      { "nom": "Lionel Kieffer", "role": "Responsable développement", "cote": "Armonie" },
+      { "nom": "Geoffrey Bourmond", "role": "Développeur principal", "cote": "Armonie" },
+      { "nom": "Franck Vigier", "role": "Directeur LiteSoft — tiers (webservice)", "cote": "Client" }
+    ],
     "coffre": "Identifiants & mots de passe : gestionnaire de mots de passe.",
     "domaines": []
   },

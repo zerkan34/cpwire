@@ -36,10 +36,37 @@ const SEED = {
   // Mémoire par client (clé = nom de dossier affiché). « attentes » à compléter par vos soins.
   clients: {
     EDL: {
-      contexte: "École des Loisirs — abonnements de livres jeunesse. Application MAX sur IBM i.",
-      attentes: ["À préciser : livrables et délais attendus côté EDL."],
-      glossaire: [{ terme: "animateur / animatrice", sens: "Commercial CÔTÉ CLIENT EDL (force de vente). JAMAIS un développeur Armonie." }],
-      notes: [],
+      contexte:
+        "L'école des loisirs — maison d'édition jeunesse indépendante (depuis 1965). Service d'abonnement MAX (« l'école des max ») sur IBM i : chaque année scolaire (novembre → juin), l'abonné reçoit 8 livres sélectionnés, livrés une fois par mois. Deux périmètres pilotés ensemble : la TMA courante de MAX (abonnés & clubs, colisage & transport, animatrices & commissions, interface Sage) ET le projet MINIKILI+ — offre enrichie d'abonnements créant deux nouveaux clubs « Minimax+ » et « Kilimax+ » à 11 livres (1 livre de plus aux tirages de décembre, mars et juin), avec en parallèle des évolutions du modèle de données et des processus techniques de MAX.",
+      attentes: [
+        "Livrables projet MINIKILI+ : spécifications techniques de développement, un cahier de tests par option modifiée, procès-verbaux de réception, PV de mise en production.",
+        "Tous les documents projet sont déposés sur l'espace SharePoint Armonie dédié et partagés avec le client.",
+        "Jalons : spécifications 13/02 ; développement (livraison par modules au fil de l'eau) jusqu'au 10/04 ; tests & recette EDL jusqu'au 08/05 ; cible de terminaison 15/05 ; MEP prévisionnelle 01/06 ; assistance post-MEP via le dispositif TMA jusqu'au 12/06/2026.",
+        "Séparer strictement le périmètre projet MINIKILI+ du périmètre TMA : le passage des accès « ligne à ligne » au SQL se fait au fil de l'eau et relève de la TMA, pas du projet.",
+      ],
+      glossaire: [
+        { terme: "animateur / animatrice", sens: "Commercial CÔTÉ CLIENT EDL (force de vente). JAMAIS un développeur Armonie." },
+        { terme: "MAX (« l'école des max »)", sens: "Application IBM i de gestion des abonnements de livres jeunesse d'EDL." },
+        { terme: "MINIKILI+", sens: "Projet d'offre enrichie MAX : création des clubs Minimax+ et Kilimax+." },
+        { terme: "Minimax+ / Kilimax+", sens: "Deux nouveaux clubs à 11 livres/an (au lieu de 8 ; +1 livre en décembre, mars, juin)." },
+        { terme: "club", sens: "Formule d'abonnement MAX par tranche d'âge (Bébémax, Titoumax, Minimax, Kilimax, Médium…)." },
+        { terme: "tirage", sens: "Envoi mensuel ; un tirage peut désormais comporter plusieurs livres (plusieurs séquences)." },
+        { terme: "séquence", sens: "Rang d'un livre à l'intérieur d'un tirage (la base gère jusqu'à 99 séquences ; affichage limité à 2 cette campagne)." },
+        { terme: "Remis", sens: "Indique qu'un livre d'un tirage ne doit pas être envoyé à un abonné ; géré par séquence depuis MINIKILI+." },
+        { terme: "MX_TIT", sens: "Table des titres MAX (livres par club et par tirage) ; porte la zone « ordre » d'affichage des clubs." },
+        { terme: "ABO_ABO / ABO_ADR", sens: "Tables abonnements / adresses (ajout d'index ABO_ID, ABO_ID_GECKO, AD_ID)." },
+        { terme: "GECKO / INTRAMAX", sens: "Applicatifs externes consommant la base DB2 for i de MAX (impactés par le lot 2)." },
+        { terme: "LiteSoft", sens: "Éditeur tiers (Franck Vigier) ; consomme le webservice Armonie structuré par abonnement." },
+        { terme: "NGP", sens: "Trigramme préfixant les nouveaux objets créés par Armonie sur le projet (Nouvelle Gestion du Personnel)." },
+      ],
+      notes: [
+        "Gouvernance projet : comité présidé par Guy Routier (Armonie), pilotage & CR par Mélanie Senebier (Armonie), développements par Lionel Kieffer (Armonie). Côté EDL : Aline Giron (cheffe de projet IT, valide les CR), Jennifer Salaun (cheffe de projet métier), Jean-Luc Cardinot (analyste-développeur AS/400). Laetitia à associer dès que les travaux portent sur les écrans lots & chaîne.",
+        "Développements sur la partition DEV du client (172.22.0.44, IBM i V7.3) ; tests projet dans des bibliothèques suffixées « _D » (MAX_D, GENERAL_D…). Profil de test fonctionnel : TEST_EDL ; tests de chaîne avec les applicatifs externes : GECO_T.",
+        "Normes projet : modèle de données décrit en DDL (et non DDS), sources SQL dans QDDSLESRC ; programmes en RPG ILE full free avec accès données en SQL embarqué de préférence ; conventions inspirées de l'applicatif SEGUREL.",
+        "Décisions COPROJ : écrans passés en 132 colonnes pour afficher les 10 clubs ; ordre d'affichage des clubs piloté par une zone « ordre » paramétrable (Minimax+/Kilimax+ après le Médium, exigence des opératrices de saisie) ; gestion des « Remis » par séquence via sous-fichier ; couleurs des nouveaux clubs reprises de leur club d'origine (palette IBM i limitée).",
+        "Webservice LiteSoft : données structurées par abonnement (principe validé), consommations historisées ; ~5 J/H, positionné début avril, non prioritaire vs les modifications d'écrans.",
+        "Impacts queries utilisateur limités : les queries existants n'ont pas à être modifiés mais doivent être rouverts puis réenregistrés ; les nouvelles zones (id, séquence) sont à ajouter manuellement si besoin.",
+      ],
     },
     "DS Smith": {
       contexte: "DS Smith Packaging — emballage carton de luxe. Application eMage (gestion industrielle) sur IBM i.",

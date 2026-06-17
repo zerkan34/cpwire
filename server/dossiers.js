@@ -12,13 +12,21 @@ const p = (nom, poste, email, statut, cote) => ({ nom, poste, email: email || ""
 export const SEED = {
   EDL: {
     description:
-      "L'école des loisirs — édition jeunesse (fondée en 1965). TMA de l'application MAX (gestion des abonnements « l'école des max ») sur IBM i : abonnés & clubs, colisage & transport, animatrices & commissions, interface Sage.",
-    tech: ["IBM i / AS-400", "RPG", "Application MAX", "Interface Sage"],
+      "L'école des loisirs — édition jeunesse (fondée en 1965). TMA de l'application MAX (gestion des abonnements « l'école des max ») sur IBM i : abonnés & clubs, colisage & transport, animatrices & commissions, interface Sage. Projet en cours MINIKILI+ — offre enrichie d'abonnements : création des clubs Minimax+ et Kilimax+ à 11 livres, avec évolutions du modèle de données MAX. Lots #01 (offre enrichie + socle données) et #02 (modèle de données & webservice). Cible de terminaison 15/05, MEP prévisionnelle 01/06/2026.",
+    tech: ["IBM i / AS-400 (partition DEV 172.22.0.44, V7.3)", "RPG ILE full free + SQL embarqué", "DDL (modèle de données)", "Application MAX", "Webservice / API (remplace les tables tampons LiteSoft)", "Interface Sage", "Applicatifs externes GECKO / INTRAMAX"],
     team: [
       p("Geoffrey Bourmond", "Développeur principal", "", "Actif", "Armonie"),
-      p("Jean-Luc Cardinot", "Analyste, interface Sage", "", "Actif", "Armonie"),
-      p("Vantai Nguyen", "Développeur (transferts, échange de livres)", "", "Actif", "Armonie"),
       p("Lionel Kieffer", "Responsable développement", "", "Actif", "Armonie"),
+      p("Vantai Nguyen", "Développeur (transferts, échange de livres)", "", "Actif", "Armonie"),
+      p("Mélanie Senebier", "Pilotage projet & comptes rendus (MINIKILI+)", "", "Actif", "Armonie"),
+      p("Guy Routier", "Président de comité (MINIKILI+)", "", "Actif", "Armonie"),
+      p("Aline Giron", "Cheffe de projet IT — sponsor / validation", "", "Actif", "Client"),
+      p("Jennifer Salaun", "Cheffe de projet métier", "", "Actif", "Client"),
+      p("Jean-Luc Cardinot", "Analyste-développeur AS/400 (interface Sage)", "", "À confirmer", "Client"),
+      p("Laetitia", "Utilisatrice clé — écrans lots & chaîne", "", "À confirmer", "Client"),
+      p("Hugues Quénioux", "Membre comité de projet", "", "Actif", "Client"),
+      p("Thierry Capot", "Membre comité de projet", "", "Actif", "Client"),
+      p("Franck Vigier", "Directeur LiteSoft — tiers (webservice)", "", "Actif", "Client"),
     ],
   },
   "DS Smith": {
