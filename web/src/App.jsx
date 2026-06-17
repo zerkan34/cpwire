@@ -43,7 +43,7 @@ function PageHero({ k, title, sub }) {
   );
 }
 const TABS = [
-  { id: "cockpit", label: "Portefeuille" },
+  { id: "cockpit", label: "Cockpit" },
   { id: "devs", label: "Développeurs" },
   { id: "qualite", label: "Qualité" },
   { id: "comptesrendus", label: "Comptes rendus" },
@@ -533,7 +533,7 @@ export default function App() {
     <ReadOnlyContext.Provider value={readOnly}>
     <div className={`wrap tab-${tab}`}>
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
-        loading={loading} me={data?.me} onRefresh={() => load(true)}
+        loading={loading} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
         role={role} presence={presence} onPresence={() => setTab("admin")}
         query={query} onQuery={setQuery}
@@ -593,16 +593,11 @@ export default function App() {
               Import vérifié — {diag.totalImporte} tickets : {Object.entries(diag.parProjet).map(([k, v]) => `${k} (${v})`).join(" · ") || "—"}
             </p>
           )}
-          <div className="section-title">Portefeuille <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
+          <div className="section-title">Cockpit <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>— clique une carte pour ouvrir sa fiche</span></div>
           <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} />
 
-          <div className="section-title" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <div className="section-title">
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
-            <button className={`reload-btn ${loading ? "spin" : ""}`} onClick={() => load(false, true)} disabled={loading}
-              title="Tout recharger : réimporte l'intégralité des tickets depuis Jira" aria-label="Tout recharger">
-              <span className="reload-ico">⟳</span>
-              <span className="reload-txt">Tout recharger</span>
-            </button>
           </div>
           <div className="panel cockpit-panel">
             <div className="recap-hd">
@@ -626,7 +621,7 @@ export default function App() {
       {tab === "comptesrendus" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "cockpit" && sub === "activite" && (
         <>
-          <PageHero k="Portefeuille" title="Activité" sub="Tickets actifs et historique des mouvements Jira — génère un récap quand tu veux." />
+          <PageHero k="Cockpit" title="Activité" sub="Tickets actifs et historique des mouvements Jira — génère un récap quand tu veux." />
           {role === "owner" && (
             <div className="cr-jump">
               <button className="btn-solid" onClick={() => { setTab("comptesrendus"); setSub("recap"); }}>📝 Générer un récap de l'activité</button>
@@ -643,7 +638,7 @@ export default function App() {
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "reference" && (
         <>
-          <PageHero k="Portefeuille" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
+          <PageHero k="Cockpit" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
           <Referentiel issues={issues} onTicket={setTicket} />
           {role === "owner" && <Connaissance />}
         </>

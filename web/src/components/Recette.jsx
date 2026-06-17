@@ -72,12 +72,6 @@ export default function Recette({ issues = [], onTicket }) {
         <span className="rec-hero-k">Recette</span>
         <h2>Pilotage de bout en bout</h2>
         <p>Suivi des programmes de leur entrée en recette jusqu'à la mise en production — clique un chiffre, une pastille puis un programme pour ouvrir sa fiche et sa chaîne de statuts.</p>
-        <div className="rec-hero-kpis">
-          <div className="rec-hk rec-hk-big"><b>{totReste}</b><small>à recetter</small></div>
-          <div className="rec-hk"><b>{totEnRecette}</b><small>en recette</small></div>
-          <div className="rec-hk rec-hk-rew"><b>{totRetours}</b><small>à retravailler</small></div>
-          <div className="rec-hk rec-hk-done"><b>{totValides}</b><small>validés</small></div>
-        </div>
       </div>
 
       {data.map((r) => {
@@ -85,16 +79,26 @@ export default function Recette({ issues = [], onTicket }) {
         const list = listFor(r);
         const on = (kind, key) => cur && cur.kind === kind && cur.key === key ? "is-on" : "";
         return (
-          <div className="rec-card" key={r.dossier}>
-            <div className="rec-hd">
-              <span className="rec-name">{r.dossier}</span>
-              {r.engagement ? <span className={`eng-badge ${r.engagement === "Projet" ? "is-projet" : r.engagement === "TMA" ? "is-tma" : "is-mix"}`}>{r.engagement}</span> : null}
-              <span className="rec-metrics">
-                <button className={`rec-m rec-big ${on("group", "reste")}`} onClick={() => pick(r.dossier, "group", "reste")}><b>{r.reste}</b><small>à recetter</small></button>
-                <button className={`rec-m ${on("group", "enRecette")}`} onClick={() => pick(r.dossier, "group", "enRecette")}><b>{r.enRecette}</b><small>en recette</small></button>
-                <button className={`rec-m ${r.retours ? "rec-rew" : ""} ${on("group", "retours")}`} onClick={() => pick(r.dossier, "group", "retours")}><b>{r.retours}</b><small>à retravailler</small></button>
-                <button className={`rec-m rec-done ${on("group", "done")}`} onClick={() => pick(r.dossier, "group", "done")}><b>{r.valides}</b><small>validés</small></button>
-              </span>
+          <div className="rc2-card" key={r.dossier}>
+            <div className="rc2-top">
+              <div className="rc2-id">
+                <span className="rc2-name">{r.dossier}</span>
+                {r.engagement ? <span className={`eng-badge ${r.engagement === "Projet" ? "is-projet" : r.engagement === "TMA" ? "is-tma" : "is-mix"}`}>{r.engagement}</span> : null}
+              </div>
+              <div className="rc2-metrics">
+                <button className={`rc2-m ${on("group", "reste")}`} onClick={() => pick(r.dossier, "group", "reste")}><b>{r.reste}</b><small>à recetter</small></button>
+                <button className={`rc2-m ${on("group", "enRecette")}`} onClick={() => pick(r.dossier, "group", "enRecette")}><b>{r.enRecette}</b><small>en recette</small></button>
+                <button className={`rc2-m rew ${r.retours ? "hot" : ""} ${on("group", "retours")}`} onClick={() => pick(r.dossier, "group", "retours")}><b>{r.retours}</b><small>à retravailler</small></button>
+                <button className={`rc2-m done ${on("group", "done")}`} onClick={() => pick(r.dossier, "group", "done")}><b>{r.valides}</b><small>validés</small></button>
+              </div>
+            </div>
+
+            <div className="rc2-bar" title="Répartition du pipeline">
+              {[["#3a6fb5", r.actifs, "À faire / En cours"], ["var(--orange)", r.retours, "À retravailler"], ["var(--gold)", r.enRecette, "En recette"], ["var(--green)", r.valides, "Validés"], ["#b9b6c8", r.cats.annule || 0, "Annulé"]]
+                .filter(([, v]) => v > 0)
+                .map(([c, v, t], idx) => (
+                  <span key={idx} className="rc2-seg" title={`${t} : ${v}`} style={{ width: `${(v / r.total) * 100}%`, background: c }} />
+                ))}
             </div>
 
             <div className="rec-chips">

@@ -252,7 +252,7 @@ export default function Projets({ issues = [], onTicket, onDev }) {
       <div className="pf-hero">
         <div className="pf-hero-t">
           <h2>Suivi de projets</h2>
-          <p>Portefeuille Armonie — enrichi en temps réel par Jira</p>
+          <p>Cockpit Armonie — enrichi en temps réel par Jira</p>
         </div>
         <div className="pf-toolbar">
           <button className="pf-tb-btn" onClick={exportXlsx} disabled={dl}>{dl ? "Export…" : "⬇ Excel"}</button>

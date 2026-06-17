@@ -26,7 +26,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
+export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -138,9 +138,16 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
   );
 
   const refresh = (
-    <button className="btn gold gauge-btn" onClick={onRefresh} disabled={loading} title="Actualiser depuis Jira">
-      <span className="gauge-fill" style={{ width: `${prog}%` }} />
-      <span className="gauge-label">{loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser"}</span>
+    <button className={`hdr-ic refresh ${loading ? "spin" : ""}`} onClick={onRefresh} disabled={loading}
+      title={loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser depuis Jira"} aria-label="Actualiser">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    </button>
+  );
+
+  const reloadAll = onReloadAll && (
+    <button className={`hdr-ic ${loading ? "spin" : ""}`} onClick={onReloadAll} disabled={loading}
+      title="Tout recharger : réimporte l'intégralité des tickets depuis Jira" aria-label="Tout recharger">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg>
     </button>
   );
 
@@ -200,19 +207,23 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
         <span className="hdr-brand">
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v106</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v108</span></span>
         </span>
         <div className="hdr-controls">
           {search}
           {role === "owner" && onPresence && (
-            <button className="btn ghost hdr-presence" onClick={onPresence} title={presence.length ? "Connectés : " + presence.map((u) => u.email).join(", ") : "Personne d'autre connecté"}>
-              <span className={`pres-dot ${presence.length ? "on" : ""}`} />
-              {presence.length ? `${presence.length} en ligne` : "0 en ligne"}
+            <button className={`hdr-ic pres ${presence.length ? "on" : ""}`} onClick={onPresence}
+              title={presence.length ? "Connectés : " + presence.map((u) => u.email).join(", ") + " · Admin & accès" : "Personne d'autre connecté · Admin & accès"} aria-label="Présence et accès">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><path d="M16 6.2a3 3 0 0 1 0 5.6"/><path d="M18.5 19a5 5 0 0 0-3-4.6"/></svg>
+              {presence.length > 0 && <span className="ic-badge">{presence.length}</span>}
             </button>
           )}
+          {reloadAll}
           {refresh}
           {bell}
-          <button className="btn ghost hdr-logout" onClick={onLogout} title="Se déconnecter">Déconnexion</button>
+          <button className="hdr-ic" onClick={onLogout} title="Se déconnecter" aria-label="Se déconnecter">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3"/><path d="M10 17l-5-5 5-5"/><path d="M5 12h12"/></svg>
+            </button>
           {isTauri && (
             <div className="winctl">
               <button className="winbtn" title="Réduire" onClick={() => window.__TAURI__?.window?.getCurrentWindow?.().minimize?.()}>–</button>
@@ -229,7 +240,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v106</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v108</span></div>
       </div>
 
       <div className="progress">
