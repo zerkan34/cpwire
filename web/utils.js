@@ -1,166 +1,125 @@
-// dailyCr.js — Construit le « Compte rendu du jour ».
-// Le ZIP contient UN FICHIER PAR PROJET CLIENT (un CR détaillé par client),
-// chaque fichier étant un document HTML AUTONOME (CSS en ligne + accordéons <details> natifs)
-// qui s'ouvre dans n'importe quel navigateur, hors de l'application.
+// utils.js — helpers partagés.
+import { LOGO_DATA_URI } from "./logo.js";
 
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-// Ordre d'affichage des catégories (le plus actionnable d'abord). `open` = accordéon déplié par défaut.
-const CR_CATS = [
-  { key: "retourTest", label: "Retour de test — à retravailler", open: true },
-  { key: "retourProd", label: "Retour de production — à retravailler", open: true },
-  { key: "encours", label: "En cours", open: true },
-  { key: "afaire", label: "À faire", open: true },
-  { key: "recetteArmonie", label: "En recette (Armonie)", open: true },
-  { key: "recetteClient", label: "En recette client", open: true },
-  { key: "attenteClient", label: "En attente client", open: true },
-  { key: "miseEnProd", label: "Mise en production", open: false },
-  { key: "termine", label: "Terminés", open: false },
-  { key: "annule", label: "Annulés", open: false },
-];
-
-function workers(i) {
-  if (i.contributors && i.contributors.length) return i.contributors.join(", ");
-  return i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "—");
+export function downloadHtml(html, filename) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
 }
 
-function rowsTable(items) {
-  const rows = items
-    .slice()
-    .sort((a, b) => String(a.cle).localeCompare(String(b.cle)))
-    .map((i) => `<tr>
-      <td class="k">${esc(i.cle)}</td>
-      <td class="r">${esc(i.resume || "—")}</td>
-      <td>${esc(workers(i))}</td>
-      <td class="d">${esc(i.echeance || "—")}${i.enRetard ? ' <span class="late">en retard</span>' : ""}</td>
-    </tr>`).join("");
-  return `<table class="tk"><thead><tr><th>Clé</th><th>Résumé</th><th>Sur le ticket</th><th>Échéance</th></tr></thead><tbody>${rows}</tbody></table>`;
+// Impression via une iframe cachée : pas de nouvelle fenêtre/onglet « about:blank »,
+// et l'app ne se fige plus (l'aperçu d'impression est isolé dans l'iframe).
+export function printHtml(html) {
+  try {
+    const old = document.getElementById("cpwire-print-frame");
+    if (old) old.remove();
+    const iframe = document.createElement("iframe");
+    iframe.id = "cpwire-print-frame";
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
+    document.body.appendChild(iframe);
+
+    let done = false;
+    const cleanup = () => { setTimeout(() => { try { iframe.remove(); } catch { /* */ } }, 1500); };
+
+    iframe.onload = () => {
+      if (done) return; done = true;
+      try {
+        const w = iframe.contentWindow;
+        try { w.document.title = " "; } catch { /* */ }
+        w.focus();
+        w.onafterprint = cleanup;
+        w.print();
+        setTimeout(cleanup, 60000); // filet de sécurité
+      } catch (e) {
+        cleanup();
+        try { downloadHtml(html, "document.html"); } catch { /* */ }
+      }
+    };
+    iframe.srcdoc = html;
+    return true;
+  } catch (e) {
+    try { downloadHtml(html, "document.html"); } catch { /* */ }
+    return false;
+  }
 }
 
-const STYLE = `
-  :root { --ink:#1f1d2b; --muted:#6b6880; --indigo:#2c2945; --gold:#a9842f; --line:#e7e4f0; --soft:#f7f6fb; --warn:#a9531f; --warnbg:#fbeede; --ok:#1f7a52; --okbg:#e7f6ee; }
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); margin: 0; padding: 28px; background: #fff; line-height: 1.5; }
-  .doc { max-width: 940px; margin: 0 auto; }
-  header.cr { border-bottom: 3px solid var(--indigo); padding-bottom: 14px; margin-bottom: 18px; }
-  header.cr .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; color: var(--gold); }
-  header.cr h1 { font-size: 25px; margin: 4px 0 8px; color: var(--indigo); }
-  header.cr .meta { font-size: 13px; color: var(--muted); }
-  header.cr .meta b { color: var(--ink); }
-  .tag { display:inline-block; font-size:11px; font-weight:800; padding:1px 8px; border-radius:999px; margin-left:6px; vertical-align:middle; }
-  .tag.tma { background:#efeafe; color:#5b3fb0; border:1px solid #e0d6f5; }
-  .tag.projet { background:var(--warnbg); color:var(--warn); border:1px solid #f0d2b0; }
-  .tag.mix { background:#eef3ff; color:#3a5bd0; border:1px solid #d4e0ff; }
-  .kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 22px; }
-  .kpi { flex: 1 1 110px; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; text-align: center; }
-  .kpi b { display: block; font-size: 23px; font-weight: 800; color: var(--indigo); line-height: 1; }
-  .kpi span { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: .04em; }
-  .kpi.warn { background: var(--warnbg); border-color: #f0d9bf; } .kpi.warn b { color: var(--warn); }
-  .kpi.ok { background: var(--okbg); border-color: #c8ebd7; } .kpi.ok b { color: var(--ok); }
-  details { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden; background: #fff; }
-  summary { cursor: pointer; list-style: none; padding: 12px 16px; font-weight: 700; font-size: 15px; color: var(--indigo); background: var(--soft); display: flex; align-items: center; gap: 10px; user-select: none; }
-  summary::-webkit-details-marker { display: none; }
-  summary::before { content: "\\25B8"; color: var(--gold); font-size: 13px; transition: transform .15s; }
-  details[open] summary::before { transform: rotate(90deg); }
-  summary .cnt { margin-left: auto; background: var(--indigo); color: #fff; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
-  table.tk { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.tk th { text-align: left; padding: 9px 16px; background: #fff; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); }
-  table.tk td { padding: 9px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  table.tk tr:last-child td { border-bottom: none; }
-  table.tk tbody tr:nth-child(even) td { background: #fafafd; }
-  td.k { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--indigo); white-space: nowrap; }
-  td.r { width: 52%; }
-  td.d { white-space: nowrap; }
-  .late { color: var(--warn); font-weight: 700; font-size: 11px; }
-  section.ccl { margin-top: 24px; border-top: 2px solid var(--line); padding-top: 14px; }
-  section.ccl h2 { font-size: 17px; color: var(--indigo); margin: 0 0 8px; }
-  section.ccl p { margin: 0; font-size: 14px; }
-  footer.cr { margin-top: 22px; font-size: 11.5px; color: var(--muted); text-align: center; }
-  @media print { body { padding: 0; } details { break-inside: avoid; } }
-`;
-
-// Construit le document HTML d'UN client.
-function clientDoc({ dossier, items, meName, human, heure }) {
-  const c = {};
-  items.forEach((i) => { c[i.categorie] = (c[i.categorie] || 0) + 1; });
-  const total = items.length;
-  const done = (c.termine || 0) + (c.miseEnProd || 0);
-  const rec = (c.recetteArmonie || 0) + (c.recetteClient || 0);
-  const ret = (c.retourTest || 0) + (c.retourProd || 0);
-  const late = items.filter((i) => i.enRetard).length;
-
-  const engs = new Set(items.map((i) => i.engagement).filter((e) => e && e !== "—"));
-  const engagement = engs.size === 0 ? "" : engs.size === 1 ? [...engs][0] : "TMA + Projet";
-  const engCls = engagement === "Projet" ? "projet" : engagement === "TMA" ? "tma" : "mix";
-  const tag = engagement ? ` <span class="tag ${engCls}">${esc(engagement)}</span>` : "";
-
-  const sections = CR_CATS.map((cat) => {
-    const list = items.filter((i) => i.categorie === cat.key);
-    if (!list.length) return "";
-    return `<details${cat.open ? " open" : ""}><summary>${esc(cat.label)} <span class="cnt">${list.length}</span></summary>${rowsTable(list)}</details>`;
-  }).filter(Boolean).join("\n");
-
-  const kpis = `<div class="kpis">
-    <div class="kpi"><b>${total}</b><span>Total</span></div>
-    <div class="kpi"><b>${c.afaire || 0}</b><span>À faire</span></div>
-    <div class="kpi"><b>${c.encours || 0}</b><span>En cours</span></div>
-    <div class="kpi"><b>${rec}</b><span>En recette</span></div>
-    <div class="kpi warn"><b>${ret}</b><span>À retravailler</span></div>
-    <div class="kpi warn"><b>${late}</b><span>En retard</span></div>
-    <div class="kpi ok"><b>${done}</b><span>Terminés</span></div>
-  </div>`;
-
-  const seg = [];
-  if (c.encours) seg.push(`${c.encours} en cours`);
-  if (c.afaire) seg.push(`${c.afaire} à faire`);
-  if (rec) seg.push(`${rec} en recette`);
-  if (ret) seg.push(`${ret} à retravailler (retours)`);
-  if (done) seg.push(`${done} terminé${done > 1 ? "s" : ""}`);
-  const parts = [];
-  parts.push(`Au ${human}, le périmètre ${dossier} compte ${total} ticket${total > 1 ? "s" : ""}.`);
-  if (seg.length) parts.push(`Répartition : ${seg.join(", ")}.`);
-  if (late) parts.push(`${late} ticket${late > 1 ? "s" : ""} en retard à surveiller de près.`);
-  if (ret) parts.push(`Les retours de test/production constituent la priorité immédiate sur ce client : ils sont détaillés ci-dessus pour action.`);
-  else parts.push(`Aucun retour de test ou de production en cours : le pipeline de recette est sain à ce jour.`);
-  parts.push(`Prochaines étapes : finaliser les recettes en cours et préparer les mises en production une fois les validations complètes.`);
-  const conclusion = parts.join(" ");
-
-  return `<!doctype html>
-<html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CR ${esc(dossier)}</title><style>${STYLE}</style></head>
-<body><div class="doc">
-  <header class="cr">
-    <div class="eyebrow">Compte rendu journalier</div>
-    <h1>${esc(dossier)}${tag}</h1>
-    <div class="meta">Compte rendu du <b>${esc(human)}</b> · Chef de projet : <b>${esc(meName)}</b> · Établi à ${esc(heure)} · Source : Jira (cp|WIRE)</div>
-  </header>
-  ${kpis}
-  ${sections || '<p style="color:#6b6880">Aucun ticket à afficher pour ce client.</p>'}
-  <section class="ccl"><h2>Conclusion</h2><p>${esc(conclusion)}</p></section>
-  <footer class="cr">Document généré automatiquement par cp|WIRE le ${esc(human)} à ${esc(heure)}.</footer>
-</div></body></html>`;
+export function frDate(iso) {
+  if (!iso) return "—";
+  try { return new Date(iso).toLocaleString("fr-FR"); } catch { return iso; }
 }
 
-// Nettoie un nom de client pour en faire un nom de fichier sûr.
-function safeName(s) { return String(s || "Client").replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim(); }
+// Échappe le HTML (pour insérer du texte utilisateur dans un document).
+export function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
+}
 
-// Renvoie { iso, human, heure, fileBase, files: [{ dossier, count, name, html }] } — un fichier par client.
-export function buildDailyCrFiles(issues = [], { meName = "Nicolas Durand", teamLabel = "TMA Armonie" } = {}) {
-  const now = new Date();
-  const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
-  const human = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
-  const heure = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+// Construit un document autonome à la CHARTE ARMONIE (logo, filet doré, Poppins,
+// cartouche, titres à liseré violet, tableaux à en-tête sombre, pied de page).
+// Mêmes codes que les CR -> tous les PDF de l'app sont homogènes.
+// Champs : kicker (eyebrow), title, subtitle, cartouche [[clé,val]…], bodyHtml, etabliPar.
+export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand" }) {
+  const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+  const css = `*{box-sizing:border-box}
+    body{margin:0;font-family:'Inter',system-ui,Arial,sans-serif;color:#3d3b4d;background:#fff;line-height:1.55;font-size:13.5px}
+    .page{max-width:820px;margin:0 auto;padding:38px 44px}
+    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #c7a14a;padding-bottom:15px;margin-bottom:6px}
+    .brand img{height:44px;width:auto;display:block}
+    .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right}
+    .eyebrow{font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a9842f;margin-top:20px}
+    h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:25px;color:#2c2945;margin:5px 0 4px;line-height:1.12}
+    .sub{color:#74718a;font-size:13.5px;margin-bottom:16px}
+    .cartouche{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12.5px}
+    .cartouche td{border:1px solid #e7e5f1;padding:7px 11px}
+    .cartouche td:first-child{background:#f6f5fb;font-weight:600;color:#3a3658;width:165px}
+    h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2c2945;margin:22px 0 8px;padding-left:12px;border-left:5px solid #6e5cc4}
+    h3{font-size:13.5px;color:#3a3658;background:#f4f2fb;border-left:4px solid #c7a14a;padding:6px 10px;margin:14px 0 5px}
+    p{margin:8px 0}
+    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px}
+    table th{background:#3a3658;color:#fff;text-align:left;padding:8px 10px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+    table td{border-bottom:1px solid #f0eef7;padding:8px 10px;vertical-align:top}
+    tr{break-inside:avoid}
+    .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;background:#eef;color:#3a3a6a}
+    .pill.done{background:#e2f3ea;color:#1f8a5f}.pill.prog{background:#e6effb;color:#2f5fa8}
+    .pill.todo{background:#fbf0e2;color:#b07423}.pill.block{background:#fbe6e3;color:#c0392b}
+    .muted{color:#8a8799}
+    .foot{margin-top:28px;border-top:1px solid #e7e5f1;padding-top:12px;display:flex;justify-content:space-between;font-size:10.5px;color:#74718a}
+    @page{margin:13mm 12mm}
+    @media print{.page{padding:0;max-width:none}}`;
+  const cart = (cartouche && cartouche.length)
+    ? `<table class="cartouche">${cartouche.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>`
+    : "";
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
+  <body><div class="page">
+    <div class="top"><div class="brand"><img src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${esc(date)}</div></div>
+    ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
+    <h1>${esc(title)}</h1>
+    ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
+    ${cart}
+    ${bodyHtml}
+    <div class="foot"><span>${etabliPar ? "Établi par " + esc(etabliPar) : "Armonie Group"}</span><span>cp|WIRE · document de travail · à valider</span></div>
+  </div></body></html>`;
+}
 
-  const byDoss = {};
-  issues.forEach((i) => { const d = i.dossier || "Autre"; (byDoss[d] ||= []).push(i); });
-  const dossiers = Object.keys(byDoss).sort((a, b) => a.localeCompare(b));
+// Extrait un texte lisible d'un fragment/Document HTML (pour copier / e-mail).
+export function htmlToText(html) {
+  const div = document.createElement("div");
+  div.innerHTML = html;
+  return (div.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+}
 
-  const files = dossiers.map((d) => ({
-    dossier: d,
-    count: byDoss[d].length,
-    name: `CR ${safeName(d)} ${iso}.html`,
-    html: clientDoc({ dossier: d, items: byDoss[d], meName, teamLabel, human, heure }),
-  }));
+// Copie un texte dans le presse-papiers (renvoie true/false).
+export async function copyText(txt) {
+  try { await navigator.clipboard.writeText(txt); return true; } catch { return false; }
+}
 
-  return { iso, human, heure, fileBase: `CR du ${iso}`, files };
+// Ouvre le client mail avec un brouillon pré-rempli.
+export function mailDraft(subject, bodyText) {
+  const s = encodeURIComponent(subject || "");
+  const b = encodeURIComponent(bodyText || "");
+  window.location.href = `mailto:?subject=${s}&body=${b}`;
 }

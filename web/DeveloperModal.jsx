@@ -1,193 +1,105 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchReferentiel, fetchReferentielClients } from "../api.js";
+import { fetchHygiene } from "../api.js";
 
-// Catégorie Jira → [libellé, classe de pastille]. Aligné sur server/config.js.
-const CAT = {
-  afaire: ["À faire", "todo"],
-  encours: ["En cours", "prog"],
-  retourTest: ["Retour test", "block"],
-  retourProd: ["Retour prod", "block"],
-  recetteArmonie: ["Recette Armonie", "rec"],
-  recetteClient: ["Recette client", "rec"],
-  attenteClient: ["Attente client", "todo"],
-  miseEnProd: ["Mise en prod", "done"],
-  termine: ["Terminé", "done"],
-  annule: ["Annulé", "todo"],
-};
-function Pill({ cat }) {
-  const c = CAT[cat];
-  if (!c) return <span className="pill todo">non lié</span>;
-  return <span className={`pill ${c[1]}`}>{c[0]}</span>;
-}
+function scoreClass(s) { if (s == null) return ""; if (s >= 90) return "sla-ok"; if (s >= 70) return "sla-warn"; return "sla-bad"; }
 
-// Pipeline bout-en-bout : réécriture → recette Armonie → recette client → MEP.
-const STAGES = [
-  { key: "afaire", label: "À faire", cls: "st-afaire", cats: ["afaire"] },
-  { key: "encours", label: "En cours", cls: "st-encours", cats: ["encours"] },
-  { key: "retour", label: "Retour test", cls: "st-retour", cats: ["retourTest", "retourProd"] },
-  { key: "recArm", label: "Recette Armonie", cls: "st-recarm", cats: ["recetteArmonie"] },
-  { key: "recCli", label: "Recette client", cls: "st-reccli", cats: ["recetteClient", "attenteClient"] },
-  { key: "mep", label: "MEP / terminé", cls: "st-mep", cats: ["miseEnProd", "termine"] },
-];
-const STAGE_OF = {};
-STAGES.forEach((s) => s.cats.forEach((c) => { STAGE_OF[c] = s.key; }));
-
-function pipelineOf(programmes) {
-  const counts = { noncouvert: 0 };
-  STAGES.forEach((s) => { counts[s.key] = 0; });
-  const blocants = [], noncouverts = [];
-  programmes.forEach((p) => {
-    if (!p.lie) { counts.noncouvert++; noncouverts.push(p.nom); return; }
-    const k = STAGE_OF[p.etat] || "encours";
-    counts[k]++;
-    if (k === "retour") blocants.push(p.nom);
-  });
-  return { counts, blocants, noncouverts, total: programmes.length };
-}
-
-function Pipeline({ programmes }) {
-  const { counts, blocants, noncouverts, total } = pipelineOf(programmes);
-  if (!total) return null;
-  const segs = [
-    { key: "noncouvert", label: "Non couvert", cls: "st-noncouvert", n: counts.noncouvert },
-    ...STAGES.map((s) => ({ key: s.key, label: s.label, cls: s.cls, n: counts[s.key] })),
-  ].filter((s) => s.n > 0);
-  return (
-    <div className="ref-pipe">
-      <div className="ref-pipe-bar" title="Avancement des programmes par étape de recette">
-        {segs.map((s) => <span key={s.key} className={`rp-seg ${s.cls}`} style={{ flexGrow: s.n }} title={`${s.label} : ${s.n}`} />)}
-      </div>
-      <div className="ref-pipe-legend">
-        {segs.map((s) => <span key={s.key} className="rp-leg"><i className={`rp-dot ${s.cls}`} />{s.label} <b>{s.n}</b></span>)}
-      </div>
-      {(blocants.length || noncouverts.length) ? (
-        <div className="ref-bloc">
-          ⚠ <b>Ce qui bloque&nbsp;:</b>
-          {blocants.length ? <> {blocants.length} en retour ({blocants.slice(0, 6).join(", ")}{blocants.length > 6 ? "…" : ""})</> : null}
-          {blocants.length && noncouverts.length ? " · " : null}
-          {noncouverts.length ? <> {noncouverts.length} non couvert{noncouverts.length > 1 ? "s" : ""} (sans ticket Jira)</> : null}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-export default function Referentiel({ issues = [], onTicket }) {
-  const [clients, setClients] = useState([]);
-  const [client, setClient] = useState("");
-  const [data, setData] = useState(null);
-  const [err, setErr] = useState("");
+export default function Hygiene({ issues = [], onTicket }) {
+  const [rep, setRep] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState({}); // code option → déplié ?
-
-  // Pour ouvrir la fiche ticket complète au clic, on retrouve l'issue par sa clé.
-  const byCle = useMemo(() => {
-    const m = {};
-    issues.forEach((i) => { m[i.cle] = i; });
-    return m;
-  }, [issues]);
+  const [err, setErr] = useState("");
+  const [openCheck, setOpenCheck] = useState(null);
+  const [selDossier, setSelDossier] = useState(null);
 
   useEffect(() => {
-    fetchReferentielClients()
-      .then((r) => {
-        const cs = r.clients || [];
-        setClients(cs);
-        if (cs.length) setClient(cs[0]); else setLoading(false);
-      })
-      .catch((e) => { setErr(e.message); setLoading(false); });
+    let alive = true; setLoading(true); setErr("");
+    fetchHygiene()
+      .then((r) => { if (alive) setRep(r); })
+      .catch((e) => { if (alive) setErr(e.message || "Erreur"); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
   }, []);
 
-  useEffect(() => {
-    if (!client) return;
-    setLoading(true); setErr("");
-    fetchReferentiel(client)
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((e) => { setErr(e.message); setLoading(false); });
-  }, [client]);
+  const byKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
+  const open = (cle) => { if (onTicket && byKey[cle]) onTicket(byKey[cle]); };
 
-  const openTicket = (cle) => { const full = byCle[cle]; if (full && onTicket) onTicket(full); };
+  if (loading) return <div className="empty">Analyse de la qualité des données…</div>;
+  if (err) return <div className="empty">Contrôle qualité indisponible : {err}</div>;
+  if (!rep) return null;
 
-  if (loading) return <div className="panel">Chargement du référentiel…</div>;
-  if (err) return <div className="banner">Erreur : {err}</div>;
-  if (!clients.length || !data) return <div className="panel empty">Aucun référentiel défini pour l'instant.</div>;
-
+  const g = rep.global || {};
   return (
-    <>
-      <div className="section-title">Référentiel recette
-        <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {data.nbOptions} option{data.nbOptions > 1 ? "s" : ""} · {data.nbProgrammes} programme{data.nbProgrammes > 1 ? "s" : ""}
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Le socle qui fait parler la même langue : chaque <b>Option</b> (ce que suit le client) regroupe ses <b>Programmes</b>,
-        chacun rapproché automatiquement de son <b>ticket Jira</b>. Un programme sans ticket est marqué « non lié ».
-        {data.majSource ? <> <i>{data.majSource}.</i></> : null}
+    <div className="sla-wrap">
+      <h2 className="section-title">Contrôle qualité Jira</h2>
+      <p className="sla-note" style={{ marginTop: 0 }}>
+        Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.
       </p>
 
-      {clients.length > 1 && (
-        <div className="filters" style={{ marginBottom: 12 }}>
-          {clients.map((c) => (
-            <button key={c} className={`btn-line sm ${c === client ? "on" : ""}`} onClick={() => setClient(c)}>{c}</button>
+      <div className="sla-kpis">
+        <div className="sla-kpi"><div className={`v ${scoreClass(g.score)}`}>{g.score == null ? "—" : `${g.score}%`}</div><div className="l">Ouverts « propres »</div></div>
+        <div className="sla-kpi"><div className={`v ${g.aCorriger ? "sla-bad" : "sla-ok"}`}>{g.aCorriger}</div><div className="l">Ouverts à corriger</div></div>
+        <div className="sla-kpi"><div className={`v ${g.incoherences ? "sla-warn" : ""}`}>{g.incoherences}</div><div className="l">Incohérences</div></div>
+        <div className="sla-kpi"><div className="v">{g.ouverts}</div><div className="l">Tickets ouverts</div></div>
+      </div>
+
+      <table className="data">
+        <thead><tr><th>Client / dossier</th><th>Ouverts</th><th>À corriger</th><th>Incohér.</th><th>Qualité</th></tr></thead>
+        <tbody>
+          {rep.byDossier.map((d) => (
+            <tr key={d.dossier} className={`hyg-drow ${selDossier === d.dossier ? "on" : ""}`} onClick={() => setSelDossier(selDossier === d.dossier ? null : d.dossier)} title="Voir les anomalies de ce client">
+              <td><span className="tag">{d.dossier}</span></td>
+              <td>{d.ouverts}</td>
+              <td className={d.aCorriger ? "sla-bad" : ""}><b>{d.aCorriger || "—"}</b></td>
+              <td className={d.incoherences ? "sla-warn" : ""}>{d.incoherences || "—"}</td>
+              <td className={scoreClass(d.score)}><b>{d.score == null ? "—" : `${d.score}%`}</b></td>
+            </tr>
           ))}
-        </div>
-      )}
+        </tbody>
+      </table>
 
-      {data.domaines.map((dom) => (
-        <div key={dom.domaine} style={{ marginBottom: 18 }}>
-          <div className="ref-dom">{dom.domaine.replace(/_/g, " ")}</div>
-          <div className="recap-grid">
-            {dom.options.map((o) => {
-              const isOpen = !!open[o.code];
-              const shown = isOpen ? o.programmes : o.programmes.slice(0, 6);
-              return (
-                <div className="recap-card" key={o.code}>
-                  <div className="recap-hd">
-                    <span className="recap-hd-name">{o.code}</span>
-                    <span className="recap-hd-meta">{o.statutRecette === "Armonie" ? "Recette Armonie" : "Recette client"}</span>
-                  </div>
-                  <div className="recap-bd">
-                    <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, marginBottom: 6 }}>{o.libelle}</div>
-                    <div className="ref-meta">
-                      {o.livraison ? <span>Livraison {o.livraison}</span> : null}
-                      <span>{o.lies}/{o.total} programme{o.total > 1 ? "s" : ""} lié{o.lies > 1 ? "s" : ""}</span>
-                      {o.retours ? <span className="late">{o.retours} en retour</span> : null}
+      <h3 className="sla-h">Anomalies à corriger {selDossier && <span className="hyg-filter">{selDossier} <button onClick={() => setSelDossier(null)} title="Tout afficher">✕</button></span>}</h3>
+      {rep.checks.length === 0 && <p className="sla-note">Aucune anomalie détectée 🎉</p>}
+      <div className="hyg-checks">
+        {rep.checks.map((c) => {
+          const tks = selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets;
+          if (selDossier && tks.length === 0) return null;
+          const isOpen = selDossier ? true : openCheck === c.id;
+          const groups = {};
+          tks.forEach((t) => { (groups[t.dossier] ||= []).push(t); });
+          const groupNames = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+          return (
+            <div className="hyg-check" key={c.id}>
+              <div className="hyg-head" onClick={() => { if (!selDossier) setOpenCheck(openCheck === c.id ? null : c.id); }} title="Voir les tickets">
+                <span className="hyg-count">{tks.length}</span>
+                <span className="hyg-label">{c.label}</span>
+                {!selDossier && <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>}
+              </div>
+              <div className="hyg-hint">{c.hint}</div>
+              {isOpen && (
+                <div className="sla-list">
+                  {groupNames.map((dn) => (
+                    <div key={dn} className="hyg-grp-wrap">
+                      <div className="hyg-grp">{dn} <span>({groups[dn].length})</span></div>
+                      {groups[dn].map((t) => (
+                        <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                          <span className="k">{t.cle}</span>
+                          <span className="sla-resume">{t.resume}</span>
+                          {t.who && <span className="sla-prio">{t.who}</span>}
+                          {t.extra && <span className="sla-late">{t.extra}</span>}
+                        </div>
+                      ))}
                     </div>
-                    {o.total > 0 && <Pipeline programmes={o.programmes} />}
-                    {o.noteChaine ? <p className="hint" style={{ margin: "6px 0 0" }}>{o.noteChaine}</p> : null}
-
-                    {o.total === 0 ? (
-                      <p className="hint" style={{ margin: "8px 0 0" }}>Programmes à renseigner par le dev.</p>
-                    ) : (
-                      <ul className="mb-list" style={{ marginTop: 8 }}>
-                        {shown.map((p) => (
-                          <li key={p.nom} className="ref-prog">
-                            <span className="ref-prog-nom">{p.nom}</span>
-                            {p.lie ? (
-                              <span className="ref-prog-tk">
-                                <Pill cat={p.etat} />
-                                {p.tickets.map((t) => (
-                                  <button key={t.cle} className="ref-tk-link" onClick={() => openTicket(t.cle)} title={t.resume}>{t.cle}</button>
-                                ))}
-                              </span>
-                            ) : (
-                              <span className="ref-prog-none">non lié à un ticket</span>
-                            )}
-                          </li>
-                        ))}
-                        {o.programmes.length > 6 && (
-                          <li className="mb-more" onClick={() => setOpen((s) => ({ ...s, [o.code]: !isOpen }))}>
-                            {isOpen ? "▾ réduire" : `▸ voir les ${o.programmes.length - 6} autre(s)…`}
-                          </li>
-                        )}
-                      </ul>
-                    )}
-                  </div>
+                  ))}
                 </div>
-              );
-            })}
-          </div>
-        </div>
-      ))}
-    </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="sla-note">
+        Anomalies calculées sur le snapshot Jira courant ({rep.staleDays} j = seuil de « sans mouvement »).
+        « Sans description » et « sans estimation » pourront s'ajouter en v2 (champs non chargés en masse aujourd'hui, pour préserver la vitesse d'import).
+      </p>
+    </div>
   );
 }
