@@ -66,7 +66,7 @@ export async function claimAccount(token, email, password) {
   setToken(data.token);
   return data;
 }
-export const adminInvite = (days = 14) => post(`/api/admin/invite`, { days });
+export const adminInvite = (opts = {}) => post(`/api/admin/invite`, opts);
 export const fetchAdminUsers = () => req(`/api/admin/users`);
 export const removeAdminUser = (email) => post(`/api/admin/users/remove`, { email });
 export const ping = () => post(`/api/ping`, {});

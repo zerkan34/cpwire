@@ -145,7 +145,13 @@ function normalize(it) {
   const due = f.duedate ? new Date(f.duedate) : null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const enRetard = Boolean(due && due < today && statut !== "Terminé");
+  const cat = categoryFromStatus(statusName);
+  // « En retard » ne concerne que les tickets encore EN CHARGE DE PRODUCTION
+  // (à faire / en cours / retours test ou prod). Un ticket déjà livré et en attente
+  // de recette (Armonie ou client), de validation client, de mise en prod ou terminé
+  // n'est PAS « en retard de développement », même si sa date d'échéance d'origine est passée.
+  const LATE_CATS = new Set(["afaire", "encours", "retourTest", "retourProd"]);
+  const enRetard = Boolean(due && due < today && LATE_CATS.has(cat));
 
   const assigne = f.assignee?.displayName ? displayName(f.assignee.displayName) : "Non assigné";
   const summary = f.summary || "";
@@ -165,7 +171,7 @@ function normalize(it) {
     priorite: f.priority?.name || "",
     statutJira: statusName,
     statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)
-    categorie: categoryFromStatus(statusName), // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
+    categorie: cat, // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
     echeance: f.duedate || null,
     enRetard,
     flagged,

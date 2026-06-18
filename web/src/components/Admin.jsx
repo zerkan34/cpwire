@@ -19,6 +19,11 @@ export default function Admin() {
   const [linkUntil, setLinkUntil] = useState("");
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Options d'invitation
+  const [unit, setUnit] = useState("days");      // "days" | "hours"
+  const [amount, setAmount] = useState(14);
+  const [indefinite, setIndefinite] = useState(false);
+  const [asAdmin, setAsAdmin] = useState(false);
   const [dol, setDol] = useState(null);          // { configured, base }
   const [dolRes, setDolRes] = useState(null);     // résultat de la sonde
   const [dolBusy, setDolBusy] = useState(false);
@@ -41,10 +46,13 @@ export default function Admin() {
   const invite = async () => {
     setBusy(true); setErr(""); setCopied(false);
     try {
-      const r = await adminInvite(14);
+      const role = asAdmin ? "admin" : "consultation";
+      const n = Math.max(1, Number(amount) || 1);
+      const opts = indefinite ? { indefinite: true, role } : (unit === "hours" ? { hours: n, role } : { days: n, role });
+      const r = await adminInvite(opts);
       const l = `${window.location.origin}/?invite=${encodeURIComponent(r.token)}`;
       setLink(l);
-      setLinkUntil(new Date(r.expiresAt).toLocaleDateString("fr-FR", { dateStyle: "long" }));
+      setLinkUntil(r.indefinite ? "indéfiniment" : new Date(r.expiresAt).toLocaleDateString("fr-FR", { dateStyle: "long" }));
       try { await navigator.clipboard.writeText(l); setCopied(true); } catch { /* copie manuelle */ }
     } catch (e) { setErr(e.message || "Erreur"); }
     finally { setBusy(false); }
@@ -65,13 +73,42 @@ export default function Admin() {
 
       <div className="panel adm-invite">
         <h3>Inviter quelqu'un</h3>
-        <p className="adm-sub">Génère un lien d'invitation valable 14 jours. Copiez-le et envoyez-le à la personne.</p>
-        <button className="btn cn-save" onClick={invite} disabled={busy}>{busy ? "Génération…" : "Générer un lien d'invitation"}</button>
+        <p className="adm-sub">Génère un lien d'invitation. La personne l'ouvre, crée son email et son mot de passe.</p>
+
+        <div className="adm-inv-opts">
+          <div className="adm-opt-row">
+            <span className="adm-opt-lbl">Durée d'accès</span>
+            <div className={`adm-dur ${indefinite ? "off" : ""}`}>
+              <input type="number" min="1" value={amount} disabled={indefinite}
+                onChange={(e) => setAmount(e.target.value)} className="adm-num" />
+              <div className="adm-seg">
+                <button type="button" className={unit === "days" ? "on" : ""} disabled={indefinite} onClick={() => setUnit("days")}>jours</button>
+                <button type="button" className={unit === "hours" ? "on" : ""} disabled={indefinite} onClick={() => setUnit("hours")}>heures</button>
+              </div>
+            </div>
+            <label className="adm-check">
+              <input type="checkbox" checked={indefinite} onChange={(e) => setIndefinite(e.target.checked)} />
+              <span>Indéfiniment</span>
+            </label>
+          </div>
+
+          <div className="adm-opt-row">
+            <span className="adm-opt-lbl">Niveau d'accès</span>
+            <label className={`adm-toggle ${asAdmin ? "danger" : ""}`}>
+              <input type="checkbox" checked={asAdmin} onChange={(e) => setAsAdmin(e.target.checked)} />
+              <span>Administrateur — droits complets (comme moi)</span>
+            </label>
+          </div>
+          {asAdmin && <p className="adm-warn">⚠️ Cette personne pourra tout faire : récaps, comptes rendus, modifications, et inviter/révoquer d'autres comptes.</p>}
+          {!asAdmin && <p className="adm-sub" style={{ margin: "2px 0 0" }}>Accès en <b>consultation</b> : lecture seule, sans récap ni compte rendu.</p>}
+        </div>
+
+        <button className="btn cn-save" onClick={invite} disabled={busy} style={{ marginTop: 14 }}>{busy ? "Génération…" : "Générer le lien d'invitation"}</button>
         {link && (
           <div className="adm-link">
             <input readOnly value={link} onFocus={(e) => e.target.select()} />
             <button className="btn cn-ghost" onClick={copy}>{copied ? "Copié ✓" : "Copier"}</button>
-            <span className="adm-link-meta">Valable jusqu'au {linkUntil}</span>
+            <span className="adm-link-meta">{asAdmin ? "Administrateur" : "Consultation"} · valable {linkUntil}</span>
           </div>
         )}
       </div>
@@ -87,7 +124,7 @@ export default function Admin() {
               {users.map((u) => (
                 <tr key={u.email}>
                   <td><b>{u.email}</b></td>
-                  <td>Consultation</td>
+                  <td>{u.role === "admin" ? <span className="adm-role-admin">Administrateur</span> : "Consultation"}</td>
                   <td>{u.online ? <span className="adm-on">● En ligne</span> : <span className="adm-off">○ Hors ligne</span>}</td>
                   <td>{u.online ? "maintenant" : sinceLabel(u.lastSeen)}</td>
                   <td className="r"><button className="adm-revoke" onClick={() => revoke(u.email)}>Révoquer</button></td>

@@ -113,18 +113,21 @@ function guard(req, res, next) {
   next();
 }
 
+// Rôles à droits complets : le propriétaire (owner) et les administrateurs invités (admin).
+const isAdmin = (role) => role === "owner" || role === "admin";
+
 // À placer APRÈS guard sur toute route qui modifie des données ou déclenche un envoi :
-// seul l'owner écrit. Les rôles consultation/guest sont en lecture seule → 403.
+// seuls l'owner et les admins écrivent. Les rôles consultation/guest sont en lecture seule → 403.
 function writeGuard(req, res, next) {
-  if (req.role !== "owner") {
+  if (!isAdmin(req.role)) {
     return res.status(403).json({ error: "Action non autorisée : accès en lecture seule." });
   }
   next();
 }
 
-// Réservé à l'administrateur (owner).
+// Réservé aux administrateurs (owner ou admin invité = droits complets).
 function adminGuard(req, res, next) {
-  if (req.role !== "owner") return res.status(403).json({ error: "Réservé à l'administrateur." });
+  if (!isAdmin(req.role)) return res.status(403).json({ error: "Réservé à l'administrateur." });
   next();
 }
 
@@ -331,13 +334,27 @@ app.post("/api/invite", guard, writeGuard, (req, res) => {
   res.json({ token, expiresAt: new Date(expMs).toISOString(), hours });
 });
 
-// ---- Admin : comptes invités (rôle consultation) + présence (owner uniquement) ----
+// ---- Admin : comptes invités + présence (owner/admin uniquement) ----
 // Génère un lien d'invitation à copier. La personne l'ouvre et crée son email + mot de passe.
+// Durée : soit `hours`, soit `days`, soit `indefinite` (validité ~1000 ans). Rôle : "consultation"
+// (lecture seule, par défaut) ou "admin" (droits complets, comme l'owner).
 app.post("/api/admin/invite", guard, adminGuard, (req, res) => {
-  const raw = Number(req.body?.days);
-  const days = Math.min(Math.max(Number.isFinite(raw) ? raw : 14, 1), 90);
-  const expMs = Date.now() + days * 86400000;
-  res.json({ token: makeInviteToken(expMs, "consultation"), expiresAt: new Date(expMs).toISOString(), days });
+  const b = req.body || {};
+  const role = b.role === "admin" ? "admin" : "consultation";
+  let expMs, scope;
+  if (b.indefinite) {
+    expMs = Date.now() + 1000 * 365 * 86400000; // ~1000 ans = pratiquement « indéfiniment »
+    scope = { indefinite: true };
+  } else if (Number.isFinite(Number(b.hours))) {
+    const hours = Math.min(Math.max(Number(b.hours), 1), 8760); // 1 h … 1 an
+    expMs = Date.now() + hours * 3600 * 1000;
+    scope = { hours };
+  } else {
+    const days = Math.min(Math.max(Number.isFinite(Number(b.days)) ? Number(b.days) : 14, 1), 365); // 1 … 365 j
+    expMs = Date.now() + days * 86400000;
+    scope = { days };
+  }
+  res.json({ token: makeInviteToken(expMs, role), expiresAt: new Date(expMs).toISOString(), role, ...scope });
 });
 
 // Liste des comptes + présence (qui est en ligne / vu pour la dernière fois). Silencieux côté invité.
@@ -456,13 +473,24 @@ app.get("/api/recap", guard, async (_req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-// Récap CHIFFRÉ du jour, par dossier — 100 % déterministe (aucune IA), document prêt à transmettre.
+// Récap DU JOUR = mouvements du jour, par dossier — 100 % déterministe (aucune IA).
+// On lit les vraies transitions de statut Jira de la journée : qui a fait quoi, où ça a atterri.
 app.get("/api/recap/chiffres", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
-    const html = buildRecapChiffres(withoutDeletedDevs(got.issues), {});
-    logEvent("recap_chiffres", "Récap chiffré du jour (tous dossiers)");
+    const issues = withoutDeletedDevs(got.issues);
+    // Fenêtre = aujourd'hui (00:00 → 24:00, heure locale serveur).
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start.getTime() + 24 * 3600 * 1000);
+    const startISO = start.toISOString(), endISO = end.toISOString();
+    const sT = start.getTime(), eT = end.getTime();
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const keys = issues.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(keys, startISO, endISO);
+    const html = buildRecapChiffres(issues, tr.items, { dateISO: startISO, capped: tr.capped });
+    logEvent("recap_chiffres", "Récap du jour — mouvements (tous dossiers)", { mouvements: (tr.items || []).filter((x) => (x.transitions || []).length).length, scanned: tr.scanned, capped: tr.capped });
     res.json({ generatedAt: new Date().toISOString(), html });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });

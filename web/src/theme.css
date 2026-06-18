@@ -2359,3 +2359,38 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* ===== v124 : "Bonjour Nikko" inline dans la barre au-dessus des onglets ===== */
 .greet-inline { margin-right: auto; align-self: center; font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; color: var(--indigo); display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
 .greet-inline::before { content: "👋"; font-size: 16px; }
+
+/* ===== v131 : options d'invitation (durée heures/jours + indéfini + administrateur) ===== */
+.adm-inv-opts { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
+.adm-opt-row { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.adm-opt-lbl { font-size: 11px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); min-width: 110px; }
+.adm-dur { display: inline-flex; align-items: center; gap: 8px; }
+.adm-dur.off { opacity: .45; }
+.adm-num { width: 72px; padding: 8px 10px; border: 1px solid var(--purple-line); border-radius: 9px; background: var(--card); color: var(--ink); font: inherit; font-weight: 700; }
+.adm-seg { display: inline-flex; border: 1px solid var(--purple-line); border-radius: 9px; overflow: hidden; }
+.adm-seg button { border: 0; background: transparent; padding: 8px 12px; font: inherit; font-weight: 700; color: var(--muted); cursor: pointer; }
+.adm-seg button.on { background: linear-gradient(135deg, var(--purple), var(--purple-strong)); color: #fff; }
+.adm-seg button:disabled { cursor: not-allowed; }
+.adm-check, .adm-toggle { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.adm-check input, .adm-toggle input { width: 17px; height: 17px; accent-color: var(--purple-strong); cursor: pointer; }
+.adm-toggle.danger { color: var(--gold-deep); font-weight: 800; }
+.adm-warn { margin: 4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--gold-deep); background: rgba(199,161,74,.10); border: 1px solid rgba(199,161,74,.30); border-radius: 9px; padding: 8px 11px; }
+.adm-role-admin { font-weight: 800; color: var(--gold-deep); }
+
+/* ===== v131 : trait NÉON sous le sous-onglet actif (ex. « Vue d'ensemble ») ===== */
+.subtab.active { position: relative; border-bottom-color: transparent; color: var(--indigo-deep); }
+.subtab.active::after {
+  content: ""; position: absolute; left: 12px; right: 12px; bottom: -2px; height: 2.5px; border-radius: 3px;
+  background: linear-gradient(90deg, var(--purple), var(--gold));
+  box-shadow: 0 0 5px var(--purple), 0 0 11px rgba(110,92,196,.75), 0 0 3px var(--gold);
+  animation: neonPulse 2.4s ease-in-out infinite;
+}
+@keyframes neonPulse { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
+@media (prefers-reduced-motion: reduce) { .subtab.active::after { animation: none; } }
+
+/* ===== v131 : chip de filtre client (anomalies) bien plus visible ===== */
+.hyg-filter { font-size: 12.5px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, var(--purple), var(--purple-strong)); border: 0;
+  box-shadow: 0 2px 7px rgba(90,72,176,.40); padding: 3px 6px 3px 13px; letter-spacing: .01em; }
+.hyg-filter button { background: rgba(255,255,255,.28); color: #fff; }
+.hyg-filter button:hover { background: rgba(255,255,255,.45); }
