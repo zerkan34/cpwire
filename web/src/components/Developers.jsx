@@ -108,6 +108,11 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         <span className="page-hero-k">Équipe</span>
         <h2>Développeurs</h2>
         <p>{realDevs} en activité{ancienRows.length ? ` · ${ancienRows.length} ancien(s)` : ""} · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}</p>
+        <div className="page-search on-hero">
+          <span className="ps-ic">🔎</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un développeur…" aria-label="Rechercher un développeur" />
+          {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+        </div>
       </div>
 
       {/* ---- Pouls de l'équipe (cadence réelle, déduite des dates Jira) ---- */}
@@ -148,11 +153,6 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
           <span className="recap-hd-meta">{realDevs} dev{realDevs > 1 ? "s" : ""} · {totalTickets} ticket{totalTickets > 1 ? "s" : ""}</span>
         </div>
         <div className="dev-panel-bd">
-          <div className="page-search">
-            <span className="ps-ic">🔎</span>
-            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un développeur…" aria-label="Rechercher un développeur" />
-            {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
-          </div>
           <div className="filters">
             <span className="fg-lbl">Dossier</span>
             {dossiers.map((d) => (

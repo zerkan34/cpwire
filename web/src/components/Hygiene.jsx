@@ -35,6 +35,11 @@ export default function Hygiene({ issues = [], onTicket }) {
         <span className="page-hero-k">Qualité</span>
         <h2>Contrôle qualité Jira</h2>
         <p>Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.</p>
+        <div className="page-search on-hero">
+          <span className="ps-ic">🔎</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un dossier, un développeur…" aria-label="Rechercher dans les anomalies" />
+          {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+        </div>
       </div>
 
 
@@ -54,11 +59,6 @@ export default function Hygiene({ issues = [], onTicket }) {
       </table>
 
       <h3 className="sla-h">Anomalies à corriger {selDossier && <span className="hyg-filter">{selDossier} <button onClick={() => setSelDossier(null)} title="Tout afficher">✕</button></span>}</h3>
-      <div className="page-search" style={{ marginBottom: 12 }}>
-        <span className="ps-ic">🔎</span>
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un dossier, un développeur…" aria-label="Rechercher dans les anomalies" />
-        {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
-      </div>
       {rep.checks.length === 0 && <p className="sla-note">Aucune anomalie détectée 🎉</p>}
       <div className="hyg-checks">
         {rep.checks.map((c) => {
