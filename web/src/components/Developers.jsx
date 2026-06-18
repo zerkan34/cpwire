@@ -12,6 +12,7 @@ const fmt = (v, suffix = "") => (v === null || v === undefined ? "—" : `${v}${
 export default function Developers({ issues = [], onTicket, onDev, deletedDevs = [], inactiveDevs = [], inactiveMonths = 2, onMarkLeft, onRestoreDev }) {
   const [dossier, setDossier] = useState("Tous");
   const [weeks, setWeeks] = useState(8);
+  const [q, setQ] = useState(""); // recherche par nom de développeur (propre à la page)
   const [weekModal, setWeekModal] = useState(null); // détail d'une semaine (tickets résolus)
   const [rep, setRep] = useState(null);     // cadence (serveur)
   const delSet = new Set(deletedDevs);        // marqués manuellement "parti d'Armonie"
@@ -65,8 +66,9 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
   const isAuto = (d) => inactiveSet.has(d) && !delSet.has(d);
   const isAncien = (d) => d !== "Non assigné" && (isLeft(d) || isAuto(d));
 
-  const activeRows = rows.filter((r) => !isAncien(r.dev));
-  const ancienRows = rows.filter((r) => isAncien(r.dev));
+  const matchQ = (r) => !q.trim() || r.dev.toLowerCase().includes(q.trim().toLowerCase());
+  const activeRows = rows.filter((r) => !isAncien(r.dev)).filter(matchQ);
+  const ancienRows = rows.filter((r) => isAncien(r.dev)).filter(matchQ);
 
   const maxTotal = rows.reduce((m, r) => Math.max(m, r.total), 0) || 1;
   const totalTickets = issues.filter((i) => dossier === "Tous" || i.dossier === dossier).length;
@@ -146,6 +148,11 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
           <span className="recap-hd-meta">{realDevs} dev{realDevs > 1 ? "s" : ""} · {totalTickets} ticket{totalTickets > 1 ? "s" : ""}</span>
         </div>
         <div className="dev-panel-bd">
+          <div className="page-search">
+            <span className="ps-ic">🔎</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un développeur…" aria-label="Rechercher un développeur" />
+            {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+          </div>
           <div className="filters">
             <span className="fg-lbl">Dossier</span>
             {dossiers.map((d) => (

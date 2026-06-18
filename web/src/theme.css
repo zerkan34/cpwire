@@ -2382,8 +2382,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .subtab.active { position: relative; border-bottom-color: transparent; color: var(--indigo-deep); }
 .subtab.active::after {
   content: ""; position: absolute; left: 15px; right: 15px; bottom: -2px; height: 3px; border-radius: 3px;
-  background: #7b5cff; /* cœur néon violet, net (pas de dégradé pastel) */
-  box-shadow: 0 0 4px #7b5cff, 0 0 9px rgba(123,92,255,.95), 0 0 15px rgba(123,92,255,.5);
+  background: linear-gradient(90deg, var(--indigo) 0%, #5b54a8 40%, var(--orange) 100%); /* bleu → orange du header */
+  box-shadow: 0 0 4px var(--orange), 0 0 10px rgba(251,122,40,.7), 0 0 9px rgba(58,54,88,.45);
 }
 
 /* ===== v131 : chip de filtre client (anomalies) bien plus visible ===== */
@@ -2392,3 +2392,29 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   box-shadow: 0 2px 7px rgba(90,72,176,.40); padding: 3px 6px 3px 13px; letter-spacing: .01em; }
 .hyg-filter button { background: rgba(255,255,255,.28); color: #fff; }
 .hyg-filter button:hover { background: rgba(255,255,255,.45); }
+
+/* ===== v133 : champ de recherche PAR PAGE (réutilisable, stylé) ===== */
+.page-search { display: flex; align-items: center; gap: 8px; max-width: 440px; margin: 0 0 12px;
+  background: var(--card); border: 1px solid var(--purple-line); border-radius: 11px; padding: 8px 12px;
+  box-shadow: 0 1px 2px rgba(44,41,69,.05); transition: border-color .15s, box-shadow .15s; }
+.page-search:focus-within { border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.page-search .ps-ic { font-size: 14px; opacity: .7; }
+.page-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--ink); outline: none; }
+.page-search input::placeholder { color: var(--muted); }
+.page-search .ps-x { border: 0; background: rgba(0,0,0,.07); color: var(--muted); width: 20px; height: 20px; border-radius: 50%; cursor: pointer; line-height: 1; font-size: 13px; padding: 0; }
+.page-search .ps-x:hover { background: rgba(0,0,0,.14); }
+
+/* ===== v133 : Anomalies — conteneurs en cartes (cohérent avec la table client/dossier) + dev à droite ===== */
+.hyg-checks { gap: 11px; }
+.hyg-check { border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); overflow: hidden; background: var(--card); transition: box-shadow .15s; }
+.hyg-check:hover { box-shadow: 0 8px 22px rgba(44,41,69,.12); }
+.hyg-head { background: var(--purple-soft); border-bottom: 1px solid var(--purple-line); padding: 12px 14px; }
+.hyg-count { background: linear-gradient(135deg, var(--purple), var(--purple-strong)); color: #fff; }
+.hyg-label { font-weight: 700; color: var(--ink); }
+.hyg-check .sla-list { padding: 8px 12px 12px; }
+.sla-row { gap: 10px; }
+.hyg-dev { margin-left: auto; flex: 0 0 auto; font-size: 11px; font-weight: 800; color: #fff;
+  background: linear-gradient(135deg, var(--orange), var(--orange-deep)); border-radius: 99px; padding: 3px 11px; white-space: nowrap; box-shadow: 0 1px 3px rgba(224,96,15,.35); }
+
+/* ===== v133 : bandeaux de panneaux (« Pouls de l'équipe », etc.) éclaircis — moins foncés ===== */
+.recap-hd { background: linear-gradient(135deg, var(--purple), var(--purple-strong)); }

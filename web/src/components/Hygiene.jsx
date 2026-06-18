@@ -9,6 +9,7 @@ export default function Hygiene({ issues = [], onTicket }) {
   const [err, setErr] = useState("");
   const [openCheck, setOpenCheck] = useState(null);
   const [selDossier, setSelDossier] = useState(null);
+  const [q, setQ] = useState(""); // recherche propre à la page (clé, résumé, dossier, dev)
   const [fullId, setFullId] = useState(null); // anomalie dont on affiche TOUS les tickets
 
   useEffect(() => {
@@ -53,11 +54,18 @@ export default function Hygiene({ issues = [], onTicket }) {
       </table>
 
       <h3 className="sla-h">Anomalies à corriger {selDossier && <span className="hyg-filter">{selDossier} <button onClick={() => setSelDossier(null)} title="Tout afficher">✕</button></span>}</h3>
+      <div className="page-search" style={{ marginBottom: 12 }}>
+        <span className="ps-ic">🔎</span>
+        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un dossier, un développeur…" aria-label="Rechercher dans les anomalies" />
+        {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+      </div>
       {rep.checks.length === 0 && <p className="sla-note">Aucune anomalie détectée 🎉</p>}
       <div className="hyg-checks">
         {rep.checks.map((c) => {
-          const tks = selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets;
-          if (selDossier && tks.length === 0) return null;
+          const ql = q.trim().toLowerCase();
+          const tks = (selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets)
+            .filter((t) => !ql || `${t.cle} ${t.resume || ""} ${t.dossier || ""} ${t.who || ""}`.toLowerCase().includes(ql));
+          if ((selDossier || ql) && tks.length === 0) return null;
           const isOpen = openCheck === c.id;
           const groups = {};
           tks.forEach((t) => { (groups[t.dossier] ||= []).push(t); });
@@ -82,8 +90,8 @@ export default function Hygiene({ issues = [], onTicket }) {
                           <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
                             <span className="k">{t.cle}</span>
                             <span className="sla-resume">{t.resume}</span>
-                            {t.who && <span className="sla-prio">{t.who}</span>}
                             {t.extra && <span className="sla-late">{t.extra}</span>}
+                            {t.who && <span className="hyg-dev">{t.who}</span>}
                           </div>
                         ))}
                       </div>
