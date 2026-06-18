@@ -2377,16 +2377,14 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .adm-warn { margin: 4px 0 0; font-size: 12.5px; font-weight: 600; color: var(--gold-deep); background: rgba(199,161,74,.10); border: 1px solid rgba(199,161,74,.30); border-radius: 9px; padding: 8px 11px; }
 .adm-role-admin { font-weight: 800; color: var(--gold-deep); }
 
-/* ===== v131 : trait NÉON sous le sous-onglet actif (ex. « Vue d'ensemble ») ===== */
+/* ===== v133 : trait NÉON net sous le sous-onglet actif + baseline raccourcie ===== */
+@media (min-width: 681px) { .subtabs { width: fit-content; max-width: 100%; } } /* le trait gris ne fait plus toute la largeur */
 .subtab.active { position: relative; border-bottom-color: transparent; color: var(--indigo-deep); }
 .subtab.active::after {
-  content: ""; position: absolute; left: 12px; right: 12px; bottom: -2px; height: 2.5px; border-radius: 3px;
-  background: linear-gradient(90deg, var(--purple), var(--gold));
-  box-shadow: 0 0 5px var(--purple), 0 0 11px rgba(110,92,196,.75), 0 0 3px var(--gold);
-  animation: neonPulse 2.4s ease-in-out infinite;
+  content: ""; position: absolute; left: 15px; right: 15px; bottom: -2px; height: 3px; border-radius: 3px;
+  background: #7b5cff; /* cœur néon violet, net (pas de dégradé pastel) */
+  box-shadow: 0 0 4px #7b5cff, 0 0 9px rgba(123,92,255,.95), 0 0 15px rgba(123,92,255,.5);
 }
-@keyframes neonPulse { 0%,100% { opacity: 1; } 50% { opacity: .72; } }
-@media (prefers-reduced-motion: reduce) { .subtab.active::after { animation: none; } }
 
 /* ===== v131 : chip de filtre client (anomalies) bien plus visible ===== */
 .hyg-filter { font-size: 12.5px; font-weight: 800; color: #fff;
