@@ -31,10 +31,12 @@ export default function Hygiene({ issues = [], onTicket }) {
   const g = rep.global || {};
   return (
     <div className="sla-wrap">
-      <div className="page-hero">
-        <span className="page-hero-k">Qualité</span>
-        <h2>Contrôle qualité Jira</h2>
-        <p>Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.</p>
+      <div className="page-hero hero-with-search">
+        <div className="ph-main">
+          <span className="page-hero-k">Qualité</span>
+          <h2>Contrôle qualité Jira</h2>
+          <p>Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.</p>
+        </div>
         <div className="page-search on-hero">
           <span className="ps-ic">🔎</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un dossier, un développeur…" aria-label="Rechercher dans les anomalies" />
@@ -74,10 +76,12 @@ export default function Hygiene({ issues = [], onTicket }) {
             <div className="hyg-check" key={c.id}>
               <div className="hyg-head" onClick={() => setOpenCheck(openCheck === c.id ? null : c.id)} title="Voir les tickets">
                 <span className="hyg-count">{tks.length}</span>
-                <span className="hyg-label">{c.label}</span>
+                <div className="hyg-head-main">
+                  <span className="hyg-label">{c.label}</span>
+                  <span className="hyg-hint">{c.hint}</span>
+                </div>
                 <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>
               </div>
-              <div className="hyg-hint">{c.hint}</div>
               {isOpen && (
                 <div className="sla-list">
                   {groupNames.map((dn) => {

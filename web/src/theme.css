@@ -2382,8 +2382,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .subtab.active { position: relative; border-bottom-color: transparent; color: var(--indigo-deep); }
 .subtab.active::after {
   content: ""; position: absolute; left: 15px; right: 15px; bottom: -2px; height: 3px; border-radius: 3px;
-  background: linear-gradient(90deg, var(--indigo) 0%, #5b54a8 40%, var(--orange) 100%); /* bleu → orange du header */
-  box-shadow: 0 0 4px var(--orange), 0 0 10px rgba(251,122,40,.7), 0 0 9px rgba(58,54,88,.45);
+  background: linear-gradient(90deg, var(--gold-deep), var(--gold) 50%, #ecc863); /* néon or */
+  box-shadow: 0 0 4px var(--gold), 0 0 10px rgba(199,161,74,.85), 0 0 15px rgba(199,161,74,.5);
 }
 
 /* ===== v131 : chip de filtre client (anomalies) bien plus visible ===== */
@@ -2416,10 +2416,21 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .hyg-dev { margin-left: auto; flex: 0 0 auto; font-size: 11px; font-weight: 800; color: #fff;
   background: linear-gradient(135deg, var(--orange), var(--orange-deep)); border-radius: 99px; padding: 3px 11px; white-space: nowrap; box-shadow: 0 1px 3px rgba(224,96,15,.35); }
 
-/* ===== v134 : bandeaux harmonisés sur le FOND DU HEADER (indigo→orange) — toutes pages ===== */
-.recap-hd, .cli-h, .filter-box-hd, .enc-hd { background: var(--hd-logo); }
+/* ===== v135 : bandeaux de panneaux (« Pouls de l'équipe », etc.) en PASTEL clair ===== */
+.recap-hd { background: var(--purple-soft); color: var(--ink); box-shadow: inset 0 -2px 0 rgba(199,161,74,.45); border-bottom: 1px solid var(--purple-line); }
+.recap-hd-name { color: var(--ink); }
+.recap-hd-meta { color: var(--muted); }
 
-/* Recherche posée DANS le bandeau (page-hero) : champ clair lisible sur le dégradé sombre */
-.page-hero .page-search.on-hero { margin: 14px 0 0; max-width: 460px;
+/* Recherche posée DANS le bandeau, À DROITE (le bandeau garde sa taille d'origine) */
+.page-hero.hero-with-search { display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+.page-hero.hero-with-search .ph-main { min-width: 0; flex: 1 1 320px; }
+.page-hero .page-search.on-hero { margin: 0; flex: 0 0 340px; max-width: 340px;
   background: rgba(255,255,255,.95); border-color: rgba(255,255,255,.5); }
 .page-hero .page-search.on-hero:focus-within { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+@media (max-width: 720px) { .page-hero .page-search.on-hero { flex-basis: 100%; max-width: 100%; } }
+
+/* ===== v135 : carte anomalie — texte d'aide remonté SOUS LE TITRE, en-tête compact ===== */
+.hyg-head { align-items: flex-start; }
+.hyg-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hyg-head .hyg-label { flex: none; }
+.hyg-head .hyg-hint { padding: 0; margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
