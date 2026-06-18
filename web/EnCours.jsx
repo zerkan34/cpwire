@@ -1,124 +1,105 @@
-import React, { useMemo, useState } from "react";
-import { genMorningCR, genWrittenCR } from "../api.js";
-import DocPreview from "./DocPreview.jsx";
+import React, { useState } from "react";
 
-// Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
-const ACTIVE = ["encours", "retourTest"];
-const ORDER = [
-  ["encours", "En cours", "prog"],
-  ["retourTest", "Retour test", "todo"],
-];
+const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+const STATUT_ORDER = { Bloqué: 0, "À faire": 1, "En cours": 2, Terminé: 3 };
 
-// Phrase d'état claire (langage courant) pour chaque ticket du brief.
-function etatLabel(i) {
-  if (i.statut === "Bloqué" || i.flagged) return "bloqué";
-  if (i.categorie === "encours") return "en cours de réalisation";
-  if (i.categorie === "retourTest") return "renvoyé en test";
-  return (i.statut || "en cours").toLowerCase();
+function fmtDate(s) {
+  if (!s) return "";
+  try { return new Date(s).toLocaleDateString("fr-FR"); } catch { return s; }
 }
 
-export default function Morning({ issues = [], onTicket }) {
-  const [busy, setBusy] = useState("");
-  const [doc, setDoc] = useState(null);
-  const [err, setErr] = useState("");
-  const [openD, setOpenD] = useState(null);
+function prioClass(p) {
+  const x = (p || "").toLowerCase();
+  if (/haut|high|criti|urgen|bloqu/.test(x)) return "p-haute";
+  if (/moy|medium|normal/.test(x)) return "p-moyenne";
+  if (/bas|low|mineur|minor|trivial/.test(x)) return "p-basse";
+  return "";
+}
 
-  const parDossier = useMemo(() => {
-    const m = {};
-    issues.filter((i) => ACTIVE.includes(i.categorie)).forEach((i) => {
-      (m[i.dossier] ||= []).push(i);
-    });
-    return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
-  }, [issues]);
+// Colonnes triables (clé d'accès + façon de comparer).
+const COLS = [
+  { key: "cle", label: "Clé", get: (r) => r.cle, type: "text" },
+  { key: "dossier", label: "Dossier", get: (r) => r.dossier, type: "text" },
+  { key: "resume", label: "Résumé", get: (r) => r.resume, type: "text" },
+  { key: "assigne", label: "Sur le ticket", get: (r) => (r.contributors && r.contributors.length ? r.contributors[0] : r.assigne || ""), type: "text" },
+  { key: "echeance", label: "Échéance", get: (r) => r.echeance || "", type: "date" },
+  { key: "statut", label: "Statut", get: (r) => STATUT_ORDER[r.statut] ?? 99, type: "num" },
+];
 
-  const make = async (dossier, kind = "morning") => {
-    const key = `${dossier}|${kind}`;
-    setBusy(key); setErr("");
-    try {
-      const today = new Date().toISOString().slice(0, 10);
-      if (kind === "written") {
-        const { html } = await genWrittenCR(dossier);
-        setDoc({ title: `CR écrit — ${dossier}`, html, filename: `CR_ecrit_${dossier}_${today}.html` });
-      } else {
-        const { html } = await genMorningCR(dossier);
-        setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${today}.html` });
-      }
-    } catch (e) { setErr(e.message); }
-    finally { setBusy(""); }
+export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys }) {
+  const [sortKey, setSortKey] = useState(null);   // null = tri "intelligent" par défaut
+  const [sortDir, setSortDir] = useState("asc");
+
+  if (loading && !rows.length) return <div className="empty">Chargement des tickets…</div>;
+  if (!rows.length) return <div className="empty">Aucun ticket pour ce filtre. Rien à traiter ici.</div>;
+
+  const clickHeader = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
   };
 
-  const totalActif = parDossier.reduce((s, [, arr]) => s + arr.length, 0);
+  let sorted;
+  if (!sortKey) {
+    // Tri par défaut : mes tickets, puis en retard, puis statut, puis dossier.
+    sorted = [...rows].sort((a, b) => {
+      if (a.mine !== b.mine) return a.mine ? -1 : 1;
+      if (a.enRetard !== b.enRetard) return a.enRetard ? -1 : 1;
+      if ((STATUT_ORDER[a.statut] ?? 9) !== (STATUT_ORDER[b.statut] ?? 9)) return (STATUT_ORDER[a.statut] ?? 9) - (STATUT_ORDER[b.statut] ?? 9);
+      return a.dossier.localeCompare(b.dossier);
+    });
+  } else {
+    const col = COLS.find((c) => c.key === sortKey);
+    const dir = sortDir === "asc" ? 1 : -1;
+    sorted = [...rows].sort((a, b) => {
+      const va = col.get(a), vb = col.get(b);
+      let r;
+      if (col.type === "num") r = (va || 0) - (vb || 0);
+      else if (col.type === "date") r = String(va).localeCompare(String(vb)); // ISO -> ordre chrono
+      else r = String(va).localeCompare(String(vb), "fr", { numeric: true });
+      return r * dir;
+    });
+  }
+
+  const arrow = (key) => {
+    if (sortKey !== key) return <span className="sort-ar dim">⇅</span>;
+    return <span className="sort-ar">{sortDir === "asc" ? "▲" : "▼"}</span>;
+  };
 
   return (
-    <>
-      <div className="section-title">Brief du matin
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— état des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""})
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
-      </p>
-      {err && <div className="banner">Erreur : {err}</div>}
-      <div className="row-actions" style={{ marginBottom: 16 }}>
-        <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
-          {busy === "Tous|morning" ? "Préparation…" : "Préparer le brief (tous les clients)"}
-        </button>
-      </div>
-
-      {parDossier.length === 0 ? (
-        <div className="panel empty">Rien d'actif à passer en revue — tout est en recette, en prod ou terminé. 🎉</div>
-      ) : (
-        <div className="recap-grid">
-          {parDossier.map(([dossier, items]) => {
-            const count = (c) => items.filter((i) => i.categorie === c).length;
-            const open = openD === dossier;
-            return (
-              <div className="recap-card" key={dossier}>
-                <div className="recap-hd">
-                  <span className="recap-hd-name">{dossier}</span>
-                  <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
-                </div>
-                <div className="recap-bd">
-                <div className="mb-pills">
-                  {ORDER.map(([c, label, pill]) => count(c) ? (
-                    <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
-                  ) : null)}
-                </div>
-                <ul className="mb-list">
-                  {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} className="mb-li" onClick={() => onTicket(i)}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                        <span className="k">{i.cle}</span>
-                        <span style={{ flex: 1 }}>{i.resume}</span>
-                      </div>
-                      <div className="mb-state">
-                        {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}
-                        <b>{etatLabel(i)}</b>{i.enRetard ? <span className="late"> · en retard ⚠</span> : null}
-                      </div>
-                    </li>
-                  ))}
-                  {items.length > 5 && (
-                    <li className="mb-more" onClick={() => setOpenD(open ? null : dossier)}>
-                      {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
-                    </li>
-                  )}
-                </ul>
-                <div className="mb-actions">
-                  <button className="btn-solid gold" onClick={() => make(dossier, "morning")} disabled={busy === `${dossier}|morning`}>
-                    {busy === `${dossier}|morning` ? "Préparation…" : "Brief du matin"}
-                  </button>
-                  <button className="btn-solid" onClick={() => make(dossier, "written")} disabled={busy === `${dossier}|written`}>
-                    {busy === `${dossier}|written` ? "Génération…" : "CR écrit"}
-                  </button>
-                </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {doc && <DocPreview {...doc} onClose={() => setDoc(null)} />}
-    </>
+    <table>
+      <thead>
+        <tr>
+          {COLS.map((c) => (
+            <th key={c.key} className="th-sort" onClick={() => clickHeader(c.key)} title="Trier">
+              {c.label} {arrow(c.key)}
+            </th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => {
+          const cls = [r.mine ? "mine" : "", r.flagged ? "has-flag" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
+          return (
+            <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
+              <td data-label="Clé"><span className="k">{r.cle}</span></td>
+              <td data-label="Dossier"><span className="tag">{r.dossier}</span></td>
+              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
+              <td data-label="Sur le ticket">{(r.contributors && r.contributors.length) ? (
+                r.contributors.map((c, idx) => (
+                  <span key={c}>
+                    {idx > 0 && <span className="who-sep">, </span>}
+                    {onDev
+                      ? <span className="assignee-link" title="Voir la fiche du développeur" onClick={(e) => { e.stopPropagation(); onDev(c); }}>{c}</span>
+                      : c}
+                  </span>
+                ))
+              ) : <span className="who-none">Non assigné</span>}</td>
+              <td data-label="Échéance">{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
+              <td data-label="Statut"><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }
