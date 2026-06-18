@@ -2422,7 +2422,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .recap-hd-meta { color: var(--muted); }
 
 /* Recherche posée DANS le bandeau, À DROITE (le bandeau garde sa taille d'origine) */
-.page-hero.hero-with-search { display: flex; align-items: center; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+.page-hero.hero-with-search { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
 .page-hero.hero-with-search .ph-main { min-width: 0; flex: 1 1 320px; }
 .page-hero .page-search.on-hero { margin: 0; flex: 0 0 340px; max-width: 340px;
   background: rgba(255,255,255,.95); border-color: rgba(255,255,255,.5); }
