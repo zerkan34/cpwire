@@ -67,9 +67,8 @@ function greetMessage(role, me) {
 }
 const TABS = [
   { id: "cockpit", label: "Cockpit" },
-  { id: "devs", label: "Développeurs" },
+  { id: "outils", label: "Équipe & outils" },
   { id: "qualite", label: "Qualité" },
-  { id: "comptesrendus", label: "Récap" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -83,14 +82,11 @@ const SUBTABS = {
     { id: "projets", label: "Suivi projets" },
     { id: "documents", label: "Documents" },
   ],
-  devs: [
-    { id: "devs", label: "Développeurs" },
-  ],
   qualite: [
     { id: "hygiene", label: "Qualité" },
   ],
-  comptesrendus: [
-    { id: "recap", label: "Récap du jour" },
+  outils: [
+    { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
     { id: "historique", label: "Historique" },
@@ -98,18 +94,18 @@ const SUBTABS = {
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "devs", "qualite", "comptesrendus"];
+const PRIMARY = ["cockpit", "outils", "qualite"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "devs", "qualite", "comptesrendus"];
+const CONSULT_TABS = ["cockpit", "outils", "qualite"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Portef.", devs: "Devs", qualite: "Qualité", comptesrendus: "Récap" };
+const TAB_SHORT = { cockpit: "Portef.", outils: "Outils", qualite: "Qualité" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
   const subs = SUBTABS[groupId] || [];
   if (role === "owner") return subs;
-  const hidden = new Set(["memoire", "recap", "morning", "reunions"]);
+  const hidden = new Set(["memoire", "recap", "morning", "reunions", "cra"]);
   return subs.filter((s) => !hidden.has(s.id));
 }
 
@@ -122,6 +118,7 @@ function NavIcon({ id }) {
     case "recap": return (<svg viewBox="0 0 24 24" {...p}><line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" /><circle cx="4" cy="6" r="0.7" /><circle cx="4" cy="12" r="0.7" /><circle cx="4" cy="18" r="0.7" /></svg>);
     case "morning": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M2 12h2M20 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4" /></svg>);
     case "devs": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>);
+    case "outils": return (<svg viewBox="0 0 24 24" {...p}><circle cx="8.5" cy="8" r="3.2" /><path d="M3 19c0-3 2.6-4.6 5.5-4.6" /><path d="M14.8 14.2l4.5 4.5M19.3 14.7l-4.5 4.5" /><circle cx="16.8" cy="9" r="2.4" /></svg>);
     case "meetings": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="5" width="18" height="16" rx="2" /><line x1="3" y1="9.5" x2="21" y2="9.5" /><line x1="8" y1="3" x2="8" y2="6" /><line x1="16" y1="3" x2="16" y2="6" /></svg>);
     case "cra": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="13" r="7.5" /><path d="M12 9.5V13l2.5 1.5M9.5 2.5h5M12 2.5v2" /></svg>);
     case "history": return (<svg viewBox="0 0 24 24" {...p}><path d="M3.5 12a8.5 8.5 0 1 0 2.7-6.2" /><path d="M3 4.5V9h4.5" /><path d="M12 8v4l3 2" /></svg>);
@@ -567,7 +564,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "devs", "qualite"] : PRIMARY;
+  const primaryTabs = role === "consultation" ? ["cockpit", "outils", "qualite"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -679,24 +676,17 @@ export default function App() {
         </>
       )}
 
-      {tab === "comptesrendus" && sub === "recap" && <DailyRecap onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />}
       {tab === "cockpit" && sub === "activite" && (
         <>
-          <PageHero k="Cockpit" title="Activité" sub="Tickets actifs et historique des mouvements Jira — génère un récap quand tu veux." />
-          {role === "owner" && (
-            <div className="cr-jump">
-              <button className="btn-solid" onClick={() => { setTab("comptesrendus"); setSub("recap"); }}>📝 Générer un récap de l'activité</button>
-            </div>
-          )}
+          <PageHero k="Cockpit" title="Activité" sub="Les tickets actifs et les mouvements Jira récents." />
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
-          <History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
         </>
       )}
-      {tab === "comptesrendus" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
-      {tab === "devs" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
-      {tab === "comptesrendus" && sub === "reunions" && <Meetings issues={issues} />}
-      {tab === "comptesrendus" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
-      {tab === "comptesrendus" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
+      {tab === "outils" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
+      {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
+      {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
+      {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "outils" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "reference" && (
         <>
