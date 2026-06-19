@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ProjetModal } from "./Projets.jsx";
-import { genDailyCR, genWrittenCR, fetchClientMails } from "../api.js";
+import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene } from "../api.js";
+import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
@@ -22,12 +23,14 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [selP, setSelP] = useState(null);
   const [busy, setBusy] = useState("");
   const [mails, setMails] = useState({ loading: true });
+  const [hyg, setHyg] = useState(null);
   useEffect(() => {
     let on = true;
     setMails({ loading: true });
     fetchClientMails(c.client).then((r) => on && setMails({ loading: false, ...r })).catch(() => on && setMails({ loading: false, configured: false, mails: [] }));
     return () => { on = false; };
   }, [c.client]);
+  useEffect(() => { let on = true; fetchHygiene().then((r) => on && setHyg(r)).catch(() => on && setHyg(null)); return () => { on = false; }; }, []);
   useModalBack(onClose);
   const hasBoth = /TMA/i.test(c.type || "") && /projet/i.test(c.type || "");
   const [seg, setSeg] = useState("all");
@@ -40,7 +43,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   if (facts && facts.byDossier) {
     const t = norm(c.client);
     for (const [d, f] of Object.entries(facts.byDossier)) {
-      if (norm(d) === t) { j = { total: f.total, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
+      if (norm(d) === t) { j = { present: true, total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
     }
   }
 
@@ -49,6 +52,13 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
       .slice().sort((x, y) => String(y.maj || "").localeCompare(String(x.maj || "")))
       .slice(0, 12);
   }, [issues, c.client, seg, hasBoth]);
+
+  const dossierIssues = useMemo(() => issues.filter((i) => norm(i.dossier) === norm(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg)), [issues, c.client, seg, hasBoth]);
+  const recSet = new Set(RECETTE), retSet = new Set(RETOUR);
+  const recetteItems = dossierIssues.filter((i) => recSet.has(i.categorie) || retSet.has(i.categorie))
+    .sort((a, b) => (retSet.has(b.categorie) ? 1 : 0) - (retSet.has(a.categorie) ? 1 : 0));
+  const hygScore = hyg ? (hyg.byDossier || []).find((d) => norm(d.dossier) === norm(c.client)) : null;
+  const hygChecks = hyg ? (hyg.checks || []).map((ch) => ({ id: ch.id, label: ch.label, tickets: (ch.tickets || []).filter((t) => norm(t.dossier) === norm(c.client)) })).filter((x) => x.tickets.length) : [];
 
   const reste = (fin.budgete || 0) - (fin.facture || 0);
   const doc = async (kind) => {
@@ -170,6 +180,35 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                       <span className="c360-act-res">{i.resume}</span>
                       <span className={`pill ${CAT_PILL[i.categorie] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
                       <span className="c360-act-meta">{i.dev && i.dev !== "Non assigné" ? i.dev + " · " : ""}{frDay(i.maj)}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+
+              {recetteItems.length > 0 && (<>
+                <h3 className="c360-sec">Recette — en validation ({recetteItems.length})</h3>
+                <ul className="c360-act">
+                  {recetteItems.slice(0, 12).map((i) => (
+                    <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
+                      <span className="c360-act-k">{i.cle}</span>
+                      <span className="c360-act-res">{i.resume}</span>
+                      <span className={`pill ${CAT_PILL[i.categorie] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
+                      <span className="c360-act-meta">{i.dev && i.dev !== "Non assigné" ? i.dev : ""}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>)}
+
+              <h3 className="c360-sec">Qualité Jira{hygScore && hygScore.score != null ? ` — ${hygScore.score}%` : ""}</h3>
+              {hyg == null ? <p className="c360-empty">Analyse en cours…</p>
+                : hygChecks.length === 0 ? <p className="c360-empty">Aucune anomalie sur ce dossier 🎉</p>
+                : (
+                <ul className="c360-act">
+                  {hygChecks.map((ch) => (
+                    <li key={ch.id} title={ch.label}>
+                      <span className="c360-act-k">{ch.tickets.length}</span>
+                      <span className="c360-act-res">{ch.label}</span>
+                      <span className="pill block">à corriger</span>
                     </li>
                   ))}
                 </ul>

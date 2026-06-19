@@ -2,6 +2,8 @@ import React, { useEffect, useState } from "react";
 import { fetchHygiene } from "../api.js";
 import DailyRecap from "./DailyRecap.jsx";
 import Portfolio from "./Portfolio.jsx";
+import EnCours from "./EnCours.jsx";
+import Recette from "./Recette.jsx";
 
 // Une pastille d'alerte ne s'affiche que si elle a du sens (n > 0).
 function Chip({ tone, n, label }) {
@@ -9,11 +11,15 @@ function Chip({ tone, n, label }) {
   return <span className={`home-chip ${tone}`}>{n} {label}</span>;
 }
 
-// Écran d'accueil unique : tout au même endroit.
-//  1) la ligne d'alertes (chiffres canoniques + anomalies qualité, même source que l'onglet Qualité)
-//  2) le récap temps réel qui explique ce qui bouge
-//  3) le tableau par dossier (clic → Fiche 360)
-export default function Home({ facts, engagement, onOpen, onOpen360, can360, onTicket, onDev, deletedDevs }) {
+// Écran d'accueil UNIQUE : une seule page complète, tout au même endroit.
+// Toutes les sections lisent la MÊME donnée (computeFacts / mêmes tickets) :
+// aucun chiffre ne peut diverger d'une section à l'autre — c'est un seul calcul.
+//   1) ligne d'alertes (chiffres canoniques + anomalies qualité, même source que Qualité)
+//   2) récap temps réel qui explique ce qui bouge
+//   3) tableau par dossier (clic → Fiche 360)
+//   4) Activité (tickets actifs + mouvements récents)
+//   5) Recette (avancement par dossier)
+export default function Home({ facts, issues = [], engagement, onOpen, onOpen360, can360, onTicket, onDev, deletedDevs, changedKeys }) {
   const g = facts?.global || {};
   const [anomalies, setAnomalies] = useState(null);
   useEffect(() => {
@@ -45,6 +51,12 @@ export default function Home({ facts, engagement, onOpen, onOpen360, can360, onT
 
       <div className="section-title"><span>Par dossier</span></div>
       <Portfolio facts={facts} engagement={engagement} onOpen={onOpen} onOpen360={onOpen360} can360={can360} />
+
+      <div className="section-title" style={{ marginTop: 28 }}><span>Activité</span></div>
+      <EnCours issues={issues} onTicket={onTicket} onDev={onDev} deletedDevs={deletedDevs} changedKeys={changedKeys} />
+
+      <div className="section-title" style={{ marginTop: 28 }}><span>Recette</span></div>
+      <Recette issues={issues} onTicket={onTicket} embedded />
     </div>
   );
 }

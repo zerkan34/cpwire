@@ -76,10 +76,6 @@ const SUBTABS = {
   cockpit: [
     { id: "accueil", label: "Accueil" },
     { id: "portefeuille", label: "Tickets" },
-    { id: "activite", label: "Activité" },
-    { id: "recette", label: "Recette" },
-    { id: "reference", label: "Référence" },
-    { id: "projets", label: "Suivi projets" },
     { id: "documents", label: "Documents" },
   ],
   qualite: [
@@ -87,6 +83,8 @@ const SUBTABS = {
   ],
   outils: [
     { id: "devs", label: "Développeurs" },
+    { id: "projets", label: "Suivi projets" },
+    { id: "reference", label: "Référence" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
     { id: "historique", label: "Historique" },
@@ -642,8 +640,8 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        <Home facts={facts} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
-          onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />
+        <Home facts={facts} issues={issues} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
+          onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
       )}
       {tab === "cockpit" && sub === "portefeuille" && (
         <>
@@ -688,14 +686,14 @@ export default function App() {
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "outils" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
-      {tab === "cockpit" && sub === "reference" && (
+      {tab === "outils" && sub === "reference" && (
         <>
           <PageHero k="Cockpit" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
           <Referentiel issues={issues} onTicket={setTicket} />
           {role === "owner" && <Connaissance />}
         </>
       )}
-      {tab === "cockpit" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
+      {tab === "outils" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}

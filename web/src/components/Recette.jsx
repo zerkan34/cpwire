@@ -11,7 +11,7 @@ const GROUP_CATS = {
   done: ["termine", "miseEnProd"],
 };
 
-export default function Recette({ issues = [], onTicket }) {
+export default function Recette({ issues = [], onTicket, embedded = false }) {
   const [sel, setSel] = useState({}); // { [dossier]: {kind:'group'|'cat', key} }
   const [q, setQ] = useState(""); // recherche propre à la page (dossier ou ticket)
   const ql = q.trim().toLowerCase();
@@ -62,6 +62,7 @@ export default function Recette({ issues = [], onTicket }) {
 
   return (
     <>
+      {!embedded && (
       <div className="rec-hero hero-with-search">
         <div className="ph-main">
           <span className="rec-hero-k">Recette</span>
@@ -74,6 +75,7 @@ export default function Recette({ issues = [], onTicket }) {
           {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
         </div>
       </div>
+      )}
 
       {data.filter((r) => !ql || r.dossier.toLowerCase().includes(ql) || r.items.some(matchItem)).map((r) => {
         const cur = sel[r.dossier];
