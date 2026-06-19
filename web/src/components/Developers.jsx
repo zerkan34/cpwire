@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchCadence } from "../api.js";
 
-const ACTIVE = ["encours", "retourTest", "retourProd"];
-const DONE = ["termine", "miseEnProd"];
+import { ACTIFS as ACTIVE, VALIDES as DONE } from "../groups.js";
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 const fmt = (v, suffix = "") => (v === null || v === undefined ? "—" : `${v}${suffix}`);
 
@@ -104,10 +103,12 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
 
   return (
     <>
-      <div className="page-hero">
-        <span className="page-hero-k">Équipe</span>
-        <h2>Développeurs</h2>
-        <p>{realDevs} en activité{ancienRows.length ? ` · ${ancienRows.length} ancien(s)` : ""} · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}</p>
+      <div className="page-hero hero-with-search">
+        <div className="ph-main">
+          <span className="page-hero-k">Équipe</span>
+          <h2>Développeurs</h2>
+          <p>{realDevs} en activité{ancienRows.length ? ` · ${ancienRows.length} ancien(s)` : ""} · {totalTickets} ticket(s){nonAssigne ? ` · ${nonAssigne} non assigné(s)` : ""}{dossier !== "Tous" ? ` · ${dossier}` : ""}</p>
+        </div>
         <div className="page-search on-hero">
           <span className="ps-ic">🔎</span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un développeur…" aria-label="Rechercher un développeur" />

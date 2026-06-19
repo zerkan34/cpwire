@@ -3,7 +3,7 @@ import { genMorningCR, genWrittenCR } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
 
 // Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
-const ACTIVE = ["encours", "retourTest"];
+import { ACTIFS as ACTIVE } from "../groups.js";
 const ORDER = [
   ["encours", "En cours", "prog"],
   ["retourTest", "Retour test", "todo"],

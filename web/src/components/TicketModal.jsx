@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { genTicketReport, pushTicket, explainTicket, fetchTicketActivity } from "../api.js";
-import { frDate, esc, buildSimpleDoc } from "../utils.js";
+import { frDate, esc, buildSimpleDoc, openExternal } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
 import { useReadOnly } from "../readonly.js";
 import ExportBar from "./ExportBar.jsx";
@@ -140,7 +140,8 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
           </div>
 
           {ticket.url && ticket.url !== "#" && (
-            <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer">Ouvrir le ticket dans Jira ↗</a>
+            <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer"
+              onClick={(e) => { e.preventDefault(); openExternal(ticket.url); }}>Ouvrir le ticket dans Jira ↗</a>
           )}
 
           {ticket.prog && (ticket.prog.found ? (

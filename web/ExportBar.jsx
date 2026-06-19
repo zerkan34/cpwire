@@ -1,60 +1,58 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 
-// Collecte AUTOMATIQUE des photos de l'équipe (déposées dans web/src/team/).
-// Inliné ici volontairement : le build ne dépend plus d'un fichier photos.js
-// séparé (qui pouvait manquer à l'upload). Si le dossier est vide ou absent,
-// import.meta.glob renvoie {} et l'avatar retombe sur les initiales — rien ne casse.
-const _mods = import.meta.glob("../team/*.{jpg,jpeg,png,webp,JPG,JPEG,PNG,WEBP}", {
-  eager: true, query: "?url", import: "default",
-});
-const PHOTOS = {};
-for (const _p in _mods) {
-  const _base = _p.split("/").pop().replace(/\.[^.]+$/, "").toLowerCase();
-  PHOTOS[_base] = _mods[_p];
-}
+// Bouton discret pour installer CPwire sur l'écran d'accueil.
+// Android/Chrome : utilise l'invite native. iPhone/Safari : affiche la marche à suivre.
+export default function InstallPWA() {
+  const [deferred, setDeferred] = useState(null);
+  const [iosHelp, setIosHelp] = useState(false);
 
-// Nom -> clé de fichier (minuscules, sans accents, tirets). Doit matcher le nom du fichier photo.
-export function slugify(name) {
-  return String(name || "")
-    .toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-}
+  const isStandalone =
+    (typeof window !== "undefined" &&
+      (window.matchMedia?.("(display-mode: standalone)").matches || window.navigator.standalone)) || false;
+  const isIos = typeof navigator !== "undefined" && /iphone|ipad|ipod/i.test(navigator.userAgent);
 
-function initials(name) {
-  const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-  if (!parts.length) return "?";
-  const a = parts[0][0] || "";
-  const b = parts.length > 1 ? parts[parts.length - 1][0] : "";
-  return (a + b).toUpperCase();
-}
+  useEffect(() => {
+    const onPrompt = (e) => { e.preventDefault(); setDeferred(e); };
+    const onInstalled = () => setDeferred(null);
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", onPrompt);
+      window.removeEventListener("appinstalled", onInstalled);
+    };
+  }, []);
 
-// Couleur stable dérivée du nom (mêmes initiales = même couleur à chaque fois).
-function hue(name) {
-  let h = 0;
-  const s = String(name || "");
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) % 360;
-  return h;
-}
+  if (isStandalone) return null;            // déjà installée
+  if (!deferred && !isIos) return null;     // navigateur sans installation possible
 
-export default function Avatar({ name, size = 40 }) {
-  const [broken, setBroken] = useState(false);
-  const url = PHOTOS[slugify(name)];
-  const base = { width: size, height: size, borderRadius: "50%", flex: "0 0 auto", objectFit: "cover" };
+  const click = async () => {
+    if (deferred) {
+      deferred.prompt();
+      try { await deferred.userChoice; } catch {}
+      setDeferred(null);
+    } else {
+      setIosHelp((v) => !v);
+    }
+  };
 
-  if (url && !broken) {
-    return <img className="avatar" src={url} alt={name} title={name} loading="lazy" style={base} onError={() => setBroken(true)} />;
-  }
-  const h = hue(name);
   return (
-    <span
-      className="avatar avatar-ini"
-      title={name}
-      style={{ ...base, display: "inline-flex", alignItems: "center", justifyContent: "center",
-        fontWeight: 700, fontSize: Math.round(size * 0.36), background: `hsl(${h} 50% 90%)`, color: `hsl(${h} 45% 34%)` }}
-    >
-      {initials(name)}
-    </span>
+    <>
+      <button className="install-fab" onClick={click} aria-label="Installer l'application">
+        ⬇ Installer l'appli
+      </button>
+      {iosHelp && (
+        <div className="install-ios" onClick={() => setIosHelp(false)}>
+          <div className="install-ios-box" onClick={(e) => e.stopPropagation()}>
+            <b>Installer CPwire sur ton iPhone</b>
+            <ol>
+              <li>Appuie sur le bouton <b>Partager</b> <span aria-hidden>􀈂</span> (en bas de Safari).</li>
+              <li>Choisis <b>« Sur l'écran d'accueil »</b>.</li>
+              <li>Appuie sur <b>Ajouter</b> — l'icône Armonie apparaît sur ton écran.</li>
+            </ol>
+            <button className="btn-solid" onClick={() => setIosHelp(false)}>Compris</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

@@ -257,10 +257,13 @@ function ResultPanel({ doc, busy, onRegen }) {
   );
 }
 
-function CompteRendu() {
+function CompteRendu({ issues = [] }) {
+  const dossiers = useMemo(() => Array.from(new Set(issues.map((i) => i.dossier).filter(Boolean))).sort(), [issues]);
   const [titre, setTitre] = useState("");
   const [equipe, setEquipe] = useState("TMA Armonie");
   const [participants, setParticipants] = useState("");
+  const [dossier, setDossier] = useState("");
+  const [consigne, setConsigne] = useState("");
   const [notes, setNotes] = useState("");
   const [transcript, setTranscript] = useState("");
   const [audio, setAudio] = useState(null);
@@ -277,6 +280,8 @@ function CompteRendu() {
       const fd = new FormData();
       fd.append("titre", titre); fd.append("participants", participants); fd.append("notes", notes);
       fd.append("equipe", equipe);
+      if (dossier) fd.append("dossier", dossier);
+      if (consigne.trim()) fd.append("consigne", consigne.trim());
       if (regen) fd.append("regenerate", "1");
       if (transcript) fd.append("transcript", transcript);
       if (audio) fd.append("audio", audio);
@@ -300,6 +305,11 @@ function CompteRendu() {
         </div>
         <div className="field"><label>Équipe / périmètre — modifiable (ex. « Projet Armonie » pour Tafanel, qui n'est pas de la TMA)</label>
           <input type="text" value={equipe} onChange={(e) => setEquipe(e.target.value)} placeholder="Ex. TMA Armonie" /></div>
+        <div className="field"><label>Dossier concerné — pour croiser les <b>vrais chiffres Jira</b> (recette Armonie, en cours…)</label>
+          <select className="meet-select" value={dossier} onChange={(e) => setDossier(e.target.value)}>
+            <option value="">Tous les dossiers</option>
+            {dossiers.map((d) => <option key={d} value={d}>{d}</option>)}
+          </select></div>
         <div className="field"><label>Notes prises en séance</label>
           <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Tes notes brutes : points évoqués, décisions, actions…" /></div>
         <div className="field"><label>Enregistrement (dictaphone) — transcrit si configuré</label>
@@ -311,6 +321,11 @@ function CompteRendu() {
           <div className="drop" onClick={() => imgRef.current.click()}>Cliquer pour ajouter des images</div>
           <input ref={imgRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => setImages(Array.from(e.target.files || []))} />
           {images.length > 0 && <div className="chips-files">{images.map((im, i) => <span className="chip-file" key={i}>🖼️ {im.name}</span>)}</div>}</div>
+        <div className="field meet-consigne"><label>💬 Consigne à l'IA — dis-lui quoi corriger ou prendre en compte</label>
+          <textarea className="ta" value={consigne} onChange={(e) => setConsigne(e.target.value)}
+            placeholder="Ex. « Le CR que j'ai collé n'est pas bon : corrige les volumes avec les vrais chiffres Jira du dossier sélectionné. Ne garde que les options réellement discutées. »" />
+          <p className="hint" style={{ marginTop: 6 }}>Les chiffres par catégorie (recette Armonie, en cours…) sont injectés depuis Jira comme <b>source de vérité</b> : si tes notes ou un CR collé les contredisent, l'IA les corrige. Pour repartir d'un CR existant, colle-le dans « Notes prises en séance ».</p>
+        </div>
         <div className="row-actions">
           <button className="btn-solid" onClick={() => generate(false)} disabled={busy}>{busy ? "Rédaction…" : (doc ? "↻ Régénérer avec l'IA" : "✨ Générer le compte rendu")}</button>
         </div>
@@ -339,7 +354,7 @@ export default function Meetings({ issues = [] }) {
           </div>
         )}
       </div>
-      {(ro || mode === "prep") ? <PrepReunion issues={issues} /> : <CompteRendu />}
+      {(ro || mode === "prep") ? <PrepReunion issues={issues} /> : <CompteRendu issues={issues} />}
     </>
   );
 }

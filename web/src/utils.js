@@ -47,6 +47,26 @@ export function printHtml(html) {
   }
 }
 
+// Ouvre une URL externe de façon fiable, en navigateur ET dans l'app desktop (Tauri).
+// En navigateur : window.open (avec repli sur la navigation directe si bloqué).
+// Dans Tauri : utilise l'opener exposé (plugin opener v2, shell v1, ou invoke).
+export function openExternal(url) {
+  if (!url) return;
+  try {
+    const t = typeof window !== "undefined" ? window.__TAURI__ : null;
+    if (t) {
+      if (t.opener && typeof t.opener.openUrl === "function") { t.opener.openUrl(url); return; }
+      if (t.shell && typeof t.shell.open === "function") { t.shell.open(url); return; }
+      if (t.core && typeof t.core.invoke === "function") {
+        t.core.invoke("plugin:opener|open_url", { url }).catch(() => window.open(url, "_blank", "noopener,noreferrer"));
+        return;
+      }
+    }
+  } catch { /* repli navigateur ci-dessous */ }
+  const w = window.open(url, "_blank", "noopener,noreferrer");
+  if (!w) { try { window.location.assign(url); } catch { /* rien de plus à faire */ } }
+}
+
 export function frDate(iso) {
   if (!iso) return "—";
   try { return new Date(iso).toLocaleString("fr-FR"); } catch { return iso; }

@@ -114,10 +114,15 @@ export function ProjetModal({ p, onClose }) {
   );
 }
 
-function ClientBlock({ c, onOpen, onOpen360 }) {
+function ClientBlock({ c, onOpen, onOpen360, q = "" }) {
   const j = c.jira || {};
   const [openAcc, setOpenAcc] = useState(false);
   const a = c.acces;
+  const ql = q.trim().toLowerCase();
+  const projets = ql
+    ? (c.projets || []).filter((p) => `${p.nom || ""} ${p.perimetre || ""} ${p.num || ""} ${p.etat || ""} ${c.client || ""}`.toLowerCase().includes(ql))
+    : (c.projets || []);
+  if (ql && projets.length === 0) return null;
   return (
     <section className="pf-client">
       <header className="pf-client-hd">
@@ -191,7 +196,7 @@ function ClientBlock({ c, onOpen, onOpen360 }) {
             </tr>
           </thead>
           <tbody>
-            {c.projets.map((p, i) => {
+            {projets.map((p, i) => {
               const color = METEO[p.meteo] || METEO.neutre;
               const pct = Math.round((p.avancement || 0) * 100);
               return (
@@ -227,6 +232,7 @@ export default function Projets({ issues = [], onTicket, onDev }) {
   const [sel, setSel] = useState(null);
   const [sel360, setSel360] = useState(null);
   const [dl, setDl] = useState(false);
+  const [q, setQ] = useState(""); // recherche propre à la page (projet, client, périmètre)
 
   useEffect(() => {
     let alive = true; setLoading(true); setErr("");
@@ -253,14 +259,21 @@ export default function Projets({ issues = [], onTicket, onDev }) {
   ];
   return (
     <div className="pf-wrap">
-      <div className="pf-hero">
-        <div className="pf-hero-t">
+      <div className="pf-hero hero-with-search">
+        <div className="ph-main pf-hero-t">
           <h2>Suivi de projets</h2>
           <p>Cockpit Armonie — enrichi en temps réel par Jira</p>
         </div>
-        <div className="pf-toolbar">
-          <button className="pf-tb-btn" onClick={exportXlsx} disabled={dl}>{dl ? "Export…" : "⬇ Excel"}</button>
-          <button className="pf-tb-btn pf-tb-pdf" onClick={exportPdf}>📄 PDF (charte)</button>
+        <div className="pf-hero-aside">
+          <div className="page-search on-hero">
+            <span className="ps-ic">🔎</span>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un projet, un client…" aria-label="Rechercher un projet" />
+            {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+          </div>
+          <div className="pf-toolbar">
+            <button className="pf-tb-btn" onClick={exportXlsx} disabled={dl}>{dl ? "Export…" : "⬇ Excel"}</button>
+            <button className="pf-tb-btn pf-tb-pdf" onClick={exportPdf}>📄 PDF (charte)</button>
+          </div>
         </div>
       </div>
 
@@ -300,7 +313,7 @@ export default function Projets({ issues = [], onTicket, onDev }) {
         ))}
       </div>
 
-      {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} onOpen360={setSel360} />)}
+      {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} onOpen360={setSel360} q={q} />)}
       <p className="pf-foot">Couche commerciale éditable, confrontée aux tickets Jira en direct{d.majSource ? ` · ${d.majSource}` : ""}.</p>
 
       {sel ? <ProjetModal p={sel} onClose={() => setSel(null)} /> : null}

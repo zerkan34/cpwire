@@ -1,118 +1,100 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { fetchSla } from "../api.js";
+import React, { useMemo, useState } from "react";
 
-// Humanise une durée en heures : "6 h", "3 j", "2 sem".
-function dur(h) {
-  if (h == null) return "—";
-  if (h < 24) return `${Math.round(h)} h`;
-  const j = h / 24;
-  if (j < 14) return `${Math.round(j)} j`;
-  return `${Math.round(j / 7)} sem`;
-}
-function tauxClass(t) {
-  if (t == null) return "";
-  if (t >= 95) return "sla-ok";
-  if (t >= 85) return "sla-warn";
-  return "sla-bad";
-}
+// Libellés des catégories (alignés sur server/config.js → CATEGORY_LABEL).
+const LABEL = {
+  afaire: "À faire", encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
+  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
+  miseEnProd: "Mise en prod", termine: "Terminé", annule: "Annulé",
+};
+// Ordre d'affichage du pipeline (du début vers la fin du cycle).
+const ORDER = ["afaire", "encours", "retourTest", "retourProd", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine", "annule"];
+const DONE = ["termine", "miseEnProd", "annule"];   // sortis du « reste à recetter »
+const RECETTE = ["recetteArmonie", "recetteClient"]; // actuellement en recette
+const RETOUR = ["retourTest", "retourProd"];          // revenus en arrière → à retravailler
 
-export default function SLA({ issues = [], onTicket }) {
-  const [rep, setRep] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState("");
+export default function Recette({ issues = [], onTicket }) {
+  const [open, setOpen] = useState({});
 
-  useEffect(() => {
-    let alive = true;
-    setLoading(true); setErr("");
-    fetchSla()
-      .then((r) => { if (alive) setRep(r); })
-      .catch((e) => { if (alive) setErr(e.message || "Erreur"); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, []);
+  const data = useMemo(() => {
+    const m = {};
+    issues.forEach((i) => {
+      const d = i.dossier || "Autre";
+      const r = (m[d] ||= { dossier: d, total: 0, cats: {}, items: [] });
+      r.total += 1;
+      r.cats[i.categorie] = (r.cats[i.categorie] || 0) + 1;
+      r.items.push(i);
+    });
+    return Object.values(m).map((r) => {
+      const done = DONE.reduce((s, k) => s + (r.cats[k] || 0), 0);
+      r.reste = r.total - done;                                    // pas encore validé
+      r.enRecette = RECETTE.reduce((s, k) => s + (r.cats[k] || 0), 0);
+      r.retours = RETOUR.reduce((s, k) => s + (r.cats[k] || 0), 0);
+      r.reworkItems = r.items.filter((i) => RETOUR.includes(i.categorie))
+        .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
+      const engs = new Set(r.items.map((i) => i.engagement).filter((e) => e && e !== "—"));
+      r.engagement = engs.size === 0 ? "" : engs.size === 1 ? [...engs][0] : "TMA + Projet";
+      return r;
+    }).sort((a, b) => b.reste - a.reste);
+  }, [issues]);
 
-  const byKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
-  const open = (cle) => { if (onTicket && byKey[cle]) onTicket(byKey[cle]); };
+  const totReste = data.reduce((s, r) => s + r.reste, 0);
+  const totRetours = data.reduce((s, r) => s + r.retours, 0);
 
-  if (loading) return <div className="empty">Calcul des SLA…</div>;
-  if (err) return <div className="empty">SLA indisponible : {err}</div>;
-  if (!rep || !rep.configured) {
-    return (
-      <div className="sla-intro">
-        <h2 className="section-title">Pilotage SLA</h2>
-        <p>Aucune cible définie. Renseigne les engagements (GTI/GTR) par client dans <code>server/sla.json</code>, puis redéploie.</p>
-      </div>
-    );
-  }
+  if (!issues.length) return <div className="panel empty">Aucune donnée — actualise depuis Jira.</div>;
 
-  const g = rep.global || {};
   return (
-    <div className="sla-wrap">
-      <h2 className="section-title">Pilotage des engagements (SLA)</h2>
-
-      <div className="sla-kpis">
-        <div className="sla-kpi"><div className={`v ${tauxClass(g.tauxGtr)}`}>{g.tauxGtr == null ? "—" : `${g.tauxGtr}%`}</div><div className="l">Respect GTR (résolus)</div></div>
-        <div className="sla-kpi"><div className={`v ${g.ouvDepasse ? "sla-bad" : "sla-ok"}`}>{g.ouvDepasse}</div><div className="l">Ouverts en dépassement</div></div>
-        <div className="sla-kpi"><div className={`v ${g.ouvRisque ? "sla-warn" : ""}`}>{g.ouvRisque}</div><div className="l">Ouverts à risque</div></div>
-        <div className="sla-kpi"><div className="v">{g.resolus}</div><div className="l">Résolus analysés</div></div>
+    <>
+      <div className="section-title">Recette — à recetter &amp; à retravailler
+        <span style={{ fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
+          {" "}— {totReste} à recetter · {totRetours} à retravailler
+        </span>
       </div>
-
-      <table className="data">
-        <thead><tr><th>Client / dossier</th><th>Résolus</th><th>Respect GTR</th><th>Dépass.</th><th>Ouverts en dépass.</th><th>À risque</th><th>Sans cible</th></tr></thead>
-        <tbody>
-          {rep.byDossier.map((d) => (
-            <tr key={d.dossier}>
-              <td><span className="tag">{d.dossier}</span></td>
-              <td>{d.resolus}</td>
-              <td className={tauxClass(d.tauxGtr)}><b>{d.tauxGtr == null ? "—" : `${d.tauxGtr}%`}</b></td>
-              <td>{d.gtrKo || "—"}</td>
-              <td className={d.ouvDepasse ? "sla-bad" : ""}><b>{d.ouvDepasse || "—"}</b></td>
-              <td className={d.ouvRisque ? "sla-warn" : ""}>{d.ouvRisque || "—"}</td>
-              <td className="muted-cell">{d.sansCible || "—"}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-
-      {rep.depassements.length > 0 && (
-        <>
-          <h3 className="sla-h">Tickets ouverts en dépassement de GTR</h3>
-          <div className="sla-list">
-            {rep.depassements.map((t) => (
-              <div className="sla-row sla-bad-row" key={t.cle} onClick={() => open(t.cle)} title="Ouvrir le ticket">
-                <span className="k">{t.cle}</span>
-                <span className="tag">{t.dossier}</span>
-                <span className="sla-prio">{t.bucket}</span>
-                <span className="sla-resume">{t.resume}</span>
-                <span className="sla-late">ouvert depuis {dur(t.ageH)} · cible {dur(t.gtrH)} · <b>+{dur(t.depassementH)}</b></span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      {rep.aRisque.length > 0 && (
-        <>
-          <h3 className="sla-h">Tickets à risque (proches de la cible)</h3>
-          <div className="sla-list">
-            {rep.aRisque.map((t) => (
-              <div className="sla-row sla-warn-row" key={t.cle} onClick={() => open(t.cle)} title="Ouvrir le ticket">
-                <span className="k">{t.cle}</span>
-                <span className="tag">{t.dossier}</span>
-                <span className="sla-prio">{t.bucket}</span>
-                <span className="sla-resume">{t.resume}</span>
-                <span className="sla-late">ouvert depuis {dur(t.ageH)} · cible {dur(t.gtrH)}</span>
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-
-      <p className="sla-note">
-        GTR = délai de résolution (créé → résolu), comparé à la cible contractuelle par client et priorité.
-        Délais <b>calendaires</b> pour l'instant (pas encore en heures ouvrées). La <b>prise en charge (GTI)</b> arrive en phase 2
-        (elle nécessite l'historique ticket par ticket). Cibles éditables dans <code>server/sla.json</code>.
+      <p className="hint" style={{ marginTop: -6 }}>
+        <b>Reste à recetter</b> = programmes pas encore validés (tout sauf <i>Mise en prod</i>, <i>Terminé</i>, <i>Annulé</i>).
+        {" "}<b>En recette</b> = actuellement en <i>Recette Armonie</i> ou <i>Recette client</i>.
+        {" "}<b>À retravailler</b> = revenus en <i>Retour test</i> / <i>Retour production</i>. Clique un programme pour voir sa <b>chaîne de statuts</b>.
       </p>
-    </div>
+
+      {data.map((r) => (
+        <div className="rec-card" key={r.dossier}>
+          <div className="rec-hd">
+            <span className="rec-name">{r.dossier}</span>
+            {r.engagement ? <span className={`eng-badge ${r.engagement === "Projet" ? "is-projet" : r.engagement === "TMA" ? "is-tma" : "is-mix"}`}>{r.engagement}</span> : null}
+            <span className="rec-metrics">
+              <span className="rec-m rec-big"><b>{r.reste}</b><small>à recetter</small></span>
+              <span className="rec-m"><b>{r.enRecette}</b><small>en recette</small></span>
+              <span className={`rec-m ${r.retours ? "rec-rew" : ""}`}><b>{r.retours}</b><small>à retravailler</small></span>
+              <span className="rec-m rec-done"><b>{(r.cats.termine || 0) + (r.cats.miseEnProd || 0)}</b><small>validés</small></span>
+            </span>
+          </div>
+
+          <div className="rec-chips">
+            {ORDER.filter((k) => r.cats[k]).map((k) => (
+              <span className={`rec-chip cat-${k}`} key={k}>{LABEL[k]}<b>{r.cats[k]}</b></span>
+            ))}
+          </div>
+
+          {r.reworkItems.length > 0 && (
+            <div className="rec-rework">
+              <button className="rec-rew-tg" onClick={() => setOpen((o) => ({ ...o, [r.dossier]: !o[r.dossier] }))}>
+                {open[r.dossier] ? "▾" : "▸"} {r.reworkItems.length} programme(s) à retravailler (retour)
+              </button>
+              {open[r.dossier] && (
+                <ul className="rec-rew-list">
+                  {r.reworkItems.map((i) => (
+                    <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir la fiche et voir la chaîne de statuts">
+                      <span className="k">{i.cle}</span>
+                      <span className="rr-res">{i.resume}</span>
+                      <span className={`pill ${i.categorie === "retourProd" ? "block" : "todo"}`}>{LABEL[i.categorie]}</span>
+                      {i.dev && i.dev !== "Non assigné" ? <span className="tag">{i.dev}</span> : null}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      ))}
+    </>
   );
 }

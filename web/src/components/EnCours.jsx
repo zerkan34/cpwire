@@ -1,7 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-const DONE = ["termine", "miseEnProd"];
-const ACTIVE = ["encours", "retourTest", "retourProd"];
+import { VALIDES as DONE, ACTIFS as ACTIVE } from "../groups.js";
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 const CAT_LABEL = {

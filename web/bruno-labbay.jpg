@@ -1,335 +1,105 @@
-import React, { useMemo, useState, useEffect } from "react";
-import { printHtml, buildSimpleDoc } from "../utils.js";
-import ExportBar from "./ExportBar.jsx";
-import Avatar from "./Avatar.jsx";
-import { fetchDevWork } from "../api.js";
-import { useModalBack, backOut } from "../modalNav.js";
-import { useReadOnly } from "../readonly.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchHygiene } from "../api.js";
 
-const ACTIVE = ["encours", "retourTest", "retourProd"];
-const DONE = ["termine", "miseEnProd"];
-const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
-const FTEST = {
-  pris: () => true,
-  done: (i) => DONE.includes(i.categorie),
-  encours: (i) => ACTIVE.includes(i.categorie),
-  recette: (i) => WAIT.includes(i.categorie),
-  retard: (i) => i.enRetard,
-  flag: (i) => i.flagged,
-};
-const FLABEL = { pris: "Tickets pris", done: "Terminés", encours: "En cours", recette: "En recette", retard: "En retard", flag: "🚩 Flaggés" };
+function scoreClass(s) { if (s == null) return ""; if (s >= 90) return "sla-ok"; if (s >= 70) return "sla-warn"; return "sla-bad"; }
 
-const PERIODS = [
-  { id: "auj", label: "Aujourd'hui" },
-  { id: "hier", label: "Hier" },
-  { id: "semaine", label: "Cette semaine" },
-  { id: "mois", label: "Ce mois" },
-  { id: "6mois", label: "6 mois" },
-  { id: "tout", label: "Tout" },
-];
+export default function Hygiene({ issues = [], onTicket }) {
+  const [rep, setRep] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState("");
+  const [openCheck, setOpenCheck] = useState(null);
+  const [selDossier, setSelDossier] = useState(null);
 
-function periodRange(period) {
-  const now = new Date();
-  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (period === "auj") return [startToday, null];
-  if (period === "hier") { const y = new Date(startToday); y.setDate(y.getDate() - 1); return [y, startToday]; }
-  if (period === "semaine") { const d = new Date(startToday); const wd = (d.getDay() + 6) % 7; d.setDate(d.getDate() - wd); return [d, null]; }
-  if (period === "mois") return [new Date(now.getFullYear(), now.getMonth(), 1), null];
-  if (period === "6mois") return [new Date(now.getFullYear(), now.getMonth() - 5, 1), null];
-  return [null, null];
-}
-function inRange(iso, range) {
-  if (!iso) return false;
-  const t = new Date(iso).getTime();
-  if (isNaN(t)) return false;
-  if (range[0] && t < range[0].getTime()) return false;
-  if (range[1] && t >= range[1].getTime()) return false;
-  return true;
-}
-function ymKey(iso) { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
-function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
-function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (isNaN(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
-function agoTxt(iso) { const d = daysSince(iso); if (d === null) return ""; if (d <= 0) return "aujourd'hui"; if (d === 1) return "hier"; if (d < 30) return `il y a ${d} j`; const m = Math.floor(d / 30); return `il y a ${m} mois`; }
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
-
-export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
-  const [period, setPeriod] = useState("tout");
-  const [filter, setFilter] = useState("encours");
-  const [copied, setCopied] = useState(false);
-  const ro = useReadOnly();
-  useModalBack(onClose);
-
-  const askDelete = () => {
-    if (window.confirm(`Masquer la fiche de « ${devName} » ?\n\nLes données Jira ne sont pas supprimées. Le développeur apparaîtra en gris (« supprimé ») dans les listes et récaps. Tu pourras le restaurer à tout moment.`)) {
-      onDelete && onDelete();
-      backOut();
-    }
-  };
-
-  const items = useMemo(
-    () => allIssues.filter((i) => (Array.isArray(i.contributors) && i.contributors.length)
-      ? i.contributors.includes(devName)
-      : ((i.dev || i.assigne || "Non assigné") === devName)),
-    [allIssues, devName]
-  );
-
-  const g = useMemo(() => ({
-    total: items.length,
-    termine: items.filter((i) => DONE.includes(i.categorie)).length,
-    encours: items.filter((i) => ACTIVE.includes(i.categorie)).length,
-    recette: items.filter((i) => WAIT.includes(i.categorie)).length,
-    retard: items.filter((i) => i.enRetard).length,
-    flagged: items.filter((i) => i.flagged).length,
-  }), [items]);
-
-  const topProjet = useMemo(() => {
-    const c = {};
-    items.forEach((i) => { if (i.dossier) c[i.dossier] = (c[i.dossier] || 0) + 1; });
-    const top = Object.entries(c).sort((a, b) => b[1] - a[1])[0];
-    return top ? top[0] : "";
-  }, [items]);
-
-  const email = useMemo(() => {
-    const hit = items.find((i) => i.assigne === devName && i.assigneEmail);
-    return hit ? hit.assigneEmail : "";
-  }, [items, devName]);
-
-  // Tickets ACTIFS (en cours / recette) — "sur quoi il travaille en ce moment", indépendant de la période.
-  const activeItems = useMemo(
-    () => items.filter((i) => ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie))
-      .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))),
-    [items]
-  );
-
-  const [work, setWork] = useState({});         // { cle: {heuresDev, depuisAssigne, derniereActivite, ...} }
-  const [workLoading, setWorkLoading] = useState(false);
-  const [workConfigured, setWorkConfigured] = useState(true);
   useEffect(() => {
-    let alive = true;
-    setWork({}); setWorkConfigured(true);
-    const keys = activeItems.slice(0, 10).map((i) => i.cle);
-    if (!keys.length) return;
-    setWorkLoading(true);
-    fetchDevWork(devName, keys)
-      .then((r) => { if (!alive) return; setWorkConfigured(r.configured !== false); const m = {}; (r.items || []).forEach((it) => { m[it.cle] = it; }); setWork(m); })
-      .catch(() => { if (alive) setWorkConfigured(true); })
-      .finally(() => { if (alive) setWorkLoading(false); });
+    let alive = true; setLoading(true); setErr("");
+    fetchHygiene()
+      .then((r) => { if (alive) setRep(r); })
+      .catch((e) => { if (alive) setErr(e.message || "Erreur"); })
+      .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [devName, activeItems]);
+  }, []);
 
-  const months = useMemo(() => {
-    const now = new Date(); const arr = [];
-    for (let k = 5; k >= 0; k--) { const d = new Date(now.getFullYear(), now.getMonth() - k, 1); arr.push({ key: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`, label: d.toLocaleDateString("fr-FR", { month: "short" }), done: 0 }); }
-    const idx = Object.fromEntries(arr.map((m) => [m.key, m]));
-    items.forEach((i) => { if (DONE.includes(i.categorie)) { const k = ymKey(i.resolu || i.maj); if (idx[k]) idx[k].done += 1; } });
-    return { arr, max: arr.reduce((m, x) => Math.max(m, x.done), 0) || 1 };
-  }, [items]);
+  const byKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
+  const open = (cle) => { if (onTicket && byKey[cle]) onTicket(byKey[cle]); };
 
-  const per = useMemo(() => {
-    const range = periodRange(period);
-    const touched = items.filter((i) => inRange(i.maj, range) || inRange(i.resolu, range));
-    const doneInPeriod = (i) => DONE.includes(i.categorie) && inRange(i.resolu || i.maj, range);
-    const byDossier = {};
-    touched.forEach((i) => {
-      (byDossier[i.dossier] ||= { dossier: i.dossier, touched: 0, done: 0 });
-      byDossier[i.dossier].touched += 1;
-      if (doneInPeriod(i)) byDossier[i.dossier].done += 1;
-    });
-    const projets = Object.values(byDossier).sort((a, b) => b.touched - a.touched);
-    const done = touched.filter(doneInPeriod).length;
-    const list = touched.slice().sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
-    return { touched: touched.length, done, projets, list, doneInPeriod };
-  }, [items, period]);
+  if (loading) return <div className="empty">Analyse de la qualité des données…</div>;
+  if (err) return <div className="empty">Contrôle qualité indisponible : {err}</div>;
+  if (!rep) return null;
 
-  if (!devName) return null;
-  const periodLabel = PERIODS.find((p) => p.id === period)?.label || "";
-  const filtered = items.filter(FTEST[filter] || (() => true)).sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
-  const showWork = filter === "encours" || filter === "recette";
-
-  const copyRecap = async () => {
-    const L = [];
-    L.push(`Activité de ${devName} — ${periodLabel.toLowerCase()}`);
-    L.push(`${per.touched} ticket(s) travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s)`);
-    L.push("", "Par projet :");
-    per.projets.forEach((p) => L.push(`- ${p.dossier} : ${p.touched} touché(s)${p.done ? ` (${p.done} terminé(s))` : ""}`));
-    L.push("", "Détail :");
-    per.list.forEach((i) => L.push(`- ${i.cle} — ${i.resume} [${i.statutJira || i.statut}]${i.flagged ? " 🚩" : ""}${per.doneInPeriod(i) ? " ✓ terminé" : ""}`));
-    try { await navigator.clipboard.writeText(L.join("\n")); setCopied(true); setTimeout(() => setCopied(false), 2500); } catch { /* ignore */ }
-  };
-
-  const buildDevHtml = () => {
-    const proj = per.projets.map((p) => `<tr><td>${esc(p.dossier)}</td><td>${p.touched}</td><td>${p.done || "—"}</td></tr>`).join("") || "<tr><td colspan='3'>—</td></tr>";
-    const det = per.list.map((i) => `<tr><td>${esc(i.cle)}</td><td>${esc(i.dossier)}</td><td>${esc(i.resume)}${i.flagged ? " 🚩" : ""}</td><td>${fr(i.maj)}</td><td>${esc(i.statutJira || i.statut)}${per.doneInPeriod(i) ? " ✓" : ""}</td></tr>`).join("") || "<tr><td colspan='5'>—</td></tr>";
-    const mois = months.arr.map((m) => `<tr><td>${m.label}</td><td>${m.done}</td></tr>`).join("");
-    const body = `
-      <h2>Vue d'ensemble</h2>
-      <table><tr><th>Tickets pris</th><th>Terminés</th><th>En cours</th><th>En recette</th><th>En retard</th><th>Flaggés</th></tr>
-      <tr><td>${g.total}</td><td>${g.termine}</td><td>${g.encours}</td><td>${g.recette}</td><td>${g.retard}</td><td>${g.flagged}</td></tr></table>
-      <h2>Par projet — ${esc(periodLabel)}</h2>
-      <table><tr><th>Projet</th><th>Travaillés</th><th>Terminés</th></tr>${proj}</table>
-      <h2>Ce qu'il a fait — ${esc(periodLabel)}</h2>
-      <table><tr><th>Clé</th><th>Projet</th><th>Résumé</th><th>Date</th><th>Statut</th></tr>${det}</table>
-      <h2>Terminés par mois (6 derniers mois)</h2>
-      <table><tr><th>Mois</th><th>Terminés</th></tr>${mois}</table>`;
-    const cartouche = [
-      ["Développeur", devName],
-      ["Période", periodLabel],
-      ["Équipe", "Armonie"],
-      ["Chef de projet", "Nicolas Durand"],
-      ["Synthèse", `${per.touched} travaillé(s) · ${per.done} terminé(s) · ${per.projets.length} projet(s)`],
-    ];
-    return buildSimpleDoc({ kicker: "Fiche développeur", title: `Fiche développeur — ${devName}`, cartouche, bodyHtml: body });
-  };
-  const exportPdf = () => printHtml(buildDevHtml());
-
+  const g = rep.global || {};
   return (
-    <div className="overlay" onClick={backOut}>
-      <div className="modal" style={{ maxWidth: 820 }} onClick={(e) => e.stopPropagation()}>
-        <div className="modal-hd dev-hero">
-          <button className="modal-back" onClick={backOut} title="Retour">←</button>
-          <button className="x" onClick={backOut}>×</button>
-          <div className="dev-hero-k">Fiche développeur</div>
-          <div className="dev-hero-av"><Avatar name={devName} size={96} /></div>
-          <h3 className="dev-hero-name">{devName}</h3>
-          <div className="dev-hero-meta">
-            <span className="dhm gold">🏢 Armonie</span>
-            {topProjet ? <span className="dhm">📁 Principalement&nbsp;: {topProjet}</span> : null}
-          </div>
-          {email
-            ? <a className="dev-hero-email" href={`mailto:${email}`} title="Écrire un e-mail">✉ {email}</a>
-            : <span className="dev-hero-email muted">E-mail non exposé par Jira</span>}
-        </div>
-        <div className="modal-bd">
+    <div className="sla-wrap">
+      <h2 className="section-title">Contrôle qualité Jira</h2>
+      <p className="sla-note" style={{ marginTop: 0 }}>
+        Ce qui manque ou cloche dans Jira, à corriger à la source. 100 % issu de tes données — rien n'est inventé.
+      </p>
 
-          {deleted && (
-            <div className="banner" style={{ marginTop: 0, marginBottom: 14, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-              <span style={{ flex: 1 }}>Cette fiche est marquée comme <b>supprimée</b> (développeur inactif). Ses données restent consultables.</span>
-              {!ro && <button className="btn-line sm" onClick={() => onRestore && onRestore()}>Restaurer la fiche</button>}
-            </div>
-          )}
-
-          <div className="dev-stats">
-            {[["pris", "Tickets pris", g.total, ""], ["done", "Terminés", g.termine, "done"], ["encours", "En cours", g.encours, "prog"], ["recette", "En recette", g.recette, "todo"], ["retard", "En retard", g.retard, "block"], ["flag", "🚩 Flaggés", g.flagged, "flagged"]].map(([id, label, val, cls]) => (
-              <button key={id} className={`dstat ${cls} ${filter === id ? "on" : ""}`} onClick={() => setFilter(id)} title={`Afficher : ${label}`}>
-                <div className="v">{val}</div><div className="l">{label}</div>
-              </button>
-            ))}
-          </div>
-
-          <div className="dev-sec-h">{FLABEL[filter]} ({filtered.length})</div>
-          {filtered.length === 0 ? (
-            <div className="empty">Aucun ticket dans cette catégorie.</div>
-          ) : (
-            <table className="fiche-tbl work-tbl">
-              <thead><tr>
-                <th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th>
-                {showWork
-                  ? <><th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></>
-                  : <th className="c-date">Date</th>}
-              </tr></thead>
-              <tbody>
-                {filtered.slice(0, 200).map((i) => {
-                  const w = work[i.cle];
-                  const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
-                  let badge;
-                  if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
-                  else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
-                  else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
-                  else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
-                  else badge = <span className="wk wk-off">aucune saisie de temps</span>;
-                  return (
-                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                      <td className="c-cle"><span className="k">{i.cle}</span></td>
-                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
-                      <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
-                      {showWork
-                        ? <>
-                            <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
-                            <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
-                            <td className="c-act">{badge}</td>
-                          </>
-                        : <td className="c-date">{fr(i.resolu || i.maj)}</td>}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          )}
-          {filtered.length > 200 && <p className="hint">+ {filtered.length - 200} autre(s)…</p>}
-          {showWork && !workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
-          {showWork && workConfigured && filtered.length > 0 && (
-            <p className="hint" style={{ marginTop: 6 }}>
-              « Heures (lui) » = temps qu'<b>il</b> a saisi sur le ticket dans Jira. « Pris le » = dernière fois où le ticket lui a été assigné. « Travaille dessus ? » se base sur sa dernière saisie de temps : <b>actif</b> = activité de moins de 10 jours. Sans saisie de temps dans Jira, impossible de le confirmer.
-            </p>
-          )}
-
-          <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span>Activité —</span>
-            <div className="filters" style={{ margin: 0 }}>
-              {PERIODS.map((p) => (
-                <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
-              ))}
-            </div>
-          </div>
-
-          <p className="period-sum">
-            <b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)
-            {!ro && !deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
-          </p>
-          <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
-
-          {per.projets.length > 0 ? (
-            <table className="proj-tbl">
-              <thead><tr><th>Projet</th><th>Tickets travaillés</th><th>Terminés</th></tr></thead>
-              <tbody>
-                {per.projets.map((p) => (
-                  <tr key={p.dossier}><td><span className="tag">{p.dossier}</span></td><td><b>{p.touched}</b></td><td>{p.done || "—"}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="empty">Aucune activité sur cette période.</div>
-          )}
-
-          {per.list.length > 0 && (
-            <>
-              <div className="dev-sec-h">Ce qu'il a fait ({per.list.length})</div>
-              <table className="fiche-tbl">
-                <thead><tr><th className="c-cle">Clé</th><th className="c-proj">Projet</th><th className="c-res">Résumé</th><th className="c-date">Date</th><th className="c-stat">Statut</th></tr></thead>
-                <tbody>
-                  {per.list.slice(0, 200).map((i) => (
-                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                      <td className="c-cle"><span className="k">{i.cle}</span></td>
-                      <td className="c-proj"><span className="tag">{i.dossier}</span></td>
-                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
-                      <td className="c-date">{fr(i.maj)}</td>
-                      <td className="c-stat">{per.doneInPeriod(i) ? <span className="pill done">terminé</span> : <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {per.list.length > 200 && <p className="hint">+ {per.list.length - 200} autre(s)…</p>}
-            </>
-          )}
-
-          <div className="dev-sec-h">Tendance — terminés par mois (6 derniers mois)</div>
-          <div className="month-chart">
-            {months.arr.map((m) => (
-              <div className="mc-col" key={m.key} title={`${m.label} : ${m.done} terminé(s)`}>
-                <div className="mc-val">{m.done}</div>
-                <div className="mc-bar-wrap"><div className="mc-bar" style={{ height: `${Math.round((m.done / months.max) * 100)}%` }} /></div>
-                <div className="mc-lbl">{m.label}</div>
-              </div>
-            ))}
-          </div>
-
-          <p className="hint" style={{ marginTop: 8 }}>
-            « Travaillé » = ticket dont l'activité (mise à jour ou résolution Jira) tombe dans la période. Le détail des heures est dans chaque ticket (clique une ligne). Période « cette semaine » = depuis lundi.
-          </p>
-
-        </div>
+      <div className="sla-kpis">
+        <div className="sla-kpi"><div className={`v ${scoreClass(g.score)}`}>{g.score == null ? "—" : `${g.score}%`}</div><div className="l">Ouverts « propres »</div></div>
+        <div className="sla-kpi"><div className={`v ${g.aCorriger ? "sla-bad" : "sla-ok"}`}>{g.aCorriger}</div><div className="l">Ouverts à corriger</div></div>
+        <div className="sla-kpi"><div className={`v ${g.incoherences ? "sla-warn" : ""}`}>{g.incoherences}</div><div className="l">Incohérences</div></div>
+        <div className="sla-kpi"><div className="v">{g.ouverts}</div><div className="l">Tickets ouverts</div></div>
       </div>
+
+      <table className="data">
+        <thead><tr><th>Client / dossier</th><th>Ouverts</th><th>À corriger</th><th>Incohér.</th><th>Qualité</th></tr></thead>
+        <tbody>
+          {rep.byDossier.map((d) => (
+            <tr key={d.dossier} className={`hyg-drow ${selDossier === d.dossier ? "on" : ""}`} onClick={() => setSelDossier(selDossier === d.dossier ? null : d.dossier)} title="Voir les anomalies de ce client">
+              <td><span className="tag">{d.dossier}</span></td>
+              <td>{d.ouverts}</td>
+              <td className={d.aCorriger ? "sla-bad" : ""}><b>{d.aCorriger || "—"}</b></td>
+              <td className={d.incoherences ? "sla-warn" : ""}>{d.incoherences || "—"}</td>
+              <td className={scoreClass(d.score)}><b>{d.score == null ? "—" : `${d.score}%`}</b></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      <h3 className="sla-h">Anomalies à corriger {selDossier && <span className="hyg-filter">{selDossier} <button onClick={() => setSelDossier(null)} title="Tout afficher">✕</button></span>}</h3>
+      {rep.checks.length === 0 && <p className="sla-note">Aucune anomalie détectée 🎉</p>}
+      <div className="hyg-checks">
+        {rep.checks.map((c) => {
+          const tks = selDossier ? c.tickets.filter((t) => t.dossier === selDossier) : c.tickets;
+          if (selDossier && tks.length === 0) return null;
+          const isOpen = selDossier ? true : openCheck === c.id;
+          const groups = {};
+          tks.forEach((t) => { (groups[t.dossier] ||= []).push(t); });
+          const groupNames = Object.keys(groups).sort((a, b) => groups[b].length - groups[a].length);
+          return (
+            <div className="hyg-check" key={c.id}>
+              <div className="hyg-head" onClick={() => { if (!selDossier) setOpenCheck(openCheck === c.id ? null : c.id); }} title="Voir les tickets">
+                <span className="hyg-count">{tks.length}</span>
+                <span className="hyg-label">{c.label}</span>
+                {!selDossier && <span className="hyg-toggle">{isOpen ? "▾" : "▸"}</span>}
+              </div>
+              <div className="hyg-hint">{c.hint}</div>
+              {isOpen && (
+                <div className="sla-list">
+                  {groupNames.map((dn) => (
+                    <div key={dn} className="hyg-grp-wrap">
+                      <div className="hyg-grp">{dn} <span>({groups[dn].length})</span></div>
+                      {groups[dn].map((t) => (
+                        <div className="sla-row" key={t.cle + c.id} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                          <span className="k">{t.cle}</span>
+                          <span className="sla-resume">{t.resume}</span>
+                          {t.who && <span className="sla-prio">{t.who}</span>}
+                          {t.extra && <span className="sla-late">{t.extra}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="sla-note">
+        Anomalies calculées sur le snapshot Jira courant ({rep.staleDays} j = seuil de « sans mouvement »).
+        « Sans description » et « sans estimation » pourront s'ajouter en v2 (champs non chargés en masse aujourd'hui, pour préserver la vitesse d'import).
+      </p>
     </div>
   );
 }

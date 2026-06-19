@@ -1,69 +1,118 @@
-import React, { useState } from "react";
-import { login, loginGuest } from "../api.js";
+import React, { useEffect, useMemo, useState } from "react";
+import { fetchSla } from "../api.js";
 
-export default function Login({ onSuccess, invite }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+// Humanise une durée en heures : "6 h", "3 j", "2 sem".
+function dur(h) {
+  if (h == null) return "—";
+  if (h < 24) return `${Math.round(h)} h`;
+  const j = h / 24;
+  if (j < 14) return `${Math.round(j)} j`;
+  return `${Math.round(j / 7)} sem`;
+}
+function tauxClass(t) {
+  if (t == null) return "";
+  if (t >= 95) return "sla-ok";
+  if (t >= 85) return "sla-warn";
+  return "sla-bad";
+}
+
+export default function SLA({ issues = [], onTicket }) {
+  const [rep, setRep] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
-  const [busy, setBusy] = useState(false);
 
-  const submit = async (e) => {
-    e.preventDefault();
-    setBusy(true); setErr("");
-    try { const d = await login(email.trim(), password); onSuccess(d); }
-    catch (e2) { setErr(e2.message); }
-    finally { setBusy(false); }
-  };
+  useEffect(() => {
+    let alive = true;
+    setLoading(true); setErr("");
+    fetchSla()
+      .then((r) => { if (alive) setRep(r); })
+      .catch((e) => { if (alive) setErr(e.message || "Erreur"); })
+      .finally(() => { if (alive) setLoading(false); });
+    return () => { alive = false; };
+  }, []);
 
-  // Connexion invité : on enregistre le jeton du lien et on entre en lecture seule.
-  const enterGuest = () => {
-    setBusy(true); setErr("");
-    try { loginGuest(invite); onSuccess({ role: "guest" }); }
-    catch (e2) { setErr(e2.message); setBusy(false); }
-  };
+  const byKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
+  const open = (cle) => { if (onTicket && byKey[cle]) onTicket(byKey[cle]); };
 
-  // --- Mode invité : un seul bouton, pas de mot de passe ---
-  if (invite) {
+  if (loading) return <div className="empty">Calcul des SLA…</div>;
+  if (err) return <div className="empty">SLA indisponible : {err}</div>;
+  if (!rep || !rep.configured) {
     return (
-      <div className="login-screen">
-        <div className="login-card">
-          <div className="login-logo"><img src="/cpwire-logo.png" alt="CPwire" /></div>
-          <div className="login-tag">Cockpit de pilotage · chef de projet</div>
-          <div className="invite-note">
-            <span className="invite-badge">Accès invité · lecture seule</span>
-            Vous avez été invité à consulter le cockpit. Vous pourrez tout voir, générer des comptes rendus
-            et exporter, mais rien modifier ni supprimer.
-          </div>
-          <button className="btn-solid" style={{ width: "100%", padding: "12px" }} disabled={busy} onClick={enterGuest}>
-            {busy ? "Connexion…" : "Se connecter"}
-          </button>
-          {err && <div className="warn-note">{err}</div>}
-          <div className="login-foot">Armonie Group · accès en lecture seule</div>
-        </div>
+      <div className="sla-intro">
+        <h2 className="section-title">Pilotage SLA</h2>
+        <p>Aucune cible définie. Renseigne les engagements (GTI/GTR) par client dans <code>server/sla.json</code>, puis redéploie.</p>
       </div>
     );
   }
 
-  // --- Mode normal : identifiant + mot de passe ---
+  const g = rep.global || {};
   return (
-    <div className="login-screen">
-      <form className="login-card" onSubmit={submit}>
-        <div className="login-logo"><img src="/cpwire-logo.png" alt="CPwire" /></div>
-        <div className="login-tag">Cockpit de pilotage · chef de projet</div>
-        <div className="field">
-          <label>Identifiant</label>
-          <input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="prenom@exemple.com" required />
-        </div>
-        <div className="field">
-          <label>Mot de passe</label>
-          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required />
-        </div>
-        <button className="btn-solid" style={{ width: "100%", padding: "12px" }} disabled={busy}>
-          {busy ? "Connexion…" : "Se connecter"}
-        </button>
-        {err && <div className="warn-note">{err}</div>}
-        <div className="login-foot">Armonie Group · accès réservé</div>
-      </form>
+    <div className="sla-wrap">
+      <h2 className="section-title">Pilotage des engagements (SLA)</h2>
+
+      <div className="sla-kpis">
+        <div className="sla-kpi"><div className={`v ${tauxClass(g.tauxGtr)}`}>{g.tauxGtr == null ? "—" : `${g.tauxGtr}%`}</div><div className="l">Respect GTR (résolus)</div></div>
+        <div className="sla-kpi"><div className={`v ${g.ouvDepasse ? "sla-bad" : "sla-ok"}`}>{g.ouvDepasse}</div><div className="l">Ouverts en dépassement</div></div>
+        <div className="sla-kpi"><div className={`v ${g.ouvRisque ? "sla-warn" : ""}`}>{g.ouvRisque}</div><div className="l">Ouverts à risque</div></div>
+        <div className="sla-kpi"><div className="v">{g.resolus}</div><div className="l">Résolus analysés</div></div>
+      </div>
+
+      <table className="data">
+        <thead><tr><th>Client / dossier</th><th>Résolus</th><th>Respect GTR</th><th>Dépass.</th><th>Ouverts en dépass.</th><th>À risque</th><th>Sans cible</th></tr></thead>
+        <tbody>
+          {rep.byDossier.map((d) => (
+            <tr key={d.dossier}>
+              <td><span className="tag">{d.dossier}</span></td>
+              <td>{d.resolus}</td>
+              <td className={tauxClass(d.tauxGtr)}><b>{d.tauxGtr == null ? "—" : `${d.tauxGtr}%`}</b></td>
+              <td>{d.gtrKo || "—"}</td>
+              <td className={d.ouvDepasse ? "sla-bad" : ""}><b>{d.ouvDepasse || "—"}</b></td>
+              <td className={d.ouvRisque ? "sla-warn" : ""}>{d.ouvRisque || "—"}</td>
+              <td className="muted-cell">{d.sansCible || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {rep.depassements.length > 0 && (
+        <>
+          <h3 className="sla-h">Tickets ouverts en dépassement de GTR</h3>
+          <div className="sla-list">
+            {rep.depassements.map((t) => (
+              <div className="sla-row sla-bad-row" key={t.cle} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                <span className="k">{t.cle}</span>
+                <span className="tag">{t.dossier}</span>
+                <span className="sla-prio">{t.bucket}</span>
+                <span className="sla-resume">{t.resume}</span>
+                <span className="sla-late">ouvert depuis {dur(t.ageH)} · cible {dur(t.gtrH)} · <b>+{dur(t.depassementH)}</b></span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {rep.aRisque.length > 0 && (
+        <>
+          <h3 className="sla-h">Tickets à risque (proches de la cible)</h3>
+          <div className="sla-list">
+            {rep.aRisque.map((t) => (
+              <div className="sla-row sla-warn-row" key={t.cle} onClick={() => open(t.cle)} title="Ouvrir le ticket">
+                <span className="k">{t.cle}</span>
+                <span className="tag">{t.dossier}</span>
+                <span className="sla-prio">{t.bucket}</span>
+                <span className="sla-resume">{t.resume}</span>
+                <span className="sla-late">ouvert depuis {dur(t.ageH)} · cible {dur(t.gtrH)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      <p className="sla-note">
+        GTR = délai de résolution (créé → résolu), comparé à la cible contractuelle par client et priorité.
+        Délais <b>calendaires</b> pour l'instant (pas encore en heures ouvrées). La <b>prise en charge (GTI)</b> arrive en phase 2
+        (elle nécessite l'historique ticket par ticket). Cibles éditables dans <code>server/sla.json</code>.
+      </p>
     </div>
   );
 }

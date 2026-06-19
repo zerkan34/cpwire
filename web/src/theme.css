@@ -2421,16 +2421,28 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .recap-hd-name { color: var(--ink); }
 .recap-hd-meta { color: var(--muted); }
 
-/* Recherche posée DANS le bandeau, À DROITE (le bandeau garde sa taille d'origine) */
-.page-hero.hero-with-search { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
-.page-hero.hero-with-search .ph-main { min-width: 0; flex: 1 1 320px; }
-.page-hero .page-search.on-hero { margin: 0; flex: 0 0 340px; max-width: 340px;
+/* Recherche posée DANS le bandeau, À DROITE, alignée bas — VALABLE POUR TOUS LES BANDEAUX
+   (.page-hero, .rec-hero, .pf-hero, .meet-hero…) : il suffit d'ajouter la classe hero-with-search */
+.hero-with-search { display: flex; align-items: flex-end; justify-content: space-between; gap: 22px; flex-wrap: wrap; }
+.hero-with-search .ph-main { min-width: 0; flex: 1 1 320px; }
+.hero-with-search .page-search.on-hero { margin: 0; flex: 0 0 340px; max-width: 340px;
   background: rgba(255,255,255,.95); border-color: rgba(255,255,255,.5); }
-.page-hero .page-search.on-hero:focus-within { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
-@media (max-width: 720px) { .page-hero .page-search.on-hero { flex-basis: 100%; max-width: 100%; } }
+.hero-with-search .page-search.on-hero:focus-within { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+@media (max-width: 720px) { .hero-with-search .page-search.on-hero { flex-basis: 100%; max-width: 100%; } }
 
 /* ===== v135 : carte anomalie — texte d'aide remonté SOUS LE TITRE, en-tête compact ===== */
 .hyg-head { align-items: flex-start; }
 .hyg-head-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hyg-head .hyg-label { flex: none; }
 .hyg-head .hyg-hint { padding: 0; margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.35; }
+
+/* ===== v136 : bandeau Projets — recherche + boutons export groupés à droite ===== */
+.pf-hero-aside { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.pf-hero-aside .page-search.on-hero { flex: 0 0 240px; max-width: 240px; }
+@media (max-width: 720px) { .pf-hero-aside { width: 100%; } .pf-hero-aside .page-search.on-hero { flex-basis: 100%; max-width: 100%; } }
+
+/* ===== v137 : Réunions — sélecteur dossier + champ consigne IA ===== */
+.meet-select { width: 100%; padding: 9px 11px; border: 1px solid var(--purple-line); border-radius: 10px; background: var(--card); color: var(--ink); font: inherit; }
+.meet-select:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.meet-consigne label { color: var(--purple-strong); }
+.meet-consigne .ta { border-color: var(--purple-line); background: linear-gradient(180deg, var(--purple-soft), var(--card) 60%); }

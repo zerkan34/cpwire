@@ -986,14 +986,17 @@ function templateMeeting({ titre, participants, notes, transcript }) {
     <p class="muted" style="margin-top:16px;font-size:12px;">Note : sans clé IA, ce compte rendu reprend vos notes (structurées au mieux : titres, libellés, puces). Pour un CR <b>rédigé, synthétisé et remis en page automatiquement</b> — décisions et actions extraites — ajoutez une clé IA (Groq gratuit ou Anthropic) dans Render.</p>`;
 }
 
-export async function meetingReport({ titre, participants, notes, transcript, images = [], equipe }) {
+export async function meetingReport({ titre, participants, notes, transcript, images = [], equipe, consigne = "", jiraFacts = "" }) {
   const parts = parseParticipants(participants);
   const partLine = parts.length ? parts.join(", ") : "non précisés";
   const team = (equipe && String(equipe).trim()) || process.env.TEAM_LABEL || "TMA Armonie";
   let body;
   if (aiAvailable()) {
     const prompt = `À partir des éléments ci-dessous, rédige un COMPTE RENDU DE RÉUNION complet, clair et bien mis en page, en français, style CR professionnel Armonie.
-
+${consigne && consigne.trim() ? `
+CONSIGNE DE L'UTILISATEUR (PRIORITAIRE — applique-la scrupuleusement, elle prime sur la mise en forme par défaut) :
+${consigne.trim()}
+` : ""}
 RÈGLES DE FIDÉLITÉ (PRIORITAIRES — ne jamais enfreindre) :
 - N'utilise QUE les informations présentes dans les notes / la transcription. N'invente AUCUN fait, chiffre, date, nom, ticket, option ni décision.
 - NOMS DE PERSONNES : les SEULS noms autorisés sont ceux de la liste « Participants » ci-dessous et ceux explicitement écrits dans les notes / la transcription. N'invente, ne déduis ni ne complète AUCUN autre nom ; si l'auteur d'une action est inconnu, écris « non précisé » (jamais un prénom inventé).
@@ -1002,7 +1005,11 @@ RÈGLES DE FIDÉLITÉ (PRIORITAIRES — ne jamais enfreindre) :
 - ATTRIBUTION : rattache chaque fait (qui a fait quoi, mise en pré-production, livraison, analyse…) au BON ticket et à la BONNE personne. Ne fusionne JAMAIS deux tickets et ne déplace pas une action d'un ticket vers un autre. Un ticket = une section distincte.
 - PÉRIMÈTRE / ÉQUIPE : l'équipe concernée est « ${team} » — emploie EXACTEMENT ce libellé et n'écris jamais « TMA » si ce n'est pas dans ce libellé. Ne restreins jamais le périmètre à des dossiers précis (ex. « Dataware / MCS ») sauf si la source le dit explicitement.
 - Quand une information manque, écris-le clairement (« non précisé », « à confirmer ») plutôt que de combler le vide par une supposition.
-
+${jiraFacts && jiraFacts.trim() ? `
+CHIFFRES VÉRIFIÉS (Jira, à l'instant — mêmes données que le pilotage de bout en bout). SOURCE DE VÉRITÉ ABSOLUE :
+${jiraFacts.trim()}
+RÈGLE CHIFFRES : pour tout volume de tickets par dossier / par catégorie (à faire, en cours, recette Armonie, recette client, terminé…), n'emploie QUE ces valeurs. Si les notes, la transcription ou un compte rendu collé indiquent un autre chiffre, CORRIGE-le pour coller EXACTEMENT à ces données vérifiées. N'invente aucun autre chiffre.
+` : ""}
 STRUCTURE ATTENDUE :
 - <h2>Synthèse générale</h2> : un paragraphe de synthèse, suivi d'un <div class="indic"> qui met en avant LE point marquant (un départ, un risque, une échéance clé) — uniquement s'il ressort de la source.
 - Puis UNE SECTION <h2> NUMÉROTÉE PAR SUJET (ex. <h2>1. Continuité opérationnelle</h2>). Si un sujet porte un numéro de ticket : <h2>4. <span class="tk">Ticket 792</span> — Libellé</h2>. À l'intérieur : des <h3> si utile, des <p>, des listes <ul><li>, les personnes en <span class="who">Nom</span>, et le statut en <span class="pill done|prog|todo|block">…</span> (done=résolu/clôturé, prog=en cours, todo=à faire/en attente, block=bloqué).

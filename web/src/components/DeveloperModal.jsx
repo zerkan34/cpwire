@@ -6,8 +6,7 @@ import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
 import { useReadOnly } from "../readonly.js";
 
-const ACTIVE = ["encours", "retourTest", "retourProd"];
-const DONE = ["termine", "miseEnProd"];
+import { ACTIFS as ACTIVE, VALIDES as DONE } from "../groups.js";
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 const FTEST = {

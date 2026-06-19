@@ -1,15 +1,6 @@
 import React, { useMemo, useState } from "react";
 
-const LABEL = {
-  afaire: "À faire", encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
-  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
-  miseEnProd: "Mise en prod", termine: "Terminé", annule: "Annulé",
-};
-const ORDER = ["afaire", "encours", "retourTest", "retourProd", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine", "annule"];
-const DONE = ["termine", "miseEnProd", "annule"];
-const RECETTE = ["recetteArmonie", "recetteClient", "attenteClient"];
-const RETOUR = ["retourTest", "retourProd"];
-const ACTIVE = ["afaire", "encours"];
+import { CAT_ORDER as ORDER, CAT_LABEL as LABEL, CLOS as DONE, RECETTE, RETOUR, PIPELINE_ACTIFS as ACTIVE } from "../groups.js";
 
 // Quelles catégories pour un "groupe" cliqué.
 const GROUP_CATS = {
@@ -22,6 +13,9 @@ const GROUP_CATS = {
 
 export default function Recette({ issues = [], onTicket }) {
   const [sel, setSel] = useState({}); // { [dossier]: {kind:'group'|'cat', key} }
+  const [q, setQ] = useState(""); // recherche propre à la page (dossier ou ticket)
+  const ql = q.trim().toLowerCase();
+  const matchItem = (i) => !ql || `${i.cle} ${i.resume || ""}`.toLowerCase().includes(ql);
 
   const data = useMemo(() => {
     const m = {};
@@ -60,7 +54,7 @@ export default function Recette({ issues = [], onTicket }) {
   const listFor = (r) => {
     const cur = sel[r.dossier]; if (!cur) return null;
     const cats = cur.kind === "cat" ? [cur.key] : (GROUP_CATS[cur.key] || []);
-    return r.items.filter((i) => cats.includes(i.categorie))
+    return r.items.filter((i) => cats.includes(i.categorie) && matchItem(i))
       .sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
   };
   const labelOf = (cur) => cur.kind === "cat" ? LABEL[cur.key]
@@ -68,13 +62,20 @@ export default function Recette({ issues = [], onTicket }) {
 
   return (
     <>
-      <div className="rec-hero">
-        <span className="rec-hero-k">Recette</span>
-        <h2>Pilotage de bout en bout</h2>
-        <p>Suivi des programmes de leur entrée en recette jusqu'à la mise en production — clique un chiffre, une pastille puis un programme pour ouvrir sa fiche et sa chaîne de statuts.</p>
+      <div className="rec-hero hero-with-search">
+        <div className="ph-main">
+          <span className="rec-hero-k">Recette</span>
+          <h2>Pilotage de bout en bout</h2>
+          <p>Suivi des programmes de leur entrée en recette jusqu'à la mise en production — clique un chiffre, une pastille puis un programme pour ouvrir sa fiche et sa chaîne de statuts.</p>
+        </div>
+        <div className="page-search on-hero">
+          <span className="ps-ic">🔎</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un dossier, un programme…" aria-label="Rechercher en recette" />
+          {q && <button className="ps-x" onClick={() => setQ("")} title="Effacer">×</button>}
+        </div>
       </div>
 
-      {data.map((r) => {
+      {data.filter((r) => !ql || r.dossier.toLowerCase().includes(ql) || r.items.some(matchItem)).map((r) => {
         const cur = sel[r.dossier];
         const list = listFor(r);
         const on = (kind, key) => cur && cur.kind === kind && cur.key === key ? "is-on" : "";

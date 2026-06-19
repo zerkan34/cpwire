@@ -1,181 +1,105 @@
-import React, { useMemo } from "react";
+import React, { useState } from "react";
 
-const DONE = ["termine", "miseEnProd"];
-const ACTIVE = ["encours", "retourTest", "retourProd"];
-const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
-const CAT_LABEL = {
-  encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
-  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
-};
-const slug = (s) => "enc-" + String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
-const scrollToClient = (name) => { const el = document.getElementById(slug(name)); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
+const STATUT_ORDER = { Bloqué: 0, "À faire": 1, "En cours": 2, Terminé: 3 };
 
-// Onglet « En cours » : avancement par client (jauge) + qui travaille sur quoi, en temps réel.
-export default function EnCours({ issues = [], onTicket, onDev, deletedDevs = [] }) {
-  const delSet = new Set(deletedDevs);
+function fmtDate(s) {
+  if (!s) return "";
+  try { return new Date(s).toLocaleDateString("fr-FR"); } catch { return s; }
+}
 
-  const clients = useMemo(() => {
-    const m = {};
-    issues.forEach((i) => {
-      const cli = i.dossier || "Autre";
-      (m[cli] ||= { client: cli, total: 0, done: 0, active: 0, blocked: 0, wait: 0, activeItems: [] });
-      const c = m[cli];
-      c.total += 1;
-      if (DONE.includes(i.categorie)) c.done += 1;
-      if (i.statut === "Bloqué") c.blocked += 1;
-      else if (ACTIVE.includes(i.categorie)) c.active += 1;
-      if (WAIT.includes(i.categorie)) c.wait += 1;
-      if (ACTIVE.includes(i.categorie) || i.statut === "Bloqué") c.activeItems.push(i);
+function prioClass(p) {
+  const x = (p || "").toLowerCase();
+  if (/haut|high|criti|urgen|bloqu/.test(x)) return "p-haute";
+  if (/moy|medium|normal/.test(x)) return "p-moyenne";
+  if (/bas|low|mineur|minor|trivial/.test(x)) return "p-basse";
+  return "";
+}
+
+// Colonnes triables (clé d'accès + façon de comparer).
+const COLS = [
+  { key: "cle", label: "Clé", get: (r) => r.cle, type: "text" },
+  { key: "dossier", label: "Dossier", get: (r) => r.dossier, type: "text" },
+  { key: "resume", label: "Résumé", get: (r) => r.resume, type: "text" },
+  { key: "assigne", label: "Sur le ticket", get: (r) => (r.contributors && r.contributors.length ? r.contributors[0] : r.assigne || ""), type: "text" },
+  { key: "echeance", label: "Échéance", get: (r) => r.echeance || "", type: "date" },
+  { key: "statut", label: "Statut", get: (r) => STATUT_ORDER[r.statut] ?? 99, type: "num" },
+];
+
+export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys }) {
+  const [sortKey, setSortKey] = useState(null);   // null = tri "intelligent" par défaut
+  const [sortDir, setSortDir] = useState("asc");
+
+  if (loading && !rows.length) return <div className="empty">Chargement des tickets…</div>;
+  if (!rows.length) return <div className="empty">Aucun ticket pour ce filtre. Rien à traiter ici.</div>;
+
+  const clickHeader = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir("asc"); }
+  };
+
+  let sorted;
+  if (!sortKey) {
+    // Tri par défaut : mes tickets, puis en retard, puis statut, puis dossier.
+    sorted = [...rows].sort((a, b) => {
+      if (a.mine !== b.mine) return a.mine ? -1 : 1;
+      if (a.enRetard !== b.enRetard) return a.enRetard ? -1 : 1;
+      if ((STATUT_ORDER[a.statut] ?? 9) !== (STATUT_ORDER[b.statut] ?? 9)) return (STATUT_ORDER[a.statut] ?? 9) - (STATUT_ORDER[b.statut] ?? 9);
+      return a.dossier.localeCompare(b.dossier);
     });
-    return Object.values(m).map((c) => {
-      c.avancement = c.total ? Math.round((c.done / c.total) * 100) : 0;
-      const byDev = {};
-      c.activeItems.forEach((i) => {
-        const d = i.dev || i.assigne || "Non assigné";
-        (byDev[d] ||= { dev: d, items: [] });
-        byDev[d].items.push(i);
-      });
-      c.devs = Object.values(byDev).sort((a, b) => b.items.length - a.items.length);
-      return c;
-    }).sort((a, b) => b.active - a.active || b.blocked - a.blocked);
-  }, [issues]);
-
-  const devsList = useMemo(() => {
-    const m = {};
-    issues.forEach((i) => {
-      const who = (i.contributors && i.contributors.length) ? i.contributors : [i.dev || i.assigne || "Non assigné"];
-      who.forEach((d) => {
-        (m[d] ||= { dev: d, total: 0, done: 0, active: 0, wait: 0, blocked: 0, activeItems: [] });
-        const x = m[d];
-        x.total += 1;
-        if (DONE.includes(i.categorie)) x.done += 1;
-        if (i.statut === "Bloqué") x.blocked += 1;
-        else if (ACTIVE.includes(i.categorie)) x.active += 1;
-        if (WAIT.includes(i.categorie)) x.wait += 1;
-        if (ACTIVE.includes(i.categorie) || i.statut === "Bloqué") x.activeItems.push(i);
-      });
+  } else {
+    const col = COLS.find((c) => c.key === sortKey);
+    const dir = sortDir === "asc" ? 1 : -1;
+    sorted = [...rows].sort((a, b) => {
+      const va = col.get(a), vb = col.get(b);
+      let r;
+      if (col.type === "num") r = (va || 0) - (vb || 0);
+      else if (col.type === "date") r = String(va).localeCompare(String(vb)); // ISO -> ordre chrono
+      else r = String(va).localeCompare(String(vb), "fr", { numeric: true });
+      return r * dir;
     });
-    return Object.values(m)
-      .map((x) => { x.avancement = x.total ? Math.round((x.done / x.total) * 100) : 0; x.activeItems.sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || ""))); return x; })
-      .filter((x) => x.dev !== "Non assigné" && (x.active > 0 || x.blocked > 0))
-      .sort((a, b) => (b.active + b.blocked) - (a.active + a.blocked));
-  }, [issues]);
+  }
 
-  const totalActive = clients.reduce((s, c) => s + c.active, 0);
-  const totalBlocked = clients.reduce((s, c) => s + c.blocked, 0);
-
-  if (!issues.length) return <div className="panel empty">Aucune donnée — actualise depuis Jira.</div>;
+  const arrow = (key) => {
+    if (sortKey !== key) return <span className="sort-ar dim">⇅</span>;
+    return <span className="sort-ar">{sortDir === "asc" ? "▲" : "▼"}</span>;
+  };
 
   return (
-    <>
-      <div className="section-title">En cours — avancement en temps réel
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {clients.length} client(s) · {totalActive} ticket(s) en traitement{totalBlocked ? ` · ${totalBlocked} bloqué(s)` : ""}
-        </span>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Jauge d'avancement par client (terminés / total) et qui travaille sur quoi. Reflète la dernière synchronisation Jira — clique un ticket pour l'ouvrir.
-      </p>
-
-      <div className="enc-clienttabs" aria-label="Accès rapide aux clients">
-        {clients.map((c) => (
-          <button key={c.client} className="enc-ctab" onClick={() => scrollToClient(c.client)} title={`Aller à ${c.client}`}>
-            {c.client}{c.active + c.blocked ? <span className="enc-ctab-n">{c.active + c.blocked}</span> : null}
-          </button>
-        ))}
-      </div>
-
-      <div className="enc-grid">
-        {clients.map((c) => (
-          <div className="enc-card" id={slug(c.client)} key={c.client}>
-            <div className="enc-hd">
-              <span className="enc-name">{c.client}</span>
-              <span className="enc-pct">{c.avancement}%</span>
-            </div>
-            <div className="enc-bd">
-              <div className="enc-gauge"><span style={{ width: `${c.avancement}%` }} /></div>
-              <div className="enc-chips">
-                <span className="pill done">{c.done}/{c.total} terminés</span>
-                <span className="pill prog">{c.active} en cours</span>
-                {c.wait ? <span className="pill todo">{c.wait} en recette</span> : null}
-                {c.blocked ? <span className="pill block">{c.blocked} bloqué(s)</span> : null}
-              </div>
-
-              <div className="enc-sub">Qui travaille sur quoi</div>
-              {c.devs.length === 0 ? (
-                <p className="hint" style={{ margin: 0 }}>Aucun ticket actif sur ce client.</p>
-              ) : (
-                <div className="enc-devs">
-                  {c.devs.map((d) => (
-                    <div className="enc-dev" key={d.dev}>
-                      <div className="enc-dev-h">
-                        {d.dev && d.dev !== "Non assigné"
-                          ? <span className={`dev-chip ${delSet.has(d.dev) ? "del" : ""}`} title="Voir la fiche du développeur" onClick={() => onDev && onDev(d.dev)}>{d.dev}</span>
-                          : <span className="muted">Non assigné</span>}
-                        <span className="enc-dev-n">{d.items.length}</span>
-                      </div>
-                      <ul className="enc-tix">
-                        {d.items.slice(0, 6).map((i) => (
-                          <li key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                            <span className="k">{i.cle}</span>
-                            <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</span>
-                            <span className={`pill ${PILL[i.statut]}`}>{CAT_LABEL[i.categorie] || i.statutJira || i.statut}</span>
-                          </li>
-                        ))}
-                        {d.items.length > 6 && <li className="muted" style={{ cursor: "default" }}>+ {d.items.length - 6} autre(s)…</li>}
-                      </ul>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="section-title" style={{ marginTop: 28 }}>Par développeur — qui fait quoi en ce moment
-        <span style={{ fontFamily: "Inter", fontWeight: 400, fontSize: 13, color: "var(--muted)" }}>
-          {" "}— {devsList.length} en activité · clique un nom pour ses heures &amp; son activité
-        </span>
-      </div>
-      {devsList.length === 0 ? (
-        <div className="panel empty">Aucun développeur avec un ticket actif en ce moment.</div>
-      ) : (
-        <div className="enc-grid">
-          {devsList.map((d) => (
-            <div className="enc-card" key={d.dev}>
-              <div className="enc-hd">
-                <span className={`enc-name clk ${delSet.has(d.dev) ? "del" : ""}`} title="Voir sa fiche (heures, depuis quand, activité)"
-                  onClick={() => onDev && onDev(d.dev)}>{d.dev}</span>
-                <span className="enc-pct">{d.active + d.blocked} actif(s)</span>
-              </div>
-              <div className="enc-bd">
-                <div className="enc-gauge"><span style={{ width: `${d.avancement}%` }} /></div>
-                <div className="enc-chips">
-                  <span className="pill done">{d.done} terminés</span>
-                  <span className="pill prog">{d.active} en cours</span>
-                  {d.wait ? <span className="pill todo">{d.wait} en recette</span> : null}
-                  {d.blocked ? <span className="pill block">{d.blocked} bloqué(s)</span> : null}
-                </div>
-                <div className="enc-sub">Sur quoi il travaille</div>
-                <ul className="enc-tix">
-                  {d.activeItems.slice(0, 7).map((i) => (
-                    <li key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                      <span className="k">{i.cle}</span>
-                      <span className="tag">{i.dossier}</span>
-                      <span className="enc-tix-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</span>
-                      <span className={`pill ${PILL[i.statut]}`}>{CAT_LABEL[i.categorie] || i.statutJira || i.statut}</span>
-                    </li>
-                  ))}
-                  {d.activeItems.length > 7 && <li className="muted" style={{ cursor: "default" }}>+ {d.activeItems.length - 7} autre(s)…</li>}
-                </ul>
-                <button className="btn-line sm" style={{ marginTop: 10 }} onClick={() => onDev && onDev(d.dev)}>Voir ses heures &amp; son activité</button>
-              </div>
-            </div>
+    <table>
+      <thead>
+        <tr>
+          {COLS.map((c) => (
+            <th key={c.key} className="th-sort" onClick={() => clickHeader(c.key)} title="Trier">
+              {c.label} {arrow(c.key)}
+            </th>
           ))}
-        </div>
-      )}
-    </>
+        </tr>
+      </thead>
+      <tbody>
+        {sorted.map((r) => {
+          const cls = [r.mine ? "mine" : "", r.flagged ? "has-flag" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
+          return (
+            <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
+              <td data-label="Clé"><span className="k">{r.cle}</span></td>
+              <td data-label="Dossier"><span className="tag">{r.dossier}</span></td>
+              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
+              <td data-label="Sur le ticket">{(r.contributors && r.contributors.length) ? (
+                r.contributors.map((c, idx) => (
+                  <span key={c}>
+                    {idx > 0 && <span className="who-sep">, </span>}
+                    {onDev
+                      ? <span className="assignee-link" title="Voir la fiche du développeur" onClick={(e) => { e.stopPropagation(); onDev(c); }}>{c}</span>
+                      : c}
+                  </span>
+                ))
+              ) : <span className="who-none">Non assigné</span>}</td>
+              <td data-label="Échéance">{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
+              <td data-label="Statut"><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
   );
 }

@@ -4,8 +4,7 @@ import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
 import DocPreview from "./DocPreview.jsx";
 
 const LABELS = { cr_journalier: "CR journalier", cr_ecrit: "CR écrit", cr_date: "CR rédigé (IA)", cr_reunion: "CR réunion", prep_reunion: "Prépa réunion", brief_matin: "Brief matinal", cr_global: "Rapport global", cra_import: "Import CRA", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
-const DONE = ["termine", "miseEnProd"];
-const ACTIVE = ["encours", "retourTest", "retourProd"];
+import { VALIDES as DONE, ACTIFS as ACTIVE } from "../groups.js";
 
 const PRESETS = [
   { id: "auj", label: "Aujourd'hui" },

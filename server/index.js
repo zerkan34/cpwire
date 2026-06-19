@@ -10,7 +10,7 @@ import "dotenv/config";
 
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
-import { STATUTS, ME, TARGET_DONE } from "./config.js";
+import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
@@ -774,15 +774,43 @@ app.post("/api/transcribe", guard, writeGuard, upload.single("audio"), async (re
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
+// Construit le bloc de CHIFFRES VÉRIFIÉS (par dossier × catégorie) depuis les mêmes
+// issues que le pilotage de bout en bout. Sert de source de vérité au CR généré par l'IA.
+function buildJiraFacts(issues, focusDossier) {
+  if (!Array.isArray(issues) || !issues.length) return "";
+  const order = Object.keys(CATEGORY_LABEL);
+  const byD = {};
+  for (const i of issues) {
+    const d = i.dossier || "Autre";
+    (byD[d] ||= { total: 0, cats: {} });
+    byD[d].total += 1;
+    byD[d].cats[i.categorie] = (byD[d].cats[i.categorie] || 0) + 1;
+  }
+  let names = Object.keys(byD).sort();
+  if (focusDossier && byD[focusDossier]) names = [focusDossier, ...names.filter((n) => n !== focusDossier)];
+  const line = (d) => {
+    const r = byD[d];
+    const parts = order.filter((k) => r.cats[k]).map((k) => `${CATEGORY_LABEL[k]} ${r.cats[k]}`);
+    return `• ${d} — total ${r.total} : ${parts.join(", ") || "aucun ticket"}`;
+  };
+  return names.map(line).join("\n");
+}
+
 app.post("/api/meeting/report", guard, writeGuard, upload.fields([{ name: "audio", maxCount: 1 }, { name: "images", maxCount: 8 }]), async (req, res) => {
   try {
-    const { titre, participants, notes, equipe } = req.body;
+    const { titre, participants, notes, equipe, consigne, dossier } = req.body;
     let transcript = req.body.transcript || "";
     const audio = req.files?.audio?.[0];
     if (audio && !transcript && sttAvailable()) transcript = await transcribe(audio.buffer, audio.originalname, audio.mimetype);
     const images = (req.files?.images || []).map((f) => ({ media_type: f.mimetype, dataBase64: f.buffer.toString("base64") }));
-    const out = await meetingReport({ titre, participants, notes, transcript, images, equipe });
-    logEvent("cr_reunion", `CR reunion - ${titre || "sans titre"}`, { via: out.generatedBy, images: images.length, audio: !!audio });
+    // Chiffres VÉRIFIÉS depuis Jira (mêmes données que le pilotage de bout en bout) → source de vérité de l'IA.
+    let jiraFacts = "";
+    try {
+      const got = await getIssues(false);
+      if (got) jiraFacts = buildJiraFacts(withoutDeletedDevs(got.issues), dossier);
+    } catch { /* pas de Jira → on rédige sans bloc chiffres */ }
+    const out = await meetingReport({ titre, participants, notes, transcript, images, equipe, consigne, jiraFacts });
+    logEvent("cr_reunion", `CR reunion - ${titre || "sans titre"}`, { via: out.generatedBy, images: images.length, audio: !!audio, consigne: !!(consigne && consigne.trim()) });
     res.json({ ...out, transcript });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
