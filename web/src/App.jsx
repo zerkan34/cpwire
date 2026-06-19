@@ -5,6 +5,7 @@ import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
+import Home from "./components/Home.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
@@ -74,7 +75,8 @@ const TABS = [
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
   cockpit: [
-    { id: "portefeuille", label: "Vue d'ensemble" },
+    { id: "accueil", label: "Accueil" },
+    { id: "portefeuille", label: "Tickets" },
     { id: "activite", label: "Activité" },
     { id: "recette", label: "Recette" },
     { id: "reference", label: "Référence" },
@@ -155,7 +157,7 @@ export default function App() {
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
-  const [sub, setSub] = useState("portefeuille");   // sous-onglet actif dans un onglet groupé
+  const [sub, setSub] = useState("accueil");   // sous-onglet actif dans un onglet groupé
   const [drawer, setDrawer] = useState(false);
   const [data, setData] = useState(null);
   const [dossiers, setDossiers] = useState({});
@@ -405,7 +407,7 @@ export default function App() {
   }, [authed, role, showToast]);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
-  useEffect(() => { if (query.trim() && tab !== "cockpit") setTab("cockpit"); /* eslint-disable-next-line */ }, [query]);
+  useEffect(() => { if (query.trim()) { setTab("cockpit"); setSub("portefeuille"); } /* eslint-disable-next-line */ }, [query]);
 
   // Actualisation automatique EN CONTINU (toutes les 60 s), tant qu'on est connecté —
   // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
@@ -642,6 +644,10 @@ export default function App() {
       {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
 
       <div className="page-anim" key={tab + ":" + sub}>
+      {tab === "cockpit" && sub === "accueil" && (
+        <Home facts={facts} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
+          onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} />
+      )}
       {tab === "cockpit" && sub === "portefeuille" && (
         <>
           {diag && (
@@ -649,8 +655,7 @@ export default function App() {
               Import vérifié — {diag.totalImporte} tickets : {Object.entries(diag.parProjet).map(([k, v]) => `${k} (${v})`).join(" · ") || "—"}
             </p>
           )}
-          <PageHero k="Cockpit" title="Vue d'ensemble" sub="Tous les dossiers d'un coup d'œil — clique une carte pour ouvrir sa fiche." />
-          <Portfolio facts={facts} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360} />
+          <PageHero k="Cockpit" title="Tickets" sub="La liste complète, filtrable et cherchable." />
 
           <div className="section-title">
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
