@@ -2446,3 +2446,41 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .meet-select:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
 .meet-consigne label { color: var(--purple-strong); }
 .meet-consigne .ta { border-color: var(--purple-line); background: linear-gradient(180deg, var(--purple-soft), var(--card) 60%); }
+
+/* ===== v139 : explorateur SharePoint (documents / Excel des devs) ===== */
+.sp-config .sp-vars { margin: 8px 0; padding-left: 18px; }
+.sp-config .sp-vars li { margin: 5px 0; line-height: 1.5; }
+.sp-config code { background: var(--purple-soft); color: var(--purple-strong); padding: 1px 6px; border-radius: 6px; font-size: 12.5px; }
+.sp-panel { padding: 0; overflow: hidden; }
+.sp-crumbs { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--purple-soft); }
+.sp-crumb { border: 0; background: transparent; font: inherit; font-weight: 700; color: var(--purple-strong); cursor: pointer; padding: 3px 6px; border-radius: 7px; }
+.sp-crumb:disabled { color: var(--ink); cursor: default; }
+.sp-crumb:not(:disabled):hover { background: #fff; }
+.sp-sep { color: var(--muted); margin: 0 1px; }
+.sp-refresh { margin-left: auto; border: 1px solid var(--purple-line); background: #fff; border-radius: 8px; width: 30px; height: 30px; cursor: pointer; color: var(--purple-strong); font-size: 15px; }
+.sp-empty { padding: 28px 16px; text-align: center; color: var(--muted); }
+.sp-list { list-style: none; margin: 0; padding: 0; }
+.sp-row { display: flex; align-items: center; gap: 12px; padding: 11px 16px; border-bottom: 1px solid var(--line-soft); cursor: pointer; transition: background .12s; }
+.sp-row:hover { background: var(--purple-soft); }
+.sp-row.is-folder .sp-name { font-weight: 700; }
+.sp-ic { font-size: 18px; flex: none; }
+.sp-name { flex: 1 1 auto; min-width: 0; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-meta { flex: none; font-size: 12px; color: var(--muted); }
+.sp-by { min-width: 120px; text-align: right; }
+.sp-open { flex: none; border: 1px solid var(--purple-line); background: #fff; color: var(--purple-strong); border-radius: 7px; width: 28px; height: 28px; cursor: pointer; font-size: 13px; }
+.sp-open:hover { background: var(--purple-soft); }
+@media (max-width: 720px) { .sp-by { display: none; } }
+
+/* Modale aperçu / édition Office */
+.sp-modal-bg { position: fixed; inset: 0; background: rgba(20,18,40,.55); z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 24px; }
+.sp-modal { background: var(--card); border-radius: 16px; width: min(1100px, 96vw); height: min(86vh, 900px); display: flex; flex-direction: column; box-shadow: 0 24px 70px rgba(0,0,0,.4); overflow: hidden; }
+.sp-modal-hd { display: flex; align-items: center; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); background: var(--purple-soft); }
+.sp-modal-name { font-weight: 800; color: var(--ink); flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-modal-act { display: flex; align-items: center; gap: 8px; flex: none; }
+.sp-seg { display: inline-flex; border: 1px solid var(--purple-line); border-radius: 9px; overflow: hidden; }
+.sp-seg button { border: 0; background: #fff; padding: 6px 11px; font: inherit; font-weight: 700; font-size: 12.5px; color: var(--muted); cursor: pointer; }
+.sp-seg button.on { background: linear-gradient(135deg, var(--purple), var(--purple-strong)); color: #fff; }
+.sp-modal-x { border: 0; background: transparent; font-size: 24px; line-height: 1; color: var(--muted); cursor: pointer; padding: 0 4px; }
+.sp-frame-wrap { flex: 1 1 auto; min-height: 0; background: #f3f3f7; }
+.sp-frame { width: 100%; height: 100%; border: 0; }
+.sp-modal-hint { margin: 0; padding: 9px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--line); background: var(--card); }

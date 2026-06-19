@@ -10,6 +10,7 @@ import IssueTable from "./components/IssueTable.jsx";
 import Recette from "./components/Recette.jsx";
 import Referentiel from "./components/Referentiel.jsx";
 import Projets from "./components/Projets.jsx";
+import SharePointFiles from "./components/SharePointFiles.jsx";
 import Hygiene from "./components/Hygiene.jsx";
 import Connaissance from "./components/Connaissance.jsx";
 import Admin from "./components/Admin.jsx";
@@ -77,6 +78,7 @@ const SUBTABS = {
     { id: "recette", label: "Recette" },
     { id: "reference", label: "Référence" },
     { id: "projets", label: "Suivi projets" },
+    { id: "documents", label: "Documents" },
   ],
   devs: [
     { id: "devs", label: "Développeurs" },
@@ -131,6 +133,7 @@ function NavIcon({ id }) {
     case "cadence": return (<svg viewBox="0 0 24 24" {...p}><path d="M3 12h3l2-6 4 14 3-9 2 4h4" /></svg>);
     case "referentiel": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l9 5-9 5-9-5 9-5z" /><path d="M3 12l9 5 9-5" /><path d="M3 16l9 5 9-5" /></svg>);
     case "projets": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5.5A1.5 1.5 0 0 1 9.5 4h5A1.5 1.5 0 0 1 16 5.5V7" /><line x1="3" y1="12" x2="21" y2="12" /></svg>);
+    case "documents": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" /><path d="M13 3v5h5" /><path d="M8.5 13l2 2 3.5-3.5" /></svg>);
     default: return null;
   }
 }
@@ -696,6 +699,7 @@ export default function App() {
         </>
       )}
       {tab === "cockpit" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
+      {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 

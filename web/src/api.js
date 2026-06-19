@@ -67,6 +67,11 @@ export async function claimAccount(token, email, password) {
   return data;
 }
 export const adminInvite = (opts = {}) => post(`/api/admin/invite`, opts);
+
+// Explorateur SharePoint (lecture en direct + aperçu Office en ligne)
+export const spStatus = () => get(`/api/sharepoint/status`);
+export const spList = (path = "") => get(`/api/sharepoint/list?path=${encodeURIComponent(path)}`);
+export const spPreview = (id) => post(`/api/sharepoint/preview`, { id });
 export const fetchAdminUsers = () => req(`/api/admin/users`);
 export const removeAdminUser = (email) => post(`/api/admin/users/remove`, { email });
 export const ping = () => post(`/api/ping`, {});

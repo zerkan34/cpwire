@@ -30,7 +30,7 @@ import { logEvent, read as readHistory } from "./history.js";
 import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
-import { sendMail, uploadToSharePoint, msConfigured } from "./microsoft.js";
+import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl } from "./microsoft.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -875,8 +875,7 @@ app.post("/api/share/mail", guard, writeGuard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.post("/api/share/sharepoint", guard, writeGuard, async (req, res) => {
-  try {
+app.post("/api/share/sharepoint", guard, writeGuard, async (req, res) => {  try {
     const { folderPath, filename, html } = req.body;
     const r = await uploadToSharePoint({ folderPath, filename, html });
     logEvent("partage_sharepoint", `Rapport déposé sur SharePoint`, { folderPath, filename });
@@ -885,6 +884,25 @@ app.post("/api/share/sharepoint", guard, writeGuard, async (req, res) => {
 });
 
 app.get("/api/history", guard, (_req, res) => res.json({ events: readHistory() }));
+
+// ---- Explorateur SharePoint (lecture en direct des fichiers, dont les Excel des devs) ----
+// Nécessite MS_* + SP_SITE_ID (app Azure, permission Sites.Read.All / Sites.ReadWrite.All).
+app.get("/api/sharepoint/list", guard, async (req, res) => {
+  try {
+    if (!spConfigured()) return res.status(409).json({ error: "SharePoint non configuré : variables MS_* et SP_SITE_ID à renseigner.", needsConfig: true });
+    const items = await spListChildren(req.query.path || "");
+    res.json({ path: req.query.path || "", items });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+app.post("/api/sharepoint/preview", guard, async (req, res) => {
+  try {
+    if (!spConfigured()) return res.status(409).json({ error: "SharePoint non configuré.", needsConfig: true });
+    const url = await spPreviewUrl((req.body || {}).id);
+    res.json({ url });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+app.get("/api/sharepoint/status", guard, (_req, res) => res.json({ configured: spConfigured() }));
+
 
 // Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).
 app.get("/api/devs/deleted", guard, (_req, res) => res.json({ deleted: readDeleted() }));
