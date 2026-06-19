@@ -271,23 +271,7 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
       </div>
 
       {data.devs.length > 0 && (
-        <>
-          <div className="section-title" style={{ marginTop: 22 }}>Synthèse par développeur — {label}</div>
-          <div className="panel">
-            <table className="proj-tbl">
-              <thead><tr><th>Développeur</th><th>Terminés</th><th>Travaillés</th></tr></thead>
-              <tbody>
-                {data.devs.map((d) => (
-                  <tr key={d.dev} style={{ cursor: onDev ? "pointer" : "default" }} onClick={() => onDev && onDev(d.dev)}>
-                    <td><span className={greyed(d.dev) ? "dev-chip del" : "dev-chip"}>{d.dev}{delSet.has(d.dev) ? <span className="dev-del-tag">parti</span> : (inactiveSet.has(d.dev) ? <span className="dev-del-tag">inactif</span> : null)}</span></td>
-                    <td><b>{d.done}</b></td>
-                    <td>{d.touched}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </>
+        <p className="hint" style={{ marginTop: 14 }}>👉 La synthèse par développeur (charge, débit, délais) se trouve dans l'onglet <b>Développeurs</b> — elle n'est plus dupliquée ici.</p>
       )}
 
       <div className="section-title" style={{ marginTop: 22 }}>Journal de l'application</div>

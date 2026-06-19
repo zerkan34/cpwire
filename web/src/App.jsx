@@ -5,6 +5,7 @@ import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
+import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
 import Recette from "./components/Recette.jsx";
@@ -88,7 +89,6 @@ const SUBTABS = {
   ],
   comptesrendus: [
     { id: "recap", label: "Récap du jour" },
-    { id: "morning", label: "Brief du matin" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
     { id: "historique", label: "Historique" },
@@ -192,6 +192,8 @@ export default function App() {
 
   // Déclaré tôt : utilisé par des callbacks plus bas (évite une erreur d'initialisation au rendu).
   const issues = data?.issues || [];
+  // SOURCE DE VÉRITÉ UNIQUE des chiffres par dossier (live Jira). Cf. facts.js.
+  const facts = useMemo(() => computeFacts(issues), [issues]);
   const inactiveDevs = data?.inactiveDevs || [];
 
   const resetFilters = useCallback(() => {
@@ -648,7 +650,7 @@ export default function App() {
             </p>
           )}
           <PageHero k="Cockpit" title="Vue d'ensemble" sub="Tous les dossiers d'un coup d'œil — clique une carte pour ouvrir sa fiche." />
-          <Portfolio parDossier={data?.parDossier} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360} />
+          <Portfolio facts={facts} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360} />
 
           <div className="section-title">
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
@@ -690,7 +692,7 @@ export default function App() {
       {tab === "comptesrendus" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "comptesrendus" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "comptesrendus" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
-      {tab === "cockpit" && sub === "recette" && <Recette issues={issues} onTicket={setTicket} />}
+      {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "cockpit" && sub === "reference" && (
         <>
           <PageHero k="Cockpit" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
@@ -698,7 +700,7 @@ export default function App() {
           {role === "owner" && <Connaissance />}
         </>
       )}
-      {tab === "cockpit" && sub === "projets" && <Projets issues={issues} onTicket={setTicket} onDev={setDevFiche} />}
+      {tab === "cockpit" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
       {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
@@ -715,7 +717,7 @@ export default function App() {
       )}
       {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
         onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
-      {sel360 && <Client360 c={sel360} issues={issues} canCR={canCR} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
+      {sel360 && <Client360 c={sel360} issues={issues} facts={facts} canCR={canCR} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
       {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
       {dailyCrOpen && <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />}
 

@@ -155,6 +155,8 @@ tr.has-flag td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
 .dot.prog:before { background: var(--blue); } .dot.prog { color: var(--blue); }
 .dot.block:before { background: var(--red); } .dot.block { color: var(--red); }
 .dot.done:before { background: var(--green); } .dot.done { color: var(--green); }
+.dot.ret:before { background: #d97706; } .dot.ret { color: #d97706; }
+.dot.rec:before { background: var(--indigo, #4B3F8F); } .dot.rec { color: var(--indigo, #4B3F8F); }
 .health { float: right; font-size: 11px; font-weight: 700; padding: 3px 9px; border-radius: 99px; }
 .health.green { background: var(--green-bg); color: var(--green); }
 .health.amber { background: var(--amber-bg); color: var(--amber); }

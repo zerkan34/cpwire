@@ -22,6 +22,19 @@ function Ring({ pct, color, size = 44 }) {
 
 const initials = (s) => String(s || "").trim().split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
 
+// Retrouve les chiffres canoniques (facts) d'un client par son nom (insensible à
+// la casse / aux accents). Renvoie le pouls {total,actifs,recette,retours,retard}
+// ou null si aucun dossier Jira ne correspond (→ repli sur le serveur).
+function factForClient(facts, clientName) {
+  if (!facts || !facts.byDossier) return null;
+  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const target = norm(clientName);
+  for (const [d, f] of Object.entries(facts.byDossier)) {
+    if (norm(d) === target) return { total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard };
+  }
+  return null;
+}
+
 function Card({ p, onOpen }) {
   const color = METEO[p.meteo] || METEO.neutre;
   const pct = Math.round((p.avancement || 0) * 100);
@@ -114,8 +127,8 @@ export function ProjetModal({ p, onClose }) {
   );
 }
 
-function ClientBlock({ c, onOpen, onOpen360, q = "" }) {
-  const j = c.jira || {};
+function ClientBlock({ c, facts, onOpen, onOpen360, q = "" }) {
+  const j = factForClient(facts, c.client) || c.jira || {};
   const [openAcc, setOpenAcc] = useState(false);
   const a = c.acces;
   const ql = q.trim().toLowerCase();
@@ -146,8 +159,7 @@ function ClientBlock({ c, onOpen, onOpen360, q = "" }) {
           </div>
         ) : null}
         <div className="pf-client-actions">
-          {a ? <button className="pf-acc-btn" onClick={() => setOpenAcc((v) => !v)} title="Accès, environnements et contacts">{openAcc ? "▾" : "▸"} Accès & contacts</button> : null}
-          <button className="pf-360-btn" onClick={() => onOpen360 && onOpen360(c)} title="Vue complète du client">Fiche 360°</button>
+          <button className="pf-360-btn" onClick={() => onOpen360 && onOpen360(c)} title="Accès, environnements, contacts et vue complète du client">Fiche 360°</button>
         </div>
       </header>
       {c.recette ? (
@@ -156,34 +168,6 @@ function ClientBlock({ c, onOpen, onOpen360, q = "" }) {
           <div className="pf-recette-bar"><div style={{ width: `${c.recette.pct}%` }} /></div>
           <span className="pf-recette-pct">{c.recette.pct}%</span>
           <span className="pf-recette-meta">{c.recette.nbProgrammes} programmes{c.recette.retours ? ` · ${c.recette.retours} en retour` : ""}</span>
-        </div>
-      ) : null}
-      {openAcc && a ? (
-        <div className="pf-acc">
-          {a.contexte ? <p className="pf-acc-ctx">{a.contexte}</p> : null}
-          <div className="pf-acc-grid">
-            <div className="pf-acc-card">
-              <span className="pf-acc-lbl">Portail</span>
-              {a.portail && a.portail.url ? <a href={a.portail.url} target="_blank" rel="noopener noreferrer">{a.portail.nom || "Ouvrir"}</a> : <b>{(a.portail && a.portail.nom) || "à compléter"}</b>}
-            </div>
-            <div className="pf-acc-card">
-              <span className="pf-acc-lbl">SharePoint</span>
-              {a.sharepoint && a.sharepoint.url ? <a href={a.sharepoint.url} target="_blank" rel="noopener noreferrer">{a.sharepoint.nom || "Ouvrir"}</a> : <b>{(a.sharepoint && a.sharepoint.nom) || "à compléter"}</b>}
-            </div>
-            <div className="pf-acc-card">
-              <span className="pf-acc-lbl">Environnements</span>
-              <div className="pf-acc-envs">{(a.environnements || []).length ? a.environnements.map((e, i) => <span className="pf-env" key={i}>{e}</span>) : <i className="pf-acc-todo">à compléter</i>}</div>
-            </div>
-          </div>
-          {a.connexion && a.connexion.length ? (
-            <div className="pf-acc-sec"><h5>Connexion</h5><ol className="pf-acc-steps">{a.connexion.map((s, i) => <li key={i}>{s}</li>)}</ol></div>
-          ) : null}
-          {a.contacts && a.contacts.length ? (
-            <div className="pf-acc-sec"><h5>Contacts</h5><div className="pf-acc-contacts">{a.contacts.map((ct, i) => (
-              <span className={`pf-contact ${ct.cote === "Armonie" ? "arm" : "cli"}`} key={i}>{ct.nom}<i>{ct.role}{ct.cote ? ` · ${ct.cote}` : ""}</i></span>
-            ))}</div></div>
-          ) : null}
-          {a.coffre ? <div className="pf-acc-coffre">🔐 {a.coffre}</div> : null}
         </div>
       ) : null}
       <div className="pf-tablewrap">
@@ -225,7 +209,7 @@ function ClientBlock({ c, onOpen, onOpen360, q = "" }) {
   );
 }
 
-export default function Projets({ issues = [], onTicket, onDev }) {
+export default function Projets({ issues = [], facts, onTicket, onDev }) {
   const [d, setD] = useState(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -280,7 +264,7 @@ export default function Projets({ issues = [], onTicket, onDev }) {
       <div className="pf-recap">
         <div className="pf-recap-hd">
           <h3>Ce qui demande votre attention</h3>
-          <span className="pf-recap-meta">{rc.aSigner} à signer ({EUR(rc.montantPipe)} en pipe) · {rc.enRetard || 0} tickets en retard</span>
+          <span className="pf-recap-meta">{rc.aSigner} à signer ({EUR(rc.montantPipe)} en pipe) · {(facts?.global?.enRetard ?? rc.enRetard) || 0} tickets en retard</span>
         </div>
         {rc.alertes.length === 0 ? (
           <p className="pf-recap-empty">Rien d'urgent — portefeuille sous contrôle 🎉</p>
@@ -313,11 +297,11 @@ export default function Projets({ issues = [], onTicket, onDev }) {
         ))}
       </div>
 
-      {d.clients.map((c) => <ClientBlock key={c.client} c={c} onOpen={setSel} onOpen360={setSel360} q={q} />)}
+      {d.clients.map((c) => <ClientBlock key={c.client} c={c} facts={facts} onOpen={setSel} onOpen360={setSel360} q={q} />)}
       <p className="pf-foot">Couche commerciale éditable, confrontée aux tickets Jira en direct{d.majSource ? ` · ${d.majSource}` : ""}.</p>
 
       {sel ? <ProjetModal p={sel} onClose={() => setSel(null)} /> : null}
-      {sel360 ? <Client360 c={sel360} issues={issues} onClose={() => setSel360(null)} onTicket={onTicket} onDev={onDev} /> : null}
+      {sel360 ? <Client360 c={sel360} issues={issues} facts={facts} onClose={() => setSel360(null)} onTicket={onTicket} onDev={onDev} /> : null}
     </div>
   );
 }

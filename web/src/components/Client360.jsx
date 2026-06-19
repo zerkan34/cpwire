@@ -18,7 +18,7 @@ const CAT_PILL = {
   afaire: "todo", attenteClient: "todo", retourTest: "block", retourProd: "block", annule: "todo",
 };
 
-export default function Client360({ c, issues = [], canCR = true, onClose, onTicket, onDev }) {
+export default function Client360({ c, issues = [], facts, canCR = true, onClose, onTicket, onDev }) {
   const [selP, setSelP] = useState(null);
   const [busy, setBusy] = useState("");
   const [mails, setMails] = useState({ loading: true });
@@ -33,10 +33,19 @@ export default function Client360({ c, issues = [], canCR = true, onClose, onTic
   const [seg, setSeg] = useState("all");
   const engOf = (k) => (/^P/i.test(k || "") ? "Projet" : "TMA");
   if (!c) return null;
-  const j = c.jira || {}, fin = c.finances || {}, a = c.acces;
+  const fin = c.finances || {}, a = c.acces;
+  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  // Chiffres tickets canoniques (facts, live Jira) du client — insensible à la casse.
+  let j = c.jira || {};
+  if (facts && facts.byDossier) {
+    const t = norm(c.client);
+    for (const [d, f] of Object.entries(facts.byDossier)) {
+      if (norm(d) === t) { j = { total: f.total, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
+    }
+  }
 
   const recent = useMemo(() => {
-    return issues.filter((i) => i.dossier === c.client && (!hasBoth || seg === "all" || engOf(i.cle) === seg))
+    return issues.filter((i) => norm(i.dossier) === norm(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg))
       .slice().sort((x, y) => String(y.maj || "").localeCompare(String(x.maj || "")))
       .slice(0, 12);
   }, [issues, c.client, seg, hasBoth]);
