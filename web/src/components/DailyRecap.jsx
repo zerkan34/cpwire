@@ -4,6 +4,15 @@ import { fetchRecap, genDailyCR, genWrittenCR, fetchRecapChiffres } from "../api
 import DocPreview from "./DocPreview.jsx";
 
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
+const CAT_LABEL = {
+  afaire: "À faire", encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
+  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
+  miseEnProd: "Mise en prod", termine: "Terminé", annule: "Annulé",
+};
+const CAT_PILL = {
+  termine: "done", miseEnProd: "done", encours: "prog", recetteArmonie: "prog", recetteClient: "prog",
+  afaire: "todo", attenteClient: "todo", retourTest: "block", retourProd: "block", annule: "todo",
+};
 
 function shorten(s, n = 72) {
   s = (s || "").trim();
@@ -170,7 +179,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                     <li key={i.cle} className="ri" onClick={() => onTicket(i)}>
                       <div className="ri-top">
                         <span className="k">{i.cle}</span>
-                        <span className={`pill ${PILL[i.statut]}`}>{i.statut}</span>
+                        <span className={`pill ${CAT_PILL[i.categorie] || PILL[i.statut] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
                       </div>
                       <div className="ri-res">{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
                       {showDev && (
