@@ -6,6 +6,7 @@ import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Portfolio from "./components/Portfolio.jsx";
 import Home from "./components/Home.jsx";
+import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
@@ -111,6 +112,8 @@ function subsForRole(groupId, role) {
 function NavIcon({ id }) {
   const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" };
   switch (id) {
+    case "accueil": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 11.5L12 4l8 7.5" /><path d="M6 10v9h12v-9" /><path d="M10 19v-5h4v5" /></svg>);
+    case "tickets": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 7a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2a2 2 0 0 0 0 4v2a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-2a2 2 0 0 0 0-4z" /><line x1="12" y1="7" x2="12" y2="17" strokeDasharray="1.5 2.5" /></svg>);
     case "cockpit": return (<svg viewBox="0 0 24 24" {...p}><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>);
     case "encours": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></svg>);
     case "recap": return (<svg viewBox="0 0 24 24" {...p}><line x1="8" y1="6" x2="20" y2="6" /><line x1="8" y1="12" x2="20" y2="12" /><line x1="8" y1="18" x2="20" y2="18" /><circle cx="4" cy="6" r="0.7" /><circle cx="4" cy="12" r="0.7" /><circle cx="4" cy="18" r="0.7" /></svg>);
@@ -154,6 +157,15 @@ export default function App() {
   const [tab, setTab] = useState("cockpit");
   const [sub, setSub] = useState("accueil");   // sous-onglet actif dans un onglet groupé
   const [drawer, setDrawer] = useState(false);
+  const [quickOpen, setQuickOpen] = useState(false);   // feuille « accès rapide » (bouton central mobile)
+  const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const m = window.matchMedia("(max-width: 768px)");
+    const h = () => setIsMobile(m.matches);
+    m.addEventListener ? m.addEventListener("change", h) : m.addListener(h);
+    return () => { m.removeEventListener ? m.removeEventListener("change", h) : m.removeListener(h); };
+  }, []);
   const [data, setData] = useState(null);
   const [dossiers, setDossiers] = useState({});
   const [deletedDevs, setDeletedDevs] = useState([]);
@@ -640,8 +652,13 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
-          onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
+        isMobile ? (
+          <MissionControl facts={facts} issues={issues} role={role} onOpen360={open360} can360={can360}
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v153" />
+        ) : (
+          <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
+            onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
+        )
       )}
       {tab === "cockpit" && sub === "portefeuille" && (
         <>
@@ -718,17 +735,49 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
       <InstallPWA />
 
-      {/* ---- Barre du bas (mobile) : 4 onglets principaux ---- */}
-      <nav className="mobile-tabbar" aria-label="Navigation principale">
-        {primaryTabs.map((id) => (
-          <button key={id} className={`mtab ${tab === id ? "active" : ""}`}
-            onClick={() => { setTab(id); window.scrollTo({ top: 0 }); }}>
-            <span className="mtab-ic" aria-hidden="true"><NavIcon id={id} /></span>
-            <span className="mtab-lb">{TAB_SHORT[id] || tabLabel(id)}</span>
-            {id === "cockpit" && data?.kpis?.mine ? <span className="mtab-badge">{data.kpis.mine}</span> : null}
+      {/* ---- Nav cockpit (mobile) : Accueil · Tickets · ✚ · Outils · Qualité ---- */}
+      <nav className="cockpit-nav" aria-label="Navigation principale">
+        <div className="cnav-shell">
+          <button className={`cnav-tab ${tab === "cockpit" && sub === "accueil" ? "active" : ""}`}
+            onClick={() => { setTab("cockpit"); setSub("accueil"); window.scrollTo({ top: 0 }); }}>
+            <span className="cnav-ic" aria-hidden="true"><NavIcon id="accueil" /></span><span className="cnav-lb">Accueil</span>
           </button>
-        ))}
+          <button className={`cnav-tab ${tab === "cockpit" && sub === "portefeuille" ? "active" : ""}`}
+            onClick={() => { setTab("cockpit"); setSub("portefeuille"); window.scrollTo({ top: 0 }); }}>
+            <span className="cnav-ic" aria-hidden="true"><NavIcon id="tickets" /></span><span className="cnav-lb">Tickets</span>
+          </button>
+          <button className="cnav-plus" aria-label="Accès rapide" onClick={() => setQuickOpen(true)}>
+            <span className="cnav-plus-in"><span className="cnav-plus-ic">+</span></span>
+          </button>
+          <button className={`cnav-tab ${tab === "outils" ? "active" : ""}`}
+            onClick={() => { setTab("outils"); window.scrollTo({ top: 0 }); }}>
+            <span className="cnav-ic" aria-hidden="true"><NavIcon id="outils" /></span><span className="cnav-lb">Outils</span>
+          </button>
+          <button className={`cnav-tab ${tab === "qualite" ? "active" : ""}`}
+            onClick={() => { setTab("qualite"); window.scrollTo({ top: 0 }); }}>
+            <span className="cnav-ic" aria-hidden="true"><NavIcon id="qualite" /></span><span className="cnav-lb">Qualité</span>
+          </button>
+        </div>
       </nav>
+
+      {/* ---- Feuille « accès rapide » (bouton central) ---- */}
+      {quickOpen && (
+        <div className="qa-back" onClick={() => setQuickOpen(false)}>
+          <div className="qa-sheet" role="dialog" aria-label="Accès rapide" onClick={(e) => e.stopPropagation()}>
+            <div className="qa-grab" />
+            <div className="qa-title">Accès rapide</div>
+            <button className="qa-act" onClick={() => { setQuickOpen(false); load(true); }}>
+              <span className="qa-act-ic">⟳</span> Actualiser les données
+            </button>
+            <div className="qa-lbl">Ouvrir un client</div>
+            <div className="qa-clients">
+              {Object.keys(facts?.byDossier || {}).filter((d) => can360(d)).map((d) => (
+                <button key={d} className="qa-client" onClick={() => { setQuickOpen(false); open360(d); }}>{d}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---- Tiroir (burger) : sections secondaires, glisse de la gauche ---- */}
       <div className={`drawer-backdrop ${drawer ? "show" : ""}`} onClick={() => setDrawer(false)} />

@@ -2545,3 +2545,214 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .pds-copy { padding: 6px 10px; }
   .home-wrap, .home-wrap > * { max-width: 100%; }
 }
+
+/* ============================================================================
+   REFONTE MOBILE / PWA — ergonomie « app native ». Tout est scopé ≤768px :
+   la version ordinateur n'est pas affectée. (Ajout en fin de fichier =
+   ces règles l'emportent sur les définitions mobiles antérieures.)
+   ============================================================================ */
+@media (max-width: 768px) {
+
+  /* ---- App-bar : on enlève la déco, on resserre, on respecte l'encoche ---- */
+  .hdr { padding: calc(env(safe-area-inset-top) + 14px) 16px 14px; border-radius: 0 0 20px 20px; }
+  .hdr .hdr-title { display: none; }                 /* tagline décorative : inutile sur mobile */
+  .hdr-headline { margin-top: 0; }
+  .hdr .src { font-size: 11px; line-height: 1.35; opacity: .9; }
+  .hdr .eyebrow { font-size: 10.5px; letter-spacing: .14em; }
+  .hdr-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 9px; }
+  .hdr-ic, .bell { width: 40px; height: 40px; }      /* cibles tactiles 40px */
+  .progress { margin-top: 11px; font-size: 11.5px; }
+
+  /* ---- Sous-nav : segmented control collant (pastilles) ---- */
+  .subtabs { position: sticky; top: 0; z-index: 30; width: 100%; max-width: 100%;
+    display: flex; flex-wrap: nowrap; gap: 8px; margin: 0 0 16px; padding: 10px 0;
+    background: var(--bg); border: 0; border-radius: 0; border-bottom: 1px solid var(--line-soft);
+    overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+  .subtabs::-webkit-scrollbar { display: none; }
+  .subtab { flex: 0 0 auto; white-space: nowrap; margin: 0;
+    border: 1px solid var(--line); background: var(--card); color: var(--muted);
+    font-weight: 700; font-size: 13px; padding: 9px 16px; border-radius: 99px; }
+  .subtab.active { background: var(--indigo); color: #fff; border-color: var(--indigo);
+    box-shadow: 0 3px 12px rgba(75,63,143,.38); }
+  .subtab.active::after { display: none; }            /* neutralise tout soulignement hérité */
+  .sub-badge { background: var(--gold); color: var(--indigo-deep); }
+
+  /* ---- Bottom bar : verre dépoli si supporté (sinon couleur pleine héritée) ---- */
+  .mtab-lb { font-size: 11px; letter-spacing: .01em; }
+  .mobile-tabbar { padding-top: 7px; }
+
+  /* ---- Cartes : rythme régulier, coins doux, rien ne touche les bords ---- */
+  .panel, .pcard, .recap-card, .rec-card, .hist, .enc-card { border-radius: 16px; }
+  .section-title { margin-top: 22px; }
+
+  /* ---- Confort tactile + accessibilité ---- */
+  :focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+}
+
+@supports ((-webkit-backdrop-filter: blur(2px)) or (backdrop-filter: blur(2px))) {
+  @media (max-width: 768px) {
+    .mobile-tabbar { background: rgba(15, 19, 36, .80);
+      -webkit-backdrop-filter: blur(18px) saturate(170%); backdrop-filter: blur(18px) saturate(170%); }
+  }
+}
+
+/* ============================================================================
+   MISSION CONTROL — cockpit mobile (composant monté uniquement < 768px).
+   Palette dédiée (brief V4). Desktop non concerné (composant absent + scope).
+   ============================================================================ */
+@keyframes mc-sweep { to { transform: rotate(360deg); } }
+@keyframes mc-ring-in { from { stroke-dashoffset: 465; } }
+
+@media (max-width: 768px) {
+  .mc { --bg: #020817; --card: #0a1730; --line: rgba(255,255,255,.07);
+        --orange: #ff7a00; --orange-l: #ffb347; --blue: #3b82f6; --purple: #8b5cf6;
+        --red: #ef4444; --green: #10b981; --t1: #ffffff; --t2: #94a3b8;
+        display: flex; flex-direction: column; gap: 24px; margin-top: 4px; }
+
+  /* ---- Hero ---- */
+  .mc-hero { position: relative; padding: 4px 2px 0; overflow: visible; }
+  .mc-radar { position: absolute; top: -34px; right: -46px; width: 280px; height: 280px; pointer-events: none; opacity: .55;
+    background: repeating-radial-gradient(circle at center, rgba(255,255,255,.06) 0 1px, transparent 1px 30px);
+    -webkit-mask: radial-gradient(circle at center, #000, transparent 70%); mask: radial-gradient(circle at center, #000, transparent 70%); }
+  .mc-radar::after { content: ""; position: absolute; inset: 0; border-radius: 50%;
+    background: conic-gradient(from 0deg, rgba(255,122,0,.20), transparent 32%); animation: mc-sweep 7s linear infinite; }
+  .mc-h1 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 38px; line-height: .98;
+    letter-spacing: -1px; color: var(--t1); margin: 0; text-transform: uppercase; }
+  .mc-h2 { margin: 6px 0 0; font-size: 19px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; }
+  .mc-h2 span { color: var(--t1); }
+  .mc-h2 em { font-style: normal; background: linear-gradient(90deg, var(--orange), var(--purple)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .mc-date { margin: 12px 0 0; color: var(--t2); font-size: 14px; }
+
+  /* ---- Carte Mission Control : un seul niveau, dégradé tamisé ---- */
+  .mc-card { background: linear-gradient(135deg, rgba(255,122,0,.10), rgba(59,130,246,.04)), var(--card);
+    border: 1px solid var(--line); border-radius: 24px; overflow: hidden; }
+  .mc-card-main { display: flex; align-items: center; gap: 14px; padding: 18px 16px; }
+
+  .mc-ring { position: relative; width: 150px; height: 150px; flex: 0 0 150px; }
+  .mc-ring-svg { width: 100%; height: 100%; filter: drop-shadow(0 0 10px rgba(255,122,0,.35)); }
+  .mc-ring-prog { animation: mc-ring-in 1.1s cubic-bezier(.2,.7,.2,1); }
+  .mc-ring-ctr { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .mc-ring-n { font-family: "Poppins"; font-weight: 800; font-size: 32px; color: var(--t1); line-height: 1; }
+  .mc-ring-sub { font-size: 10.5px; color: var(--t2); margin-top: 3px; }
+  .mc-ring-pct { font-family: "Poppins"; font-weight: 800; font-size: 19px; color: var(--orange); margin-top: 5px; }
+
+  .mc-kpis { flex: 1; min-width: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .mc-kpi { position: relative; background: rgba(255,255,255,.03); border: 1px solid var(--line);
+    border-radius: 16px; padding: 10px 11px; min-height: 76px; display: flex; flex-direction: column; justify-content: center; }
+  .mc-kpi-ic { position: absolute; top: 9px; right: 9px; width: 20px; height: 20px; color: var(--c); opacity: .9; }
+  .mc-kpi-ic svg { width: 100%; height: 100%; }
+  .mc-kpi-n { font-family: "Poppins"; font-weight: 800; font-size: 24px; color: var(--t1); line-height: 1; }
+  .mc-kpi-lb { font-size: 10.5px; color: var(--t2); margin-top: 4px; text-transform: uppercase; letter-spacing: .04em; }
+  .mc-kpi.t-blue { --c: var(--blue); } .mc-kpi.t-purple { --c: var(--purple); }
+  .mc-kpi.t-red { --c: var(--red); } .mc-kpi.t-orange { --c: var(--orange); }
+  .mc-kpi.t-blue { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.22); }
+  .mc-kpi.t-purple { background: rgba(139,92,246,.07); border-color: rgba(139,92,246,.22); }
+  .mc-kpi.t-red { background: rgba(239,68,68,.07); border-color: rgba(239,68,68,.22); }
+  .mc-kpi.t-orange { background: rgba(255,122,0,.07); border-color: rgba(255,122,0,.22); }
+  .mc-kpi.t-blue .mc-kpi-n { color: #cfe0ff; } .mc-kpi.t-purple .mc-kpi-n { color: #e3d7ff; }
+  .mc-kpi.t-red .mc-kpi-n { color: #ffd4d4; } .mc-kpi.t-orange .mc-kpi-n { color: #ffd9b0; }
+
+  .mc-sysbar { display: flex; align-items: center; gap: 12px; padding: 0 16px; height: 44px;
+    border-top: 1px solid var(--line); font-size: 12px; color: var(--t2); }
+  .mc-sysbar-sep { flex: 1; }
+
+  /* ---- Sections ---- */
+  .mc-sec-hd { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .mc-sec-hd h2 { font-size: 12.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--t2); margin: 0; }
+  .mc-empty { color: var(--t2); font-size: 13.5px; margin: 0; padding: 8px 2px; }
+
+  /* ---- Priorités : liste premium ---- */
+  .mc-list { display: flex; flex-direction: column; gap: 9px; }
+  .mc-row { display: flex; align-items: center; gap: 13px; width: 100%; text-align: left;
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 0 12px; min-height: 66px; cursor: pointer; }
+  .mc-row:disabled { cursor: default; opacity: .9; }
+  .mc-row:active:not(:disabled) { background: #0d1c38; }
+  .mc-row-tile { flex: 0 0 40px; width: 40px; height: 40px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+    font-family: "Poppins"; font-weight: 800; font-size: 13px; color: #fff; letter-spacing: .02em; }
+  .mc-row-tile.sev-3 { background: linear-gradient(135deg, #ef4444, #b91c1c); }
+  .mc-row-tile.sev-2 { background: linear-gradient(135deg, #ff9f45, #f97316); }
+  .mc-row-name { font-weight: 800; font-size: 15px; color: var(--t1); flex: 0 0 auto; }
+  .mc-row-meta { margin-left: auto; display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; color: var(--t2); text-align: right; max-width: 48%; }
+  .mc-dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 8px; }
+  .mc-dot.red { background: var(--red); box-shadow: 0 0 7px var(--red); }
+  .mc-dot.orange { background: var(--orange); box-shadow: 0 0 7px var(--orange); }
+  .mc-row-cv { flex: 0 0 auto; width: 18px; height: 18px; color: var(--t2); }
+  .mc-row-cv svg { width: 100%; height: 100%; }
+
+  /* ---- Activité : timeline ---- */
+  .mc-tl { position: relative; display: flex; flex-direction: column; }
+  .mc-tl-row { position: relative; display: flex; align-items: flex-start; gap: 14px; width: 100%; text-align: left;
+    background: none; border: 0; padding: 11px 2px; cursor: pointer; }
+  .mc-tl-row::before { content: ""; position: absolute; left: 6px; top: 22px; bottom: -3px; width: 2px; background: var(--line); }
+  .mc-tl-row:last-child::before { display: none; }
+  .mc-tl-dot { position: relative; z-index: 1; flex: 0 0 14px; width: 14px; height: 14px; border-radius: 50%; margin-top: 3px;
+    border: 3px solid var(--bg); }
+  .mc-tl-dot.green { background: var(--green); box-shadow: 0 0 8px rgba(16,185,129,.6); }
+  .mc-tl-dot.blue { background: var(--blue); } .mc-tl-dot.red { background: var(--red); } .mc-tl-dot.slate { background: #64748b; }
+  .mc-tl-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .mc-tl-key { font-family: "JetBrains Mono", monospace; font-weight: 700; font-size: 12.5px; color: var(--t1); }
+  .mc-tl-res { font-size: 13.5px; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mc-tl-right { flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+  .mc-tl-stat { font-size: 12.5px; font-weight: 700; }
+  .mc-tl-stat.green { color: var(--green); } .mc-tl-stat.blue { color: var(--blue); } .mc-tl-stat.red { color: var(--red); } .mc-tl-stat.slate { color: var(--t2); }
+  .mc-tl-time { font-family: "JetBrains Mono", monospace; font-size: 11.5px; color: #64748b; }
+}
+
+/* ============================================================================
+   NAV COCKPIT (mobile) — Accueil · Tickets · ✚ · Outils · Qualité.
+   Cachée sur desktop. Remplace l'ancienne .mobile-tabbar.
+   ============================================================================ */
+.cockpit-nav { display: none; }
+@keyframes qa-fade { from { opacity: 0; } }
+@keyframes qa-up { from { transform: translateY(100%); } }
+
+@media (max-width: 768px) {
+  .wrap { padding-bottom: calc(96px + env(safe-area-inset-bottom)); }
+  .to-top, .install-fab { bottom: calc(104px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(110px + env(safe-area-inset-bottom)); }
+
+  .cockpit-nav { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 50;
+    padding: 0 12px calc(9px + env(safe-area-inset-bottom)); pointer-events: none; }
+  .cnav-shell { position: relative; pointer-events: auto; display: flex; align-items: stretch; justify-content: space-between;
+    height: 64px; padding: 0 6px; border: 1px solid rgba(255,122,0,.22); border-radius: 26px;
+    background: linear-gradient(180deg, rgba(12,18,38,.94), rgba(8,12,26,.97));
+    box-shadow: 0 -8px 30px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.05); }
+  .cnav-shell::before { content: ""; position: absolute; left: 20px; right: 20px; top: 6px; height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255,122,0,.35), transparent); }
+
+  .cnav-tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+    border: 0; background: none; color: rgba(255,255,255,.52); font-size: 10.5px; font-weight: 700;
+    cursor: pointer; position: relative; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+  .cnav-ic { width: 22px; height: 22px; } .cnav-ic svg { width: 100%; height: 100%; }
+  .cnav-tab.active { color: #ff9a3c; }
+  .cnav-tab.active::before { content: ""; position: absolute; top: -1px; left: 50%; transform: translateX(-50%);
+    width: 26px; height: 3px; border-radius: 99px; background: #ff7a00; box-shadow: 0 0 10px rgba(255,122,0,.9); }
+  .cnav-tab.active::after { content: ""; position: absolute; inset: 5px 6px; border-radius: 14px; z-index: -1;
+    background: linear-gradient(180deg, rgba(255,122,0,.16), transparent); }
+  .cnav-tab.active .cnav-ic { filter: drop-shadow(0 0 6px rgba(255,122,0,.55)); }
+
+  .cnav-plus { flex: 0 0 70px; position: relative; background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+  .cnav-plus-in { position: absolute; left: 50%; top: 0; transform: translate(-50%, -42%);
+    width: 62px; height: 62px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 32%, #ffb347, #ff7a00 72%);
+    border: 2px solid rgba(255,255,255,.20);
+    box-shadow: 0 0 0 6px rgba(8,12,26,.96), 0 0 26px rgba(255,122,0,.6), 0 8px 18px rgba(0,0,0,.5); }
+  .cnav-plus-in::before { content: ""; position: absolute; inset: -8px; border-radius: 50%; border: 1.5px solid rgba(255,122,0,.40); }
+  .cnav-plus-ic { color: #1a1205; font-size: 32px; font-weight: 700; line-height: 1; margin-top: -2px; }
+  .cnav-plus:active .cnav-plus-in { transform: translate(-50%, -40%) scale(.94); }
+
+  /* ---- Feuille « accès rapide » ---- */
+  .qa-back { position: fixed; inset: 0; z-index: 210; background: rgba(4,8,23,.55); display: flex; align-items: flex-end; animation: qa-fade .2s ease; }
+  .qa-sheet { width: 100%; background: #0a1730; border-radius: 22px 22px 0 0; border-top: 1px solid rgba(255,122,0,.25);
+    padding: 10px 18px calc(22px + env(safe-area-inset-bottom)); box-shadow: 0 -12px 40px rgba(0,0,0,.5);
+    animation: qa-up .26s cubic-bezier(.2,.7,.2,1); max-height: 80vh; overflow-y: auto; }
+  .qa-grab { width: 42px; height: 5px; border-radius: 99px; background: rgba(255,255,255,.22); margin: 4px auto 14px; }
+  .qa-title { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 17px; color: #fff; margin-bottom: 14px; }
+  .qa-act { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; border: 1px solid rgba(255,122,0,.3);
+    background: rgba(255,122,0,.10); color: #ffd9b0; font-weight: 700; font-size: 15px; padding: 14px; border-radius: 14px; cursor: pointer; }
+  .qa-act-ic { font-size: 18px; }
+  .qa-lbl { font-size: 11.5px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: #94a3b8; margin: 18px 0 10px; }
+  .qa-clients { display: flex; flex-wrap: wrap; gap: 9px; }
+  .qa-client { border: 1px solid rgba(255,255,255,.12); background: #0e1c38; color: #e8ecf7; font-weight: 700; font-size: 14px; padding: 11px 16px; border-radius: 99px; cursor: pointer; }
+  .qa-client:active { background: #14264a; }
+}
