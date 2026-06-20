@@ -640,7 +640,7 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        <Home facts={facts} issues={issues} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
+        <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
           onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
       )}
       {tab === "cockpit" && sub === "portefeuille" && (

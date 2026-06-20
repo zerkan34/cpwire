@@ -3,6 +3,7 @@ import { ProjetModal } from "./Projets.jsx";
 import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene } from "../api.js";
 import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
+import PointDuSoir from "./PointDuSoir.jsx";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -39,11 +40,11 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const fin = c.finances || {}, a = c.acces;
   const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   // Chiffres tickets canoniques (facts, live Jira) du client — insensible à la casse.
-  let j = c.jira || {};
+  let j = c.jira || {}, fblock = null, canonDossier = c.client;
   if (facts && facts.byDossier) {
     const t = norm(c.client);
     for (const [d, f] of Object.entries(facts.byDossier)) {
-      if (norm(d) === t) { j = { present: true, total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
+      if (norm(d) === t) { fblock = f; canonDossier = d; j = { present: true, total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
     }
   }
 
@@ -146,6 +147,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
           <div className="c360-cols">
             {/* Colonne gauche : projets + activité */}
             <div className="c360-main">
+              {fblock ? <PointDuSoir dossier={canonDossier} cats={fblock.cats} /> : null}
               {seg !== "TMA" && (<>
               <h3 className="c360-sec">Projets ({(c.projets || []).length})</h3>
               <div className="pf-tablewrap">
