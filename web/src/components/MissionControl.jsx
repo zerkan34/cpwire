@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchHygiene } from "../api.js";
+import AircraftGauge from "./AircraftGauge.jsx";
 
 // ============================================================================
 // Mission Control — l'Accueil mobile « cockpit ». Affiché UNIQUEMENT sur mobile
@@ -102,7 +103,7 @@ export default function MissionControl({ facts, issues = [], role, onOpen360, ca
       {/* ---- Mission Control ---- */}
       <section className="mc-card">
         <div className="mc-card-main">
-          <Ring done={g.valides || 0} total={g.total || 0} pct={g.pct || 0} />
+          <AircraftGauge pct={g.pct || 0} value={g.valides || 0} total={g.total || 0} />
           <div className="mc-kpis">
             {kpis.map((k) => (
               <div key={k.key} className={`mc-kpi t-${k.tone}`}>
