@@ -2756,3 +2756,67 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .qa-client { border: 1px solid rgba(255,255,255,.12); background: #0e1c38; color: #e8ecf7; font-weight: 700; font-size: 14px; padding: 11px 16px; border-radius: 99px; cursor: pointer; }
   .qa-client:active { background: #14264a; }
 }
+
+/* ============================================================================
+   COHÉRENCE COCKPIT (mobile) — toutes les pages au niveau de l'Accueil :
+   même fond profond, mêmes cartes, même accent orange. + en-tête de page
+   premium + barre de nav descendue/affinée. (Desktop intact : scope ≤768px.)
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* 1) Palette cockpit propagée à toute l'app mobile */
+  :root {
+    --bg: #020817; --bg-top: #0a1730;
+    --card: #0a1730; --card-2: #0e1c38; --row-alt: #0e1c38;
+    --line: rgba(255,255,255,.08); --line-soft: rgba(255,255,255,.05);
+    --orange: #ff7a00; --orange-deep: #ff7a00; --orange-soft: rgba(255,122,0,.16);
+    --shadow: 0 1px 2px rgba(0,0,0,.4), 0 12px 30px rgba(0,0,0,.4);
+  }
+  body { background:
+      radial-gradient(115% 70% at 50% -8%, rgba(255,122,0,.06), transparent 55%),
+      radial-gradient(120% 80% at 100% 0%, rgba(59,130,246,.05), transparent 52%),
+      #020817;
+    background-attachment: fixed; }
+
+  /* 2) En-tête de page (sous-pages) — mini-hero premium au lieu d'un bloc plat */
+  .page-hero { padding: 4px 2px 2px; margin-bottom: 18px; background: none; border: 0; }
+  .page-hero-k { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--orange); margin-bottom: 7px; }
+  .page-hero h2 { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 27px; line-height: 1.04;
+    letter-spacing: -.4px; color: #fff; margin: 0; }
+  .page-hero p { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 9px 0 0; }
+
+  /* 3) Cartes & sections : rythme et coins identiques au cockpit */
+  .panel, .pcard, .recap-card, .hist, .cra-card, .meet-card, .dev-block, .filter-box, .cockpit-panel { border-radius: 18px; }
+  .panel { padding: 16px; }
+  .section-title { margin: 24px 0 13px; font-size: 17px; }
+  .section-title:before { background: linear-gradient(var(--orange), #ffb347); width: 5px; height: 22px; border-radius: 3px; }
+
+  /* 4) Barre de nav : descendue (collée plus bas) et un peu plus fine */
+  .wrap { padding-bottom: calc(84px + env(safe-area-inset-bottom)); }
+  .to-top, .install-fab { bottom: calc(92px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(98px + env(safe-area-inset-bottom)); }
+  .cockpit-nav { padding: 0 12px calc(4px + env(safe-area-inset-bottom)); }
+  .cnav-shell { height: 58px; }
+  .cnav-plus-in { width: 58px; height: 58px; transform: translate(-50%, -40%); }
+  .cnav-plus:active .cnav-plus-in { transform: translate(-50%, -38%) scale(.94); }
+  .cnav-plus-ic { font-size: 30px; }
+}
+
+/* ============================================================================
+   ACCUEIL MOBILE — réglages d'espacement & hiérarchie (retours Nikko) :
+   greeting en blanc et sur sa ligne, espace sous le header, "WELCOME" plus
+   compact (une ligne). Scope ≤768px → desktop intact.
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* Barre owner : on la décolle du header, le nom passe en blanc et sur sa ligne */
+  .owner-bar { margin-top: 16px; margin-bottom: 6px; justify-content: flex-start; gap: 10px; }
+  .greet-inline { flex: 1 1 100%; margin-right: 0; color: #ffffff; font-weight: 800; font-size: 20px; }
+
+  /* Hero Mission Control : welcome nettement plus petit (tient sur une ligne) */
+  .mc { gap: 22px; }
+  .mc-hero { padding-top: 0; }
+  .mc-h1 { font-size: 19px; letter-spacing: -.2px; line-height: 1.06; }
+  .mc-h2 { font-size: 13px; letter-spacing: 2px; margin-top: 5px; }
+  .mc-date { font-size: 13px; margin-top: 8px; }
+  .mc-card { margin-top: 2px; }
+}
