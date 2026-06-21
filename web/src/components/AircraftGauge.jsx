@@ -45,8 +45,8 @@ export default function AircraftGauge({ pct = 0, value = 0, total = 0, label = "
     );
   }
   const labels = [0, 25, 50, 75, 100].map((v) => {
-    const [x, y] = pt(angleOf(v), R - 18);
-    return <text key={v} x={x.toFixed(2)} y={(y + 4).toFixed(2)} className="ag-scale" textAnchor="middle">{v}</text>;
+    const [x, y] = pt(angleOf(v), R - 13);
+    return <text key={v} x={x.toFixed(2)} y={(y + 3).toFixed(2)} className="ag-scale" textAnchor="middle">{v}</text>;
   });
   const [kx, ky] = pt(180, R + 4);
 
@@ -72,20 +72,19 @@ export default function AircraftGauge({ pct = 0, value = 0, total = 0, label = "
         {ticks}
         {labels}
 
-        {/* aiguille (flotte dans la couronne, ne barre pas le texte) */}
+        {/* aiguille effilée (triangle) — flotte dans la couronne, pas de bout rond ni de moyeu */}
         <g className="ag-needle" style={{ transform: `rotate(${needleDeg}deg)` }}>
-          <line x1={CX} y1={CY - 36} x2={CX} y2={CY - (R - 4)} stroke="#FF9D2E" strokeWidth="3.4" strokeLinecap="round" />
+          <polygon points={`${CX},${CY - (R - 4)} ${CX - 3.2},${CY - 42} ${CX + 3.2},${CY - 42}`} fill="#FF9D2E" />
         </g>
-        <circle cx={CX} cy={CY} r="7" fill="#1b2333" stroke="#FF9D2E" strokeWidth="2" />
 
         {/* bouton de réglage */}
         <circle cx={kx.toFixed(2)} cy={ky.toFixed(2)} r="7" fill="#222c3a" stroke="#46566b" strokeWidth="1.6" />
 
-        {/* lecture centrale */}
-        <text x={CX} y={CY - 26} className="ag-label" textAnchor="middle">{label}</text>
-        <text x={CX} y={CY + 12} className="ag-pct" textAnchor="middle">{p}%</text>
-        <text x={CX} y={CY + 40} className="ag-count" textAnchor="middle">{nf(value)} / {nf(total)}</text>
-        <text x={CX} y={CY + 54} className="ag-sub" textAnchor="middle">TICKETS TRAITÉS</text>
+        {/* lecture centrale (remontée pour ne pas chevaucher les graduations) */}
+        <text x={CX} y={CY - 30} className="ag-label" textAnchor="middle">{label}</text>
+        <text x={CX} y={CY + 6} className="ag-pct" textAnchor="middle">{p}%</text>
+        <text x={CX} y={CY + 30} className="ag-count" textAnchor="middle">{nf(value)} / {nf(total)}</text>
+        <text x={CX} y={CY + 42} className="ag-sub" textAnchor="middle">TICKETS TRAITÉS</text>
       </svg>
     </div>
   );

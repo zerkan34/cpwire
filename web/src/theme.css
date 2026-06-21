@@ -2875,3 +2875,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .ag-count { fill: #E9EEF7; font-family: "B612 Mono", monospace; font-size: 14px; }
 .ag-sub   { fill: #7c8aa0; font-family: "B612 Mono", monospace; font-size: 9px; letter-spacing: .08em; }
 @media (max-width: 360px) { .ag-wrap { flex-basis: 134px; } .ag-svg { max-width: 134px; } }
+
+/* Pouls de l'équipe : barres en orange cockpit sur mobile (lisibles sur fond sombre) */
+@media (max-width: 768px) {
+  .cad-bar { background: linear-gradient(180deg, #ff9d2e, #b85e12); }
+}

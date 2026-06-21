@@ -14,15 +14,25 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
   const [q, setQ] = useState(""); // recherche par nom de développeur (propre à la page)
   const [weekModal, setWeekModal] = useState(null); // détail d'une semaine (tickets résolus)
   const [rep, setRep] = useState(null);     // cadence (serveur)
+  const [cadErr, setCadErr] = useState(false);   // l'appel cadence a échoué (timeout/erreur)
+  const [cadNonce, setCadNonce] = useState(0);   // pour relancer manuellement
   const delSet = new Set(deletedDevs);        // marqués manuellement "parti d'Armonie"
   const inactiveSet = new Set(inactiveDevs);  // détectés sans activité Jira depuis N mois
 
   // Cadence de l'équipe (débit, délais, par dev) — calculée côté serveur depuis les dates Jira.
   useEffect(() => {
     let alive = true;
-    fetchCadence(weeks).then((r) => { if (alive) setRep(r); }).catch(() => { if (alive) setRep(null); });
+    setCadErr(false); setRep(null);
+    const load = (tries) => fetchCadence(weeks)
+      .then((r) => { if (alive) { setRep(r); setCadErr(false); } })
+      .catch(() => {
+        if (!alive) return;
+        if (tries > 0) { setTimeout(() => load(tries - 1), 1200); }  // 1 réessai (réveil Render)
+        else { setRep(null); setCadErr(true); }
+      });
+    load(1);
     return () => { alive = false; };
-  }, [weeks]);
+  }, [weeks, cadNonce]);
 
   // Index du rythme par nom de développeur, pour jointure avec la charge.
   const cadByDev = useMemo(() => {
@@ -124,7 +134,13 @@ export default function Developers({ issues = [], onTicket, onDev, deletedDevs =
         </div>
         <div className="dev-panel-bd">
           {!rep ? (
-            <div className="empty">Calcul du rythme de l'équipe…</div>
+            cadErr ? (
+              <div className="empty">Rythme momentanément indisponible (le serveur a peut-être mis du temps à répondre).{" "}
+                <button className="enc-tg" onClick={() => setCadNonce((n) => n + 1)}>Réessayer</button>
+              </div>
+            ) : (
+              <div className="empty">Calcul du rythme de l'équipe…</div>
+            )
           ) : (
             <>
               <div className="enc-toggle" role="tablist">

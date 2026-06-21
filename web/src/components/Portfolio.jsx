@@ -34,7 +34,9 @@ function Card({ dossier, f, eng, onClick, onOpen360, can360 }) {
 }
 
 export default function Portfolio({ facts, engagement = {}, onOpen, onOpen360, can360 }) {
-  const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => b[1].total - a[1].total);
+  // Tri « risque en haut » : d'abord les retards, puis les retours, puis ce qu'il reste à traiter.
+  const score = (f) => (f.enRetard || 0) * 1000 + (f.retours || 0) * 50 + (f.reste || 0);
+  const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[1]) - score(a[1]));
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
   return (
     <div className="cards">
