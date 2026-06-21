@@ -1,23 +1,25 @@
 import React from "react";
 
-// Indicateur de santé simple à partir des retards / retours (chiffres canoniques).
-function health(f) {
-  if (f.enRetard > 1) return ["amber", "À suivre"];
-  if (f.enRetard > 0 || f.retours > 2) return ["amber", "À surveiller"];
-  return ["green", "Conforme"];
-}
+// Sévérité du moteur « Attention requise » → classe couleur (même verdict partout).
+const SEV_CLS = { critique: "red", surveiller: "amber", controle: "green" };
 
-function Card({ dossier, f, eng, onClick, onOpen360, can360 }) {
-  const [hCls, hLbl] = health(f);
+function Card({ dossier, f, eng, att, onClick, onOpen360, can360 }) {
+  // La carte prend la couleur du moteur ; repli simple tant que l'attention n'est pas chargée.
+  const sev = att?.severity || ((f.enRetard || 0) > 0 || (f.retours || 0) > 2 ? "surveiller" : "controle");
+  const cls = SEV_CLS[sev] || "green";
+  const reason = att?.reasons?.[0]?.text || null;
   return (
-    <div className="pcard" onClick={onClick}>
+    <div className={`pcard sev-${cls}`} onClick={onClick}>
       <div className="pc-head">
         <div className="pc-title">
+          <span className={`pc-pastille ${cls}`} aria-hidden="true" />
           <h3>{dossier}</h3>
           {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
         </div>
-        <span className={`health ${hCls}`}>{hLbl}</span>
       </div>
+      {sev !== "controle" && reason
+        ? <div className={`pc-reason ${cls}`}>{reason}</div>
+        : <div className="pc-reason calm">À jour</div>}
       <div className="meta">{f.total} ticket{f.total > 1 ? "s" : ""} · {f.reste} à traiter · {f.pct}% validé</div>
       <div className="pbar"><span style={{ width: `${f.pct}%` }} /></div>
       <div className="stats">
@@ -33,15 +35,17 @@ function Card({ dossier, f, eng, onClick, onOpen360, can360 }) {
   );
 }
 
-export default function Portfolio({ facts, engagement = {}, onOpen, onOpen360, can360 }) {
-  // Tri « risque en haut » : d'abord les retards, puis les retours, puis ce qu'il reste à traiter.
-  const score = (f) => (f.enRetard || 0) * 1000 + (f.retours || 0) * 50 + (f.reste || 0);
-  const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[1]) - score(a[1]));
+export default function Portfolio({ facts, engagement = {}, attention = {}, onOpen, onOpen360, can360 }) {
+  // Tri « risque en haut » : on suit le score du moteur Attention ; repli local sinon.
+  const localScore = (f) => (f.enRetard || 0) * 1000 + (f.retours || 0) * 50 + (f.reste || 0);
+  const score = (d, f) => (attention[d]?.score ?? localScore(f));
+  const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
   return (
     <div className="cards">
       {entries.map(([dossier, f]) => (
-        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} onClick={() => onOpen(dossier)} onOpen360={onOpen360} can360={can360} />
+        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} att={attention[dossier]}
+          onClick={() => onOpen(dossier)} onOpen360={onOpen360} can360={can360} />
       ))}
     </div>
   );

@@ -67,38 +67,34 @@ function greetMessage(role, me) {
   return name ? `${w} ${name} !` : `${w} !`;
 }
 const TABS = [
-  { id: "cockpit", label: "Cockpit" },
-  { id: "outils", label: "Équipe & outils" },
-  { id: "qualite", label: "Qualité" },
+  { id: "cockpit", label: "Pilotage" },
+  { id: "outils", label: "Outils" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
   cockpit: [
     { id: "accueil", label: "Accueil" },
-    { id: "portefeuille", label: "Tickets" },
-    { id: "documents", label: "Documents" },
-  ],
-  qualite: [
-    { id: "hygiene", label: "Qualité" },
   ],
   outils: [
-    { id: "devs", label: "Développeurs" },
+    { id: "portefeuille", label: "Tickets" },
     { id: "projets", label: "Suivi projets" },
-    { id: "reference", label: "Référence" },
+    { id: "hygiene", label: "Qualité" },
+    { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
     { id: "historique", label: "Historique" },
+    { id: "reference", label: "Référence" },
   ],
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "outils", "qualite"];
+const PRIMARY = ["cockpit", "outils"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "outils", "qualite"];
+const CONSULT_TABS = ["cockpit", "outils"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Portef.", outils: "Outils", qualite: "Qualité" };
+const TAB_SHORT = { cockpit: "Pilotage", outils: "Outils" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
@@ -414,7 +410,7 @@ export default function App() {
   }, [authed, role, showToast]);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
-  useEffect(() => { if (query.trim()) { setTab("cockpit"); setSub("portefeuille"); } /* eslint-disable-next-line */ }, [query]);
+  useEffect(() => { if (query.trim()) { setTab("outils"); setSub("portefeuille"); } /* eslint-disable-next-line */ }, [query]);
 
   // Actualisation automatique EN CONTINU (toutes les 60 s), tant qu'on est connecté —
   // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
@@ -574,7 +570,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "outils", "qualite"] : PRIMARY;
+  const primaryTabs = role === "consultation" ? ["cockpit", "outils"] : PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -604,7 +600,7 @@ export default function App() {
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
         issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
         tab={tab} pageLabel={tabLabel(tab)}
-        onKpi={applyKpi} activeKpi={tab === "cockpit" && sub === "portefeuille" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
+        onKpi={applyKpi} activeKpi={tab === "outils" && sub === "portefeuille" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
       {role === "owner" ? (
         <div className="owner-bar">
@@ -653,14 +649,14 @@ export default function App() {
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
-          <MissionControl facts={facts} issues={issues} role={role} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v162" />
+          <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v168" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         )
       )}
-      {tab === "cockpit" && sub === "portefeuille" && (
+      {tab === "outils" && sub === "portefeuille" && (
         <>
           {diag && (
             <p className="hint" style={{ marginTop: 4 }}>
@@ -712,7 +708,7 @@ export default function App() {
       )}
       {tab === "outils" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
-      {tab === "qualite" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
+      {tab === "outils" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 
       </div>
@@ -735,16 +731,12 @@ export default function App() {
       {toast && <div className="toast" role="status">{toast}</div>}
       <InstallPWA />
 
-      {/* ---- Nav cockpit (mobile) : Accueil · Tickets · ✚ · Outils · Qualité ---- */}
+      {/* ---- Nav (mobile) : Accueil · ✚ · Outils ---- */}
       <nav className="cockpit-nav" aria-label="Navigation principale">
         <div className="cnav-shell">
           <button className={`cnav-tab ${tab === "cockpit" && sub === "accueil" ? "active" : ""}`}
             onClick={() => { setTab("cockpit"); setSub("accueil"); window.scrollTo({ top: 0 }); }}>
             <span className="cnav-ic" aria-hidden="true"><NavIcon id="accueil" /></span><span className="cnav-lb">Accueil</span>
-          </button>
-          <button className={`cnav-tab ${tab === "cockpit" && sub === "portefeuille" ? "active" : ""}`}
-            onClick={() => { setTab("cockpit"); setSub("portefeuille"); window.scrollTo({ top: 0 }); }}>
-            <span className="cnav-ic" aria-hidden="true"><NavIcon id="tickets" /></span><span className="cnav-lb">Tickets</span>
           </button>
           <button className="cnav-plus" aria-label="Accès rapide" onClick={() => setQuickOpen(true)}>
             <span className="cnav-plus-in"><span className="cnav-plus-ic">+</span></span>
@@ -752,10 +744,6 @@ export default function App() {
           <button className={`cnav-tab ${tab === "outils" ? "active" : ""}`}
             onClick={() => { setTab("outils"); window.scrollTo({ top: 0 }); }}>
             <span className="cnav-ic" aria-hidden="true"><NavIcon id="outils" /></span><span className="cnav-lb">Outils</span>
-          </button>
-          <button className={`cnav-tab ${tab === "qualite" ? "active" : ""}`}
-            onClick={() => { setTab("qualite"); window.scrollTo({ top: 0 }); }}>
-            <span className="cnav-ic" aria-hidden="true"><NavIcon id="qualite" /></span><span className="cnav-lb">Qualité</span>
           </button>
         </div>
       </nav>

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchHygiene } from "../api.js";
+import { fetchHygiene, fetchSla, fetchCadence } from "../api.js";
 import AircraftGauge from "./AircraftGauge.jsx";
+import AttentionRequise from "./AttentionRequise.jsx";
+import Portfolio from "./Portfolio.jsx";
+import { computeAttention, computeSouffrance, detectDevsSurcharges } from "../attention.js";
 
 // ============================================================================
 // Mission Control — l'Accueil mobile « cockpit ». Affiché UNIQUEMENT sur mobile
@@ -56,15 +59,26 @@ function Ring({ done, total, pct }) {
   );
 }
 
-export default function MissionControl({ facts, issues = [], role, onOpen360, can360, onTicket, importedTotal, build }) {
+export default function MissionControl({ facts, issues = [], role, engagement = {}, onOpen, onOpen360, can360, onTicket, importedTotal, build }) {
   const g = facts?.global || {};
-  const [anomalies, setAnomalies] = useState(null);
+  const [hygiene, setHygiene] = useState(null);
+  const [sla, setSla] = useState(null);
+  const [cadence, setCadence] = useState(null);
 
   useEffect(() => {
     let on = true;
-    fetchHygiene().then((r) => { if (on) setAnomalies(r?.global?.aCorriger ?? null); }).catch(() => {});
+    fetchHygiene().then((r) => { if (on) setHygiene(r); }).catch(() => { if (on) setHygiene(null); });
+    fetchSla().then((r) => { if (on) setSla(r); }).catch(() => { if (on) setSla(null); });
+    fetchCadence().then((r) => { if (on) setCadence(r); }).catch(() => { if (on) setCadence(null); });
     return () => { on = false; };
   }, []);
+
+  const anomalies = hygiene?.global?.aCorriger ?? null;
+  const seuilSouff = cadence?.seuilSouffranceJours ?? 21;
+  const souffrance = useMemo(() => computeSouffrance(issues, seuilSouff), [issues, seuilSouff]);
+  const team = useMemo(() => detectDevsSurcharges(cadence), [cadence]);
+  const attention = useMemo(() => computeAttention(facts, { hygiene, sla, souffrance }), [facts, hygiene, sla, souffrance]);
+  const attnMap = useMemo(() => Object.fromEntries(attention.map((r) => [r.dossier, r])), [attention]);
 
   const kpis = [
     { key: "encours", n: g.cats?.encours || 0, label: "En cours", tone: "blue" },
@@ -92,6 +106,8 @@ export default function MissionControl({ facts, issues = [], role, onOpen360, ca
 
   return (
     <div className="mc">
+      <AttentionRequise facts={facts} rows={attention} team={team} onOpen360={onOpen360} can360={can360} />
+
       {/* ---- Hero ---- */}
       <div className="mc-hero">
         <div className="mc-radar" aria-hidden="true" />
@@ -121,54 +137,11 @@ export default function MissionControl({ facts, issues = [], role, onOpen360, ca
         </div>
       </section>
 
-      {/* ---- Priorités ---- */}
+      {/* ---- Portefeuille (par client — mêmes cartes que le desktop) ---- */}
       <section className="mc-sec">
-        <div className="mc-sec-hd"><h2>À traiter en priorité</h2></div>
-        {prios.length === 0 ? (
-          <p className="mc-empty">Rien d'urgent. Tout est sous contrôle.</p>
-        ) : (
-          <div className="mc-list">
-            {prios.map((p, i) => {
-              const tappable = !can360 || can360(p.d);
-              return (
-                <button key={p.d + i} className="mc-row" disabled={!tappable}
-                  onClick={() => tappable && onOpen360 && onOpen360(p.d)}>
-                  <span className={`mc-row-tile sev-${p.sev}`}>{p.d.slice(0, 2).toUpperCase()}</span>
-                  <span className="mc-row-name">{p.d}</span>
-                  <span className="mc-row-meta">
-                    <span className={`mc-dot ${p.kind === "retard" ? "red" : "orange"}`} />
-                    {p.txt}
-                  </span>
-                  {tappable ? <span className="mc-row-cv">{IC.chevron}</span> : null}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ---- Activité récente ---- */}
-      <section className="mc-sec">
-        <div className="mc-sec-hd"><h2>Activité récente</h2></div>
-        {activite.length === 0 ? (
-          <p className="mc-empty">Aucun mouvement récent.</p>
-        ) : (
-          <div className="mc-tl">
-            {activite.map((i) => (
-              <button key={i.cle} className="mc-tl-row" onClick={() => onTicket && onTicket(i)}>
-                <span className={`mc-tl-dot ${STATUT_TONE[i.statut] || "slate"}`} />
-                <span className="mc-tl-body">
-                  <span className="mc-tl-key">{i.cle}</span>
-                  <span className="mc-tl-res">{i.resume}</span>
-                </span>
-                <span className="mc-tl-right">
-                  <span className={`mc-tl-stat ${STATUT_TONE[i.statut] || "slate"}`}>{i.statut}</span>
-                  <span className="mc-tl-time">{timeLabel(i.maj)}</span>
-                </span>
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="mc-sec-hd"><h2>Par dossier</h2></div>
+        <Portfolio facts={facts} engagement={engagement} attention={attnMap}
+          onOpen={onOpen || onOpen360} onOpen360={onOpen360} can360={can360} />
       </section>
     </div>
   );
