@@ -2820,3 +2820,46 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .mc-date { font-size: 13px; margin-top: 8px; }
   .mc-card { margin-top: 2px; }
 }
+
+/* ============================================================================
+   RETOURS PWA : (1) contraste — éclaircir les TEXTES qui utilisaient l'indigo
+   foncé (titres/chiffres) sur le fond sombre ; (2) barre de nav plus basse et
+   moins futuriste ; (3) cockpit plus tolérant aux petits écrans. Scope ≤768px.
+   ============================================================================ */
+@media (max-width: 768px) {
+  /* (1) Textes ex-indigo → clairs (les fonds indigo ne sont pas touchés) */
+  .recap-desc b, .recap-desc .rd-label, .ref-dom, .dev-tot, .mc-val, .cra-kpi-n,
+  .hyg-grp, .pf-kpi-v, .pf-recap-hd h3, .pf-client-id h3, .pf-nom, .pf-modal-sec h4,
+  .pf-c-proj b, .pf-env, .pf-client-name, .c360-pulse-i b, .c360-fin-lb, .c360-fin-kpi b,
+  .c360-statgrp-fin .c360-statgrp-lb, .c360-kpi b, .c360-sec, .cad-kpi .cad-n, .cad-bar-v,
+  .cad-table .who, .cn-block h3, .cn-ghost, .adm-invite h3, .adm-table td b,
+  .hist-period .fg-lbl, .pf-modal-h, .rec-name, .ro-banner { color: #e7eaf6; }
+
+  /* (2) Barre de nav : à fond d'écran, pleine largeur, épurée */
+  .cockpit-nav { padding: 0; }
+  .cnav-shell { box-sizing: content-box; height: 56px; border-radius: 0; border: 0;
+    border-top: 1px solid rgba(255,255,255,.08); padding: 0 6px env(safe-area-inset-bottom);
+    background: rgba(8,12,26,.97); box-shadow: 0 -4px 16px rgba(0,0,0,.30); }
+  .cnav-shell::before { display: none; }                 /* retire le liseré technique */
+  .cnav-tab.active { color: #ff9a3c; }
+  .cnav-tab.active::before { width: 22px; height: 2px; box-shadow: none; }  /* indicateur fin, sans halo */
+  .cnav-tab.active::after { display: none; }
+  .cnav-tab.active .cnav-ic { filter: none; }
+  .cnav-plus-in { width: 46px; height: 46px; transform: translate(-50%, -22%);
+    background: #ff7a00; border: 0; box-shadow: 0 0 0 5px rgba(8,12,26,.97), 0 4px 10px rgba(0,0,0,.4); }
+  .cnav-plus-in::before { display: none; }                /* plus de double anneau */
+  .cnav-plus-ic { font-size: 26px; }
+  .cnav-plus:active .cnav-plus-in { transform: translate(-50%, -20%) scale(.94); }
+
+  /* moins de réserve basse puisque la barre est plus fine et collée */
+  .wrap { padding-bottom: calc(72px + env(safe-area-inset-bottom)); }
+  .to-top, .install-fab { bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .toast { bottom: calc(86px + env(safe-area-inset-bottom)); }
+
+  /* (3) Mission Control : tient sur les petits écrans (jusqu'à 320px) */
+  .mc-ring { width: 138px; height: 138px; flex-basis: 138px; }
+  .mc-ring-n { font-size: 30px; }
+  .mc-kpi-n { font-size: 22px; }
+  .mc-kpi { min-height: 72px; padding: 9px 10px; }
+  .mc-sysbar { font-size: 11.5px; gap: 8px; }
+}
