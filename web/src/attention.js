@@ -18,6 +18,8 @@ export const SEV = { CRITIQUE: "critique", SURVEILLER: "surveiller", CONTROLE: "
 
 // Seuils ajustables d'un seul endroit.
 export const SEUILS = {
+  slaActif: false,      // SLA OFF tant que des cibles GTR réelles par dossier ne sont pas posées
+                        // (un SLA par défaut compte tout le backlog comme « dépassé » → faux signal)
   retardRouge: 5,       // enRetard >=  → 🔴
   retardOrange: 1,      // enRetard 1..4 → 🟠
   qualiteRouge: 50,     // score <      → 🔴
@@ -34,8 +36,9 @@ const RANK = { [SEV.CRITIQUE]: 2, [SEV.SURVEILLER]: 1, [SEV.CONTROLE]: 0 };
 function signauxDossier(f, { hyg, slaDoss, slaConfigured, souff }) {
   const S = [];
 
-  // 1) SLA / GTR dépassé — contractuel, uniquement si le SLA est configuré.
-  const ouvDepasse = slaConfigured ? (slaDoss?.ouvDepasse || 0) : 0;
+  // 1) SLA / GTR dépassé — contractuel. Désactivé tant que des cibles réelles
+  //    par dossier ne sont pas posées (sinon le défaut flague tout le backlog).
+  const ouvDepasse = (SEUILS.slaActif && slaConfigured) ? (slaDoss?.ouvDepasse || 0) : 0;
   if (ouvDepasse > 0)
     S.push({ level: "red", weight: 100000 + ouvDepasse, text: `${ouvDepasse} SLA dépassé${ouvDepasse > 1 ? "s" : ""}`, action: "Arbitrer aujourd'hui — engagement contractuel" });
 
@@ -131,8 +134,12 @@ export function computeSouffrance(issues, seuilJours = 21) {
 }
 
 // Dév surchargé : signal d'ÉQUIPE (par développeur), pas par dossier.
-// On remonte les devs dont la charge active dépasse le seuil.
+// DÉSACTIVÉ pour l'instant : `enCours` compte tout le backlog assigné, pas la
+// charge réelle du moment → presque tous les devs ressortent « surchargés ».
+// À réactiver avec une vraie définition de charge active.
+export const DEV_SURCHARGE_ACTIF = false;
 export function detectDevsSurcharges(cadence, seuilEnCours = 15) {
+  if (!DEV_SURCHARGE_ACTIF) return [];
   return ((cadence && cadence.devs) || [])
     .filter((d) => (d.enCours || 0) >= seuilEnCours)
     .map((d) => ({ nom: d.nom, enCours: d.enCours, plusAncienJours: d.plusAncienJours }))
