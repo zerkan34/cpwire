@@ -1,26 +1,25 @@
 import React, { useState } from "react";
 import { ACTIFS } from "../groups.js";
 
-// Sévérité du moteur « Attention requise » → classe couleur (même verdict partout).
 const SEV_CLS = { critique: "red", surveiller: "amber", controle: "green" };
 const CAT_CLS = { encours: "prog", retourTest: "block", retourProd: "block" };
-
-// État en langage clair (repris du brief du matin) pour chaque ticket actif.
-function etatLabel(i) {
-  if (i.statut === "Bloqué" || i.flagged) return "bloqué";
-  if (i.categorie === "encours") return "en cours de réalisation";
-  if (i.categorie === "retourTest") return "renvoyé en test";
-  if (i.categorie === "retourProd") return "renvoyé en prod";
-  return (i.statut || "en cours").toLowerCase();
-}
+const GROUPS = [
+  ["encours", "En cours"],
+  ["retourTest", "Retour test"],
+  ["retourProd", "Retour prod"],
+];
 
 function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
   const [open, setOpen] = useState(false);
   const sev = att?.severity || ((f.enRetard || 0) > 0 || (f.retours || 0) > 2 ? "surveiller" : "controle");
   const cls = SEV_CLS[sev] || "green";
   const reason = att?.reasons?.[0]?.text || null;
-  // « Ce qui se fait » = tickets actifs du dossier (en cours, retour test/prod).
+
+  // « Ce qui se fait » = tickets actifs, regroupés par état.
   const active = (f.items || []).filter((i) => ACTIFS.includes(i.categorie));
+  const groups = GROUPS
+    .map(([cat, label]) => ({ cat, label, items: active.filter((i) => i.categorie === cat) }))
+    .filter((g) => g.items.length);
 
   return (
     <div className={`pcard sev-${cls}`} onClick={onClick}>
@@ -57,19 +56,33 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
             Ce qui se fait <b>{active.length}</b>
           </button>
           {open ? (
-            <ul className="pc-acc-list">
-              {active.map((i) => (
-                <li key={i.cle}>
-                  <button className="pc-acc-row" onClick={(e) => { e.stopPropagation(); onTicket && onTicket(i); }}>
-                    <span className={`pc-acc-bullet ${CAT_CLS[i.categorie] || "prog"}`} aria-hidden="true" />
-                    <span className="pc-acc-main">
-                      <span className="pc-acc-l1"><b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
-                      <span className="pc-acc-l2">{etatLabel(i)}{i.assigne ? ` · ${i.assigne}` : ""}</span>
-                    </span>
-                  </button>
-                </li>
+            <div className="pc-acc-scroll">
+              {groups.map((g) => (
+                <div className="pc-acc-grp" key={g.cat}>
+                  <div className="pc-acc-grp-hd">
+                    <span className={`pc-acc-bullet ${CAT_CLS[g.cat]}`} aria-hidden="true" />
+                    {g.label} <b>{g.items.length}</b>
+                  </div>
+                  <ul className="pc-acc-list">
+                    {g.items.map((i) => {
+                      const blocked = i.statut === "Bloqué" || i.flagged;
+                      return (
+                        <li key={i.cle}>
+                          <button className="pc-acc-row" onClick={(e) => { e.stopPropagation(); onTicket && onTicket(i); }}>
+                            <span className="pc-acc-main">
+                              <span className="pc-acc-l1"><b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
+                              <span className={`pc-acc-l2 ${blocked ? "blocked" : ""}`}>
+                                {blocked ? `bloqué${i.assigne ? ` · ${i.assigne}` : ""}` : (i.assigne || "non assigné")}
+                              </span>
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ))}
-            </ul>
+            </div>
           ) : null}
         </div>
       ) : null}
