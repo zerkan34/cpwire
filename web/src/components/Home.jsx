@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { fetchHygiene, fetchSla, fetchCadence } from "../api.js";
 import { computeAttention, computeSouffrance, SEV } from "../attention.js";
 import Portfolio from "./Portfolio.jsx";
-import EnCours from "./EnCours.jsx";
 
 // ============================================================================
 //  Accueil = PILOTAGE. 4 sections, dans l'ordre, sans doublon :
@@ -96,11 +95,7 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
 
       {/* 3 — Portefeuille */}
       <div className="section-title"><span>Par dossier</span></div>
-      <Portfolio facts={facts} engagement={engagement} attention={attnMap} onOpen={onOpen} onOpen360={onOpen360} can360={can360} />
-
-      {/* 4 — Ce qui se fait (récap activité temps réel) */}
-      <div className="section-title" style={{ marginTop: 28 }}><span>Ce qui se fait</span></div>
-      <EnCours issues={issues} onTicket={onTicket} onDev={onDev} deletedDevs={deletedDevs} changedKeys={changedKeys} />
+      <Portfolio facts={facts} engagement={engagement} attention={attnMap} onOpen={onOpen} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
     </div>
   );
 }

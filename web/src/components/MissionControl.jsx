@@ -137,7 +137,7 @@ export default function MissionControl({ facts, issues = [], role, engagement = 
       <section className="mc-sec">
         <div className="mc-sec-hd"><h2>Par dossier</h2></div>
         <Portfolio facts={facts} engagement={engagement} attention={attnMap}
-          onOpen={onOpen || onOpen360} onOpen360={onOpen360} can360={can360} />
+          onOpen={onOpen || onOpen360} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
       </section>
     </div>
   );
