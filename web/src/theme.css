@@ -2985,12 +2985,13 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc-acc-cv { transition: transform .15s ease; color: var(--muted); font-size: 16px; line-height: 1; }
 .pc-acc-cv.o { transform: rotate(90deg); }
 .pc-acc-tg b { color: var(--ink); }
-.pc-acc-list { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-direction: column; gap: 4px; max-height: 260px; overflow: auto; }
-.pc-acc-row { width: 100%; text-align: left; display: flex; align-items: center; gap: 8px; background: var(--line-soft); border: 0; border-radius: 8px; padding: 6px 8px; cursor: pointer; font: inherit; }
+.pc-acc-list { list-style: none; margin: 8px 0 0; padding: 0; display: flex; flex-direction: column; gap: 7px; max-height: 340px; overflow: auto; }
+.pc-acc-row { width: 100%; text-align: left; display: flex; align-items: flex-start; gap: 10px; background: var(--line-soft); border: 0; border-radius: 9px; padding: 9px 11px; cursor: pointer; font: inherit; }
 .pc-acc-row:hover { background: var(--line); }
-.pc-acc-pill { font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 6px; flex: 0 0 auto; }
-.pc-acc-pill.prog { background: var(--purple-soft); color: var(--purple-strong); }
-.pc-acc-pill.block { background: var(--orange-soft); color: var(--orange-deep); }
-.pc-acc-key { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); flex: 0 0 auto; }
-.pc-acc-res { font-size: 12px; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1 1 auto; min-width: 0; }
-.pc-acc-who { font-size: 11px; color: var(--muted); flex: 0 0 auto; }
+.pc-acc-bullet { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: 0 0 auto; }
+.pc-acc-bullet.prog { background: var(--purple-strong); }
+.pc-acc-bullet.block { background: var(--orange); }
+.pc-acc-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pc-acc-l1 { font-size: 12.5px; color: var(--ink); line-height: 1.4; }
+.pc-acc-key { font-family: "JetBrains Mono", monospace; font-size: 11px; color: var(--muted); font-weight: 700; margin-right: 6px; }
+.pc-acc-l2 { font-size: 11.5px; color: var(--muted); }

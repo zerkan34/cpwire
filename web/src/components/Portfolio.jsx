@@ -3,12 +3,19 @@ import { ACTIFS } from "../groups.js";
 
 // Sévérité du moteur « Attention requise » → classe couleur (même verdict partout).
 const SEV_CLS = { critique: "red", surveiller: "amber", controle: "green" };
-const CAT_LABEL = { encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod" };
 const CAT_CLS = { encours: "prog", retourTest: "block", retourProd: "block" };
+
+// État en langage clair (repris du brief du matin) pour chaque ticket actif.
+function etatLabel(i) {
+  if (i.statut === "Bloqué" || i.flagged) return "bloqué";
+  if (i.categorie === "encours") return "en cours de réalisation";
+  if (i.categorie === "retourTest") return "renvoyé en test";
+  if (i.categorie === "retourProd") return "renvoyé en prod";
+  return (i.statut || "en cours").toLowerCase();
+}
 
 function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
   const [open, setOpen] = useState(false);
-  // La carte prend la couleur du moteur ; repli simple tant que l'attention n'est pas chargée.
   const sev = att?.severity || ((f.enRetard || 0) > 0 || (f.retours || 0) > 2 ? "surveiller" : "controle");
   const cls = SEV_CLS[sev] || "green";
   const reason = att?.reasons?.[0]?.text || null;
@@ -54,10 +61,11 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
               {active.map((i) => (
                 <li key={i.cle}>
                   <button className="pc-acc-row" onClick={(e) => { e.stopPropagation(); onTicket && onTicket(i); }}>
-                    <span className={`pc-acc-pill ${CAT_CLS[i.categorie] || "prog"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
-                    <span className="pc-acc-key">{i.cle}</span>
-                    <span className="pc-acc-res">{i.resume}</span>
-                    {i.assigne ? <span className="pc-acc-who">{i.assigne}</span> : null}
+                    <span className={`pc-acc-bullet ${CAT_CLS[i.categorie] || "prog"}`} aria-hidden="true" />
+                    <span className="pc-acc-main">
+                      <span className="pc-acc-l1"><b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
+                      <span className="pc-acc-l2">{etatLabel(i)}{i.assigne ? ` · ${i.assigne}` : ""}</span>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -72,7 +80,6 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
 }
 
 export default function Portfolio({ facts, engagement = {}, attention = {}, onOpen, onOpen360, can360, onTicket }) {
-  // Tri « risque en haut » : on suit le score du moteur Attention ; repli local sinon.
   const localScore = (f) => (f.enRetard || 0) * 1000 + (f.retours || 0) * 50 + (f.reste || 0);
   const score = (d, f) => (attention[d]?.score ?? localScore(f));
   const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
