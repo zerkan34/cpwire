@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { progResume } from "../ticket.js";
 
 // « Le point du soir » — reproduit le relevé quotidien par statut (mêmes libellés
 // que le mail de la direction), avec les écarts vs le dernier relevé d'un jour
@@ -125,7 +126,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
                           <button className="pds-tk" onClick={(e) => { e.stopPropagation(); onTicket(i); }}>
                             {i.flagged ? <span className="pds-flag">🚩</span> : null}
                             <b className="pds-tk-key">{i.cle}</b>
-                            <span className="pds-tk-res">{i.resume}</span>
+                            <span className="pds-tk-res">{progResume(i)}</span>
                             {entered && entered.has(i.cle) ? <span className="pds-new">nouveau</span> : null}
                             <span className="pds-tk-asg">{i.assigne || "non assigné"}</span>
                           </button>

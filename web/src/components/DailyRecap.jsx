@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { progResume } from "../ticket.js";
 import JSZip from "jszip";
 import { fetchRecap, genDailyCR, genWrittenCR, fetchRecapChiffres } from "../api.js";
 import DocPreview from "./DocPreview.jsx";
@@ -181,7 +182,7 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
                         <span className="k">{i.cle}</span>
                         <span className={`pill ${CAT_PILL[i.categorie] || PILL[i.statut] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
                       </div>
-                      <div className="ri-res">{i.resume}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
+                      <div className="ri-res">{progResume(i)}{i.flagged ? <span className="flag" title="Flaggé"> 🚩</span> : null}</div>
                       {showDev && (
                         <div className="ri-dev">
                           <span className={`dev-chip ${isDel ? "del" : ""}`} title="Voir la fiche du développeur"

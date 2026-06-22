@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { progResume } from "../ticket.js";
 import { ProjetModal } from "./Projets.jsx";
 import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel } from "../api.js";
+import { buildRecapDoc } from "../recapDoc.js";
 import EdlMax from "./EdlMax.jsx";
 import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
@@ -89,8 +91,13 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const doc = async (kind) => {
     setBusy(kind);
     try {
-      const fn = kind === "daily" ? genDailyCR : genWrittenCR;
-      const { html } = await fn(c.client);
+      let html;
+      if (kind === "daily") {
+        // Récap = générateur unique (mêmes chiffres que le point du soir du client).
+        ({ html } = buildRecapDoc({ issues, scope: c.client }));
+      } else {
+        ({ html } = await genWrittenCR(c.client));
+      }
       const w = window.open("", "_blank");
       if (w) { w.document.open(); w.document.write(html); w.document.close(); }
     } catch (e) { alert("Génération indisponible : " + (e.message || e)); }
@@ -218,7 +225,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                   {actSorted.map((i) => (
                     <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
                       <span className="c360-act-k">{i.cle}</span>
-                      <span className="c360-act-res">{i.resume}</span>
+                      <span className="c360-act-res">{progResume(i)}</span>
                       <span className={`pill ${CAT_PILL[i.categorie] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
                       <span className="c360-act-meta">{i.dev && i.dev !== "Non assigné" ? i.dev + " · " : ""}{frDay(i.maj)}</span>
                     </li>
@@ -233,7 +240,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                   {recetteShown.slice(0, 12).map((i) => (
                     <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
                       <span className="c360-act-k">{i.cle}</span>
-                      <span className="c360-act-res">{i.resume}</span>
+                      <span className="c360-act-res">{progResume(i)}</span>
                       <span className={`pill ${CAT_PILL[i.categorie] || "todo"}`}>{CAT_LABEL[i.categorie] || i.statut}</span>
                       <span className="c360-act-meta">{i.dev && i.dev !== "Non assigné" ? i.dev : ""}</span>
                     </li>
@@ -289,7 +296,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                                 <button type="button" className="c360-qtk" onClick={() => onTicket && onTicket(hygByKey[t.cle] || t)}>
                                   {t.flagged ? <span className="c360-qtk-flag">🚩</span> : null}
                                   <b className="c360-qtk-key">{t.cle}</b>
-                                  <span className="c360-qtk-res">{t.resume}</span>
+                                  <span className="c360-qtk-res">{progResume(t)}</span>
                                 </button>
                               </li>
                             ))}

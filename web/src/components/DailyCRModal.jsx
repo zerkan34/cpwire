@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from "react";
 import JSZip from "jszip";
-import { buildDailyCrFiles } from "../dailyCr.js";
+import { buildRecapFiles } from "../recapDoc.js";
 import { copyText, htmlToText, mailDraft } from "../utils.js";
 
 // Fenêtre « CR du jour » : le ZIP contient UN FICHIER PAR CLIENT (un CR détaillé chacun).
 // Aperçu fidèle (iframe), sélection du client à prévisualiser, et ouverture d'un mail Outlook vide.
 export default function DailyCRModal({ issues = [], meName = "Nicolas Durand", onClose }) {
-  const { files, human, fileBase } = useMemo(() => buildDailyCrFiles(issues, { meName }), [issues, meName]);
+  const { files, human, fileBase } = useMemo(() => buildRecapFiles(issues, { meName }), [issues, meName]);
   const [sel, setSel] = useState(0);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");

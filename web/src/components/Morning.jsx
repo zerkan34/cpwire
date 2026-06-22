@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { genMorningCR, genWrittenCR } from "../api.js";
+import { genWrittenCR } from "../api.js";
+import { buildRecapDoc } from "../recapDoc.js";
 import DocPreview from "./DocPreview.jsx";
 
 // Statuts à passer en revue le matin : ce qui est en mouvement (En cours + Retour test).
@@ -40,8 +41,10 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
         const { html } = await genWrittenCR(dossier);
         setDoc({ title: `CR écrit — ${dossier}`, html, filename: `CR_ecrit_${dossier}_${today}.html` });
       } else {
-        const { html } = await genMorningCR(dossier);
-        setDoc({ title: `Récap — ${dossier}`, html, filename: `Recap_${dossier}_${today}.html` });
+        // Récap = générateur unique, alimenté par computeFacts (mêmes chiffres que le point du soir).
+        const scope = dossier === "Tous" ? "Tous" : dossier;
+        const { html, filename, title } = buildRecapDoc({ issues, scope });
+        setDoc({ title, html, filename });
       }
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }

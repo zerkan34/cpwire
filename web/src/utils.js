@@ -121,6 +121,17 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     .pill.done{background:#e7f3ec;color:#2f7d4f}.pill.prog{background:#eef0fb;color:#4B3F8F}
     .pill.todo{background:#faf2ea;color:#a9531f}.pill.block{background:#fbe6e3;color:#c0392b}
     .muted{color:var(--muted)}
+    details{border:1px solid var(--line);border-radius:10px;margin:8px 0;overflow:hidden}
+    details>summary{cursor:pointer;list-style:none;padding:9px 14px;font-weight:600;color:var(--navy);background:#faf9fd;display:flex;justify-content:space-between;align-items:center;font-size:12.5px}
+    details>summary::-webkit-details-marker{display:none}
+    details[open]>summary{background:var(--lavande);border-bottom:1px solid var(--line)}
+    summary .n{font-weight:700;color:var(--indigo);background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:11px}
+    details table{margin:0}details table tr:first-child td{border-top:0}
+    .rk-k{font-weight:700;color:var(--indigo);white-space:nowrap;width:1%}
+    .rk-a{color:var(--muted);white-space:nowrap;width:1%;text-align:right}
+    .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--navy);width:1%;white-space:nowrap}
+    .hors{font-size:12px;color:var(--muted);margin:6px 0 4px}
+    .rsec{margin:0 0 30px}
     .foot{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);letter-spacing:.04em}
     @page{margin:13mm 12mm}
     @media print{body{background:#fff}.page{box-shadow:none;border-radius:0;max-width:none}.inner{padding:14mm 16mm}}`;

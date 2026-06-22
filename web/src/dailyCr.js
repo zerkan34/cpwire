@@ -117,6 +117,9 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   const wkAgo = Date.now() - 7 * 86400000;
   const faitJour = items.filter((i) => (i.resolu || "").slice(0, 10) === todayIso).length;
   const faitSem = items.filter((i) => i.resolu && new Date(i.resolu).getTime() >= wkAgo).length;
+  // Activité réelle du jour : tickets ayant bougé (mis à jour aujourd'hui), pas seulement « résolus ».
+  // Sur un projet, « résolu aujourd'hui » est souvent 0 alors que l'équipe a avancé — d'où ce repère.
+  const bougeJour = items.filter((i) => (i.maj || "").slice(0, 10) === todayIso).length;
 
   const engs = new Set(items.map((i) => i.engagement).filter((e) => e && e !== "—"));
   const engagement = engs.size === 0 ? "" : engs.size === 1 ? [...engs][0] : "TMA + Projet";
@@ -130,8 +133,8 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   }).filter(Boolean).join("\n");
 
   const kpis = `<div class="kpis">
-    <div class="kpi ok"><b>${faitJour}</b><span>Fait aujourd'hui</span></div>
-    <div class="kpi"><b>${faitSem}</b><span>Fait sur 7 j</span></div>
+    <div class="kpi ok"><b>${bougeJour}</b><span>Ont bougé aujourd'hui</span></div>
+    <div class="kpi"><b>${faitJour}</b><span>Terminés aujourd'hui</span></div>
     <div class="kpi"><b>${c.encours || 0}</b><span>En cours</span></div>
     <div class="kpi"><b>${rec}</b><span>En recette</span></div>
     <div class="kpi warn"><b>${ret}</b><span>À retravailler</span></div>
@@ -148,7 +151,10 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   ccl.push(`Prochaines étapes : finaliser les recettes en cours, puis préparer les mises en production validées.`);
   const conclusion = ccl.join(" ");
 
-  const lede = `Au ${esc(human)}, <b>${faitJour} ticket${faitJour > 1 ? "s" : ""} traité${faitJour > 1 ? "s" : ""}</b> dans la journée sur <b>${esc(dossier)}</b>${faitSem !== faitJour ? `, ${faitSem} sur les 7 derniers jours` : ""}. ${ret ? "Les retours de test ou de production sont la priorité du jour." : "Le pipeline de recette est sain."}`;
+  const ledeAct = bougeJour > 0
+    ? `<b>${bougeJour} ticket${bougeJour > 1 ? "s" : ""}</b> ${bougeJour > 1 ? "ont" : "a"} avancé aujourd'hui sur <b>${esc(dossier)}</b>${faitJour ? `, dont <b>${faitJour}</b> terminé${faitJour > 1 ? "s" : ""}` : ""}`
+    : `aucun ticket n'a changé de statut aujourd'hui sur <b>${esc(dossier)}</b> ; le chantier reste actif (<b>${c.encours || 0}</b> en cours, <b>${rec}</b> en recette)`;
+  const lede = `Au ${esc(human)}, ${ledeAct}.${faitSem ? ` ${faitSem} ticket${faitSem > 1 ? "s" : ""} terminé${faitSem > 1 ? "s" : ""} sur les 7 derniers jours.` : ""} ${ret ? "Les retours de test ou de production sont la priorité du jour." : "Le pipeline de recette est sain."}`;
 
   const meSign = esc(meName.replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()));
 
