@@ -1,5 +1,4 @@
 // utils.js — helpers partagés.
-import { LOGO_DATA_URI } from "./logo.js";
 
 export function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -48,8 +47,6 @@ export function printHtml(html) {
 }
 
 // Ouvre une URL externe de façon fiable, en navigateur ET dans l'app desktop (Tauri).
-// En navigateur : window.open (avec repli sur la navigation directe si bloqué).
-// Dans Tauri : utilise l'opener exposé (plugin opener v2, shell v1, ou invoke).
 export function openExternal(url) {
   if (!url) return;
   try {
@@ -77,52 +74,67 @@ export function esc(s) {
   return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m]));
 }
 
-// Construit un document autonome à la CHARTE ARMONIE (logo, filet doré, Poppins,
-// cartouche, titres à liseré violet, tableaux à en-tête sombre, pied de page).
-// Mêmes codes que les CR -> tous les PDF de l'app sont homogènes.
+// Logo cp|WIRE (SVG autonome + mot-symbole) — réutilisé dans tous les documents.
+const CW_LOGO = `<span class="cpwire-logo"><svg class="cw-mark" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="cwg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E2A5D"/><stop offset="1" stop-color="#4B3F8F"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6" fill="url(#cwg)"/><circle cx="7.5" cy="8" r="2" fill="#A8884E"/><circle cx="16.5" cy="16" r="2" fill="#A8884E"/><path d="M7.5 8L16.5 16" stroke="#F5F2FC" stroke-width="1.6" stroke-linecap="round"/></svg><span class="cw-cp">cp</span><span class="cw-bar">|</span><span class="cw-wire">WIRE</span></span>`;
+
+// Construit un document autonome à la CHARTE cp|WIRE (logo, filet or→indigo, Poppins,
+// panneau lavande, titres navy/indigo, tableaux à en-tête navy, pied signé).
+// Mêmes codes que le récap journalier -> tous les PDF de l'app sont homogènes.
 // Champs : kicker (eyebrow), title, subtitle, cartouche [[clé,val]…], bodyHtml, etabliPar.
 export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand" }) {
   const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
+  const sign = esc(String(etabliPar || "").replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()));
   const css = `*{box-sizing:border-box}
-    body{margin:0;font-family:'Inter',system-ui,Arial,sans-serif;color:#3d3b4d;background:#fff;line-height:1.55;font-size:13.5px}
-    .page{max-width:820px;margin:0 auto;padding:38px 44px}
-    .top{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #c7a14a;padding-bottom:15px;margin-bottom:6px}
-    .brand img{height:44px;width:auto;display:block}
-    .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right}
-    .eyebrow{font-weight:700;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#a9842f;margin-top:20px}
-    h1{font-family:'Poppins',sans-serif;font-weight:800;font-size:25px;color:#2c2945;margin:5px 0 4px;line-height:1.12}
-    .sub{color:#74718a;font-size:13.5px;margin-bottom:16px}
-    .cartouche{width:100%;border-collapse:collapse;margin:12px 0 20px;font-size:12.5px}
-    .cartouche td{border:1px solid #e7e5f1;padding:7px 11px}
-    .cartouche td:first-child{background:#f6f5fb;font-weight:600;color:#3a3658;width:165px}
-    h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:16px;color:#2c2945;margin:22px 0 8px;padding-left:12px;border-left:5px solid #6e5cc4}
-    h3{font-size:13.5px;color:#3a3658;background:#f4f2fb;border-left:4px solid #c7a14a;padding:6px 10px;margin:14px 0 5px}
-    p{margin:8px 0}
-    table{width:100%;border-collapse:collapse;font-size:12px;margin:8px 0 12px}
-    table th{background:#3a3658;color:#fff;text-align:left;padding:8px 10px;font-size:10px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
-    table td{border-bottom:1px solid #f0eef7;padding:8px 10px;vertical-align:top}
+    :root{--navy:#2E2A5D;--indigo:#4B3F8F;--gold:#A8884E;--lavande:#F5F2FC;--body:#4a4763;--muted:#6b6488;--line:#ece9f3;--serif:'Poppins','Segoe UI',system-ui,sans-serif;--sans:'Inter',system-ui,Arial,sans-serif}
+    body{margin:0;font-family:var(--sans);color:var(--body);background:#e9e7ef;line-height:1.6;font-size:13.5px}
+    .page{max-width:880px;margin:0 auto;background:#fff;border-radius:6px;box-shadow:0 18px 50px rgba(46,42,93,.14);overflow:hidden}
+    .bar{height:8px;background:linear-gradient(90deg,var(--navy) 0%,var(--indigo) 52%,var(--gold) 100%)}
+    .inner{padding:46px 56px 36px}
+    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
+    .brand{display:flex;align-items:center;gap:12px}
+    .cpwire-logo{font-family:var(--serif);font-weight:800;font-size:22px;letter-spacing:-.01em;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+    .cpwire-logo .cw-cp{color:var(--indigo)}.cpwire-logo .cw-bar{color:var(--gold);margin:0 1px}.cpwire-logo .cw-wire{color:var(--navy);letter-spacing:.05em}
+    .cw-mark{width:26px;height:26px;flex:none}
+    .tagline{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.5}
+    .eyebrow{font-weight:700;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
+    h1{font-family:var(--serif);font-weight:800;font-size:34px;color:var(--navy);margin:10px 0 4px;line-height:1.06;letter-spacing:-.015em}
+    .sub{font-family:var(--serif);color:var(--indigo);font-weight:700;font-size:18px;margin-bottom:4px}
+    .rule{width:120px;height:5px;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--indigo));margin:18px 0 22px}
+    .meta{background:var(--lavande);border-left:4px solid var(--gold);border-radius:14px;padding:18px 22px;margin:0 0 22px;display:grid;grid-template-columns:165px 1fr;row-gap:10px;column-gap:16px}
+    .meta dt{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);align-self:center}
+    .meta dd{margin:0;font-size:13.5px;color:#3f3d57;font-weight:500}
+    .body h2{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--lavande)}
+    .body h3{font-family:var(--serif);font-size:14px;color:var(--indigo);margin:16px 0 6px}
+    .body p{margin:8px 0}
+    .body ul,.body ol{margin:8px 0;padding-left:20px}.body li{margin:4px 0}
+    table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
+    table th{background:var(--navy);color:#fff;text-align:left;padding:9px 12px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
+    table td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+    table tr:nth-child(even) td{background:#faf9fd}
     tr{break-inside:avoid}
-    .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;background:#eef;color:#3a3a6a}
-    .pill.done{background:#e2f3ea;color:#1f8a5f}.pill.prog{background:#e6effb;color:#2f5fa8}
-    .pill.todo{background:#fbf0e2;color:#b07423}.pill.block{background:#fbe6e3;color:#c0392b}
-    .muted{color:#8a8799}
-    .foot{margin-top:28px;border-top:1px solid #e7e5f1;padding-top:12px;display:flex;justify-content:space-between;font-size:10.5px;color:#74718a}
+    .pill{display:inline-block;font-weight:700;font-size:11px;padding:2px 9px;border-radius:99px;background:var(--lavande);color:var(--indigo)}
+    .pill.done{background:#e7f3ec;color:#2f7d4f}.pill.prog{background:#eef0fb;color:#4B3F8F}
+    .pill.todo{background:#faf2ea;color:#a9531f}.pill.block{background:#fbe6e3;color:#c0392b}
+    .muted{color:var(--muted)}
+    .foot{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);letter-spacing:.04em}
     @page{margin:13mm 12mm}
-    @media print{.page{padding:0;max-width:none}}`;
+    @media print{body{background:#fff}.page{box-shadow:none;border-radius:0;max-width:none}.inner{padding:14mm 16mm}}`;
   const cart = (cartouche && cartouche.length)
-    ? `<table class="cartouche">${cartouche.map(([k, v]) => `<tr><td>${esc(k)}</td><td>${esc(v)}</td></tr>`).join("")}</table>`
+    ? `<dl class="meta">${cartouche.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`
     : "";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
-  <body><div class="page">
-    <div class="top"><div class="brand"><img src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${esc(date)}</div></div>
+  <body><div class="page"><div class="bar"></div><div class="inner">
+    <div class="top"><div class="brand">${CW_LOGO}<span class="tagline">Cockpit PMO · Armonie</span></div><div class="conf">Armonie Group · Interne<br>${esc(date)}</div></div>
     ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
     <h1>${esc(title)}</h1>
     ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
+    <div class="rule"></div>
     ${cart}
-    ${bodyHtml}
-    <div class="foot"><span>${etabliPar ? "Établi par " + esc(etabliPar) : "Armonie Group"}</span><span>cp|WIRE · document de travail · à valider</span></div>
-  </div></body></html>`;
+    <div class="body">${bodyHtml}</div>
+    <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"} · cp|WIRE</span><span>Document interne · à valider</span></div>
+  </div></div></body></html>`;
 }
 
 // Extrait un texte lisible d'un fragment/Document HTML (pour copier / e-mail).

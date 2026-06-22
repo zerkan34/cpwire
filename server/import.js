@@ -97,6 +97,12 @@ function dossierFromChemin(chemin) {
   return (i >= 0 && segs[i + 1]) ? segs[i + 1] : (segs[1] || "");
 }
 
+// Déduit le site SharePoint depuis le chemin (segment après "sites/").
+function siteFromChemin(chemin) {
+  const m = String(chemin || "").match(/sites\/([^/]+)/i);
+  return m ? m[1].trim() : "";
+}
+
 export function parseTmaCsv(text) {
   const lines = text.split(/\r?\n/);
   const rows = [];
@@ -108,7 +114,7 @@ export function parseTmaCsv(text) {
       if (/Chemin d'acc/i.test(raw) || /^nom$/i.test(c[0])) { started = true; continue; }
     }
     if (!c[0]) continue;
-    rows.push({ nom: c[0], modifie: c[1] || "", modifiePar: c[2] || "", etat: c[3] || "", type: c[4] || "", chemin: c[5] || "", dossier: dossierFromChemin(c[5]) });
+    rows.push({ nom: c[0], modifie: c[1] || "", modifiePar: c[2] || "", etat: c[3] || "", type: c[4] || "", chemin: c[5] || "", site: siteFromChemin(c[5]), dossier: dossierFromChemin(c[5]) });
   }
   return rows;
 }
@@ -156,20 +162,21 @@ export async function analyzeDocument({ filename, buffer }) {
   // Type connu : inventaire SharePoint TMA → diff vs dernier import (on ne réécrit que ce qui a bougé).
   if (looksLikeTma(filename, text)) {
     const rows = parseTmaCsv(text);
-    const prev = getDataset("tma");
+    const prev = getDataset("sharepoint");
     const diff = diffTma(prev ? prev.rows : null, rows);
-    saveDataset("tma__pending", rows); // stocké côté serveur ; promu seulement à la validation
+    saveDataset("sharepoint__pending", rows); // stocké côté serveur ; promu seulement à la validation
     const chg = diff.premiereFois
       ? `${diff.total} éléments importés (premier dépôt — référence initiale).`
       : `${diff.added} ajouté${diff.added > 1 ? "s" : ""}, ${diff.modified} modifié${diff.modified > 1 ? "s" : ""}, ${diff.removed} supprimé${diff.removed > 1 ? "s" : ""} depuis le dernier import (${diff.total} éléments au total).`;
+    const sites = [...new Set(rows.map((r) => r.site).filter(Boolean))];
     return {
       ok: true, filename, chars: text.length, lignes: rows.length,
       apercu: diff.sample.map((s) => `${s.kind === "ajout" ? "+ " : "~ "}${s.nom}${s.dossier ? ` · ${s.dossier}` : ""}`).join("\n") || "Aucun changement détecté.",
-      dataset: { name: "tma", promoteFrom: "tma__pending", count: rows.length },
+      dataset: { name: "sharepoint", promoteFrom: "sharepoint__pending", count: rows.length },
       diff,
       proposal: {
-        type: "Inventaire SharePoint TMA",
-        client: "Tous dossiers",
+        type: "Inventaire SharePoint",
+        client: sites.length === 1 ? sites[0] : "Tous sites",
         cible: "Met à jour les données croisées SharePoint × Jira (diff incrémental)",
         resume: chg,
         details: diff.premiereFois ? [`${diff.total} éléments enregistrés comme référence.`] : [`${diff.added} ajout(s) · ${diff.modified} modif(s) · ${diff.removed} suppression(s)`, `Total courant : ${diff.total} éléments.`],
