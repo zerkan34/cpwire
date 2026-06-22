@@ -26,6 +26,9 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [busy, setBusy] = useState("");
   const [mails, setMails] = useState({ loading: true });
   const [hyg, setHyg] = useState(null);
+  const [qualOpen, setQualOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [openCheck, setOpenCheck] = useState(null);
   const [ref, setRef] = useState(null);
   useEffect(() => {
     let on = true;
@@ -63,6 +66,17 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
     .sort((a, b) => (retSet.has(b.categorie) ? 1 : 0) - (retSet.has(a.categorie) ? 1 : 0));
   const hygScore = hyg ? (hyg.byDossier || []).find((d) => norm(d.dossier) === norm(c.client)) : null;
   const hygChecks = hyg ? (hyg.checks || []).map((ch) => ({ id: ch.id, label: ch.label, tickets: (ch.tickets || []).filter((t) => norm(t.dossier) === norm(c.client)) })).filter((x) => x.tickets.length) : [];
+  // Recherche transverse de la fiche : filtre les listes (projets, activité, recette, anomalies).
+  const qx = q.trim().toLowerCase();
+  const qmatch = (...parts) => !qx || parts.filter(Boolean).join(" ").toLowerCase().includes(qx);
+  const projetsShown = qx ? (c.projets || []).filter((p) => qmatch(p.nom, p.perimetre, p.num, p.etat)) : (c.projets || []);
+  const recentShown = qx
+    ? dossierIssues.filter((i) => qmatch(i.cle, i.resume, i.dev, i.assigne, i.statut, i.statutJira)).slice().sort((x, y) => String(y.maj || "").localeCompare(String(x.maj || ""))).slice(0, 50)
+    : recent;
+  const recetteShown = qx ? recetteItems.filter((i) => qmatch(i.cle, i.resume, i.dev, i.assigne, i.statut, i.statutJira)) : recetteItems;
+  const hygChecksShown = qx ? hygChecks.map((ch) => ({ ...ch, tickets: ch.tickets.filter((t) => qmatch(t.cle, t.resume)) })).filter((ch) => ch.tickets.length) : hygChecks;
+  const hygByKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
+  const hygTotal = hygChecks.reduce((s, ch) => s + ch.tickets.length, 0);
 
   const reste = (fin.budgete || 0) - (fin.facture || 0);
   const doc = async (kind) => {
@@ -150,14 +164,18 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
           <div className="c360-cols">
             {/* Colonne gauche : projets + activité */}
             <div className="c360-main">
-              {fblock ? <PointDuSoir dossier={canonDossier} cats={fblock.cats} /> : null}
-              {seg !== "TMA" && (<>
-              <h3 className="c360-sec">Projets ({(c.projets || []).length})</h3>
+              <div className="c360-search">
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher dans la fiche (ticket, projet, écran, anomalie…)" aria-label="Rechercher dans la fiche" />
+                {qx ? <button type="button" className="c360-search-x" onClick={() => setQ("")} aria-label="Effacer la recherche">✕</button> : null}
+              </div>
+              {!qx && fblock ? <PointDuSoir dossier={canonDossier} cats={fblock.cats} items={fblock.items} onTicket={onTicket} /> : null}
+              {seg !== "TMA" && (!qx || projetsShown.length > 0) && (<>
+              <h3 className="c360-sec">Projets ({projetsShown.length})</h3>
               <div className="pf-tablewrap">
                 <table className="proj-tbl pf-table">
                   <thead><tr><th>Projet</th><th>État</th><th>N°</th><th className="r">Budgété</th><th className="r">Facturé</th><th className="r">Reste</th><th>Avanc.</th></tr></thead>
                   <tbody>
-                    {(c.projets || []).map((p, i) => {
+                    {projetsShown.map((p, i) => {
                       const color = METEO[p.meteo] || METEO.neutre; const pct = Math.round((p.avancement || 0) * 100);
                       return (
                         <tr key={i} className={`pf-row ${ETAT_CLS[p.etat] || ""}`} onClick={() => setSelP(p)} title="Voir le détail">
@@ -176,10 +194,11 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
               </div>
               </>)}
 
+              {(!qx || recentShown.length > 0) && (<>
               <h3 className="c360-sec">Activité récente{hasBoth && seg !== "all" ? ` — ${seg}` : ""}</h3>
-              {recent.length === 0 ? <p className="c360-empty">Aucun ticket pour ce client.</p> : (
+              {recentShown.length === 0 ? <p className="c360-empty">Aucun ticket pour ce client.</p> : (
                 <ul className="c360-act">
-                  {recent.map((i) => (
+                  {recentShown.map((i) => (
                     <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
                       <span className="c360-act-k">{i.cle}</span>
                       <span className="c360-act-res">{i.resume}</span>
@@ -189,11 +208,12 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                   ))}
                 </ul>
               )}
+              </>)}
 
-              {recetteItems.length > 0 && (<>
-                <h3 className="c360-sec">Recette — en validation ({recetteItems.length})</h3>
+              {recetteShown.length > 0 && (<>
+                <h3 className="c360-sec">Recette — en validation ({recetteShown.length})</h3>
                 <ul className="c360-act">
-                  {recetteItems.slice(0, 12).map((i) => (
+                  {recetteShown.slice(0, 12).map((i) => (
                     <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
                       <span className="c360-act-k">{i.cle}</span>
                       <span className="c360-act-res">{i.resume}</span>
@@ -204,9 +224,9 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                 </ul>
               </>)}
 
-              {c.client === "EDL" ? <EdlMax /> : null}
+              {!qx && c.client === "EDL" ? <EdlMax /> : null}
 
-              {ref && ref.domaines && ref.domaines.length > 0 ? (
+              {!qx && ref && ref.domaines && ref.domaines.length > 0 ? (
                 <>
                   <h3 className="c360-sec">Référentiel — {ref.nbProgrammes} programme{ref.nbProgrammes > 1 ? "s" : ""}</h3>
                   <ul className="c360-ref">
@@ -224,22 +244,48 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                 </>
               ) : null}
 
-              <h3 className="c360-sec">Qualité Jira{hygScore && hygScore.score != null ? ` — ${hygScore.score}%` : ""}</h3>
-              {hyg == null ? <p className="c360-empty">Analyse en cours…</p>
-                : hygChecks.length === 0 ? <p className="c360-empty">Aucune anomalie sur ce dossier 🎉</p>
+              {(!qx || hygChecksShown.length > 0) && (<>
+              <h3 className="c360-sec c360-sec-clk" onClick={() => setQualOpen((o) => !o)} role="button" aria-expanded={qualOpen || !!qx}>
+                <span className={`c360-cv ${qualOpen || qx ? "o" : ""}`} aria-hidden="true">›</span>
+                Qualité Jira{hygScore && hygScore.score != null ? ` — ${hygScore.score}%` : ""}
+                {hyg && hygTotal ? <span className="c360-sec-badge">{hygTotal} à corriger</span> : null}
+              </h3>
+              {(qualOpen || qx) && (
+                hyg == null ? <p className="c360-empty">Analyse en cours…</p>
+                : hygChecksShown.length === 0 ? <p className="c360-empty">Aucune anomalie sur ce dossier 🎉</p>
                 : (
                 <ul className="c360-act">
-                  {hygChecks.map((ch) => (
-                    <li key={ch.id} title={ch.label}>
-                      <span className="c360-act-k">{ch.tickets.length}</span>
-                      <span className="c360-act-res">{ch.label}</span>
-                      <span className="pill block">à corriger</span>
-                    </li>
-                  ))}
+                  {hygChecksShown.map((ch) => {
+                    const o = openCheck === ch.id || !!qx;
+                    return (
+                      <li key={ch.id} className="c360-qrow">
+                        <button type="button" className="c360-qhd" onClick={() => setOpenCheck(o ? null : ch.id)} title={ch.label}>
+                          <span className="c360-act-k">{ch.tickets.length}</span>
+                          <span className="c360-act-res">{ch.label}</span>
+                          <span className="pill block">à corriger</span>
+                          <span className={`c360-cv ${o ? "o" : ""}`} aria-hidden="true">›</span>
+                        </button>
+                        {o ? (
+                          <ul className="c360-qtks">
+                            {ch.tickets.map((t) => (
+                              <li key={t.cle}>
+                                <button type="button" className="c360-qtk" onClick={() => onTicket && onTicket(hygByKey[t.cle] || t)}>
+                                  {t.flagged ? <span className="c360-qtk-flag">🚩</span> : null}
+                                  <b className="c360-qtk-key">{t.cle}</b>
+                                  <span className="c360-qtk-res">{t.resume}</span>
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : null}
+                      </li>
+                    );
+                  })}
                 </ul>
-              )}
+              ))}
+              </>)}
 
-              {!mails.loading && mails.configured ? (
+              {!qx && !mails.loading && mails.configured ? (
                 <>
                   <h3 className="c360-sec">Derniers échanges</h3>
                   {mails.mails && mails.mails.length ? (

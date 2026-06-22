@@ -3033,3 +3033,82 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .emx-st.prog, .emx-chip.prog { background: var(--purple-soft); color: var(--purple-strong); }
 .emx-st.todo, .emx-chip.todo { background: var(--orange-soft); color: var(--orange-deep); }
 .emx-st.none, .emx-chip.none { background: var(--line); color: var(--muted); }
+
+/* ── Colonnes de tableau triables au clic ──────────────────────────────── */
+.th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.th-sort:hover { color: var(--ink); }
+.th-sort.on { color: var(--ink); }
+
+/* ── Drapeau + pastille de priorité dans l'accordéon des cartes ─────────── */
+.pc-acc-flag { margin-right: 4px; }
+.pc-acc-prio {
+  display: inline-block; margin-left: 6px; padding: 0 7px; border-radius: 999px;
+  font-size: 10px; font-weight: 700; line-height: 16px; letter-spacing: .02em;
+  border: 1px solid transparent; vertical-align: middle;
+}
+.pc-acc-prio.p-hi { background: #FCE8E6; color: #B3261E; border-color: #F3C2BD; }
+.pc-acc-prio.p-md { background: #FEF3E0; color: #9A5B00; border-color: #F6D9A8; }
+.pc-acc-prio.p-lo { background: #EEF0F4; color: #5B6472; border-color: #DDE1E8; }
+
+/* ── Point du soir : lignes dépliables vers les tickets ─────────────────── */
+.pds-row.clk { cursor: pointer; }
+.pds-row.clk:hover { background: var(--lavande, #F5F2FC); }
+.pds-cv { display: inline-block; margin-right: 6px; color: #9aa1ad; transition: transform .15s ease; }
+.pds-row.open .pds-cv { transform: rotate(90deg); color: var(--ink, #2B2620); }
+.pds-sub > td { padding: 0; border: 0; }
+.pds-tickets { list-style: none; margin: 0; padding: 2px 0 8px 16px; display: flex; flex-direction: column; gap: 2px; }
+.pds-tk { width: 100%; text-align: left; background: transparent; border: 0; padding: 6px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: baseline; gap: 6px; font: inherit; }
+.pds-tk:hover { background: #EEF0F4; }
+.pds-tk-key { white-space: nowrap; }
+.pds-tk-res { color: #3a3f4a; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.pds-tk-asg { color: #7a828f; font-size: 12px; white-space: nowrap; flex: 0 0 auto; }
+
+/* ── Récap : sélecteur Le brief / Historique & totaux ──────────────────── */
+.recap-switch { display: inline-flex; gap: 4px; padding: 4px; margin: 0 0 16px; background: #EEF0F4; border-radius: 12px; }
+.recap-switch-b { border: 0; background: transparent; padding: 7px 16px; border-radius: 9px; font: inherit; font-weight: 600; color: #5B6472; cursor: pointer; transition: background .12s, color .12s; }
+.recap-switch-b:hover { color: var(--ink, #2B2620); }
+.recap-switch-b.on { background: #fff; color: var(--ink, #2B2620); box-shadow: 0 1px 2px rgba(0,0,0,.08); }
+
+/* ── 360 : section Qualité repliable + drill-down vers les tickets ──────── */
+.c360-sec-clk { cursor: pointer; user-select: none; display: flex; align-items: center; gap: 8px; }
+.c360-sec-clk:hover { color: var(--ink, #2B2620); }
+.c360-cv { display: inline-block; color: #9aa1ad; transition: transform .15s ease; }
+.c360-sec-clk .c360-cv.o, .c360-qhd .c360-cv.o { transform: rotate(90deg); color: var(--ink, #2B2620); }
+.c360-sec-badge { margin-left: auto; font-size: 11px; font-weight: 700; color: #B3261E; background: #FCE8E6; border: 1px solid #F3C2BD; border-radius: 999px; padding: 1px 9px; }
+.c360-qrow { display: block; }
+.c360-qhd { width: 100%; display: flex; align-items: center; gap: 8px; background: transparent; border: 0; padding: 6px 0; font: inherit; cursor: pointer; text-align: left; }
+.c360-qhd .c360-cv { margin-left: auto; }
+.c360-qhd:hover { color: var(--ink, #2B2620); }
+.c360-qtks { list-style: none; margin: 0 0 6px; padding: 2px 0 2px 18px; display: flex; flex-direction: column; gap: 2px; }
+.c360-qtk { width: 100%; text-align: left; background: transparent; border: 0; padding: 5px 8px; border-radius: 8px; cursor: pointer; display: flex; align-items: baseline; gap: 6px; font: inherit; }
+.c360-qtk:hover { background: #EEF0F4; }
+.c360-qtk-key { white-space: nowrap; }
+.c360-qtk-res { color: #3a3f4a; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+
+/* ── Carte du brief (Récap) alignée sur la carte portefeuille ───────────── */
+.brief-card { cursor: default; }
+.brief-card:hover { transform: none; }
+.brief-card .brief-count { font-size: 12px; color: var(--muted); font-weight: 600; white-space: nowrap; }
+.brief-stats { margin-bottom: 12px; }
+.brief-list { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.brief-list .pc-acc-row { display: flex; flex-direction: column; gap: 3px; }
+.brief-list .pc-acc-l2 b { color: var(--ink); font-weight: 700; }
+.brief-late { color: var(--red); font-weight: 700; }
+.brief-more { background: transparent; border: 0; color: var(--purple-strong); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 2px 0 12px; text-align: left; }
+.brief-more:hover { text-decoration: underline; }
+
+/* ── Accordéon « par dossier » (Historique) : en-tête clarifié ──────────── */
+.cli-name { font-family: "Poppins", sans-serif; font-weight: 700; color: var(--ink); }
+.cli-dots { display: inline-flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-left: 2px; }
+.cli-total { font-size: 12px; color: var(--muted); font-weight: 600; }
+
+/* ── Recherche transverse dans la fiche 360 ────────────────────────────── */
+.c360-search { position: relative; margin: 0 0 14px; }
+.c360-search input { width: 100%; box-sizing: border-box; padding: 10px 34px 10px 14px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); font: inherit; font-size: 13.5px; color: var(--ink); transition: border-color .15s, box-shadow .15s; }
+.c360-search input:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+.c360-search input::placeholder { color: var(--muted); }
+.c360-search-x { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); border: 0; background: transparent; color: var(--muted); cursor: pointer; font-size: 14px; padding: 4px 6px; border-radius: 6px; }
+.c360-search-x:hover { color: var(--ink); background: var(--line-soft); }
+
+/* ── Cellule priorité (liste Tickets) ──────────────────────────────────── */
+.prio-cell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12.5px; }

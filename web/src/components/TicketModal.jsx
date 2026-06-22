@@ -141,7 +141,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
 
           {ticket.url && ticket.url !== "#" && (
             <a className="jira-link" href={ticket.url} target="_blank" rel="noreferrer"
-              onClick={(e) => { e.preventDefault(); openExternal(ticket.url); }}>Ouvrir le ticket dans Jira ↗</a>
+              onClick={(e) => { if (typeof window !== "undefined" && window.__TAURI__) { e.preventDefault(); openExternal(ticket.url); } }}>Ouvrir le ticket dans Jira ↗</a>
           )}
 
           {ticket.prog && (ticket.prog.found ? (

@@ -17,7 +17,7 @@ function etatLabel(i) {
   return (i.statut || "en cours").toLowerCase();
 }
 
-export default function Morning({ issues = [], onTicket }) {
+export default function Morning({ issues = [], onTicket, embedded = false }) {
   const [busy, setBusy] = useState("");
   const [doc, setDoc] = useState(null);
   const [err, setErr] = useState("");
@@ -51,14 +51,18 @@ export default function Morning({ issues = [], onTicket }) {
 
   return (
     <>
-      <div className="page-hero">
-        <span className="page-hero-k">Comptes rendus</span>
-        <h2>Brief du matin</h2>
-        <p>État des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""}).</p>
-      </div>
-      <p className="hint" style={{ marginTop: -6 }}>
-        Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
-      </p>
+      {!embedded && (
+        <>
+          <div className="page-hero">
+            <span className="page-hero-k">Comptes rendus</span>
+            <h2>Brief du matin</h2>
+            <p>État des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""}).</p>
+          </div>
+          <p className="hint" style={{ marginTop: -6 }}>
+            Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
+          </p>
+        </>
+      )}
       {err && <div className="banner">Erreur : {err}</div>}
       <div className="row-actions" style={{ marginBottom: 16 }}>
         <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
@@ -73,37 +77,44 @@ export default function Morning({ issues = [], onTicket }) {
           {parDossier.map(([dossier, items]) => {
             const count = (c) => items.filter((i) => i.categorie === c).length;
             const open = openD === dossier;
+            const nbRetard = items.filter((i) => i.enRetard).length;
+            const nbBlocked = items.filter((i) => i.statut === "Bloqué" || i.flagged).length;
+            const cls = (nbBlocked > 0 || nbRetard >= 3) ? "red" : (nbRetard > 0 ? "amber" : "green");
             return (
-              <div className="recap-card" key={dossier}>
-                <div className="recap-hd">
-                  <span className="recap-hd-name">{dossier}</span>
-                  <span className="recap-hd-meta">{items.length} actif{items.length > 1 ? "s" : ""}</span>
+              <div className={`pcard sev-${cls} brief-card`} key={dossier}>
+                <div className="pc-head">
+                  <div className="pc-title">
+                    <span className={`pc-pastille ${cls}`} aria-hidden="true" />
+                    <h3>{dossier}</h3>
+                  </div>
+                  <span className="brief-count">{items.length} actif{items.length > 1 ? "s" : ""}</span>
                 </div>
-                <div className="recap-bd">
-                <div className="mb-pills">
-                  {ORDER.map(([c, label, pill]) => count(c) ? (
-                    <span key={c} className={`pill ${pill}`}>{count(c)} {label.toLowerCase()}</span>
-                  ) : null)}
+                <div className="stats brief-stats">
+                  {count("encours") ? <span className="dot prog">{count("encours")} en cours</span> : null}
+                  {count("retourTest") ? <span className="dot todo">{count("retourTest")} retour test</span> : null}
+                  {nbRetard ? <span className="dot block">{nbRetard} en retard</span> : null}
+                  {nbBlocked ? <span className="dot block">{nbBlocked} bloqué{nbBlocked > 1 ? "s" : ""}</span> : null}
                 </div>
-                <ul className="mb-list">
-                  {(open ? items : items.slice(0, 5)).map((i) => (
-                    <li key={i.cle} className="mb-li" onClick={() => onTicket(i)}>
-                      <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-                        <span className="k">{i.cle}</span>
-                        <span style={{ flex: 1 }}>{i.resume}</span>
-                      </div>
-                      <div className="mb-state">
-                        {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}
-                        <b>{etatLabel(i)}</b>{i.enRetard ? <span className="late"> · en retard ⚠</span> : null}
-                      </div>
-                    </li>
-                  ))}
-                  {items.length > 5 && (
-                    <li className="mb-more" onClick={() => setOpenD(open ? null : dossier)}>
-                      {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
-                    </li>
-                  )}
+                <ul className="brief-list">
+                  {(open ? items : items.slice(0, 5)).map((i) => {
+                    const blocked = i.statut === "Bloqué" || i.flagged;
+                    return (
+                      <li key={i.cle}>
+                        <button type="button" className="pc-acc-row" onClick={() => onTicket(i)}>
+                          <span className="pc-acc-l1">{i.flagged ? <span className="brief-flag">🚩 </span> : null}<b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
+                          <span className={`pc-acc-l2 ${blocked ? "blocked" : ""}`}>
+                            {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}<b>{etatLabel(i)}</b>{i.enRetard ? <span className="brief-late"> · en retard ⚠</span> : null}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
                 </ul>
+                {items.length > 5 && (
+                  <button type="button" className="brief-more" onClick={() => setOpenD(open ? null : dossier)}>
+                    {open ? "▾ réduire" : `▸ voir les ${items.length - 5} autre(s)…`}
+                  </button>
+                )}
                 <div className="mb-actions">
                   <button className="btn-solid gold" onClick={() => make(dossier, "morning")} disabled={busy === `${dossier}|morning`}>
                     {busy === `${dossier}|morning` ? "Préparation…" : "Brief du matin"}
@@ -111,7 +122,6 @@ export default function Morning({ issues = [], onTicket }) {
                   <button className="btn-solid" onClick={() => make(dossier, "written")} disabled={busy === `${dossier}|written`}>
                     {busy === `${dossier}|written` ? "Génération…" : "CR écrit"}
                   </button>
-                </div>
                 </div>
               </div>
             );

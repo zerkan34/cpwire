@@ -17,10 +17,11 @@ const ROWS = [
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const fmtDelta = (d) => (d == null ? "·" : d === 0 ? "(=)" : d > 0 ? `(+${d})` : `(${d})`);
 
-export default function PointDuSoir({ dossier, cats }) {
+export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
   const cats0 = cats || {};
   const [baseline, setBaseline] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [openK, setOpenK] = useState(null);
 
   useEffect(() => {
     if (!dossier) return;
@@ -60,13 +61,37 @@ export default function PointDuSoir({ dossier, cats }) {
       </div>
       <table className="pds-tbl">
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.k}>
-              <td className="pds-lbl">{r.label}</td>
-              <td className="pds-n">{r.n}</td>
-              <td className={`pds-d ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}>{fmtDelta(r.delta)}</td>
-            </tr>
-          ))}
+          {rows.map((r) => {
+            const open = openK === r.k;
+            const clickable = r.n > 0 && typeof onTicket === "function";
+            const its = open ? (items || []).filter((i) => i.categorie === r.k) : null;
+            return (
+              <React.Fragment key={r.k}>
+                <tr className={`pds-row ${clickable ? "clk" : ""} ${open ? "open" : ""}`}
+                    onClick={clickable ? () => setOpenK(open ? null : r.k) : undefined}>
+                  <td className="pds-lbl">{clickable ? <span className="pds-cv" aria-hidden="true">›</span> : null}{r.label}</td>
+                  <td className="pds-n">{r.n}</td>
+                  <td className={`pds-d ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}>{fmtDelta(r.delta)}</td>
+                </tr>
+                {open && its && its.length > 0 ? (
+                  <tr className="pds-sub"><td colSpan={3}>
+                    <ul className="pds-tickets">
+                      {its.map((i) => (
+                        <li key={i.cle}>
+                          <button className="pds-tk" onClick={(e) => { e.stopPropagation(); onTicket(i); }}>
+                            {i.flagged ? <span className="pds-flag">🚩</span> : null}
+                            <b className="pds-tk-key">{i.cle}</b>
+                            <span className="pds-tk-res">{i.resume}</span>
+                            <span className="pds-tk-asg">{i.assigne || "non assigné"}</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </td></tr>
+                ) : null}
+              </React.Fragment>
+            );
+          })}
         </tbody>
       </table>
       <p className="pds-foot">

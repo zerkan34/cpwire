@@ -15,6 +15,11 @@ function prioClass(p) {
   if (/bas|low|mineur|minor|trivial/.test(x)) return "p-basse";
   return "";
 }
+// Rang numérique de priorité (0 = plus haute) pour le tri.
+function prioRank(p) {
+  const c = prioClass(p);
+  return c === "p-haute" ? 0 : c === "p-moyenne" ? 1 : c === "p-basse" ? 2 : 3;
+}
 
 // Colonnes triables (clé d'accès + façon de comparer).
 const COLS = [
@@ -23,6 +28,7 @@ const COLS = [
   { key: "resume", label: "Résumé", get: (r) => r.resume, type: "text" },
   { key: "assigne", label: "Sur le ticket", get: (r) => (r.contributors && r.contributors.length ? r.contributors[0] : r.assigne || ""), type: "text" },
   { key: "echeance", label: "Échéance", get: (r) => r.echeance || "", type: "date" },
+  { key: "priorite", label: "Priorité", get: (r) => prioRank(r.priorite), type: "num" },
   { key: "statut", label: "Statut", get: (r) => STATUT_ORDER[r.statut] ?? 99, type: "num" },
 ];
 
@@ -83,7 +89,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
             <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
               <td data-label="Clé"><span className="k">{r.cle}</span></td>
               <td data-label="Dossier"><span className="tag">{r.dossier}</span></td>
-              <td data-label="Résumé"><span className={`prio-dot ${prioClass(r.priorite)}`} title={r.priorite ? `Priorité : ${r.priorite}` : "Priorité —"} />{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
+              <td data-label="Résumé">{r.flagged ? <span className="flag" title="Flaggé">🚩 </span> : null}{r.resume}{r.mine && <span className="me-badge">POUR MOI</span>}{changedKeys && changedKeys.has(r.cle) && <span className="chg-badge">MAJ</span>}{r.prog && r.prog.found && <span className="prog-chip" title={`Programme ${r.prog.name}${r.prog.lib ? " · biblio " + r.prog.lib : ""}${r.prog.srcMember ? " · source " + r.prog.srcMember : ""}`}>📦 {r.prog.lib || r.prog.name}{r.prog.srcMember ? ` / ${r.prog.srcMember}` : ""}</span>}</td>
               <td data-label="Sur le ticket">{(r.contributors && r.contributors.length) ? (
                 r.contributors.map((c, idx) => (
                   <span key={c}>
@@ -95,6 +101,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
                 ))
               ) : <span className="who-none">Non assigné</span>}</td>
               <td data-label="Échéance">{r.echeance ? <span className={r.enRetard ? "late" : ""}>{fmtDate(r.echeance)}{r.enRetard ? " ⚠" : ""}</span> : "—"}</td>
+              <td data-label="Priorité">{r.priorite ? <span className="prio-cell"><span className={`prio-dot ${prioClass(r.priorite)}`} />{r.priorite}</span> : <span className="who-none">—</span>}</td>
               <td data-label="Statut"><span className={`pill ${PILL[r.statut]}`}>{r.statut}</span></td>
             </tr>
           );

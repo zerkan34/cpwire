@@ -56,6 +56,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   const [period, setPeriod] = useState("tout");
   const [filter, setFilter] = useState("encours");
   const [copied, setCopied] = useState(false);
+  const [sortBy, setSortBy] = useState({ k: "date", dir: "desc" });
   const ro = useReadOnly();
   useModalBack(onClose);
 
@@ -146,6 +147,26 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   const filtered = items.filter(FTEST[filter] || (() => true)).sort((a, b) => String(b.maj || "").localeCompare(String(a.maj || "")));
   const showWork = filter === "encours" || filter === "recette";
 
+  // Tri du tableau au clic sur une colonne.
+  const clickSort = (k) => setSortBy((s) => (s.k === k ? { k, dir: s.dir === "asc" ? "desc" : "asc" } : { k, dir: (k === "date" || k === "heures") ? "desc" : "asc" }));
+  const sortVal = (i) => {
+    if (sortBy.k === "cle") return i.cle || "";
+    if (sortBy.k === "resume") return (i.resume || "").toLowerCase();
+    if (sortBy.k === "statut") return (i.statutJira || i.statut || "").toLowerCase();
+    if (sortBy.k === "heures") return (work[i.cle]?.heuresDevSec || 0);
+    return i.resolu || i.maj || "";
+  };
+  const sorted = filtered.slice().sort((a, b) => {
+    const va = sortVal(a), vb = sortVal(b);
+    const c = (typeof va === "number") ? (va - vb) : String(va).localeCompare(String(vb));
+    return sortBy.dir === "asc" ? c : -c;
+  });
+  const th = (k, label, cls) => (
+    <th className={`${cls} th-sort${sortBy.k === k ? " on" : ""}`} onClick={() => clickSort(k)} role="button" title="Trier sur cette colonne">
+      {label}{sortBy.k === k ? (sortBy.dir === "asc" ? " ▲" : " ▼") : ""}
+    </th>
+  );
+
   const copyRecap = async () => {
     const L = [];
     L.push(`Activité de ${devName} — ${periodLabel.toLowerCase()}`);
@@ -222,13 +243,13 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           ) : (
             <table className="fiche-tbl work-tbl">
               <thead><tr>
-                <th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th>
+                {th("cle", "Clé", "c-cle")}{th("resume", "Résumé", "c-res")}{th("statut", "Statut", "c-stat")}
                 {showWork
-                  ? <><th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></>
-                  : <th className="c-date">Date</th>}
+                  ? <>{th("heures", "Heures (lui)", "c-h")}<th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></>
+                  : th("date", "Date", "c-date")}
               </tr></thead>
               <tbody>
-                {filtered.slice(0, 200).map((i) => {
+                {sorted.slice(0, 200).map((i) => {
                   const w = work[i.cle];
                   const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
                   let badge;

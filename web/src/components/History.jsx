@@ -237,8 +237,14 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
             <div key={c.client} className={`cli-block ${isOpen ? "open" : ""}`}>
               <button type="button" className="cli-h" onClick={() => toggleOpen(c.client)} aria-expanded={isOpen}>
                 <span className="cli-chev" aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
-                <span className="tag">{c.client}</span>
-                <span className="cli-meta">{c.done} terminé(s){c.active ? ` · ${c.active} en cours` : ""}{c.blocked ? ` · ${c.blocked} bloqué(s)` : ""} · {c.items.length} ticket(s)</span>
+                <span className={`pc-pastille ${c.blocked ? "red" : c.active ? "amber" : "green"}`} aria-hidden="true" />
+                <span className="cli-name">{c.client}</span>
+                <span className="cli-dots">
+                  {c.done ? <span className="dot done">{c.done} terminé{c.done > 1 ? "s" : ""}</span> : null}
+                  {c.active ? <span className="dot prog">{c.active} en cours</span> : null}
+                  {c.blocked ? <span className="dot block">{c.blocked} bloqué{c.blocked > 1 ? "s" : ""}</span> : null}
+                  <span className="cli-total">{c.items.length} ticket{c.items.length > 1 ? "s" : ""}</span>
+                </span>
               </button>
               {isOpen && (
                 <div className="cli-body">

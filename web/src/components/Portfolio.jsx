@@ -3,6 +3,13 @@ import { ACTIFS } from "../groups.js";
 
 const SEV_CLS = { critique: "red", surveiller: "amber", controle: "green" };
 const CAT_CLS = { encours: "prog", retourTest: "block", retourProd: "block" };
+// Couleur de la pastille priorité selon le nom Jira (quel que soit le schéma : Highest/High… ou Priorité 1/2…).
+function prioClass(p) {
+  const s = (p || "").toLowerCase();
+  if (/highest|urgent|critique|critical|bloquant|\b1\b|p1|^1/.test(s)) return "p-hi";
+  if (/high|haute|élevé|eleve|major|majeur|\b2\b|p2|^2/.test(s)) return "p-md";
+  return "p-lo";
+}
 const GROUPS = [
   ["encours", "En cours"],
   ["retourTest", "Retour test"],
@@ -70,9 +77,10 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
                         <li key={i.cle}>
                           <button className="pc-acc-row" onClick={(e) => { e.stopPropagation(); onTicket && onTicket(i); }}>
                             <span className="pc-acc-main">
-                              <span className="pc-acc-l1"><b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
+                              <span className="pc-acc-l1">{i.flagged ? <span className="pc-acc-flag" title="Flaggé dans Jira (impediment)">🚩</span> : null}<b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
                               <span className={`pc-acc-l2 ${blocked ? "blocked" : ""}`}>
                                 {blocked ? `bloqué${i.assigne ? ` · ${i.assigne}` : ""}` : (i.assigne || "non assigné")}
+                                {i.priorite ? <span className={`pc-acc-prio ${prioClass(i.priorite)}`} title={`Priorité Jira : ${i.priorite}`}>{i.priorite}</span> : null}
                               </span>
                             </span>
                           </button>

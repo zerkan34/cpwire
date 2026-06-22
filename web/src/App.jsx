@@ -28,11 +28,10 @@ import DeveloperModal from "./components/DeveloperModal.jsx";
 import DailyRecap from "./components/DailyRecap.jsx";
 import Developers from "./components/Developers.jsx";
 import EnCours from "./components/EnCours.jsx";
-import Morning from "./components/Morning.jsx";
+import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import Meetings from "./components/Meetings.jsx";
 import CRA from "./components/CRA.jsx";
-import History from "./components/History.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
 
@@ -77,14 +76,13 @@ const SUBTABS = {
     { id: "accueil", label: "Accueil" },
   ],
   outils: [
-    { id: "morning", label: "Brief du matin" },
+    { id: "morning", label: "Récap" },
     { id: "portefeuille", label: "Tickets" },
     { id: "projets", label: "Suivi projets" },
     { id: "hygiene", label: "Qualité" },
     { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
-    { id: "historique", label: "Historique" },
     { id: "reference", label: "Référence" },
   ],
 };
@@ -649,7 +647,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v177" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v187" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
@@ -692,11 +690,10 @@ export default function App() {
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         </>
       )}
-      {tab === "outils" && sub === "morning" && <Morning issues={issues} onTicket={setTicket} />}
+      {tab === "outils" && sub === "morning" && <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
       {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
-      {tab === "outils" && sub === "historique" && (<><PageHero k="Récap" title="Historique" sub="Tous les récaps et mouvements passés, par client et par jour." /><History issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "outils" && sub === "reference" && (
         <>
