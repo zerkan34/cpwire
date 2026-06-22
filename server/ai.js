@@ -68,6 +68,28 @@ async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000
   return (data.choices?.[0]?.message?.content || "").trim();
 }
 
+// Classe un document importé et propose ce qu'il mettrait à jour. Renvoie un objet structuré.
+export async function classifyImport(filename, sample) {
+  if (!aiAvailable()) {
+    return { type: "inconnu", client: "", cible: "", resume: "IA non configurée côté serveur — impossible d'analyser automatiquement ce document.", details: [], confiance: "faible" };
+  }
+  const system = `Tu classes des documents importés dans un cockpit de pilotage de projets (centre de services IBM i, Armonie Group).
+Clients connus : EDL (École des Loisirs, application MAX), Tafanel, DS Smith, IMA, DIAPAR, Balas, Bellion/Belmet (ERP26).
+On te donne le nom d'un fichier et un extrait de son contenu.
+Réponds STRICTEMENT en JSON valide, sans aucun texte autour, avec exactement ces clés :
+{"type":"nature du document en 2-4 mots","client":"un des clients connus ou vide si indéterminé","cible":"ce que ce document mettrait à jour dans l'app, en une phrase","resume":"1 à 2 phrases neutres décrivant le contenu réel","details":["fait précis tiré de l'extrait","autre fait"],"confiance":"haute|moyenne|faible"}
+N'invente rien : tire tout de l'extrait fourni. Si un champ est inconnu, mets une chaîne vide ou une liste vide.`;
+  const user = `Nom du fichier : ${filename}\n\nExtrait du contenu :\n${sample}`;
+  try {
+    const raw = await callClaude(system, user, [], 700, 0.1);
+    const m = raw && raw.match(/\{[\s\S]*\}/);
+    if (m) { try { return JSON.parse(m[0]); } catch { /* JSON malformé : on retombe plus bas */ } }
+    return { type: "indéterminé", client: "", cible: "", resume: (raw || "").slice(0, 280), details: [], confiance: "faible" };
+  } catch (e) {
+    return { type: "erreur", client: "", cible: "", resume: "Analyse IA indisponible : " + String(e.message || e), details: [], confiance: "faible" };
+  }
+}
+
 const STYLE = `Tu es l'assistant d'un chef de projet senior d'Armonie Group (centre de services IBM i).
 Tu rédiges en français, ton professionnel, clair, concis et rigoureux — comme un compte rendu Armonie.
 Tu renvoies UNIQUEMENT un fragment HTML (pas de <html>, <head> ni <body>), sans style inline. Éléments autorisés :

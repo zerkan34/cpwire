@@ -4,11 +4,11 @@
   --indigo-deep: #2c2945;
   --purple: #6e5cc4;
   --purple-strong: #5a48b0;
-  --purple-soft: #efecfb;
+  --purple-soft: #F5F2FC;
   --purple-line: #cfc6f2;
-  --gold: #c7a14a;
+  --gold: #A8884E;
   --hd-grad: linear-gradient(135deg, var(--indigo-deep), var(--indigo) 55%, #46426c);
-  --hd-logo: linear-gradient(120deg, #16306a 0%, #2b2748 46%, #d4621a 100%);
+  --hd-logo: linear-gradient(135deg, #2E2A5D 0%, #3a3658 45%, #4B3F8F 100%);
   --gold-deep: #a9842f;
   --orange: #fb7a28;
   --orange-deep: #e0600f;
@@ -3125,3 +3125,31 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ── Point du soir : barre période ─────────────────────────────────────── */
 .pds-head-r { display: flex; align-items: center; gap: 8px; }
+
+/* ── Admin : import de documents ───────────────────────────────────────── */
+.imp-card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); }
+.imp-pickrow { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.imp-pick { position: relative; cursor: pointer; }
+.imp-pick.is-busy { opacity: .7; pointer-events: none; }
+.imp-fname { font-size: 12.5px; color: var(--muted); }
+.imp-done { color: #1c7c54; font-weight: 600; font-size: 13px; margin: 10px 0 0; }
+.imp-meta { font-size: 11.5px; color: var(--muted); margin: 10px 0 0; }
+.imp-prop { margin-top: 16px; border-top: 1px solid var(--line-soft); padding-top: 14px; }
+.imp-prop-h { display: flex; align-items: center; gap: 10px; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--purple-strong); margin-bottom: 10px; }
+.imp-conf { font-size: 10.5px; font-weight: 700; text-transform: none; letter-spacing: 0; border-radius: 999px; padding: 1px 9px; }
+.imp-conf.c-haute { background: #E6F4EA; color: #1c7c54; border: 1px solid #BEE3CD; }
+.imp-conf.c-moyenne { background: #FEF3E0; color: #9A5B00; border: 1px solid #F6D9A8; }
+.imp-conf.c-faible { background: #EEF0F4; color: #5B6472; border: 1px solid #DDE1E8; }
+.imp-prop-t { width: 100%; border-collapse: collapse; }
+.imp-prop-t th { text-align: left; vertical-align: top; width: 130px; padding: 5px 10px 5px 0; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.imp-prop-t td { padding: 5px 0; font-size: 13px; color: var(--ink); }
+.imp-details { margin: 10px 0 0; padding-left: 18px; }
+.imp-details li { font-size: 12.5px; color: var(--body); margin: 2px 0; line-height: 1.45; }
+.imp-actions { display: flex; gap: 10px; margin-top: 16px; }
+
+/* ── Carte : débit du jour mis en avant ────────────────────────────────── */
+.meta .meta-day { color: var(--indigo-deep); font-weight: 800; }
+
+/* ── Récap : point du soir global en tête ──────────────────────────────── */
+.recap-pds { margin: 4px 0 22px; }
+.recap-pds .pds { background: var(--card, #fff); border: 1px solid var(--purple-line); border-radius: 16px; padding: 16px 18px; }

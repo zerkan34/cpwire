@@ -129,6 +129,15 @@ export function importCRA(file, basis = 7) {
   fd.append("basis", String(basis));
   return req(`/api/cra/import`, { method: "POST", body: fd, timeoutMs: 60000 });
 }
+// Import de documents : analyse IA (proposition), validation, historique.
+export function importAnalyze(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  return req(`/api/import/analyze`, { method: "POST", body: fd, timeoutMs: 60000 });
+}
+export const importApply = (payload) => post(`/api/import/apply`, payload);
+export const importHistory = () => req(`/api/import/history`);
+export const importDataset = (name) => req(`/api/import/dataset/${encodeURIComponent(name)}`);
 export const genGlobalCR = () => post(`/api/cr/global`, {});
 export const genMorningCR = (dossier) => post(`/api/cr/morning`, { dossier });
 export const genMeetingPrep = (payload) => post(`/api/meeting/prep`, payload);

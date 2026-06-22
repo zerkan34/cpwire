@@ -41,7 +41,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
         setDoc({ title: `CR écrit — ${dossier}`, html, filename: `CR_ecrit_${dossier}_${today}.html` });
       } else {
         const { html } = await genMorningCR(dossier);
-        setDoc({ title: `Brief matin — ${dossier}`, html, filename: `Brief_matin_${dossier}_${today}.html` });
+        setDoc({ title: `Récap — ${dossier}`, html, filename: `Recap_${dossier}_${today}.html` });
       }
     } catch (e) { setErr(e.message); }
     finally { setBusy(""); }
@@ -55,7 +55,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
         <>
           <div className="page-hero">
             <span className="page-hero-k">Comptes rendus</span>
-            <h2>Brief du matin</h2>
+            <h2>Récap du jour</h2>
             <p>État des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""}).</p>
           </div>
           <p className="hint" style={{ marginTop: -6 }}>
@@ -66,7 +66,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
       {err && <div className="banner">Erreur : {err}</div>}
       <div className="row-actions" style={{ marginBottom: 16 }}>
         <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
-          {busy === "Tous|morning" ? "Préparation…" : "Préparer le brief (tous les clients)"}
+          {busy === "Tous|morning" ? "Préparation…" : "Préparer le récap (tous les clients)"}
         </button>
       </div>
 
@@ -117,7 +117,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
                 )}
                 <div className="mb-actions">
                   <button className="btn-solid gold" onClick={() => make(dossier, "morning")} disabled={busy === `${dossier}|morning`}>
-                    {busy === `${dossier}|morning` ? "Préparation…" : "Brief du matin"}
+                    {busy === `${dossier}|morning` ? "Préparation…" : "Récap du jour"}
                   </button>
                   <button className="btn-solid" onClick={() => make(dossier, "written")} disabled={busy === `${dossier}|written`}>
                     {busy === `${dossier}|written` ? "Génération…" : "CR écrit"}

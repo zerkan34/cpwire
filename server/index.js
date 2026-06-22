@@ -31,6 +31,7 @@ import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl } from "./microsoft.js";
+import { analyzeDocument, applyImport, listImports, getDataset } from "./import.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -731,6 +732,29 @@ app.post("/api/cra/import", guard, upload.single("file"), async (req, res) => {
     res.json(out);
   } catch (err) { res.status(400).json({ error: String(err.message || err) }); }
 });
+
+// ----- Import de documents : analyse IA (proposition) puis validation -----
+app.post("/api/import/analyze", guard, writeGuard, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
+    const out = await analyzeDocument({ filename: req.file.originalname, buffer: req.file.buffer });
+    if (!out.ok) return res.status(400).json({ error: out.error });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.post("/api/import/apply", guard, writeGuard, async (req, res) => {
+  try {
+    const { filename, proposal, apercu, dataset } = req.body || {};
+    if (!proposal) return res.status(400).json({ error: "Proposition manquante." });
+    const entry = applyImport({ filename, proposal, apercu, dataset, by: req.userEmail });
+    try { logEvent("import_applique", `Import validé : ${filename || "document"}`, { type: proposal.type, client: proposal.client }); } catch (e) { /* journal best-effort */ }
+    res.json({ ok: true, entry });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+app.get("/api/import/history", guard, (_req, res) => res.json({ items: listImports() }));
+app.get("/api/import/dataset/:name", guard, (req, res) => res.json(getDataset(req.params.name) || { rows: [] }));
 
 
 // Rapport global : tous les clients, organisé par client.

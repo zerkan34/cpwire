@@ -28,6 +28,12 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
     .map(([cat, label]) => ({ cat, label, items: active.filter((i) => i.categorie === cat) }))
     .filter((g) => g.items.length);
 
+  // Débit réel : ce qui a été résolu aujourd'hui / sur 7 jours (dates Jira), plutôt que le cumul depuis toujours.
+  const _today = new Date().toISOString().slice(0, 10);
+  const _wk = Date.now() - 7 * 86400000;
+  const faitJour = (f.items || []).filter((i) => (i.resolu || "").slice(0, 10) === _today).length;
+  const faitSem = (f.items || []).filter((i) => i.resolu && new Date(i.resolu).getTime() >= _wk).length;
+
   return (
     <div className={`pcard sev-${cls}`} onClick={onClick}>
       <div className="pc-head">
@@ -45,7 +51,7 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
       ) : (
         <div className="pc-reason calm">À jour</div>
       )}
-      <div className="meta">{f.total} ticket{f.total > 1 ? "s" : ""} · {f.reste} à traiter · {f.pct}% validé</div>
+      <div className="meta"><b className="meta-day">{faitJour} fait{faitJour > 1 ? "s" : ""} aujourd'hui</b> · {faitSem} cette semaine · {f.reste} à traiter</div>
       <div className="pbar"><span style={{ width: `${f.pct}%` }} /></div>
       <div className="stats">
         {f.enRetard > 0 && <span className="dot block">{f.enRetard} en retard</span>}

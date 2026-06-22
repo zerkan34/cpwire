@@ -54,15 +54,16 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
   const horsPoint = cutoff ? 0 : (cats0.afaire || 0) + (cats0.annule || 0) + (cats0.retourProd || 0);
 
   const copy = async () => {
-    const lines = rows.map((r) => `${r.label} : ${r.n} ${fmtDelta(r.delta)}`).join("\n");
-    const txt = `Point du ${new Date().toLocaleDateString("fr-FR")} — ${dossier}\n\n${lines}`;
+    const lines = rows.map((r) => `* ${r.label} : ${r.n} ${fmtDelta(r.delta)}`).join("\n");
+    const entete = dossier && dossier !== "Tous dossiers" ? ` — ${dossier}` : "";
+    const txt = `Données suivies du ${new Date().toLocaleDateString("fr-FR")}${entete}\n\n${lines}`;
     try { await navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch (e) { /* clipboard indispo */ }
   };
 
   return (
     <div className="pds">
       <div className="pds-head">
-        <h3 className="c360-sec" style={{ margin: 0 }}>Le point du soir</h3>
+        <h3 className="c360-sec" style={{ margin: 0 }}>Le point du soir{dossier === "Tous dossiers" ? " — tous dossiers" : ""}</h3>
         <div className="pds-head-r">
           <select className="c360-sortsel" value={period} onChange={(e) => { setPeriod(e.target.value); setOpenK(null); }} aria-label="Période du point du soir">
             <option value="tout">Tout (état actuel)</option>

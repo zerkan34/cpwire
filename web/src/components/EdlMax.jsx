@@ -1,7 +1,9 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DATA from "../data/edlMax.json";
+import { importDataset } from "../api.js";
 
 // Suivi refonte MAX (EDL) — source : fichier fourni par EDL, jamais mélangé au Jira.
+// Si un import a été validé sous Admin & Accès, on lit la version serveur ; sinon le fichier livré.
 const ST = {
   "validé": { cls: "done", label: "validé" },
   "terminé à valider": { cls: "rec", label: "à valider" },
@@ -10,14 +12,25 @@ const ST = {
   "sans modif attendue": { cls: "none", label: "sans modif" },
 };
 const INSCOPE = new Set(["validé", "terminé à valider", "en cours", "à modifier"]);
-const count = (pred) => DATA.filter(pred).length;
+const frDay = (iso) => { try { return new Date(iso).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" }); } catch { return ""; } };
 
 export default function EdlMax() {
+  const [data, setData] = useState(DATA);
+  const [updatedAt, setUpdatedAt] = useState(null);
+  useEffect(() => {
+    let alive = true;
+    importDataset("edlmax").then((r) => {
+      if (alive && r && Array.isArray(r.rows) && r.rows.length) { setData(r.rows); setUpdatedAt(r.at || null); }
+    }).catch(() => { /* pas d'import : on garde le fichier livré */ });
+    return () => { alive = false; };
+  }, []);
+
+  const count = (pred) => data.filter(pred).length;
   const groups = useMemo(() => {
     const m = {};
-    for (const e of DATA) (m[e.g2] ||= []).push(e);
+    for (const e of data) (m[e.g2] ||= []).push(e);
     return Object.entries(m);
-  }, []);
+  }, [data]);
   const inscope = count((e) => INSCOPE.has(e.statut));
   const val = count((e) => e.statut === "validé");
   const pct = inscope ? Math.round((100 * val) / inscope) : 0;
@@ -26,7 +39,7 @@ export default function EdlMax() {
     <div className="emx">
       <div className="emx-head">
         <h3 className="c360-sec" style={{ margin: 0 }}>Refonte MAX — écrans</h3>
-        <span className="emx-src">source : fichier EDL · {DATA.length} écrans</span>
+        <span className="emx-src">source : {updatedAt ? `import du ${frDay(updatedAt)}` : "fichier EDL"} · {data.length} écrans</span>
       </div>
       <div className="emx-prog">
         <div className="emx-pct">{pct}<small>%</small> <span>validés · {val}/{inscope} concernés</span></div>

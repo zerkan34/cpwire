@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { adminInvite, fetchAdminUsers, removeAdminUser, dolibarrStatus, dolibarrProbe } from "../api.js";
+import { adminInvite, fetchAdminUsers, removeAdminUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply } from "../api.js";
 
 const sinceLabel = (ts) => {
   if (!ts) return "jamais connecté";
@@ -28,6 +28,11 @@ export default function Admin() {
   const [dolRes, setDolRes] = useState(null);     // résultat de la sonde
   const [dolBusy, setDolBusy] = useState(false);
   const [dolErr, setDolErr] = useState("");
+  const [impFile, setImpFile] = useState(null);
+  const [impBusy, setImpBusy] = useState(false);
+  const [impProp, setImpProp] = useState(null);
+  const [impErr, setImpErr] = useState("");
+  const [impDone, setImpDone] = useState("");
 
   const load = useCallback(() => {
     fetchAdminUsers().then((r) => setUsers(r.users || [])).catch((e) => setErr(e.message || "Erreur")).finally(() => setLoading(false));
@@ -62,6 +67,26 @@ export default function Admin() {
     if (!window.confirm(`Révoquer l'accès de ${email} ? La personne sera déconnectée immédiatement.`)) return;
     try { await removeAdminUser(email); load(); } catch (e) { setErr(e.message || "Erreur"); }
   };
+
+  const onPickImport = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f) return;
+    setImpFile(f); setImpProp(null); setImpErr(""); setImpDone(""); setImpBusy(true);
+    try { setImpProp(await importAnalyze(f)); }
+    catch (e2) { setImpErr(e2.message || "Analyse impossible"); }
+    finally { setImpBusy(false); }
+  };
+  const applyImport = async () => {
+    if (!impProp || !impProp.proposal) return;
+    setImpBusy(true); setImpErr("");
+    try {
+      await importApply({ filename: impProp.filename, proposal: impProp.proposal, apercu: impProp.apercu, dataset: impProp.dataset });
+      setImpDone(impProp.dataset ? "Import validé — l'écran concerné est mis à jour ✓" : "Import validé et enregistré ✓"); setImpProp(null); setImpFile(null);
+    } catch (e2) { setImpErr(e2.message || "Validation impossible"); }
+    finally { setImpBusy(false); }
+  };
+  const cancelImport = () => { setImpProp(null); setImpFile(null); setImpErr(""); };
 
   return (
     <div className="adm">
@@ -135,6 +160,45 @@ export default function Admin() {
         </div>
       )}
       {err && <p className="cn-err">{err}</p>}
+
+      <div className="section-title" style={{ marginTop: 28 }}>Importer un document</div>
+      <div className="imp-card">
+        <p className="hint" style={{ marginTop: 0 }}>
+          Dépose un fichier depuis ton ordinateur (CSV, TSV, TXT, JSON, MD). L'IA reconnaît ce que c'est et
+          propose ce que ça mettrait à jour. <b>Rien n'est appliqué sans ta validation</b> — aucune écriture silencieuse.
+        </p>
+        <div className="imp-pickrow">
+          <label className={`btn cn-save imp-pick ${impBusy ? "is-busy" : ""}`}>
+            {impBusy && !impProp ? "Analyse en cours…" : "Choisir un fichier…"}
+            <input type="file" accept=".csv,.tsv,.txt,.json,.md,.log" style={{ display: "none" }} onChange={onPickImport} disabled={impBusy} />
+          </label>
+          {impFile ? <span className="imp-fname">{impFile.name}</span> : null}
+        </div>
+        {impErr ? <p className="cn-err">{impErr}</p> : null}
+        {impDone ? <p className="imp-done">{impDone}</p> : null}
+        {impProp && impProp.proposal ? (
+          <div className="imp-prop">
+            <div className="imp-prop-h">
+              Proposition de l'IA
+              <span className={`imp-conf c-${impProp.proposal.confiance || "faible"}`}>confiance {impProp.proposal.confiance || "?"}</span>
+            </div>
+            <table className="imp-prop-t"><tbody>
+              <tr><th>Type</th><td>{impProp.proposal.type || "—"}</td></tr>
+              <tr><th>Client</th><td>{impProp.proposal.client || "indéterminé"}</td></tr>
+              <tr><th>Mettrait à jour</th><td>{impProp.proposal.cible || "—"}</td></tr>
+              <tr><th>Résumé</th><td>{impProp.proposal.resume || "—"}</td></tr>
+            </tbody></table>
+            {Array.isArray(impProp.proposal.details) && impProp.proposal.details.length ? (
+              <ul className="imp-details">{impProp.proposal.details.map((d, i) => <li key={i}>{d}</li>)}</ul>
+            ) : null}
+            <p className="imp-meta">{impProp.lignes} ligne(s) · {impProp.chars} caractères analysés</p>
+            <div className="imp-actions">
+              <button className="btn cn-save" onClick={applyImport} disabled={impBusy}>{impBusy ? "Validation…" : "Valider la mise à jour"}</button>
+              <button className="btn cn-ghost" onClick={cancelImport} disabled={impBusy}>Annuler</button>
+            </div>
+          </div>
+        ) : null}
+      </div>
 
       <div className="section-title" style={{ marginTop: 28 }}>Connecteur Dolibarr (lecture seule)</div>
       <p className="hint">

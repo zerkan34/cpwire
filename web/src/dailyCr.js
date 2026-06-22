@@ -88,6 +88,10 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   const rec = (c.recetteArmonie || 0) + (c.recetteClient || 0);
   const ret = (c.retourTest || 0) + (c.retourProd || 0);
   const late = items.filter((i) => i.enRetard).length;
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const wkAgo = Date.now() - 7 * 86400000;
+  const faitJour = items.filter((i) => (i.resolu || "").slice(0, 10) === todayIso).length;
+  const faitSem = items.filter((i) => i.resolu && new Date(i.resolu).getTime() >= wkAgo).length;
 
   const engs = new Set(items.map((i) => i.engagement).filter((e) => e && e !== "—"));
   const engagement = engs.size === 0 ? "" : engs.size === 1 ? [...engs][0] : "TMA + Projet";
@@ -101,13 +105,13 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   }).filter(Boolean).join("\n");
 
   const kpis = `<div class="kpis">
-    <div class="kpi"><b>${total}</b><span>Total</span></div>
-    <div class="kpi"><b>${c.afaire || 0}</b><span>À faire</span></div>
+    <div class="kpi ok"><b>${faitJour}</b><span>Fait aujourd'hui</span></div>
+    <div class="kpi"><b>${faitSem}</b><span>Fait sur 7 j</span></div>
     <div class="kpi"><b>${c.encours || 0}</b><span>En cours</span></div>
     <div class="kpi"><b>${rec}</b><span>En recette</span></div>
     <div class="kpi warn"><b>${ret}</b><span>À retravailler</span></div>
     <div class="kpi warn"><b>${late}</b><span>En retard</span></div>
-    <div class="kpi ok"><b>${done}</b><span>Terminés</span></div>
+    <div class="kpi"><b>${c.afaire || 0}</b><span>À faire</span></div>
   </div>`;
 
   const seg = [];
@@ -117,7 +121,7 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   if (ret) seg.push(`${ret} à retravailler (retours)`);
   if (done) seg.push(`${done} terminé${done > 1 ? "s" : ""}`);
   const parts = [];
-  parts.push(`Au ${human}, le périmètre ${dossier} compte ${total} ticket${total > 1 ? "s" : ""}.`);
+  parts.push(`Au ${human}, ${faitJour} ticket${faitJour > 1 ? "s" : ""} traité${faitJour > 1 ? "s" : ""} dans la journée sur ${dossier}${faitSem !== faitJour ? `, ${faitSem} sur les 7 derniers jours` : ""}.`);
   if (seg.length) parts.push(`Répartition : ${seg.join(", ")}.`);
   if (late) parts.push(`${late} ticket${late > 1 ? "s" : ""} en retard à surveiller de près.`);
   if (ret) parts.push(`Les retours de test/production constituent la priorité immédiate sur ce client : ils sont détaillés ci-dessus pour action.`);
@@ -137,7 +141,7 @@ function clientDoc({ dossier, items, meName, human, heure }) {
   ${kpis}
   ${sections || '<p style="color:#6b6880">Aucun ticket à afficher pour ce client.</p>'}
   <section class="ccl"><h2>Conclusion</h2><p>${esc(conclusion)}</p></section>
-  <footer class="cr">Document généré automatiquement par cp|WIRE le ${esc(human)} à ${esc(heure)}.</footer>
+  <footer class="cr">${esc(meName.replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()))} · cp|WIRE · Récap ${esc(human)}</footer>
 </div></body></html>`;
 }
 
