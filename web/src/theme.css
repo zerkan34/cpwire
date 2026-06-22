@@ -3112,3 +3112,13 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ── Cellule priorité (liste Tickets) ──────────────────────────────────── */
 .prio-cell { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-size: 12.5px; }
+
+/* ── 360 : recherche en tête de fiche + ligne de tri activité ──────────── */
+.c360-search-hdr { margin: 2px 0 16px; }
+.c360-sec-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 18px 0 6px; }
+.c360-sortsel { font: inherit; font-size: 12.5px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 5px 8px; cursor: pointer; }
+.c360-sortsel:focus { outline: none; border-color: var(--purple); box-shadow: 0 0 0 3px var(--purple-soft); }
+
+/* ── Flèche retour de la modale projet (cohérence avec ticket/dev) ──────── */
+.pf-modal-back { flex: none; order: -1; border: 0; background: rgba(255,255,255,.16); color: #fff; width: 34px; height: 34px; border-radius: 50%; font-size: 18px; line-height: 1; cursor: pointer; transition: background .15s, transform .15s; }
+.pf-modal-back:hover { background: rgba(255,255,255,.3); transform: translateX(-2px); }

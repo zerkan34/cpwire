@@ -82,6 +82,7 @@ export function ProjetModal({ p, onClose }) {
     <div className="pf-modal-back" onMouseDown={onClose}>
       <div className="pf-modal" onMouseDown={(e) => e.stopPropagation()}>
         <div className="pf-modal-hero">
+          <button className="pf-modal-back" onClick={onClose} title="Retour à la fiche">←</button>
           <button className="pf-modal-x" onClick={onClose} title="Fermer (Échap)">×</button>
           <div className="pf-modal-hero-l">
             <div className="pf-modal-cli">{p.client} · {p.type}</div>

@@ -28,6 +28,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [hyg, setHyg] = useState(null);
   const [qualOpen, setQualOpen] = useState(false);
   const [q, setQ] = useState("");
+  const [actSort, setActSort] = useState("date");
   const [openCheck, setOpenCheck] = useState(null);
   const [ref, setRef] = useState(null);
   useEffect(() => {
@@ -75,6 +76,12 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
     : recent;
   const recetteShown = qx ? recetteItems.filter((i) => qmatch(i.cle, i.resume, i.dev, i.assigne, i.statut, i.statutJira)) : recetteItems;
   const hygChecksShown = qx ? hygChecks.map((ch) => ({ ...ch, tickets: ch.tickets.filter((t) => qmatch(t.cle, t.resume)) })).filter((ch) => ch.tickets.length) : hygChecks;
+  const actSorted = recentShown.slice().sort((a, b) => {
+    if (actSort === "statut") return String(a.categorie || a.statut || "").localeCompare(String(b.categorie || b.statut || "")) || String(b.maj || "").localeCompare(String(a.maj || ""));
+    if (actSort === "nom") return String(a.dev || a.assigne || "~").localeCompare(String(b.dev || b.assigne || "~"));
+    if (actSort === "cle") return String(a.cle).localeCompare(String(b.cle), "fr", { numeric: true });
+    return String(b.maj || "").localeCompare(String(a.maj || ""));
+  });
   const hygByKey = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
   const hygTotal = hygChecks.reduce((s, ch) => s + ch.tickets.length, 0);
 
@@ -111,6 +118,10 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
         </div>
 
         <div className="c360-body">
+          <div className="c360-search c360-search-hdr">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher dans toute la fiche (ticket, projet, écran, anomalie, dév…)" aria-label="Rechercher dans la fiche" />
+            {qx ? <button type="button" className="c360-search-x" onClick={() => setQ("")} aria-label="Effacer la recherche">✕</button> : null}
+          </div>
           {hasBoth && (
             <div className="c360-seg" role="tablist" aria-label="Périmètre">
               <button className={seg === "all" ? "on" : ""} onClick={() => setSeg("all")} role="tab" aria-selected={seg === "all"}>Vue d'ensemble</button>
@@ -164,10 +175,6 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
           <div className="c360-cols">
             {/* Colonne gauche : projets + activité */}
             <div className="c360-main">
-              <div className="c360-search">
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher dans la fiche (ticket, projet, écran, anomalie…)" aria-label="Rechercher dans la fiche" />
-                {qx ? <button type="button" className="c360-search-x" onClick={() => setQ("")} aria-label="Effacer la recherche">✕</button> : null}
-              </div>
               {!qx && fblock ? <PointDuSoir dossier={canonDossier} cats={fblock.cats} items={fblock.items} onTicket={onTicket} /> : null}
               {seg !== "TMA" && (!qx || projetsShown.length > 0) && (<>
               <h3 className="c360-sec">Projets ({projetsShown.length})</h3>
@@ -195,10 +202,20 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
               </>)}
 
               {(!qx || recentShown.length > 0) && (<>
-              <h3 className="c360-sec">Activité récente{hasBoth && seg !== "all" ? ` — ${seg}` : ""}</h3>
-              {recentShown.length === 0 ? <p className="c360-empty">Aucun ticket pour ce client.</p> : (
+              <div className="c360-sec-row">
+                <h3 className="c360-sec" style={{ margin: 0 }}>Activité récente{hasBoth && seg !== "all" ? ` — ${seg}` : ""}</h3>
+                {actSorted.length > 1 ? (
+                  <select className="c360-sortsel" value={actSort} onChange={(e) => setActSort(e.target.value)} aria-label="Trier l'activité">
+                    <option value="date">Plus récent</option>
+                    <option value="statut">Par statut</option>
+                    <option value="nom">Par personne</option>
+                    <option value="cle">Par clé</option>
+                  </select>
+                ) : null}
+              </div>
+              {actSorted.length === 0 ? <p className="c360-empty">Aucun ticket pour ce client.</p> : (
                 <ul className="c360-act">
-                  {recentShown.map((i) => (
+                  {actSorted.map((i) => (
                     <li key={i.cle} onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">
                       <span className="c360-act-k">{i.cle}</span>
                       <span className="c360-act-res">{i.resume}</span>
