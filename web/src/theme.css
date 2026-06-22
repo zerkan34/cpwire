@@ -3153,3 +3153,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* ── Récap : point du soir global en tête ──────────────────────────────── */
 .recap-pds { margin: 4px 0 22px; }
 .recap-pds .pds { background: var(--card, #fff); border: 1px solid var(--purple-line); border-radius: 16px; padding: 16px 18px; }
+
+/* ── Récap : sélecteur de périmètre du point du soir ───────────────────── */
+.recap-pds-pick { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.recap-pds-pick span { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted, #6b6880); font-weight: 700; }
+.recap-pds-pick select { font: inherit; padding: 6px 12px; border: 1px solid var(--purple-line); border-radius: 9px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }

@@ -17,6 +17,15 @@ export default function Recap({ issues = [], canCR = true, onTicket, onDev, dele
   const [view, setView] = useState("brief");
   const cur = VIEWS.find((v) => v.id === view) || VIEWS[0];
   const facts = useMemo(() => computeFacts(issues), [issues]);
+  const [pdsD, setPdsD] = useState("Tafanel");
+  const PDS_DOSSIERS = useMemo(() => {
+    const present = Object.keys(facts.byDossier).filter((d) => d && d !== "—");
+    const ordered = ["Tafanel", "EDL", "DS Smith", "IMA", "DIAPAR", "Balas", "Bellion"].filter((d) => present.includes(d));
+    const extra = present.filter((d) => !ordered.includes(d));
+    return [...ordered, ...extra, "Tous dossiers"];
+  }, [facts]);
+  const pdsBlock = pdsD === "Tous dossiers" ? facts.global : facts.get(pdsD);
+  const pdsItems = pdsD === "Tous dossiers" ? issues : issues.filter((i) => i.dossier === pdsD);
   return (
     <>
       <div className="page-hero">
@@ -35,7 +44,13 @@ export default function Recap({ issues = [], canCR = true, onTicket, onDev, dele
       {view === "brief"
         ? <>
             <div className="recap-pds">
-              <PointDuSoir dossier="Tous dossiers" cats={facts.global.cats} items={issues} onTicket={onTicket} />
+              <div className="recap-pds-pick">
+                <span>Périmètre suivi</span>
+                <select value={pdsD} onChange={(e) => setPdsD(e.target.value)} aria-label="Périmètre du point du soir">
+                  {PDS_DOSSIERS.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+              </div>
+              <PointDuSoir dossier={pdsD} cats={pdsBlock.cats} items={pdsItems} onTicket={onTicket} />
             </div>
             <Morning issues={issues} onTicket={onTicket} embedded />
           </>
