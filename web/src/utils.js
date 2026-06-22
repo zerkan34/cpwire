@@ -1,4 +1,5 @@
 // utils.js — helpers partagés.
+import { LOGO_DATA_URI } from "./logo.js";
 
 export function downloadHtml(html, filename) {
   const blob = new Blob([html], { type: "text/html;charset=utf-8" });
@@ -96,6 +97,8 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     .cpwire-logo{font-family:var(--serif);font-weight:800;font-size:22px;letter-spacing:-.01em;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
     .cpwire-logo .cw-cp{color:var(--indigo)}.cpwire-logo .cw-bar{color:var(--gold);margin:0 1px}.cpwire-logo .cw-wire{color:var(--navy);letter-spacing:.05em}
     .cw-mark{width:26px;height:26px;flex:none}
+    .brand-logo{height:42px;width:auto;display:block}
+    .lede{font-size:15px;line-height:1.6;color:#3f3d57;margin:0 0 18px}.lede b{color:var(--navy)}
     .tagline{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
     .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.5}
     .eyebrow{font-weight:700;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
@@ -126,14 +129,14 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     : "";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
   <body><div class="page"><div class="bar"></div><div class="inner">
-    <div class="top"><div class="brand">${CW_LOGO}<span class="tagline">Cockpit PMO · Armonie</span></div><div class="conf">Armonie Group · Interne<br>${esc(date)}</div></div>
+    <div class="top"><div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${esc(date)}</div></div>
     ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
     <h1>${esc(title)}</h1>
     ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
     <div class="rule"></div>
     ${cart}
     <div class="body">${bodyHtml}</div>
-    <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"} · cp|WIRE</span><span>Document interne · à valider</span></div>
+    <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"}</span><span>Armonie Group · Confidentiel</span></div>
   </div></div></body></html>`;
 }
 

@@ -59,7 +59,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
             <p>État des lieux de ce qu'il reste à traiter ({totalActif} ticket{totalActif > 1 ? "s" : ""}).</p>
           </div>
           <p className="hint" style={{ marginTop: -6 }}>
-            Ce qui est en mouvement (En cours · Retour test) par client, pour ta réunion matinale.
+            Ce qui est en mouvement (En cours · Retour test) par client, pour ton récapitulatif de la journée.
           </p>
         </>
       )}

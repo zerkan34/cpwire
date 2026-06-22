@@ -3,6 +3,8 @@
 // autonome dans la charte cp|WIRE (CSS en ligne + accordéons <details> natifs),
 // qui s'ouvre dans n'importe quel navigateur, hors de l'application.
 
+import { LOGO_DATA_URI } from "./logo.js";
+
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 // Ordre d'affichage des catégories (le plus actionnable d'abord). `open` = accordéon déplié par défaut.
@@ -52,6 +54,7 @@ body{ background:#e9e7ef; font-family:var(--sans); color:var(--body); line-heigh
 .inner{ padding:50px 60px 38px; }
 .brand{ display:flex; align-items:center; gap:13px; margin-bottom:34px; }
 .cpwire-logo{ font-family:var(--serif); font-weight:800; letter-spacing:-.01em; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
+.brand-logo{ height:42px; width:auto; display:block; }
 .cpwire-logo .cw-cp{ color:var(--indigo); }
 .cpwire-logo .cw-bar{ color:var(--gold); margin:0 1px; }
 .cpwire-logo .cw-wire{ color:var(--navy); letter-spacing:.05em; }
@@ -153,7 +156,7 @@ function clientDoc({ dossier, items, meName, human, heure }) {
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Récap ${esc(dossier)} — ${esc(human)}</title><style>${STYLE}</style></head>
 <body><div class="page"><div class="bar"></div><div class="inner">
-  <div class="brand"><span class="cpwire-logo lg">${CW_MARK}<span class="cw-cp">cp</span><span class="cw-bar">|</span><span class="cw-wire">WIRE</span></span><span class="tagline">Cockpit PMO · Armonie</span></div>
+  <div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div>
   <div class="eyebrow">Armonie Group · Récap journalier</div>
   <h1 class="title">Récap du jour</h1>
   <h2 class="subtitle">${esc(dossier)}${tag}</h2>
@@ -165,14 +168,14 @@ function clientDoc({ dossier, items, meName, human, heure }) {
     <dt>Objet</dt><dd>Récap quotidien — tickets actifs &amp; priorités</dd>
     <dt>Date</dt><dd>${esc(human)}</dd>
     <dt>Rédaction</dt><dd>${esc(meName)} — Chef de projet MOE</dd>
-    <dt>Source</dt><dd>Jira — <span class="cpwire-logo sm">${CW_WORD}</span></dd>
+    <dt>Source</dt><dd>Jira</dd>
     <dt>Classification</dt><dd>Interne</dd>
   </dl>
   ${kpis}
   <div class="sec-title">Revue complète des tickets</div>
   ${sections || '<p style="color:#6b6880">Aucun ticket à afficher pour ce client.</p>'}
   <section class="ccl"><h2>Conclusion</h2><p>${esc(conclusion)}</p></section>
-  <footer class="cr"><div class="f1">Armonie Group · Notos · PHL Soft — Document interne</div><div class="f2">${meSign} · cp|WIRE · Récap ${esc(human)}</div></footer>
+  <footer class="cr"><div class="f1">Armonie Group · Notos · PHL Soft — Confidentiel</div><div class="f2">${meSign} · Récap ${esc(human)}</div></footer>
 </div></div></body></html>`;
 }
 

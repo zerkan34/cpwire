@@ -1661,21 +1661,21 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .c360-x { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 36px; height: 36px; border-radius: 10px; font-size: 22px; line-height: 1; cursor: pointer; }
 .c360-x:hover { background: rgba(255,255,255,.3); }
 .c360-body { padding: 26px 32px 32px; }
-.c360-ctx { margin: 0 0 18px; font-size: 14px; color: var(--body); line-height: 1.6; }
+.c360-ctx { margin: 0 0 16px; font-size: 13.5px; color: var(--body); line-height: 1.65; padding: 13px 16px; background: var(--purple-soft); border-left: 3px solid var(--gold); border-radius: 10px; }
 .c360-stats { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-bottom: 20px; align-items: start; }
 /* ---- Refonte v2 : pouls compact + carte finances distincte ---- */
-.c360-pulse { display: flex; flex-wrap: wrap; gap: 0; background: var(--card); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); margin-bottom: 14px; overflow: hidden; }
-.c360-pulse-i { flex: 1; min-width: 90px; padding: 14px 16px; border-right: 1px solid var(--line-soft); }
+.c360-pulse { display: flex; flex-wrap: wrap; gap: 8px; background: transparent; border: 0; box-shadow: none; margin-bottom: 12px; overflow: visible; }
+.c360-pulse-i { flex: 1; min-width: 82px; padding: 11px 14px; border: 0; border-radius: 12px; background: var(--purple-soft); }
 .c360-pulse-i:last-child { border-right: 0; }
-.c360-pulse-i b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 22px; color: var(--indigo); line-height: 1; }
-.c360-pulse-i span { display: block; margin-top: 5px; font-size: 11px; color: var(--muted); font-weight: 600; }
-.c360-pulse-i.warn b { color: var(--orange-deep); }
-.c360-fin { background: linear-gradient(180deg, var(--purple-soft), var(--card)); border: 1px solid var(--purple-line); border-radius: 14px; padding: 16px 18px; box-shadow: var(--shadow); margin-bottom: 20px; }
+.c360-pulse-i b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 19px; color: var(--indigo); line-height: 1; }
+.c360-pulse-i span { display: block; margin-top: 5px; font-size: 10.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.c360-pulse-i.warn { background: #faf2ea; } .c360-pulse-i.warn b { color: var(--orange-deep); }
+.c360-fin { background: linear-gradient(180deg, var(--purple-soft), var(--card)); border: 1px solid var(--purple-line); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); margin-bottom: 18px; }
 .c360-fin-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
 .c360-fin-lb { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--indigo); }
-.c360-fin-jh { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 13px; color: var(--purple-strong); }
+.c360-fin-jh { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 12px; color: var(--purple-strong); background: rgba(110,92,196,.12); padding: 2px 10px; border-radius: 999px; }
 .c360-fin-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
-.c360-fin-kpi b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 20px; color: var(--indigo-deep); line-height: 1.1; }
+.c360-fin-kpi b { display: block; font-family: "Poppins", sans-serif; font-weight: 800; font-size: 17px; color: var(--indigo-deep); line-height: 1.1; }
 .c360-fin-kpi b.neg { color: var(--red); }
 .c360-fin-kpi span { font-size: 11px; color: var(--muted); font-weight: 600; }
 .c360-fin-prog { display: flex; align-items: center; gap: 10px; margin-top: 14px; }
@@ -2526,11 +2526,14 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pds-copy { font-size: 12px; font-weight: 600; border: 1px solid var(--purple-line); background: var(--purple-soft); color: var(--purple-strong); border-radius: 9px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
 .pds-copy:hover { filter: brightness(.97); }
 .pds-tbl { width: 100%; border-collapse: collapse; }
-.pds-tbl td { padding: 8px 10px; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
-.pds-lbl { color: var(--ink); }
-.pds-n { text-align: right; font-family: "Poppins"; font-weight: 700; color: var(--ink); width: 60px; }
-.pds-d { text-align: right; width: 64px; font-size: 12.5px; color: var(--muted); }
+.pds-tbl td { padding: 9px 12px; border-bottom: 1px solid var(--line-soft); font-size: 14px; }
+.pds-lbl { color: var(--ink); font-weight: 500; }
+.pds-n { text-align: right; font-family: "Poppins"; font-weight: 800; color: #2E2A5D; width: 66px; font-size: 16px; }
+.pds-d { text-align: right; width: 72px; font-size: 12.5px; color: var(--muted); }
 .pds-d.up { color: var(--green); } .pds-d.down { color: var(--red); }
+.pds-delta { display: inline-block; font-size: 12px; font-weight: 700; padding: 2px 9px; border-radius: 999px; }
+.pds-d.up .pds-delta { background: #e7f3ec; color: #2f7d4f; }
+.pds-d.down .pds-delta { background: #faf2ea; color: #a9531f; }
 .pds-foot { font-size: 11.5px; color: var(--muted); margin: 8px 0 0; }
 
 /* ---- Garde-fous responsive (anti-débordement mobile) ---- */

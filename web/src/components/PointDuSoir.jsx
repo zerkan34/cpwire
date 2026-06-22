@@ -87,7 +87,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
                     onClick={clickable ? () => setOpenK(open ? null : r.k) : undefined}>
                   <td className="pds-lbl">{clickable ? <span className="pds-cv" aria-hidden="true">›</span> : null}{r.label}</td>
                   <td className="pds-n">{r.n}</td>
-                  <td className={`pds-d ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}>{fmtDelta(r.delta)}</td>
+                  <td className={`pds-d ${r.delta > 0 ? "up" : r.delta < 0 ? "down" : ""}`}><span className="pds-delta">{fmtDelta(r.delta)}</span></td>
                 </tr>
                 {open && its && its.length > 0 ? (
                   <tr className="pds-sub"><td colSpan={3}>

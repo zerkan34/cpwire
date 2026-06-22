@@ -19,6 +19,9 @@ const CSS = `
   .tagline{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#6b6488;}
   .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
   .brand{display:flex;align-items:center;gap:12px;}
+  .brand-logo{height:42px;width:auto;display:block;}
+  .lede{font-size:15px;line-height:1.6;color:#3f3d57;margin:0 0 18px;}
+  .lede b{color:#2E2A5D;}
   .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right;}
   .who{font-weight:700;color:#4B3F8F;}
   .indic{background:#F5F2FC;border-left:3px solid #4B3F8F;padding:10px 14px;border-radius:8px;color:#41406a;}
@@ -34,9 +37,11 @@ const CSS = `
   h3{font-size:14px;color:#2E2A5D;margin:16px 0 6px;}
   p{margin:8px 0;}
   ul{margin:8px 0 8px 4px;padding-left:18px;} li{margin:4px 0;}
-  table.data{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0;}
-  table.data th{background:#2E2A5D;color:#fff;text-align:left;padding:8px 10px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;}
-  table.data td{border-bottom:1px solid #f0eef7;padding:8px 10px;}
+  table.data{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;margin:12px 0;border:1px solid #e9e5f3;border-radius:12px;overflow:hidden;}
+  table.data th{background:#2E2A5D;color:#fff;text-align:left;padding:9px 12px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;}
+  table.data td{border-top:1px solid #f0eef7;padding:9px 12px;}
+  table.data tr:nth-child(2) td{border-top:0;}
+  table.data tr:nth-child(even) td{background:#faf9fd;}
   .pill{display:inline-block;font-weight:600;font-size:11px;padding:2px 9px;border-radius:99px;white-space:nowrap;}
   .pill.done{background:#e2f3ea;color:#1f8a5f;} .pill.prog{background:#e6effb;color:#2f5fa8;}
   .pill.todo{background:#fbf0e2;color:#b07423;} .pill.block{background:#fbe6e3;color:#c0392b;}
@@ -49,9 +54,10 @@ const CSS = `
   .kpi .l{font-size:10px;text-transform:uppercase;letter-spacing:.06em;color:#74718a;}
   .foot{margin-top:34px;border-top:1px solid #e7e5f1;padding-top:12px;display:flex;justify-content:space-between;font-size:10.5px;color:#74718a;}
   .editable{outline:none;}
-  details.cr-tk{border:1px solid #e7e5f1;border-radius:10px;margin:8px 0;overflow:hidden;background:#fff;}
-  details.cr-tk[open]{box-shadow:0 2px 10px rgba(40,30,80,.06);}
+  details.cr-tk{border:1px solid #e7e5f1;border-left:3px solid #4B3F8F;border-radius:10px;margin:8px 0;overflow:hidden;background:#fff;}
+  details.cr-tk[open]{box-shadow:0 4px 16px rgba(46,42,93,.10);border-left-color:#A8884E;}
   details.cr-tk>summary{cursor:pointer;list-style:none;padding:10px 13px;font-size:13px;display:flex;align-items:center;gap:9px;background:#F5F2FC;}
+  details.cr-tk[open]>summary{background:linear-gradient(90deg,#ece5fb,#F5F2FC);border-bottom:1px solid #e3daf5;}
   details.cr-tk>summary::-webkit-details-marker{display:none;}
   details.cr-tk>summary:before{content:"\\25B8";color:#4B3F8F;font-size:11px;}
   details.cr-tk[open]>summary:before{content:"\\25BE";}
@@ -59,7 +65,7 @@ const CSS = `
   details.cr-tk>summary .cr-tk-res{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
   details.cr-tk>summary .cr-prog-cell{flex:0 0 132px;overflow:hidden;white-space:nowrap;}
   details.cr-tk>summary .cr-tk-who{flex:0 0 130px;text-align:right;font-size:11px;color:#74718a;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  details.cr-tk>summary .cr-tk-st{flex:0 0 92px;text-align:right;font-size:10.5px;text-transform:uppercase;letter-spacing:.03em;color:#74718a;font-weight:700;white-space:nowrap;}
+  details.cr-tk>summary .cr-tk-st{flex:0 0 auto;font-size:10px;text-transform:uppercase;letter-spacing:.03em;color:#4B3F8F;font-weight:800;white-space:nowrap;background:#ece5fb;padding:3px 9px;border-radius:999px;}
   @media (max-width:560px){ details.cr-tk>summary{flex-wrap:wrap;} details.cr-tk>summary .cr-tk-res{flex:1 1 100%;} details.cr-tk>summary .cr-prog-cell,details.cr-tk>summary .cr-tk-who,details.cr-tk>summary .cr-tk-st{flex:0 0 auto;text-align:left;} }
   .cr-tk-bd{padding:11px 14px 13px;border-top:1px solid #f0eef7;}
   .cr-row{margin:8px 0;font-size:13px;}
@@ -95,14 +101,14 @@ const CSS = `
   @media print{details.cr-more>summary{display:none;} details.cr-more>ul,details.cr-more>table{display:revert !important;}}
   @page{margin:14mm 13mm;}
   @media print{.page{padding:0;max-width:none;}}
-  /* === MOBILE UNIQUEMENT (iframe étroite < 480px) : fond violet cp|WIRE, écriture blanche === */
+  /* === MOBILE UNIQUEMENT (iframe étroite < 480px) : fond sombre, écriture claire === */
   @media (max-width:480px){
     body{background:linear-gradient(160deg,#2E2A5D 0%,#2E2A5D 100%);color:#eef1f8;}
     .page{padding:0;}
     .inner{padding:22px 16px;}
     .cpwire-logo .cw-wire{color:#fff;} .cpwire-logo .cw-cp{color:#b9a9f0;} .tagline{color:#c8c4e0;}
     .conf{color:#c8c4e0;}
-    .eyebrow{color:#d8b765;}                                   /* doré cp|WIRE */
+    .eyebrow{color:#d8b765;}                                   /* doré */
     h1{color:#ffffff;}
     .sub{color:#c8c4e0;}
     h2{color:#ffffff;font-weight:800;border-left-color:#A8884E;} /* "Ce qui avance" : blanc gras, accent doré */
@@ -143,13 +149,13 @@ export function buildDoc({ kicker, title, subtitle, cartouche = [], bodyHtml, et
   const sign = String(etabliPar || "").replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase());
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${FONTS}<style>${CSS}</style><title>${title}</title></head>
 <body><div class="page"><div class="bar"></div><div class="inner">
-  <div class="top"><div class="brand">${CW_LOGO}<span class="tagline">Cockpit PMO · Armonie</span></div><div class="conf">Armonie Group · Interne<br>${date}</div></div>
+  <div class="top"><div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${date}</div></div>
   <div class="eyebrow">${kicker || ""}</div>
   <h1>${title}</h1>
   ${subtitle ? `<div class="sub">${subtitle}</div>` : ""}
   <div class="rule"></div>
   ${cart}
   ${bodyHtml}
-  <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"} · cp|WIRE</span><span>Document interne · à valider</span></div>
+  <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"}</span><span>Armonie Group · Confidentiel</span></div>
 </div></div></body></html>`;
 }

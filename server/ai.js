@@ -846,8 +846,8 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
     try {
       const top = persons.slice(0, 6).map(([d, n]) => `${d} (${n})`).join(", ");
       const retardListe = enRetard.slice(0, 10).map((i) => `${i.cle} ${i.resume}`).join(" ; ");
-      const prompt = `Tu es chef de projet senior. Prépare l'ÉTAT DES LIEUX pour le stand-up du matin, dossier "${dossier}", ` +
-        `équipe Armonie uniquement. Sois concret et orienté action (points à aborder, priorités, blocages éventuels), ` +
+      const prompt = `Tu es chef de projet senior. Rédige une SYNTHÈSE d'avancement de la journée, dossier "${dossier}", ` +
+        `équipe Armonie uniquement. Sois concret et orienté action (points clés, priorités, blocages éventuels), ` +
         `en 3 à 5 phrases. Ne réinvente pas de chiffres.\n` +
         `Données : ${active.length} ticket(s) actif(s) (${nEnCours} en cours, ${nRetourTest} en retour test). ` +
         `Charge par personne : ${top || "—"}. ` +
@@ -858,7 +858,7 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
   }
   if (!synthese) {
     const bits = [];
-    bits.push(`État des lieux du matin — dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${active.length}</b> ticket(s) à passer en revue, dont <b>${nEnCours}</b> en cours et <b>${nRetourTest}</b> en retour test.`);
+    bits.push(`Sur le dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${active.length}</b> ticket(s) à passer en revue, dont <b>${nEnCours}</b> en cours et <b>${nRetourTest}</b> en retour test.`);
     if (persons.length) bits.push(`À aborder en priorité avec ${esc(persons.slice(0, 3).map(([d]) => d).join(", "))}.`);
     if (enRetard.length) bits.push(`<b>Point d'attention :</b> ${enRetard.length} ticket(s) en retard à traiter en priorité.`);
     else bits.push(`Aucun ticket en retard à ce stade.`);
@@ -873,17 +873,18 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
   const retourBloc = `<h2>Retour test (${retourTk.length})</h2>` +
     (retourTk.length ? (await progressHtml(retourTk)) : "<p>Aucun ticket en retour test.</p>");
 
-  const body = kpis +
-    `<h2>État des lieux</h2>${synthese}` +
-    charge +
-    avanceBloc +
-    retourBloc;
+  const engs = [...new Set(issues.map((i) => i.engagement).filter(Boolean))];
+  const mode = engs.length === 0 ? "" : engs.length === 1 ? engs[0] : "TMA + Projet";
+  const modeLabel = mode === "Projet" ? "mode projet" : mode === "TMA" ? "mode TMA" : mode;
+
+  const lede = synthese.replace("<p>", '<p class="lede">');
+  const body = lede + kpis + charge + avanceBloc + retourBloc;
 
   const html = buildDoc({
-    kicker: "Brief de réunion matinale",
-    title: `Réunion du ${new Date().toLocaleDateString("fr-FR")}`,
-    subtitle: `Dossier ${dossier} · équipe Armonie`,
-    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Type", "Brief matinal"], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    kicker: "Armonie Group",
+    title: "Récapitulatif de la journée",
+    subtitle: `${dossier}${modeLabel ? " · " + modeLabel : ""} · équipe Armonie`,
+    cartouche: [["Client / dossier", `${dossier} — équipe Armonie`], ["Périmètre", mode || "—"], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
@@ -1050,7 +1051,7 @@ Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
     body = templateMeeting({ titre, participants, notes, transcript });
   }
   const html = buildDoc({
-    kicker: "Compte rendu de réunion",
+    kicker: "Armonie Group",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
     cartouche: [["Objet", esc(titre || "Réunion")], ["Équipe", esc(team)], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
