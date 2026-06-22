@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ProjetModal } from "./Projets.jsx";
 import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel } from "../api.js";
+import EdlMax from "./EdlMax.jsx";
 import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
 import PointDuSoir from "./PointDuSoir.jsx";
@@ -202,6 +203,8 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                   ))}
                 </ul>
               </>)}
+
+              {c.client === "EDL" ? <EdlMax /> : null}
 
               {ref && ref.domaines && ref.domaines.length > 0 ? (
                 <>
