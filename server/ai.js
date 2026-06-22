@@ -893,30 +893,34 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
 
 
 export async function explainTicket(ticket) {
+  const desc = (ticket.descriptionText || "").trim();
+  // Règle sacrée : sans description réelle dans Jira, on n'invente JAMAIS le sujet
+  // à partir du seul titre (un titre comme « Réécriture EDMAID » ne dit pas le métier).
+  if (!desc) {
+    return `« ${ticket.resume} » — aucune description n'est renseignée dans Jira pour ce ticket. Le détail est à demander à la personne en charge ; rien n'est déduit ou inventé ici.`;
+  }
   if (aiAvailable()) {
-    const prompt = `Explique ce ticket en 1 à 2 phrases TRÈS simples, comme à quelqu'un qui n'y connaît rien.
+    const prompt = `Reformule le contenu ci-dessous en 1 à 2 phrases simples, sans jargon.
+RÈGLE ABSOLUE : tu n'inventes RIEN. Tu n'ajoutes aucun contexte métier, aucun secteur d'activité, aucun public (clients, utilisateurs, professions…), aucun objectif ni bénéfice qui ne soit pas écrit explicitement ci-dessous. Tu rends seulement lisible ce qui est écrit. Si une information n'y figure pas, tu ne la donnes pas.
 Titre : ${ticket.resume}
-${ticket.descriptionText ? "Détail : " + ticket.descriptionText.slice(0, 1500) : ""}
-Dis juste, sans jargon : de quoi il s'agit, et à quoi ça sert. Phrases courtes. Pas de termes techniques.`;
+Détail (texte réel issu de Jira) : ${desc.slice(0, 1500)}`;
     return await callClaude(
-      "Tu expliques des tickets techniques en mots simples du quotidien, pour une personne non technique. Très court, concret, zéro jargon.",
+      "Tu reformules des tickets en langage simple, STRICTEMENT à partir du texte fourni. Tu n'inventes jamais de contexte, de secteur d'activité, de public ni d'objectif. Si une information n'est pas écrite noir sur blanc, tu ne l'inventes pas. Très court, factuel.",
       prompt
     );
   }
-  // Repli sans clé IA : on affiche le résumé puis la description COMPLÈTE (non tronquée).
-  if (ticket.descriptionText) {
-    return `En clair : ${ticket.resume}.\n\n${ticket.descriptionText.trim()}`;
-  }
-  return `En clair : ce ticket concerne « ${ticket.resume} ».`;
+  // Sans IA : on affiche le résumé puis la description réelle, sans aucun ajout.
+  return `${ticket.resume}\n\n${desc}`;
 }
 
 // ---------- Rapport de réalisation d'un ticket ----------
 export async function ticketReport(ticket, note) {
   if (aiAvailable()) {
     const prompt = `Rédige un court rapport de réalisation pour le ticket ${ticket.cle} (« ${ticket.resume} »).
-Note du chef de projet : "${note || "Réalisé."}".
-2 à 4 phrases : ce qui a été fait, le résultat, et l'éventuelle suite. Renvoie du texte simple (pas de HTML).`;
-    const txt = await callClaude("Tu rédiges des rapports de réalisation de tickets, en français, factuels et concis. Réponds en texte simple.", prompt);
+Note du chef de projet (seule source factuelle) : "${note || "Réalisé."}".
+RÈGLE ABSOLUE : appuie-toi UNIQUEMENT sur le titre et la note ci-dessus. N'invente aucun détail technique, aucun résultat, aucun contexte métier qui n'y figure pas. Si la note est vague, reste vague.
+2 à 4 phrases, texte simple (pas de HTML).`;
+    const txt = await callClaude("Tu rédiges des rapports de réalisation de tickets, en français, factuels et concis, STRICTEMENT à partir des éléments fournis. Tu n'inventes jamais de détail, de résultat ni de contexte non donné. Réponds en texte simple.", prompt);
     return txt;
   }
   return `Ticket ${ticket.cle} — « ${ticket.resume} » : traité. ${note ? note : "Travail réalisé et vérifié."} Clôture proposée.`;
