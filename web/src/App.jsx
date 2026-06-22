@@ -77,6 +77,7 @@ const SUBTABS = {
     { id: "accueil", label: "Accueil" },
   ],
   outils: [
+    { id: "morning", label: "Brief du matin" },
     { id: "portefeuille", label: "Tickets" },
     { id: "projets", label: "Suivi projets" },
     { id: "hygiene", label: "Qualité" },
@@ -605,9 +606,7 @@ export default function App() {
       {role === "owner" ? (
         <div className="owner-bar">
           {greet && <span className="greet-inline">{greet}</span>}
-          {showDailyCr && (
-            <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
-          )}
+          <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
           <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
       ) : role === "guest" ? (
@@ -650,7 +649,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v171" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v172" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
