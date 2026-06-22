@@ -1,6 +1,6 @@
-// dailyCr.js — Construit le « Compte rendu du jour ».
-// Le ZIP contient UN FICHIER PAR PROJET CLIENT (un CR détaillé par client),
-// chaque fichier étant un document HTML AUTONOME (CSS en ligne + accordéons <details> natifs)
+// dailyCr.js — Construit le « Récap du jour ».
+// Le ZIP contient UN FICHIER PAR PROJET CLIENT, chaque fichier étant un document HTML
+// autonome dans la charte cp|WIRE (CSS en ligne + accordéons <details> natifs),
 // qui s'ouvre dans n'importe quel navigateur, hors de l'application.
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -37,53 +37,75 @@ function rowsTable(items) {
   return `<table class="tk"><thead><tr><th>Clé</th><th>Résumé</th><th>Sur le ticket</th><th>Échéance</th></tr></thead><tbody>${rows}</tbody></table>`;
 }
 
+// Logo cp|WIRE — marque (SVG autonome) + mot-symbole.
+const CW_MARK = `<svg class="cw-mark" viewBox="0 0 24 24" aria-hidden="true"><defs><linearGradient id="cwg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2E2A5D"/><stop offset="1" stop-color="#4B3F8F"/></linearGradient></defs><rect x="1" y="1" width="22" height="22" rx="6" fill="url(#cwg)"/><circle cx="7.5" cy="8" r="2" fill="#A8884E"/><circle cx="16.5" cy="16" r="2" fill="#A8884E"/><path d="M7.5 8L16.5 16" stroke="#F5F2FC" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+const CW_WORD = `<span class="cw-cp">cp</span><span class="cw-bar">|</span><span class="cw-wire">WIRE</span>`;
+
 const STYLE = `
-  :root { --ink:#1f1d2b; --muted:#6b6880; --indigo:#2c2945; --gold:#a9842f; --line:#e7e4f0; --soft:#f7f6fb; --warn:#a9531f; --warnbg:#fbeede; --ok:#1f7a52; --okbg:#e7f6ee; }
-  * { box-sizing: border-box; }
-  body { font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif; color: var(--ink); margin: 0; padding: 28px; background: #fff; line-height: 1.5; }
-  .doc { max-width: 940px; margin: 0 auto; }
-  header.cr { border-bottom: 3px solid var(--indigo); padding-bottom: 14px; margin-bottom: 18px; }
-  header.cr .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 700; color: var(--gold); }
-  header.cr h1 { font-size: 25px; margin: 4px 0 8px; color: var(--indigo); }
-  header.cr .meta { font-size: 13px; color: var(--muted); }
-  header.cr .meta b { color: var(--ink); }
-  .tag { display:inline-block; font-size:11px; font-weight:800; padding:1px 8px; border-radius:999px; margin-left:6px; vertical-align:middle; }
-  .tag.tma { background:#efeafe; color:#5b3fb0; border:1px solid #e0d6f5; }
-  .tag.projet { background:var(--warnbg); color:var(--warn); border:1px solid #f0d2b0; }
-  .tag.mix { background:#eef3ff; color:#3a5bd0; border:1px solid #d4e0ff; }
-  .kpis { display: flex; flex-wrap: wrap; gap: 10px; margin: 16px 0 22px; }
-  .kpi { flex: 1 1 110px; background: var(--soft); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; text-align: center; }
-  .kpi b { display: block; font-size: 23px; font-weight: 800; color: var(--indigo); line-height: 1; }
-  .kpi span { display: block; font-size: 11px; color: var(--muted); margin-top: 5px; text-transform: uppercase; letter-spacing: .04em; }
-  .kpi.warn { background: var(--warnbg); border-color: #f0d9bf; } .kpi.warn b { color: var(--warn); }
-  .kpi.ok { background: var(--okbg); border-color: #c8ebd7; } .kpi.ok b { color: var(--ok); }
-  details { border: 1px solid var(--line); border-radius: 12px; margin-bottom: 12px; overflow: hidden; background: #fff; }
-  summary { cursor: pointer; list-style: none; padding: 12px 16px; font-weight: 700; font-size: 15px; color: var(--indigo); background: var(--soft); display: flex; align-items: center; gap: 10px; user-select: none; }
-  summary::-webkit-details-marker { display: none; }
-  summary::before { content: "\\25B8"; color: var(--gold); font-size: 13px; transition: transform .15s; }
-  details[open] summary::before { transform: rotate(90deg); }
-  summary .cnt { margin-left: auto; background: var(--indigo); color: #fff; font-size: 12px; font-weight: 700; padding: 2px 10px; border-radius: 999px; }
-  table.tk { width: 100%; border-collapse: collapse; font-size: 13px; }
-  table.tk th { text-align: left; padding: 9px 16px; background: #fff; color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--line); }
-  table.tk td { padding: 9px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
-  table.tk tr:last-child td { border-bottom: none; }
-  table.tk tbody tr:nth-child(even) td { background: #fafafd; }
-  td.k { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 700; color: var(--indigo); white-space: nowrap; }
-  td.r { width: 52%; }
-  td.d { white-space: nowrap; }
-  .late { color: var(--warn); font-weight: 700; font-size: 11px; }
-  section.ccl { margin-top: 24px; border-top: 2px solid var(--line); padding-top: 14px; }
-  section.ccl h2 { font-size: 17px; color: var(--indigo); margin: 0 0 8px; }
-  section.ccl p { margin: 0; font-size: 14px; }
-  footer.cr { margin-top: 22px; font-size: 11.5px; color: var(--muted); text-align: center; }
-  @media print { body { padding: 0; } details { break-inside: avoid; } }
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+:root{ --navy:#2E2A5D; --indigo:#4B3F8F; --gold:#A8884E; --lavande:#F5F2FC; --ink:#2B2620; --body:#4a4763; --muted:#6b6488; --line:#ece9f3; --serif:'Poppins','Segoe UI',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --warn:#a9531f; --warnbg:#faf2ea; --ok:#2f7d4f; --okbg:#e7f3ec; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; }
+body{ background:#e9e7ef; font-family:var(--sans); color:var(--body); line-height:1.6; padding:34px 16px; -webkit-font-smoothing:antialiased; }
+.page{ max-width:900px; margin:0 auto; background:#fff; border-radius:6px; box-shadow:0 18px 50px rgba(46,42,93,.14); overflow:hidden; }
+.bar{ height:8px; background:linear-gradient(90deg,var(--navy) 0%,var(--indigo) 52%,var(--gold) 100%); }
+.inner{ padding:50px 60px 38px; }
+.brand{ display:flex; align-items:center; gap:13px; margin-bottom:34px; }
+.cpwire-logo{ font-family:var(--serif); font-weight:800; letter-spacing:-.01em; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
+.cpwire-logo .cw-cp{ color:var(--indigo); }
+.cpwire-logo .cw-bar{ color:var(--gold); margin:0 1px; }
+.cpwire-logo .cw-wire{ color:var(--navy); letter-spacing:.05em; }
+.cpwire-logo.lg{ font-size:23px; }
+.cpwire-logo.sm{ font-size:14px; gap:0; vertical-align:middle; }
+.cw-mark{ width:26px; height:26px; flex:none; }
+.tagline{ font-size:11px; font-weight:600; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+.eyebrow{ font-size:12px; font-weight:700; letter-spacing:.2em; text-transform:uppercase; color:var(--gold); margin-bottom:12px; }
+h1.title{ font-family:var(--serif); font-size:38px; font-weight:800; color:var(--navy); line-height:1.05; letter-spacing:-.015em; margin:0; }
+h2.subtitle{ font-family:var(--serif); font-size:19px; font-weight:700; color:var(--indigo); margin:9px 0 0; line-height:1.25; }
+.rule{ width:120px; height:5px; border-radius:3px; background:linear-gradient(90deg,var(--gold),var(--indigo)); margin:22px 0 24px; }
+.lede{ font-size:15px; line-height:1.75; color:var(--body); max-width:64ch; margin:0; }
+.lede b{ color:var(--navy); font-weight:700; }
+.tag{ display:inline-block; font-size:11px; font-weight:800; padding:2px 9px; border-radius:999px; margin-left:8px; vertical-align:middle; }
+.tag.tma{ background:#efeafe; color:#5b3fb0; } .tag.projet{ background:var(--warnbg); color:var(--warn); } .tag.mix{ background:#eef3ff; color:#3a5bd0; }
+.meta{ margin-top:30px; background:var(--lavande); border-left:4px solid var(--gold); border-radius:14px; padding:22px 26px; display:grid; grid-template-columns:160px 1fr; row-gap:12px; column-gap:18px; }
+.meta dt{ font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); align-self:center; }
+.meta dd{ margin:0; font-size:14px; color:#3f3d57; font-weight:500; }
+.kpis{ display:flex; flex-wrap:wrap; gap:12px; margin:26px 0 8px; }
+.kpi{ flex:1 1 120px; background:var(--lavande); border-radius:12px; padding:14px 16px; text-align:center; }
+.kpi b{ display:block; font-family:var(--serif); font-size:26px; font-weight:800; color:var(--navy); line-height:1; }
+.kpi span{ display:block; font-size:11px; color:var(--muted); margin-top:7px; text-transform:uppercase; letter-spacing:.05em; font-weight:600; }
+.kpi.warn{ background:var(--warnbg); } .kpi.warn b{ color:var(--warn); }
+.kpi.ok{ background:var(--okbg); } .kpi.ok b{ color:var(--ok); }
+.sec-title{ font-family:var(--serif); font-size:14px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:.07em; margin:30px 0 12px; }
+details{ border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden; background:#fff; }
+summary{ cursor:pointer; list-style:none; padding:12px 16px; font-weight:700; font-size:14.5px; color:var(--indigo); background:var(--lavande); display:flex; align-items:center; gap:10px; user-select:none; }
+summary::-webkit-details-marker{ display:none; }
+summary::before{ content:"\\25B8"; color:var(--gold); font-size:13px; transition:transform .15s; }
+details[open] summary::before{ transform:rotate(90deg); }
+summary .cnt{ margin-left:auto; background:var(--navy); color:#fff; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; }
+table.tk{ width:100%; border-collapse:collapse; font-size:13px; }
+table.tk th{ text-align:left; padding:9px 16px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line); font-weight:600; }
+table.tk td{ padding:9px 16px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--body); }
+table.tk tr:last-child td{ border-bottom:none; }
+table.tk tbody tr:nth-child(even) td{ background:#faf9fd; }
+td.k{ font-family:ui-monospace,"SF Mono",Menlo,monospace; font-weight:700; color:var(--indigo); white-space:nowrap; }
+td.r{ width:50%; }
+td.d{ white-space:nowrap; }
+.late{ color:var(--warn); font-weight:700; font-size:11px; }
+section.ccl{ margin-top:28px; background:#faf6ee; border-left:4px solid var(--gold); border-radius:12px; padding:18px 22px; }
+section.ccl h2{ font-family:var(--serif); font-size:13px; text-transform:uppercase; letter-spacing:.1em; color:var(--gold); margin:0 0 8px; }
+section.ccl p{ margin:0; font-size:14.5px; color:#403d57; line-height:1.7; }
+footer.cr{ margin-top:40px; padding-top:18px; border-top:1px solid var(--line); text-align:center; }
+footer.cr .f1{ font-size:10.5px; letter-spacing:.18em; text-transform:uppercase; color:#b3aecb; }
+footer.cr .f2{ font-size:11px; color:var(--muted); margin-top:7px; font-weight:600; }
+@media print{ body{ background:#fff; padding:0; } .page{ box-shadow:none; border-radius:0; max-width:none; } .inner{ padding:14mm 16mm; } details,table,section.ccl,.meta{ page-break-inside:avoid; } @page{ margin:12mm; } }
+@media (max-width:640px){ .inner{ padding:32px 22px; } h1.title{ font-size:30px; } .meta{ grid-template-columns:1fr; row-gap:4px; } .meta dt{ margin-top:8px; } }
 `;
 
 // Construit le document HTML d'UN client.
 function clientDoc({ dossier, items, meName, human, heure }) {
   const c = {};
   items.forEach((i) => { c[i.categorie] = (c[i.categorie] || 0) + 1; });
-  const total = items.length;
   const done = (c.termine || 0) + (c.miseEnProd || 0);
   const rec = (c.recetteArmonie || 0) + (c.recetteClient || 0);
   const ret = (c.retourTest || 0) + (c.retourProd || 0);
@@ -114,35 +136,44 @@ function clientDoc({ dossier, items, meName, human, heure }) {
     <div class="kpi"><b>${c.afaire || 0}</b><span>À faire</span></div>
   </div>`;
 
-  const seg = [];
-  if (c.encours) seg.push(`${c.encours} en cours`);
-  if (c.afaire) seg.push(`${c.afaire} à faire`);
-  if (rec) seg.push(`${rec} en recette`);
-  if (ret) seg.push(`${ret} à retravailler (retours)`);
-  if (done) seg.push(`${done} terminé${done > 1 ? "s" : ""}`);
-  const parts = [];
-  parts.push(`Au ${human}, ${faitJour} ticket${faitJour > 1 ? "s" : ""} traité${faitJour > 1 ? "s" : ""} dans la journée sur ${dossier}${faitSem !== faitJour ? `, ${faitSem} sur les 7 derniers jours` : ""}.`);
-  if (seg.length) parts.push(`Répartition : ${seg.join(", ")}.`);
-  if (late) parts.push(`${late} ticket${late > 1 ? "s" : ""} en retard à surveiller de près.`);
-  if (ret) parts.push(`Les retours de test/production constituent la priorité immédiate sur ce client : ils sont détaillés ci-dessus pour action.`);
-  else parts.push(`Aucun retour de test ou de production en cours : le pipeline de recette est sain à ce jour.`);
-  parts.push(`Prochaines étapes : finaliser les recettes en cours et préparer les mises en production une fois les validations complètes.`);
-  const conclusion = parts.join(" ");
+  // Petite conclusion — synthèse courte, orientée action.
+  const ccl = [];
+  if (ret) ccl.push(`Priorité immédiate : ${ret} retour${ret > 1 ? "s" : ""} de test ou de production à retravailler.`);
+  else ccl.push(`Pipeline de recette sain : aucun retour de test ou de production en cours.`);
+  if (rec) ccl.push(`${rec} ticket${rec > 1 ? "s" : ""} en recette à faire avancer.`);
+  if (late) ccl.push(`${late} ticket${late > 1 ? "s" : ""} en retard à surveiller.`);
+  ccl.push(`Prochaines étapes : finaliser les recettes en cours, puis préparer les mises en production validées.`);
+  const conclusion = ccl.join(" ");
+
+  const lede = `Au ${esc(human)}, <b>${faitJour} ticket${faitJour > 1 ? "s" : ""} traité${faitJour > 1 ? "s" : ""}</b> dans la journée sur <b>${esc(dossier)}</b>${faitSem !== faitJour ? `, ${faitSem} sur les 7 derniers jours` : ""}. ${ret ? "Les retours de test ou de production sont la priorité du jour." : "Le pipeline de recette est sain."}`;
+
+  const meSign = esc(meName.replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()));
 
   return `<!doctype html>
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CR ${esc(dossier)}</title><style>${STYLE}</style></head>
-<body><div class="doc">
-  <header class="cr">
-    <div class="eyebrow">Compte rendu journalier</div>
-    <h1>${esc(dossier)}${tag}</h1>
-    <div class="meta">Compte rendu du <b>${esc(human)}</b> · Chef de projet : <b>${esc(meName)}</b> · Établi à ${esc(heure)} · Source : Jira (cp|WIRE)</div>
-  </header>
+<title>Récap ${esc(dossier)} — ${esc(human)}</title><style>${STYLE}</style></head>
+<body><div class="page"><div class="bar"></div><div class="inner">
+  <div class="brand"><span class="cpwire-logo lg">${CW_MARK}<span class="cw-cp">cp</span><span class="cw-bar">|</span><span class="cw-wire">WIRE</span></span><span class="tagline">Cockpit PMO · Armonie</span></div>
+  <div class="eyebrow">Armonie Group · Récap journalier</div>
+  <h1 class="title">Récap du jour</h1>
+  <h2 class="subtitle">${esc(dossier)}${tag}</h2>
+  <div class="rule"></div>
+  <p class="lede">${lede}</p>
+  <dl class="meta">
+    <dt>Client</dt><dd>${esc(dossier)}</dd>
+    <dt>Périmètre</dt><dd>TMA — suivi Jira${engagement ? ` (${esc(engagement)})` : ""}</dd>
+    <dt>Objet</dt><dd>Récap quotidien — tickets actifs &amp; priorités</dd>
+    <dt>Date</dt><dd>${esc(human)}</dd>
+    <dt>Rédaction</dt><dd>${esc(meName)} — Chef de projet MOE</dd>
+    <dt>Source</dt><dd>Jira — <span class="cpwire-logo sm">${CW_WORD}</span></dd>
+    <dt>Classification</dt><dd>Interne</dd>
+  </dl>
   ${kpis}
+  <div class="sec-title">Revue complète des tickets</div>
   ${sections || '<p style="color:#6b6880">Aucun ticket à afficher pour ce client.</p>'}
   <section class="ccl"><h2>Conclusion</h2><p>${esc(conclusion)}</p></section>
-  <footer class="cr">${esc(meName.replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()))} · cp|WIRE · Récap ${esc(human)}</footer>
-</div></body></html>`;
+  <footer class="cr"><div class="f1">Armonie Group · Notos · PHL Soft — Document interne</div><div class="f2">${meSign} · cp|WIRE · Récap ${esc(human)}</div></footer>
+</div></div></body></html>`;
 }
 
 // Nettoie un nom de client pour en faire un nom de fichier sûr.
@@ -162,9 +193,9 @@ export function buildDailyCrFiles(issues = [], { meName = "Nicolas Durand", team
   const files = dossiers.map((d) => ({
     dossier: d,
     count: byDoss[d].length,
-    name: `CR ${safeName(d)} ${iso}.html`,
+    name: `Recap ${safeName(d)} ${iso}.html`,
     html: clientDoc({ dossier: d, items: byDoss[d], meName, teamLabel, human, heure }),
   }));
 
-  return { iso, human, heure, fileBase: `CR du ${iso}`, files };
+  return { iso, human, heure, fileBase: `Recap du ${iso}`, files };
 }

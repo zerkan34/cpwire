@@ -81,7 +81,7 @@ export default function Admin() {
     if (!impProp || !impProp.proposal) return;
     setImpBusy(true); setImpErr("");
     try {
-      await importApply({ filename: impProp.filename, proposal: impProp.proposal, apercu: impProp.apercu, dataset: impProp.dataset });
+      await importApply({ filename: impProp.filename, proposal: impProp.proposal, apercu: impProp.apercu, dataset: impProp.dataset, diff: impProp.diff });
       setImpDone(impProp.dataset ? "Import validé — l'écran concerné est mis à jour ✓" : "Import validé et enregistré ✓"); setImpProp(null); setImpFile(null);
     } catch (e2) { setImpErr(e2.message || "Validation impossible"); }
     finally { setImpBusy(false); }
@@ -190,6 +190,25 @@ export default function Admin() {
             </tbody></table>
             {Array.isArray(impProp.proposal.details) && impProp.proposal.details.length ? (
               <ul className="imp-details">{impProp.proposal.details.map((d, i) => <li key={i}>{d}</li>)}</ul>
+            ) : null}
+            {impProp.diff && !impProp.diff.premiereFois ? (
+              <div className="imp-diff">
+                <div className="imp-diff-row">
+                  <span className="imp-diff-pill add">+{impProp.diff.added} ajouté{impProp.diff.added > 1 ? "s" : ""}</span>
+                  <span className="imp-diff-pill mod">~{impProp.diff.modified} modifié{impProp.diff.modified > 1 ? "s" : ""}</span>
+                  <span className="imp-diff-pill del">−{impProp.diff.removed} supprimé{impProp.diff.removed > 1 ? "s" : ""}</span>
+                </div>
+                {Array.isArray(impProp.diff.sample) && impProp.diff.sample.length ? (
+                  <ul className="imp-diff-list">
+                    {impProp.diff.sample.map((s, i) => (
+                      <li key={i} className={s.kind === "ajout" ? "add" : "mod"}><b>{s.kind === "ajout" ? "+" : "~"}</b> {s.nom}{s.dossier ? <span className="imp-diff-d"> · {s.dossier}</span> : null}</li>
+                    ))}
+                  </ul>
+                ) : null}
+              </div>
+            ) : null}
+            {impProp.diff && impProp.diff.premiereFois ? (
+              <p className="imp-diff-first">Premier dépôt : {impProp.diff.total} éléments enregistrés comme référence. Les prochains imports n'afficheront que les changements.</p>
             ) : null}
             <p className="imp-meta">{impProp.lignes} ligne(s) · {impProp.chars} caractères analysés</p>
             <div className="imp-actions">

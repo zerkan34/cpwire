@@ -3158,3 +3158,16 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .recap-pds-pick { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
 .recap-pds-pick span { font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted, #6b6880); font-weight: 700; }
 .recap-pds-pick select { font: inherit; padding: 6px 12px; border: 1px solid var(--purple-line); border-radius: 9px; background: #fff; color: var(--ink); font-weight: 600; cursor: pointer; }
+
+/* ── Import : résumé du diff (façon push Git) ──────────────────────────── */
+.imp-diff{ margin:10px 0 4px; }
+.imp-diff-row{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px; }
+.imp-diff-pill{ font-size:12px; font-weight:700; padding:3px 10px; border-radius:999px; }
+.imp-diff-pill.add{ background:#e7f3ec; color:#2f7d4f; }
+.imp-diff-pill.mod{ background:#eef0fb; color:#4B3F8F; }
+.imp-diff-pill.del{ background:#faf2ea; color:#a9531f; }
+.imp-diff-list{ list-style:none; padding:10px 12px; margin:0; background:#faf9fd; border:1px solid var(--purple-line); border-radius:10px; max-height:220px; overflow:auto; }
+.imp-diff-list li{ font-size:13px; padding:3px 0; color:var(--ink); }
+.imp-diff-list li.add b{ color:#2f7d4f; } .imp-diff-list li.mod b{ color:#4B3F8F; }
+.imp-diff-d{ color:var(--muted); }
+.imp-diff-first{ font-size:13px; color:var(--muted); margin:8px 0 0; }

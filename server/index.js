@@ -745,9 +745,9 @@ app.post("/api/import/analyze", guard, writeGuard, upload.single("file"), async 
 
 app.post("/api/import/apply", guard, writeGuard, async (req, res) => {
   try {
-    const { filename, proposal, apercu, dataset } = req.body || {};
+    const { filename, proposal, apercu, dataset, diff } = req.body || {};
     if (!proposal) return res.status(400).json({ error: "Proposition manquante." });
-    const entry = applyImport({ filename, proposal, apercu, dataset, by: req.userEmail });
+    const entry = applyImport({ filename, proposal, apercu, dataset, diff, by: req.userEmail });
     try { logEvent("import_applique", `Import validé : ${filename || "document"}`, { type: proposal.type, client: proposal.client }); } catch (e) { /* journal best-effort */ }
     res.json({ ok: true, entry });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
