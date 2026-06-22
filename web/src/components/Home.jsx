@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchHygiene, fetchSla, fetchCadence } from "../api.js";
-import { computeAttention, computeSouffrance, detectDevsSurcharges, SEV } from "../attention.js";
-import AttentionRequise from "./AttentionRequise.jsx";
+import { computeAttention, computeSouffrance, SEV } from "../attention.js";
 import Portfolio from "./Portfolio.jsx";
 
 // ============================================================================
@@ -37,7 +36,6 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
 
   const seuilSouff = cadence?.seuilSouffranceJours ?? 21;
   const souffrance = useMemo(() => computeSouffrance(issues, seuilSouff), [issues, seuilSouff]);
-  const team = useMemo(() => detectDevsSurcharges(cadence), [cadence]);
   const attention = useMemo(() => computeAttention(facts, { hygiene, sla, souffrance }), [facts, hygiene, sla, souffrance]);
   const attnMap = useMemo(() => Object.fromEntries(attention.map((r) => [r.dossier, r])), [attention]);
 
@@ -76,10 +74,7 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
         </div>
       </div>
 
-      {/* 2 — Attention requise */}
-      <AttentionRequise facts={facts} rows={attention} team={team} onOpen360={onOpen360} can360={can360} />
-
-      {/* 3 — Avancement global */}
+      {/* 2 — Avancement global */}
       <div className="section-title"><span>Avancement global</span></div>
       <div className="panel avc">
         <div className="avc-top">
@@ -98,7 +93,7 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
         </div>
       </div>
 
-      {/* 4 — Portefeuille */}
+      {/* 3 — Portefeuille */}
       <div className="section-title"><span>Par dossier</span></div>
       <Portfolio facts={facts} engagement={engagement} attention={attnMap} onOpen={onOpen} onOpen360={onOpen360} can360={can360} />
     </div>

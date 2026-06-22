@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { ProjetModal } from "./Projets.jsx";
-import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene } from "../api.js";
+import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel } from "../api.js";
 import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
 import PointDuSoir from "./PointDuSoir.jsx";
@@ -25,6 +25,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [busy, setBusy] = useState("");
   const [mails, setMails] = useState({ loading: true });
   const [hyg, setHyg] = useState(null);
+  const [ref, setRef] = useState(null);
   useEffect(() => {
     let on = true;
     setMails({ loading: true });
@@ -32,6 +33,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
     return () => { on = false; };
   }, [c.client]);
   useEffect(() => { let on = true; fetchHygiene().then((r) => on && setHyg(r)).catch(() => on && setHyg(null)); return () => { on = false; }; }, []);
+  useEffect(() => { let on = true; setRef(null); fetchReferentiel(c.client).then((r) => on && setRef(r)).catch(() => on && setRef(null)); return () => { on = false; }; }, [c.client]);
   useModalBack(onClose);
   const hasBoth = /TMA/i.test(c.type || "") && /projet/i.test(c.type || "");
   const [seg, setSeg] = useState("all");
@@ -200,6 +202,24 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
                   ))}
                 </ul>
               </>)}
+
+              {ref && ref.domaines && ref.domaines.length > 0 ? (
+                <>
+                  <h3 className="c360-sec">Référentiel — {ref.nbProgrammes} programme{ref.nbProgrammes > 1 ? "s" : ""}</h3>
+                  <ul className="c360-ref">
+                    {ref.domaines.map((d) => (
+                      <li key={d.code || d.domaine}>
+                        <span className="c360-ref-dom">{d.libelle || d.domaine}{d.code ? ` (${d.code})` : ""}</span>
+                        <span className="c360-ref-progs">
+                          {(d.programmes || []).map((p) => (
+                            <span key={p.nom} className={`c360-ref-prog ${p.lie ? "lie" : ""}`} title={p.lie ? "Lié à des tickets" : "Aucun ticket lié"}>{p.nom}</span>
+                          ))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : null}
 
               <h3 className="c360-sec">Qualité Jira{hygScore && hygScore.score != null ? ` — ${hygScore.score}%` : ""}</h3>
               {hyg == null ? <p className="c360-empty">Analyse en cours…</p>

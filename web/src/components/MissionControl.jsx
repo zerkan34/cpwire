@@ -1,9 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchHygiene, fetchSla, fetchCadence } from "../api.js";
 import AircraftGauge from "./AircraftGauge.jsx";
-import AttentionRequise from "./AttentionRequise.jsx";
 import Portfolio from "./Portfolio.jsx";
-import { computeAttention, computeSouffrance, detectDevsSurcharges } from "../attention.js";
+import { computeAttention, computeSouffrance } from "../attention.js";
 
 // ============================================================================
 // Mission Control — l'Accueil mobile « cockpit ». Affiché UNIQUEMENT sur mobile
@@ -76,7 +75,6 @@ export default function MissionControl({ facts, issues = [], role, engagement = 
   const anomalies = hygiene?.global?.aCorriger ?? null;
   const seuilSouff = cadence?.seuilSouffranceJours ?? 21;
   const souffrance = useMemo(() => computeSouffrance(issues, seuilSouff), [issues, seuilSouff]);
-  const team = useMemo(() => detectDevsSurcharges(cadence), [cadence]);
   const attention = useMemo(() => computeAttention(facts, { hygiene, sla, souffrance }), [facts, hygiene, sla, souffrance]);
   const attnMap = useMemo(() => Object.fromEntries(attention.map((r) => [r.dossier, r])), [attention]);
 
@@ -106,8 +104,6 @@ export default function MissionControl({ facts, issues = [], role, engagement = 
 
   return (
     <div className="mc">
-      <AttentionRequise facts={facts} rows={attention} team={team} onOpen360={onOpen360} can360={can360} />
-
       {/* ---- Hero ---- */}
       <div className="mc-hero">
         <div className="mc-radar" aria-hidden="true" />

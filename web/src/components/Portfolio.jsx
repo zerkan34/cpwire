@@ -17,9 +17,14 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360 }) {
           {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
         </div>
       </div>
-      {sev !== "controle" && reason
-        ? <div className={`pc-reason ${cls}`}>{reason}</div>
-        : <div className="pc-reason calm">À jour</div>}
+      {sev !== "controle" && reason ? (
+        <div className="pc-why">
+          <div className={`pc-reason ${cls}`}>{reason}</div>
+          {att?.action ? <div className="pc-action">→ {att.action}</div> : null}
+        </div>
+      ) : (
+        <div className="pc-reason calm">À jour</div>
+      )}
       <div className="meta">{f.total} ticket{f.total > 1 ? "s" : ""} · {f.reste} à traiter · {f.pct}% validé</div>
       <div className="pbar"><span style={{ width: `${f.pct}%` }} /></div>
       <div className="stats">

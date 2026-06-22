@@ -2965,3 +2965,16 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* ── Bandeau « Équipe » dans Attention (dév surchargé — signal d'équipe) ── */
 .attn-team { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--amber-bg); color: var(--amber); font-size: 12.5px; font-weight: 600; border: 1px solid #f0d9b8; }
 .attn-team-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--amber); flex: 0 0 auto; }
+
+/* ── Référentiel dans la fiche 360 (noms exacts de programmes) ─────────── */
+.c360-ref { list-style: none; margin: 0 0 6px; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.c360-ref > li { display: flex; flex-direction: column; gap: 5px; }
+.c360-ref-dom { font-weight: 700; font-size: 13px; color: var(--ink); }
+.c360-ref-progs { display: flex; flex-wrap: wrap; gap: 6px; }
+.c360-ref-prog { font-family: "JetBrains Mono", monospace; font-size: 11px; padding: 2px 8px; border-radius: 6px; background: var(--line-soft); color: var(--muted); border: 1px solid var(--line); }
+.c360-ref-prog.lie { background: var(--green-bg); color: var(--green); border-color: #cdeadd; }
+
+/* ── Carte : raison + action (Attention fusionnée dans le portefeuille) ── */
+.pc-why { margin: 0 0 10px; }
+.pc-why .pc-reason { margin: 0 0 2px; }
+.pc-action { font-size: 12px; color: var(--muted); }
