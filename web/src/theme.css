@@ -3259,3 +3259,11 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .cwa-code{background:#f0eef7;border:1px solid #e1ddf0;border-radius:4px;padding:0 4px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#4B3F8F}
 .cwa-copy{align-self:flex-start;margin-top:5px;border:1px solid #e1ddf0;background:#fff;color:#6b6488;border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s}
 .cwa-copy:hover{border-color:#4B3F8F;color:#4B3F8F}
+
+/* ===== Cartes dossier (historique des récaps) : lavande, lisibles ===== */
+.cli-h { background: #F5F2FC !important; color: var(--ink) !important; box-shadow: inset 0 -2px 0 rgba(168,136,78,.45); }
+.cli-h:hover { filter: none; background: #ECE7F9 !important; }
+.cli-chev { color: var(--purple) !important; }
+.cli-name { color: var(--ink); }
+.cli-meta { color: var(--muted) !important; }
+.cli-h .tag { background: rgba(75,63,143,.12) !important; color: var(--indigo) !important; }

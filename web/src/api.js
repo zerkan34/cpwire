@@ -53,6 +53,13 @@ export async function login(email, password) {
   return data;
 }
 
+// Déconnexion : prévient le serveur (révoque la session invitée) puis efface le jeton local.
+export async function logout() {
+  try { await fetch(`${BASE}/api/logout`, { method: "POST", headers: { ...authHeaders() } }); } catch { /* hors-ligne : on efface quand même */ }
+  clearToken();
+  try { window.dispatchEvent(new Event("cpwire-logout")); } catch { /* ignore */ }
+}
+
 // ---- Invitation lecture seule ----
 // Lit un éventuel jeton d'invitation passé dans l'URL : ...?invite=<token>
 export const getInviteFromUrl = () => {

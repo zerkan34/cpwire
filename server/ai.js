@@ -13,33 +13,52 @@ const QWEN_BASE = (process.env.QWEN_BASE_URL || "https://dashscope-intl.aliyuncs
 const AI_API_KEY = process.env.AI_API_KEY || "";          // fournisseur générique compatible OpenAI
 const AI_BASE_URL = (process.env.AI_BASE_URL || "").replace(/\/$/, ""); // ex. https://api.mistral.ai/v1
 
-// Modèle par défaut selon le fournisseur présent (surchargé par AI_MODEL).
-function defaultModel() {
-  if (process.env.AI_MODEL) return process.env.AI_MODEL;
-  if (QWEN_KEY) return "qwen-plus";
-  if (ANTHROPIC_KEY) return "claude-sonnet-4-6";
-  if (MISTRAL_KEY) return "mistral-small-latest";
-  if (GROQ_KEY) return "llama-3.3-70b-versatile";
-  return "gpt-4o-mini";
+// Modèle par défaut d'un fournisseur (AI_MODEL ne force que le fournisseur PRIMAIRE).
+function modelFor(name) {
+  switch (name) {
+    case "Qwen": return "qwen-plus";
+    case "Anthropic": return "claude-sonnet-4-6";
+    case "Mistral": return "mistral-small-latest";
+    case "Groq": return "llama-3.3-70b-versatile";
+    default: return "gpt-4o-mini";
+  }
 }
-const MODEL = defaultModel();
+// Liste ordonnée des fournisseurs disponibles : Qwen → Anthropic → Mistral → Groq → générique.
+function providers() {
+  const list = [];
+  if (QWEN_KEY) list.push({ name: "Qwen", kind: "openai", base: QWEN_BASE, key: QWEN_KEY });
+  if (ANTHROPIC_KEY) list.push({ name: "Anthropic", kind: "anthropic" });
+  if (MISTRAL_KEY) list.push({ name: "Mistral", kind: "openai", base: "https://api.mistral.ai/v1", key: MISTRAL_KEY });
+  if (GROQ_KEY) list.push({ name: "Groq", kind: "openai", base: "https://api.groq.com/openai/v1", key: GROQ_KEY });
+  if (AI_API_KEY && AI_BASE_URL) list.push({ name: "Custom", kind: "openai", base: AI_BASE_URL, key: AI_API_KEY });
+  list.forEach((p, i) => { p.model = (i === 0 && process.env.AI_MODEL) ? process.env.AI_MODEL : modelFor(p.name); });
+  return list;
+}
 
 export function aiAvailable() {
   return Boolean(QWEN_KEY || ANTHROPIC_KEY || MISTRAL_KEY || GROQ_KEY || (AI_API_KEY && AI_BASE_URL));
 }
 
-// Aiguilleur d'appel IA. Priorité : Qwen (si configuré) → Anthropic → Mistral → Groq → générique.
+// Aiguilleur avec REPLI AUTOMATIQUE : on essaie chaque fournisseur dans l'ordre ; si l'un
+// échoue (quota épuisé, 403, panne…), on passe au suivant. Échoue seulement si TOUS échouent.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
 export async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2, history = []) {
-  if (QWEN_KEY) return callOpenAICompat(QWEN_BASE, QWEN_KEY, system, userText, maxTokens, temperature, history);
-  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature, history);
-  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature, history);
-  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature, history);
-  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens, temperature, history);
-  throw new Error("Aucune clé IA configurée.");
+  const list = providers();
+  if (!list.length) throw new Error("Aucune clé IA configurée.");
+  let lastErr = null;
+  for (const p of list) {
+    try {
+      if (p.kind === "anthropic") return await callAnthropic(p.model, system, userText, images, maxTokens, temperature, history);
+      return await callOpenAICompat(p.model, p.base, p.key, system, userText, maxTokens, temperature, history);
+    } catch (e) {
+      lastErr = new Error(`${p.name} : ${e.message}`);
+      console.error(`[ai] ${p.name} a échoué (${e.message}) — bascule sur le fournisseur suivant.`);
+    }
+  }
+  throw lastErr || new Error("Tous les fournisseurs IA ont échoué.");
 }
 
-async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.2, history = []) {
+async function callAnthropic(model, system, userText, images = [], maxTokens = 2000, temperature = 0.2, history = []) {
   const content = [];
   for (const im of images) content.push({ type: "image", source: { type: "base64", media_type: im.media_type, data: im.dataBase64 } });
   content.push({ type: "text", text: userText });
@@ -47,7 +66,7 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000, te
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, temperature, system, messages: msgs }),
+    body: JSON.stringify({ model, max_tokens: maxTokens, temperature, system, messages: msgs }),
   });
   if (!res.ok) throw new Error(`API Claude ${res.status} : ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -55,13 +74,13 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000, te
 }
 
 // Fournisseur compatible OpenAI (Mistral, Groq, OpenRouter, etc.). Texte uniquement (images ignorées).
-async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.2, history = []) {
+async function callOpenAICompat(model, baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.2, history = []) {
   const hist = (history || []).map((h) => ({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content || "") }));
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify({
-      model: MODEL, max_tokens: maxTokens, temperature,
+      model, max_tokens: maxTokens, temperature,
       messages: [{ role: "system", content: system }, ...hist, { role: "user", content: userText }],
     }),
   });

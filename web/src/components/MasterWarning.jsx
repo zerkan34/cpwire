@@ -26,6 +26,13 @@ const BLIPS = [
   { t: "66%", l: "44%" }, { t: "36%", l: "48%" }, { t: "54%", l: "26%" },
 ];
 
+// Date courte FR pour « depuis le … » (date d'entrée dans l'état).
+function fmtD(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  return isNaN(d) ? "" : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
+
 export default function MasterWarning({ points = [], onOpenTicket }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
@@ -51,11 +58,11 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
     const grav = (p) => (p.severity === "critique" ? 1 : 0);
     arr = arr.slice().sort((a, b) => {
       switch (sort) {
-        case "date": return b.ageDays - a.ageDays;
+        case "date": return b.daysSince - a.daysSince;
         case "ticket": return String(a.id).localeCompare(String(b.id), "fr", { numeric: true });
         case "client": return String(a.project).localeCompare(String(b.project), "fr") || grav(b) - grav(a);
         case "dev": return String(a.assignee).localeCompare(String(b.assignee), "fr") || grav(b) - grav(a);
-        default: return grav(b) - grav(a) || b.ageDays - a.ageDays;
+        default: return grav(b) - grav(a) || b.daysSince - a.daysSince;
       }
     });
     return arr;
@@ -202,7 +209,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           </span>
                           <span style={{ display: "block", color: col, fontSize: 12, marginTop: 3, fontWeight: 600 }}>{p.reason}</span>
                           <span style={{ display: "block", color: MUTED, fontSize: 11.5, marginTop: 3 }}>
-                            {p.project} · {p.assignee} · {p.ageDays} j</span>
+                            {p.project} · {p.assignee}{p.since ? ` · depuis le ${fmtD(p.since)}${p.daysSince ? ` (${p.daysSince} j)` : ""}` : ""}</span>
                         </span>
                         <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, alignSelf: "center" }}>
                           <button onClick={(e) => { e.stopPropagation(); askPilot(p); }}

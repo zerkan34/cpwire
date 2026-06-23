@@ -1,30 +1,28 @@
 // ============================================================================
 //  cp|WIRE — blockers.js
 //  Dérive les POINTS BLOQUANTS qui allument le voyant MASTER WARNING, à partir
-//  des MÊMES tickets que computeFacts (i.categorie, i.enRetard, i.flagged,
-//  i.maj, i.cree) — aucune source parallèle, donc aucune divergence possible
-//  avec le point du soir. Rien n'est inventé : tous les champs lus existent
-//  sur l'objet ticket normalisé côté serveur (jira.js → normalize()).
+//  des MÊMES tickets que computeFacts. Chaque point répond à deux questions :
+//    • POURQUOI il est là (un état VOULU, posé sur le ticket) ;
+//    • DEPUIS QUAND il y est entré (date d'entrée dans l'état, pas l'inactivité).
 //
-//  GRAVE (allume le rouge, severity "critique") :
-//    - drapeau Jira posé (impediment) ;
+//  GRAVE (rouge, "critique") :
+//    - statut « Bloqué » (drapeau Jira OU étiquette bloqu/blocked/impediment) ;
 //    - catégorie « retourProd » (incident après mise en production) ;
-//    - enRetard (échéance dépassée, déjà calculé serveur sur les cat. en charge) ;
-//    - actif sans activité (i.maj) depuis >= staleCrit jours ouvrés.
-//  À SURVEILLER (ambre, severity "majeur") :
+//    - enRetard (échéance dépassée — calculé serveur sur les cat. en charge).
+//  À SURVEILLER (ambre, "majeur") :
 //    - catégorie « retourTest » (recette rejetée, à reprendre) ;
-//    - actif sans activité depuis >= staleMaj jours ouvrés ;
-//    - en souffrance (ouvert depuis la création au-delà du seuil).
+//    - catégorie « afaire » AVEC un assigné (quelqu'un est dessus mais le statut
+//      n'a pas été transitionné — angle mort du board).
+//
+//  On NE met PAS de signal d'inactivité (« sans activité depuis N j ») : ce n'est
+//  pas un état voulu, et ce n'est pas ce qu'on veut voir ici.
+//
+//  `since` = date d'entrée dans l'état :
+//    - en retard -> l'échéance (date à laquelle il l'est devenu) ;
+//    - sinon -> statutDepuis (statuscategorychangedate Jira), repli sur maj.
 // ============================================================================
 
-import { ACTIFS, RETOUR, CLOS } from "./groups.js";
-
-// Seuils — PROVISOIRES, à recalibrer sur les délais moyens IMA (cf. SLA / sla.js).
-export const BLK_SEUILS = {
-  staleCrit: 5,    // actif figé >= 5 j ouvrés -> grave
-  staleMaj: 3,     // actif figé >= 3 j ouvrés -> à surveiller
-  souffrance: 21,  // ouvert depuis la création > 21 j -> à surveiller (aligné computeSouffrance)
-};
+import { CLOS } from "./groups.js";
 
 // Jours ouvrés écoulés depuis une date ISO (week-ends exclus).
 function joursOuvres(iso, now) {
@@ -44,30 +42,23 @@ function joursOuvres(iso, now) {
 export function computeBlockers(issues = [], now = new Date()) {
   const out = [];
   for (const i of issues || []) {
-    if (CLOS.includes(i.categorie)) continue;        // clos -> jamais bloquant
-    const actif = ACTIFS.includes(i.categorie);
-    const idle = joursOuvres(i.maj, now);            // sans activité (dernière MAJ)
-    const age = joursOuvres(i.cree, now);            // âge depuis création (souffrance)
+    if (CLOS.includes(i.categorie)) continue; // clos -> jamais bloquant
 
     let severity = null;
     let reason = null;
-    let ageDays = idle;
+    let since = i.statutDepuis || i.maj || null; // date d'entrée dans l'état actuel
 
     if (i.statut === "Bloqué") {
-      severity = "critique"; reason = "Bloqué (drapeau ou étiquette)";
+      severity = "critique"; reason = "Bloqué — drapeau ou étiquette posé";
     } else if (i.categorie === "retourProd") {
-      severity = "critique"; reason = "Retour production — incident après MEP";
+      severity = "critique"; reason = "Retour production — incident après mise en production";
     } else if (i.enRetard) {
       severity = "critique"; reason = "En retard — échéance dépassée";
-    } else if (actif && idle >= BLK_SEUILS.staleCrit) {
-      severity = "critique"; reason = `Sans activité depuis ${idle} j`;
+      since = i.echeance || since; // devenu bloquant à l'échéance
     } else if (i.categorie === "retourTest") {
       severity = "majeur"; reason = "Retour test — recette rejetée, à reprendre";
-    } else if (actif && idle >= BLK_SEUILS.staleMaj) {
-      severity = "majeur"; reason = `Sans activité depuis ${idle} j`;
-    } else if (age > BLK_SEUILS.souffrance) {
-      severity = "majeur"; reason = `En souffrance — ouvert depuis ${age} j`;
-      ageDays = age;
+    } else if (i.categorie === "afaire" && i.assigne && i.assigne !== "Non assigné") {
+      severity = "majeur"; reason = "Assigné mais resté en « À faire » — statut non transitionné";
     }
 
     if (!severity) continue;
@@ -76,14 +67,16 @@ export function computeBlockers(issues = [], now = new Date()) {
       title: i.resume,
       severity,
       reason,
-      ageDays,
+      since,                          // ISO — depuis quand dans cet état
+      daysSince: joursOuvres(since, now),
       assignee: i.assigne,
       project: i.dossier,
-      ref: i,                 // ticket réel -> ouverture directe (TicketModal)
+      ref: i,                         // ticket réel -> ouverture directe (TicketModal)
     });
   }
+  // Grave d'abord, puis le plus ancien dans l'état en tête.
   out.sort((a, b) =>
-    (b.severity === "critique") - (a.severity === "critique") || b.ageDays - a.ageDays);
+    (b.severity === "critique") - (a.severity === "critique") || b.daysSince - a.daysSince);
   return out;
 }
 

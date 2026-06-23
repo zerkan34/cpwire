@@ -24,6 +24,8 @@ const SEED = {
       "Toujours séparer le périmètre TMA (maintenance courante) du périmètre Projet.",
       "Ne jamais inventer de chiffre, de statut ni de nom : s'appuyer uniquement sur les données Jira.",
       "Un nom listé comme intervenant/assigné d'un ticket est un développeur Armonie.",
+      "Distinguer la priorité (Haute/Moyenne/Faible) de la gravité SLA (Bloquante/Majeure/Mineure) : deux axes différents (la priorité ordonne, la gravité fixe les délais).",
+      "« Bloqué » dans cp|WIRE = drapeau Jira OU étiquette (bloqu/blocked/impediment), pas un statut du workflow ; « En attente client » n'est pas un blocage Armonie.",
     ],
     // Glossaire transverse (terme → sens).
     glossaire: [

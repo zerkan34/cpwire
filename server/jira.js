@@ -30,6 +30,7 @@ const FIELDS = [
   "updated",
   "created",
   "resolutiondate",
+  "statuscategorychangedate",
   "labels",
 ];
 
@@ -178,6 +179,7 @@ function normalize(it) {
     descriptionText: "", // chargée à la demande (voir fetchIssueDescription) pour accélérer l'import
     maj: f.updated || null,
     cree: f.created || null,
+    statutDepuis: f.statuscategorychangedate || null, // depuis quand dans l'état de statut actuel
     resolu: f.resolutiondate || null,
     url: `${BASE_URL}/browse/${it.key}`,
   };

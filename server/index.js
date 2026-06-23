@@ -54,11 +54,8 @@ const SIGN_SECRET = AUTH_PASSWORD || "cpwire-invite-secret";
 // Routes interdites au rôle « consultation » : aucun récap, aucun CR, aucune réunion.
 const CONSULT_FORBIDDEN = [/^\/api\/cr\//, /^\/api\/recap$/, /^\/api\/meeting\//];
 
-// Jeton déterministe (dérivé des identifiants) : il reste valable même après
-// un redémarrage de Render, contrairement à l'ancien jeton aléatoire stocké en mémoire.
-function expectedToken() {
-  return crypto.createHash("sha256").update(`cpwire|${AUTH_EMAIL}|${AUTH_PASSWORD}`).digest("hex");
-}
+// Durée de vie d'une session « owner » : 30 jours, puis reconnexion demandée.
+const OWNER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 // ---- Invitation lecture seule : jeton "invité" signé, avec expiration ----
 // Format : g.<expirationMs>.<signature>  — auto-vérifiable, sans stockage (survit aux redémarrages).
@@ -98,12 +95,29 @@ function checkInviteToken(t) {
   return { expMs, role };
 }
 
+// ---- Session « owner » : jeton SIGNÉ + EXPIRANT (remplace l'ancien jeton statique) ----
+// Format : o.<expirationMs>.<signature>. Auto-vérifiable → survit aux redémarrages Render
+// (pas de déconnexion intempestive). La signature dépend du mot de passe : changer
+// AUTH_PASSWORD invalide donc TOUS les jetons d'un coup = levier de révocation globale.
+function makeOwnerToken(expMs) {
+  return `o.${expMs}.${sign(`owner|${expMs}|${AUTH_PASSWORD}`)}`;
+}
+function checkOwnerToken(t) {
+  if (!t || typeof t !== "string" || !t.startsWith("o.")) return null;
+  const parts = t.split(".");
+  if (parts.length !== 3) return null;
+  const expMs = Number(parts[1]);
+  if (!Number.isFinite(expMs) || Date.now() > expMs) return null;                 // expiré
+  if (!safeEqual(parts[2], sign(`owner|${expMs}|${AUTH_PASSWORD}`))) return null;  // signature invalide
+  return { expMs };
+}
+
 // Détermine le rôle de la requête : "owner" (total), "consultation" (lecture, sans récap/CR) ou "guest".
 function guard(req, res, next) {
   if (!AUTH_ENABLED) { req.role = "owner"; req.userEmail = ME; return next(); }
   const t = req.headers["x-access-token"];
   let role = null, email = null;
-  if (t && t === expectedToken()) { role = "owner"; email = AUTH_EMAIL; }
+  if (checkOwnerToken(t)) { role = "owner"; email = AUTH_EMAIL; }
   else if (t && sessions.has(t)) { const s = sessions.get(t); role = s.role; email = s.email; s.lastSeen = Date.now(); }
   else if (checkGuestToken(t)) { role = "guest"; }
   if (!role) return res.status(401).json({ error: "Authentification requise." });
@@ -296,7 +310,7 @@ app.post("/api/login", async (req, res) => {
     return res.json({ token: t, me: ME, role: "owner", note: "Auth non configurée côté serveur." });
   }
   if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
-    const t = expectedToken(); sessions.set(t, { role: "owner", email: AUTH_EMAIL, lastSeen: Date.now() });
+    const t = makeOwnerToken(Date.now() + OWNER_TTL_MS);
     return res.json({ token: t, me: ME, role: "owner" });
   }
   try {
@@ -326,6 +340,15 @@ app.post("/api/ping", guard, (_req, res) => res.json({ ok: true }));
 
 // Rôle de la session courante : l'interface s'en sert pour adapter les onglets et masquer les outils CR.
 app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: req.userEmail || ME }));
+
+// Déconnexion : retire la session stockée si présente (comptes invités). Le jeton owner
+// étant auto-vérifiable, sa révocation fine viendra avec l'audit ; le client efface le
+// jeton dans tous les cas, et un changement de mot de passe invalide tout immédiatement.
+app.post("/api/logout", guard, (req, res) => {
+  const t = req.headers["x-access-token"];
+  if (t && sessions.has(t)) sessions.delete(t);
+  res.json({ ok: true });
+});
 
 // Génère un lien d'invitation en lecture seule (réservé à l'owner). hours = durée de validité.
 app.post("/api/invite", guard, writeGuard, (req, res) => {

@@ -222,7 +222,7 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
           <button className="btn-line sm" style={{ marginLeft: 8 }} onClick={exportPdf}>Exporter PDF</button>
         </p>
         {canCR && !crErr && (
-          <p className="hint" style={{ marginTop: -2 }}>
+          <p className="hint" style={{ marginTop: 12 }}>
             <b>« CR journalier détaillé »</b> = le même compte rendu que dans « Récap du jour » (analyse + tickets détaillés), mais pour <b>{label}</b> et pour {client === "Tous" ? "tous les clients" : <b>{client}</b>}. « CR rédigé » = version en texte continu. Sans IA branchée, les CR restent produits (en mode « brut »).
           </p>
         )}

@@ -11,7 +11,8 @@
 import { callClaude, aiAvailable } from "./ai.js";
 import { findProgram } from "./programmes.js";
 import { METHODOLOGIE, METHODO_KEYWORDS } from "./knowledge.js";
-import { knowledgeForPrompt } from "./connaissance.js";
+import { knowledgeForPrompt, readConnaissance } from "./connaissance.js";
+import { DOSSIERS } from "./config.js";
 import { fetchIssueDescription, fetchIssueActivity } from "./jira.js";
 
 // Les 7 statuts du point du soir (mêmes libellés / ordre) + le « hors point ».
@@ -265,15 +266,48 @@ export async function assistantAnswer(question, issues = [], history = []) {
 // Exporté pour les tests : permet de vérifier le contexte sans appeler le LLM.
 export const __buildContext = buildContext;
 
+// Détecte le dossier d'un document par son VOCABULAIRE MÉTIER (glossaire du corpus)
+// et les préfixes de projet — pas seulement le nom littéral du dossier. Plus le corpus
+// d'un client est riche, mieux il est reconnu. Score = nb de termes distincts trouvés.
+const STOP = new Set(["les", "des", "une", "aux", "par", "pour", "avec", "sans", "sur", "dans",
+  "est", "sont", "son", "ses", "qui", "que", "pas", "plus", "tout", "tous", "the", "and", "for"]);
+function dossierKeywordMap() {
+  const map = {};
+  const add = (d, tok) => { if (d && tok && tok.length >= 3 && !STOP.has(tok) && !/^\d+$/.test(tok)) (map[d] || (map[d] = new Set())).add(tok); };
+  try {
+    const k = readConnaissance();
+    for (const [name, c] of Object.entries(k.clients || {})) {
+      add(name, norm(name));
+      for (const g of (c.glossaire || [])) for (const tok of norm(g.terme).split(/[^a-z0-9+]+/)) add(name, tok);
+    }
+  } catch (e) { /* corpus indisponible : on retombe sur les préfixes + noms */ }
+  for (const [prefix, name] of Object.entries(DOSSIERS || {})) { add(name, norm(name)); add(name, norm(prefix)); }
+  return map;
+}
+function guessDossier(filename, body, issues = []) {
+  const hay = norm(`${filename} ${String(body || "").slice(0, 6000)}`);
+  const map = dossierKeywordMap();
+  const candidates = new Set([...Object.keys(map), ...issues.map((i) => i.dossier).filter(Boolean)]);
+  let best = "", bestScore = 0;
+  for (const d of candidates) {
+    const toks = map[d] || new Set([norm(d)]);
+    let score = 0;
+    for (const tok of toks) if (tok && hay.includes(tok)) score++;
+    if (score > bestScore) { bestScore = score; best = d; }
+  }
+  return bestScore > 0 ? best : "";
+}
+
 // Analyse ANCRÉE d'un fichier déposé : raisonne sur le SEUL contenu extrait, propose
 // une « fiche » capitalisable, et devine le dossier concerné (pour l'import au corpus).
 export async function analyzeFile({ filename = "fichier", text = "", question = "", issues = [] }) {
   if (!aiAvailable()) throw new Error("Aucune clé IA configurée (assistant indisponible).");
   const body = String(text || "").trim();
   if (!body) throw new Error("Contenu vide ou non extractible.");
-  const dossiers = [...new Set(issues.map((i) => i.dossier).filter(Boolean))].sort((a, b) => a.localeCompare(b));
-  const hay = norm(filename + " " + body.slice(0, 1000));
-  const guess = dossiers.find((d) => hay.includes(norm(d))) || "";
+  let corpusDossiers = [];
+  try { corpusDossiers = Object.keys(readConnaissance().clients || {}); } catch (e) { corpusDossiers = []; }
+  const dossiers = [...new Set([...issues.map((i) => i.dossier).filter(Boolean), ...corpusDossiers])].sort((a, b) => a.localeCompare(b));
+  const guess = guessDossier(filename, body, issues);
   const userText = `FICHIER : ${filename}\nCONTENU EXTRAIT (tronqué) :\n${body.slice(0, 15000)}\n\n`
     + `DEMANDE : ${question || "Analyse ce document : de quoi s'agit-il, quels sont les points clés, et en quoi est-ce utile au pilotage TMA ?"}\n\n`
     + `Réponds à partir du SEUL contenu ci-dessus, sans rien inventer. Termine par une dernière ligne au format exact « FICHE: <résumé d'1 à 2 phrases, capitalisable pour la base de connaissance> ».`;
