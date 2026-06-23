@@ -40,6 +40,7 @@ export default function Assistant() {
   const [copied, setCopied] = useState(null);
   const endRef = useRef(null);
   const fileRef = useRef(null);
+  const taRef = useRef(null);
 
   const copyText = async (text, idx) => {
     try { await navigator.clipboard.writeText(text); }
@@ -56,8 +57,18 @@ export default function Assistant() {
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy, open]);
   useEffect(() => {
     const onPilot = () => setOpen((o) => !o);
+    const onTicket = (e) => {
+      const t = e.detail && e.detail.ticket;
+      setOpen(true);
+      if (t) {
+        const sujet = `Le ticket ${t.cle} — « ${t.resume} » est signalé bloquant (${t.dossier}${t.assigne ? " · " + t.assigne : ""}). Donne-moi un plan d'action concret pour le débloquer : ce qui coince, qui solliciter, quoi vérifier, prochaine étape.`;
+        setQ(sujet);
+        setTimeout(() => { if (taRef.current) { taRef.current.focus(); const L = sujet.length; taRef.current.setSelectionRange(L, L); } }, 80);
+      }
+    };
     window.addEventListener("cpwire-pilot", onPilot);
-    return () => window.removeEventListener("cpwire-pilot", onPilot);
+    window.addEventListener("cpwire-pilot-ticket", onTicket);
+    return () => { window.removeEventListener("cpwire-pilot", onPilot); window.removeEventListener("cpwire-pilot-ticket", onTicket); };
   }, []);
 
   const push = (m) => setMsgs((prev) => [...prev, m]);
@@ -185,7 +196,7 @@ export default function Assistant() {
           <div className="cwa-input">
             <button className="cwa-clip" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy} title="Joindre un fichier" aria-label="Joindre">📎</button>
             <input ref={fileRef} type="file" hidden onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) handleFile(f); e.target.value = ""; }} />
-            <textarea value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} rows={1} placeholder="Pose ta question…" />
+            <textarea ref={taRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} rows={1} placeholder="Pose ta question…" />
             <button className="cwa-send" onClick={send} disabled={busy || !q.trim()} aria-label="Envoyer">➤</button>
           </div>
         </div>

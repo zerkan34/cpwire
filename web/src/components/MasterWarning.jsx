@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { PILOT_DATA_URI } from "../pilot.js";
 
 /* cp|WIRE — MASTER WARNING : voyant cockpit des points bloquants.
    Bouton = un RADAR vert qui balaie (sweep rotatif) ; des blips ROUGES pulsent
@@ -61,6 +62,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
   }, [points, q, client, dev, sort]);
 
   const openTicket = (p) => { if (onOpenTicket && p.ref) onOpenTicket(p.ref); setOpen(false); };
+  const askPilot = (p) => { window.dispatchEvent(new CustomEvent("cpwire-pilot-ticket", { detail: { ticket: p.ref } })); setOpen(false); };
   const selStyle = { border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 9px", fontSize: 12.5, color: INK, background: "#fff", cursor: "pointer", outline: "none" };
   const GREEN = "#39ff8c";
 
@@ -83,7 +85,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
         aria-label={armed ? `Radar : ${n} point(s) bloquant(s) grave(s). Ouvrir la liste.` : "Radar : aucun point bloquant grave."}
         title={armed ? `${n} point(s) bloquant(s) grave(s)` : "Aucun point bloquant grave"}
         style={{ position: "relative", width: 42, height: 42, borderRadius: "50%", border: "none",
-          cursor: "pointer", flexShrink: 0, padding: 0, overflow: "hidden", transition: "transform .15s",
+          cursor: "pointer", flexShrink: 0, padding: 0, transition: "transform .15s",
           background: "radial-gradient(circle at 50% 50%, #06381f 0%, #042414 55%, #010a06 100%)",
           boxShadow: armed
             ? `0 0 0 1px #0a3a22, 0 0 14px 2px rgba(57,255,140,.45), 0 0 18px 3px rgba(229,57,43,.35)`
@@ -110,7 +112,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
         {/* compteur */}
         {armed && (
           <span style={{ position: "absolute", top: -5, right: -5, minWidth: 19, height: 19, padding: "0 5px",
-            borderRadius: 10, background: NAVY, color: "#fff", border: `2px solid ${GOLD}`,
+            borderRadius: 10, background: NAVY, color: "#fff", border: `2px solid ${GOLD}`, zIndex: 3,
             fontSize: 10.5, fontWeight: 800, display: "grid", placeItems: "center", lineHeight: 1 }}>{n}</span>
         )}
       </button>
@@ -184,7 +186,9 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                     const crit = p.severity === "critique";
                     const col = crit ? RED : AMBER;
                     return (
-                      <button key={p.id} className="mwh-row" onClick={() => openTicket(p)}
+                      <div key={p.id} className="mwh-row" role="button" tabIndex={0}
+                        onClick={() => openTicket(p)}
+                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTicket(p); } }}
                         style={{ textAlign: "left", cursor: "pointer", width: "100%", background: "#fff",
                           borderRadius: 10, border: `1px solid ${LINE}`, borderLeft: `4px solid ${col}`,
                           padding: "11px 13px", display: "flex", gap: 12, alignItems: "flex-start", color: INK,
@@ -200,8 +204,16 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           <span style={{ display: "block", color: MUTED, fontSize: 11.5, marginTop: 3 }}>
                             {p.project} · {p.assignee} · {p.ageDays} j</span>
                         </span>
-                        <span style={{ color: MUTED, fontSize: 16, alignSelf: "center" }}>›</span>
-                      </button>
+                        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, alignSelf: "center" }}>
+                          <button onClick={(e) => { e.stopPropagation(); askPilot(p); }}
+                            title="Demander au copilote de traiter ce ticket" aria-label="Demander au copilote de traiter ce ticket"
+                            style={{ border: `1px solid ${GOLD}`, background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`,
+                              padding: 0, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}>
+                            <img src={PILOT_DATA_URI} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
+                          </button>
+                          <span style={{ color: MUTED, fontSize: 14 }}>›</span>
+                        </span>
+                      </div>
                     );
                   })}
                 </div>

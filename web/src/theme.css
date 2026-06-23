@@ -2949,20 +2949,21 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .ctx-verdict.ok { background: var(--green-bg); color: var(--green); }
 .ctx-verdict.warn { background: var(--orange-soft); color: var(--orange-deep); }
 
-.avc { display: flex; flex-direction: column; gap: 12px; }
-.avc-top { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; }
-.avc-pct { font-family: "Poppins"; font-weight: 800; font-size: 40px; line-height: 1; color: var(--ink); }
-.avc-pct small { font-size: 20px; color: var(--muted); margin-left: 2px; }
-.avc-stats { display: flex; gap: 22px; }
+.avc { display: flex; flex-direction: column; gap: 8px; }
+.panel.avc { padding: 13px 16px; }
+.avc-top { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+.avc-pct { font-family: "Poppins"; font-weight: 800; font-size: 26px; line-height: 1; color: var(--ink); }
+.avc-pct small { font-size: 13px; color: var(--muted); margin-left: 2px; }
+.avc-stats { display: flex; gap: 18px; }
 .avc-stat { display: flex; flex-direction: column; }
-.avc-stat b { font-size: 20px; font-weight: 800; color: var(--ink); }
+.avc-stat b { font-size: 15px; font-weight: 800; color: var(--ink); }
 .avc-stat.done b { color: var(--green); }
-.avc-stat span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
-.avc-bar { height: 10px; border-radius: 99px; background: var(--line); overflow: hidden; }
+.avc-stat span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+.avc-bar { height: 6px; border-radius: 99px; background: var(--line); overflow: hidden; }
 .avc-bar > span { display: block; height: 100%; background: linear-gradient(90deg, #6ed0a8, #37b07f); }
-.avc-split { display: flex; gap: 18px; flex-wrap: wrap; }
-.avc-fam { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--body); font-weight: 600; }
-.avc-fam i { width: 9px; height: 9px; border-radius: 50%; }
+.avc-split { display: flex; gap: 14px; flex-wrap: wrap; }
+.avc-fam { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--body); font-weight: 600; }
+.avc-fam i { width: 7px; height: 7px; border-radius: 50%; }
 .avc-fam i.tma { background: var(--purple-strong); }
 .avc-fam i.prj { background: var(--orange); }
 .avc-fam i.mix { background: #3a5bd0; }
