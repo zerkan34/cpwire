@@ -216,3 +216,14 @@ export function autoAgeMs(dossier) {
   const at = readConnaissance().clients[dossier]?.auto?.at;
   return at ? Date.now() - new Date(at).getTime() : Infinity;
 }
+
+// Ajoute une NOTE manuelle (ex. import d'un fichier analysé par le copilote) au corpus d'un dossier.
+export function addNote(dossier, note) {
+  const txt = String(note || "").trim();
+  if (!dossier || !txt) return null;
+  const k = readConnaissance();
+  if (!k.clients[dossier]) k.clients[dossier] = { contexte: "", attentes: [], glossaire: [], notes: [] };
+  if (!Array.isArray(k.clients[dossier].notes)) k.clients[dossier].notes = [];
+  k.clients[dossier].notes.push(txt.slice(0, 1200));
+  return saveConnaissance(k);
+}

@@ -28,6 +28,23 @@ async function req(path, opts = {}) {
 const post = (path, body) => req(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
+// Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
+export const askAssistant = (question) => post("/api/assistant", { question });
+
+// Copilote — analyse d'un fichier déposé (multipart). Renvoie { ok, answer, note, guess, dossiers, filename } ou { error }.
+export async function analyzeForAssistant(file, question = "") {
+  const form = new FormData();
+  form.append("file", file);
+  if (question) form.append("question", question);
+  const res = await fetch(`${BASE}/api/assistant/analyze`, { method: "POST", headers: { ...authHeaders() }, body: form });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  return data;
+}
+
+// Copilote — mémorise une fiche au corpus d'un dossier.
+export const importToCorpus = (dossier, note) => post("/api/assistant/import", { dossier, note });
+
 export async function login(email, password) {
   const res = await fetch(`${BASE}/api/login`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }) });
   const data = await res.json().catch(() => ({}));

@@ -3182,3 +3182,67 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .imp-diff-list li.add b{ color:#2f7d4f; } .imp-diff-list li.mod b{ color:#4B3F8F; }
 .imp-diff-d{ color:var(--muted); }
 .imp-diff-first{ font-size:13px; color:var(--muted); margin:8px 0 0; }
+
+/* ===== Assistant ancré (flottant) ===== */
+.cwa-fab{position:fixed;right:20px;bottom:20px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#4B3F8F,#2E2A5D);color:#fff;font-size:22px;line-height:1;box-shadow:0 10px 28px rgba(46,42,93,.4);transition:filter .15s,transform .15s}
+.cwa-fab:hover{filter:brightness(1.1);transform:translateY(-1px)}
+.cwa-panel{position:fixed;right:20px;bottom:88px;z-index:1200;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 120px);background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(46,42,93,.32);display:flex;flex-direction:column;overflow:hidden;border:1px solid #ece9f3}
+.cwa-hd{background:linear-gradient(135deg,#2E2A5D,#4B3F8F);color:#fff;padding:14px 16px;flex:none}
+.cwa-hd-t{font-weight:700;font-size:15px}
+.cwa-hd-s{font-size:11px;opacity:.82;margin-top:2px}
+.cwa-body{flex:1;overflow-y:auto;padding:14px;background:#f7f6fb;display:flex;flex-direction:column;gap:10px}
+.cwa-hint{font-size:13px;color:#6b6488;line-height:1.55;background:#fff;border:1px solid #ece9f3;border-radius:12px;padding:12px}
+.cwa-ex{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.cwa-ex-b{text-align:left;background:#F5F2FC;border:1px solid #e6e1f3;color:#4B3F8F;border-radius:9px;padding:7px 10px;font:inherit;font-size:12.5px;cursor:pointer}
+.cwa-ex-b:hover{background:#ece7f9}
+.cwa-msg{display:flex;flex-direction:column;gap:4px}
+.cwa-msg.user{align-items:flex-end}
+.cwa-bub{max-width:86%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-break:break-word}
+.cwa-msg.user .cwa-bub{background:#4B3F8F;color:#fff;border-bottom-right-radius:4px}
+.cwa-msg.ai .cwa-bub{background:#fff;color:#3f3d57;border:1px solid #ece9f3;border-bottom-left-radius:4px}
+.cwa-bub.err{background:#fbe6e3;color:#c0392b;border-color:#f3c6c0}
+.cwa-typing{color:#a88b4b;letter-spacing:2px;font-size:10px}
+.cwa-src{font-size:11px;color:#6b6488;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.cwa-src-l{font-weight:600}
+.cwa-chip{background:#F5F2FC;color:#4B3F8F;border:1px solid #e6e1f3;border-radius:6px;padding:1px 6px;font-weight:600}
+.cwa-more{color:#8a83a6}
+.cwa-input{display:flex;gap:8px;padding:10px;border-top:1px solid #ece9f3;background:#fff;flex:none}
+.cwa-input textarea{flex:1;resize:none;border:1px solid #d8d3ea;border-radius:10px;padding:9px 11px;font:inherit;font-size:13.5px;max-height:90px;outline:none}
+.cwa-input textarea:focus{border-color:#4B3F8F}
+.cwa-send{border:none;background:#4B3F8F;color:#fff;border-radius:10px;width:42px;cursor:pointer;font-size:15px;flex:none}
+.cwa-send:disabled{opacity:.4;cursor:default}
+
+/* ===== Pilote (copilote) dans le header ===== */
+.hdr-pilot{position:relative;width:40px;height:40px;border-radius:50%;border:2px solid rgba(168,136,78,.92);padding:0;background:linear-gradient(135deg,#2E2A5D,#4B3F8F);cursor:pointer;flex:none;animation:pilotBob 3.4s ease-in-out infinite;box-shadow:0 4px 14px rgba(46,42,93,.35);transition:transform .15s,box-shadow .15s}
+.hdr-pilot:hover{transform:translateY(-2px) scale(1.06);box-shadow:0 8px 22px rgba(168,136,78,.5);animation-play-state:paused}
+.hdr-pilot:active{transform:scale(.97)}
+.hdr-pilot-av{position:relative;display:block;width:100%;height:100%;border-radius:50%;overflow:hidden}
+.hdr-pilot-av img{width:100%;height:100%;object-fit:cover;display:block}
+.hdr-pilot-av::after{content:"";position:absolute;inset:0;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.6) 50%,transparent 58%);transform:translateX(-130%);animation:pilotSheen 5.5s ease-in-out infinite}
+.hdr-pilot-dot{position:absolute;right:-2px;bottom:-2px;width:11px;height:11px;border-radius:50%;background:#A8884E;border:2px solid #fff;animation:pilotPulse 2.2s ease-in-out infinite}
+@keyframes pilotBob{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}
+@keyframes pilotSheen{0%,70%{transform:translateX(-130%)}82%,100%{transform:translateX(130%)}}
+@keyframes pilotPulse{0%,100%{box-shadow:0 0 0 0 rgba(168,136,78,.55)}70%{box-shadow:0 0 0 6px rgba(168,136,78,0)}}
+@media (prefers-reduced-motion:reduce){.hdr-pilot,.hdr-pilot-av::after,.hdr-pilot-dot{animation:none}}
+
+/* En-tête du panneau assistant : avatar pilote + fermeture */
+.cwa-hd{display:flex;align-items:center;gap:10px}
+.cwa-hd-av{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid rgba(168,136,78,.92);flex:none;background:#2E2A5D}
+.cwa-hd-tx{flex:1;min-width:0}
+.cwa-hd-x{background:rgba(255,255,255,.16);border:none;color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:13px;flex:none;line-height:1}
+.cwa-hd-x:hover{background:rgba(255,255,255,.3)}
+
+/* ===== Copilote : export, joindre, dépôt fichier, import corpus ===== */
+.cwa-hd-ic{background:rgba(255,255,255,.16);border:none;color:#fff;width:28px;height:28px;border-radius:8px;cursor:pointer;font-size:14px;flex:none;line-height:1}
+.cwa-hd-ic:hover{background:rgba(255,255,255,.3)}
+.cwa-hd-ic:disabled{opacity:.4;cursor:default}
+.cwa-clip{border:1px solid #d8d3ea;background:#fff;color:#4B3F8F;border-radius:10px;width:40px;cursor:pointer;font-size:15px;flex:none}
+.cwa-clip:hover{background:#F5F2FC}
+.cwa-clip:disabled{opacity:.5;cursor:default}
+.cwa-drop{position:absolute;inset:64px 12px 70px;border:2px dashed #A8884E;border-radius:14px;background:rgba(245,242,252,.94);display:flex;align-items:center;justify-content:center;font-weight:600;color:#4B3F8F;z-index:5;pointer-events:none;text-align:center;padding:0 20px}
+.cwa-imp{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11.5px;color:#6b6488;background:#fff;border:1px solid #ece9f3;border-radius:10px;padding:7px 9px}
+.cwa-imp select{font:inherit;font-size:11.5px;border:1px solid #d8d3ea;border-radius:7px;padding:3px 6px;max-width:130px}
+.cwa-imp button{border:none;background:#A8884E;color:#fff;border-radius:7px;padding:4px 9px;font-size:11.5px;font-weight:600;cursor:pointer}
+.cwa-imp button:hover{filter:brightness(1.06)}
+.cwa-imp button:disabled{opacity:.5;cursor:default}
+.cwa-imp.ok{color:#2f7d4f;background:#e7f3ec;border-color:#bfe3cc;font-weight:600;display:block}

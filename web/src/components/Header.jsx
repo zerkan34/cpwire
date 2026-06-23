@@ -1,4 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
+import { PILOT_DATA_URI } from "../pilot.js";
+import MasterWarning from "./MasterWarning.jsx";
+import { computeBlockers } from "../blockers.js";
 
 function Kpi({ lbl, val, cls, onClick, active }) {
   if (onClick) {
@@ -61,6 +64,9 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
   }, [showSuggest, q]);
   const k = kpis || {};
   const when = (syncedAt || generatedAt) ? new Date(syncedAt || generatedAt).toLocaleString("fr-FR") : "—";
+
+  // Points bloquants pour le voyant MASTER WARNING — mêmes tickets que le point du soir.
+  const blockers = useMemo(() => computeBlockers(issues), [issues]);
 
   // Jauge de chargement (simulée : progresse vers ~92 %, puis 100 % à la fin).
   const [prog, setProg] = useState(0);
@@ -207,9 +213,15 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
         <span className="hdr-brand" data-tauri-drag-region>
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v206</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v211</span></span>
         </span>
         <div className="hdr-controls">
+          <MasterWarning points={blockers} onOpenTicket={onOpenTicket} />
+          <button className="hdr-pilot" type="button" onClick={() => window.dispatchEvent(new Event("cpwire-pilot"))}
+            title="Votre copilote cp|WIRE — poser une question" aria-label="Ouvrir le copilote cp|WIRE">
+            <span className="hdr-pilot-av"><img src={PILOT_DATA_URI} alt="Copilote cp|WIRE" /></span>
+            <span className="hdr-pilot-dot" aria-hidden="true" />
+          </button>
           {search}
           {role === "owner" && onPresence && (
             <button className={`hdr-ic pres ${presence.length ? "on" : ""}`} onClick={onPresence}
@@ -240,7 +252,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v206</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v211</span></div>
       </div>
 
       <div className="progress">

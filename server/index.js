@@ -17,13 +17,14 @@ import { buildSlaReport, slaStatus } from "./sla.js";
 import { buildHygiene } from "./hygiene.js";
 import { buildCadence } from "./cadence.js";
 import { buildRecapChiffres } from "./recapChiffres.js";
-import { readConnaissance, saveConnaissance } from "./connaissance.js";
+import { readConnaissance, saveConnaissance, addNote } from "./connaissance.js";
 import { listUsers, createUser, verifyUser, removeUser } from "./users.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
 import { recentMailsFor, mailsConfigured } from "./mails.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable, runAutoLearn } from "./ai.js";
+import { assistantAnswer, analyzeFile } from "./assistant.js";
 import { addComment, transition } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
@@ -31,7 +32,7 @@ import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl } from "./microsoft.js";
-import { analyzeDocument, applyImport, listImports, getDataset } from "./import.js";
+import { analyzeDocument, applyImport, listImports, getDataset, bufferToText } from "./import.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -664,6 +665,74 @@ app.post("/api/cr/morning", guard, async (req, res) => {
 
 // Cache des explications (clé + date de maj) pour ne pas régénérer/repayer inutilement.
 const explainCache = new Map();
+
+// Assistant ancré : répond UNIQUEMENT à partir des vraies données cp|WIRE
+// (chiffres du point du soir, tickets Jira, référentiel programmes, méthodologie TMA).
+// Aucune invention : si l'info n'est pas dans les données, il le dit.
+app.post("/api/assistant", guard, async (req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const out = await assistantAnswer(req.body.question || "", got.issues);
+    logEvent("assistant", "Assistant — question", { q: String(req.body.question || "").slice(0, 120), tickets: (out.sources && out.sources.tickets || []).length });
+    res.json(out);
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Copilote — analyse d'un fichier déposé (glisser-déposer). Extrait le texte (CSV/TXT/
+// JSON/MD/XLSX), l'analyse de façon ANCRÉE (rien d'inventé), et propose une fiche + le
+// dossier deviné pour un éventuel import au corpus.
+app.post("/api/assistant/analyze", guard, upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: "Aucun fichier reçu." });
+    const name = req.file.originalname || "fichier";
+    let text = bufferToText(req.file.buffer, name);
+    if (text == null && /\.(xlsx|xls)$/i.test(name)) {
+      try {
+        const XLSX = await import("xlsx");
+        const wb = XLSX.read(req.file.buffer, { type: "buffer" });
+        text = wb.SheetNames.map((n) => `# ${n}\n` + XLSX.utils.sheet_to_csv(wb.Sheets[n])).join("\n");
+      } catch {}
+    }
+    if (text == null && /\.docx$/i.test(name)) {
+      try {
+        const mod = await import("mammoth");
+        const mammoth = mod.default || mod;
+        const r = await mammoth.extractRawText({ buffer: req.file.buffer });
+        text = r && r.value ? r.value : null;
+      } catch {}
+    }
+    if (text == null && /\.pdf$/i.test(name)) {
+      try {
+        const { PDFParse } = await import("pdf-parse");
+        const parser = new PDFParse({ data: new Uint8Array(req.file.buffer) });
+        const r = await parser.getText();
+        text = r && r.text ? r.text : null;
+        try { await parser.destroy(); } catch {}
+      } catch {}
+    }
+    if (text == null || !String(text).trim()) {
+      return res.json({ error: "Format non géré pour l'analyse (CSV, TXT, JSON, MD, XLSX, Word .docx, PDF). Pour un ancien .doc, un .msg ou une vidéo, copie-colle le texte dans le chat." });
+    }
+    const got = await getIssues(false);
+    const out = await analyzeFile({ filename: name, text, question: req.body.question || "", issues: got ? got.issues : [] });
+    logEvent("assistant_analyse", `Copilote — analyse fichier ${name}`, { name, chars: String(text).length });
+    res.json({ ok: true, filename: name, ...out });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Copilote — import au corpus : mémorise une fiche (issue d'une analyse) dans la base de
+// connaissance d'un dossier, pour enrichir les réponses futures.
+app.post("/api/assistant/import", guard, async (req, res) => {
+  try {
+    const dossier = String(req.body.dossier || "").trim();
+    const note = String(req.body.note || "").trim();
+    if (!dossier || !note) return res.status(400).json({ error: "Dossier et fiche requis." });
+    addNote(dossier, note);
+    logEvent("assistant_import", `Copilote — import corpus (${dossier})`, { dossier });
+    res.json({ ok: true, dossier });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
 
 // Explication SIMPLE d'un ticket, pour non-technique.
 app.post("/api/ticket/explain", guard, async (req, res) => {

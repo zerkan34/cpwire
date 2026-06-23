@@ -30,7 +30,7 @@ export function aiAvailable() {
 
 // Aiguilleur d'appel IA. Priorité : Qwen (si configuré) → Anthropic → Mistral → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
-async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
+export async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
   if (QWEN_KEY) return callOpenAICompat(QWEN_BASE, QWEN_KEY, system, userText, maxTokens, temperature);
   if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature);
   if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature);
