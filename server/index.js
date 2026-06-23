@@ -673,7 +673,7 @@ app.post("/api/assistant", guard, async (req, res) => {
   try {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    const out = await assistantAnswer(req.body.question || "", got.issues);
+    const out = await assistantAnswer(req.body.question || "", got.issues, req.body.history || []);
     logEvent("assistant", "Assistant — question", { q: String(req.body.question || "").slice(0, 120), tickets: (out.sources && out.sources.tickets || []).length });
     res.json(out);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }

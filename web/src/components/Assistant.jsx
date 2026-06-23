@@ -29,6 +29,28 @@ function renderRich(text) {
   return out;
 }
 
+// Variantes HTML (pour l'export imprimable à la charte Armonie).
+function escapeHtml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+function inlineHtml(text) {
+  return escapeHtml(text).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+function richToHtml(text) {
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
+  let html = "", list = null;
+  const flush = () => { if (list !== null) { html += "<ul>" + list + "</ul>"; list = null; } };
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t) { flush(); continue; }
+    let m;
+    if ((m = t.match(/^#{1,6}\s+(.*)$/))) { flush(); html += `<h4>${inlineHtml(m[1])}</h4>`; }
+    else if ((m = t.match(/^>\s?(.*)$/))) { flush(); html += `<blockquote>${inlineHtml(m[1])}</blockquote>`; }
+    else if ((m = t.match(/^[-*•]\s+(.*)$/))) { if (list === null) list = ""; list += `<li>${inlineHtml(m[1])}</li>`; }
+    else { flush(); html += `<p>${inlineHtml(t)}</p>`; }
+  }
+  flush();
+  return html;
+}
+
 // Copilote ancré : réponses depuis les vraies données (chiffres point du soir, tickets,
 // référentiel, corpus, méthodologie). Glisser-déposer un fichier => analyse + import au corpus.
 export default function Assistant() {
@@ -78,10 +100,14 @@ export default function Assistant() {
     const text = q.trim();
     if (!text || busy) return;
     setQ("");
+    const history = msgs
+      .filter((m) => !m.error && m.text)
+      .slice(-8)
+      .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
     push({ role: "user", text });
     setBusy(true);
     try {
-      const { answer, sources } = await askAssistant(text);
+      const { answer, sources } = await askAssistant(text, history);
       push({ role: "ai", text: answer || "—", sources });
     } catch (e) {
       push({ role: "ai", text: "Indisponible : " + (e.message || e), error: true });
@@ -123,10 +149,49 @@ export default function Assistant() {
 
   const exportConv = () => {
     if (!msgs.length) return;
-    const lines = msgs.map((m) => (m.role === "user" ? "VOUS : " : "COPILOTE : ") + m.text + (m.importable ? `\n(fiche : ${m.importable.note})` : "")).join("\n\n");
-    const blob = new Blob([`Copilote cp|WIRE — conversation du ${new Date().toLocaleString("fr-FR")}\n\n${lines}\n`], { type: "text/plain;charset=utf-8" });
-    const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = `Copilote_${new Date().toISOString().slice(0, 10)}.txt`;
-    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    const now = new Date();
+    const dt = now.toLocaleString("fr-FR");
+    const body = msgs.filter((m) => m.text).map((m) =>
+      m.role === "user"
+        ? `<div class="q"><span class="who">Vous</span><div class="qt">${inlineHtml(m.text).replace(/\n/g, "<br>")}</div></div>`
+        : `<div class="a"><span class="who cop">Copilote</span><div class="at">${richToHtml(m.text)}</div></div>`
+    ).join("");
+    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>cp|WIRE — Copilote</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--navy:#2E2A5D;--indigo:#4B3F8F;--gold:#A8884E;--soft:#F5F2FC;--ink:#1F1B33;--muted:#6E6A86;--line:#e7e5f1}
+*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;color:var(--ink);margin:0;font-size:13px;line-height:1.55}
+.hd{background:linear-gradient(135deg,var(--navy),var(--indigo));color:#fff;padding:22px 30px;display:flex;align-items:center;justify-content:space-between}
+.hd .br{font-family:Poppins,sans-serif;font-weight:800;font-size:20px;letter-spacing:.5px}.hd .br b{color:#ff7a45}
+.hd .sub{font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;letter-spacing:2px;text-transform:uppercase}
+.hd .meta{text-align:right;font-size:11px;color:rgba(255,255,255,.85)}
+.wrap{padding:26px 30px;max-width:760px}
+.q{margin:0 0 6px}.a{margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.who{display:inline-block;font-family:Poppins,sans-serif;font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
+.who.cop{color:var(--indigo)}
+.qt{background:var(--soft);border-radius:8px;padding:9px 12px;font-weight:600}
+.at h4{font-family:Poppins,sans-serif;color:var(--navy);font-size:13px;margin:12px 0 4px}
+.at p{margin:5px 0}.at ul{margin:5px 0;padding-left:20px}.at li{margin:2px 0}
+.at blockquote{border-left:3px solid var(--gold);background:var(--soft);margin:8px 0;padding:8px 12px;border-radius:0 6px 6px 0}
+.at code{background:#f0eef7;border:1px solid #e1ddf0;border-radius:4px;padding:0 4px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--indigo)}
+.ft{padding:14px 30px;border-top:1px solid var(--line);color:var(--muted);font-size:10px}
+@media print{.hd,.qt,.at blockquote{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+</style></head><body>
+<div class="hd"><div><div class="br">cp<b>|</b>WIRE</div><div class="sub">Copilote de pilotage</div></div><div class="meta">Conversation<br>${dt}</div></div>
+<div class="wrap">${body}</div>
+<div class="ft">Document généré par cp|WIRE — usage interne Armonie Group · Confidentiel</div>
+</body></html>`;
+    const w = window.open("", "_blank");
+    if (w) {
+      w.document.open(); w.document.write(html); w.document.close(); w.focus();
+      setTimeout(() => { try { w.print(); } catch (e) { /* l'utilisateur imprimera manuellement */ } }, 450);
+    } else {
+      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+      a.download = `Copilote_${now.toISOString().slice(0, 10)}.html`;
+      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    }
   };
 
   const examples = ["Où en est Tafanel ?", "Qu'est-ce qui est en retard ?", "PTAF-69 est bloqué, t'en penses quoi ?"];
@@ -144,7 +209,7 @@ export default function Assistant() {
               <div className="cwa-hd-t">Votre copilote</div>
               <div className="cwa-hd-s">Bent to Fly.</div>
             </div>
-            <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter la conversation" aria-label="Exporter">⤓</button>
+            <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter en PDF (charte Armonie)" aria-label="Exporter">⤓</button>
             <button className="cwa-hd-x" onClick={() => setOpen(false)} aria-label="Fermer">✕</button>
           </div>
 

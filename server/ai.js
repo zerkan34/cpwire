@@ -30,23 +30,24 @@ export function aiAvailable() {
 
 // Aiguilleur d'appel IA. Priorité : Qwen (si configuré) → Anthropic → Mistral → Groq → générique.
 // `images` = [{media_type, dataBase64}] (vision : Anthropic uniquement).
-export async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
-  if (QWEN_KEY) return callOpenAICompat(QWEN_BASE, QWEN_KEY, system, userText, maxTokens, temperature);
-  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature);
-  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature);
-  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature);
-  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens, temperature);
+export async function callClaude(system, userText, images = [], maxTokens = 2000, temperature = 0.2, history = []) {
+  if (QWEN_KEY) return callOpenAICompat(QWEN_BASE, QWEN_KEY, system, userText, maxTokens, temperature, history);
+  if (ANTHROPIC_KEY) return callAnthropic(system, userText, images, maxTokens, temperature, history);
+  if (MISTRAL_KEY) return callOpenAICompat("https://api.mistral.ai/v1", MISTRAL_KEY, system, userText, maxTokens, temperature, history);
+  if (GROQ_KEY) return callOpenAICompat("https://api.groq.com/openai/v1", GROQ_KEY, system, userText, maxTokens, temperature, history);
+  if (AI_API_KEY && AI_BASE_URL) return callOpenAICompat(AI_BASE_URL, AI_API_KEY, system, userText, maxTokens, temperature, history);
   throw new Error("Aucune clé IA configurée.");
 }
 
-async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.2) {
+async function callAnthropic(system, userText, images = [], maxTokens = 2000, temperature = 0.2, history = []) {
   const content = [];
   for (const im of images) content.push({ type: "image", source: { type: "base64", media_type: im.media_type, data: im.dataBase64 } });
   content.push({ type: "text", text: userText });
+  const msgs = [...(history || []).map((h) => ({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content || "") })), { role: "user", content }];
   const res = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": ANTHROPIC_KEY, "anthropic-version": "2023-06-01", "content-type": "application/json" },
-    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, temperature, system, messages: [{ role: "user", content }] }),
+    body: JSON.stringify({ model: MODEL, max_tokens: maxTokens, temperature, system, messages: msgs }),
   });
   if (!res.ok) throw new Error(`API Claude ${res.status} : ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
@@ -54,13 +55,14 @@ async function callAnthropic(system, userText, images = [], maxTokens = 2000, te
 }
 
 // Fournisseur compatible OpenAI (Mistral, Groq, OpenRouter, etc.). Texte uniquement (images ignorées).
-async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.2) {
+async function callOpenAICompat(baseUrl, key, system, userText, maxTokens = 2000, temperature = 0.2, history = []) {
+  const hist = (history || []).map((h) => ({ role: h.role === "assistant" ? "assistant" : "user", content: String(h.content || "") }));
   const res = await fetch(`${baseUrl}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: MODEL, max_tokens: maxTokens, temperature,
-      messages: [{ role: "system", content: system }, { role: "user", content: userText }],
+      messages: [{ role: "system", content: system }, ...hist, { role: "user", content: userText }],
     }),
   });
   if (!res.ok) throw new Error(`API IA ${res.status} : ${(await res.text()).slice(0, 200)}`);

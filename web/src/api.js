@@ -29,7 +29,7 @@ const post = (path, body) => req(path, { method: "POST", headers: { "Content-Typ
 const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
-export const askAssistant = (question) => post("/api/assistant", { question });
+export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });
 
 // Copilote — analyse d'un fichier déposé (multipart). Renvoie { ok, answer, note, guess, dossiers, filename } ou { error }.
 export async function analyzeForAssistant(file, question = "") {

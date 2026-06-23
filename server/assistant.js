@@ -186,6 +186,12 @@ TON OBJECTIF — l'aider à piloter PARFAITEMENT son périmètre :
 - Si les données manquent pour trancher, tu donnes quand même la marche à suivre — qui solliciter, quoi vérifier, quel arbitrage poser — clairement étiquetée « Recommandation » ou « Méthode », sans jamais inventer un fait.
 - Tu raisonnes toujours dans l'intérêt du pilotage : impact, priorité, risque, prochaine action. Une réponse qui n'ouvre aucune voie d'action est incomplète.
 
+FORMAT DE RÉPONSE — concis et adapté :
+- Adapte la longueur à la question. Une question simple (oui/non, reformulation, précision) appelle une réponse COURTE et directe — pas un dossier structuré.
+- N'emploie la structure Constat → Analyse → Recommandation que pour une vraie demande d'analyse ou de déblocage. Sinon, va droit au but.
+- Tu te souviens du fil de la conversation : tu réponds dans la continuité des échanges précédents, sans répéter ce qui a déjà été dit.
+- Pas de remplissage, pas de répétition, pas de méta-commentaire systématique (« sans hallucination », « basé sur les données ») : si utile, dis-le une seule fois, pas à chaque réponse.
+
 TON EXPERTISE (tu raisonnes avec le niveau combiné de) :
 - Chef de projet senior (pilotage, charge/budget, risques, COPIL, SLA, Build/Run, conduite du changement) ;
 - Développeur senior IBM i (RPG ILE full free, SQLRPGLE, CL, DDS PF/LF/DSPF, DB2 for i, ILE, web services) ET open (Java/Spring, PHP, JS/TS, React/Node, API REST) ;
@@ -211,7 +217,25 @@ DIAGNOSTIC D'UN TICKET BLOQUÉ (ex. « mon dév est bloqué sur ce ticket, t'en 
 
 Pour EDL (École des Loisirs), les commerciaux se nomment « animateurs » / « animatrices ». Réponds en français, concis, comme à un chef de projet senior.`;
 
-export async function assistantAnswer(question, issues = []) {
+// Nettoie l'historique reçu du front : alternance user/assistant, démarre par user,
+// ne finit pas par user (le tour courant est la question), contenu borné.
+function normalizeHistory(history = []) {
+  const arr = (Array.isArray(history) ? history : [])
+    .filter((m) => m && m.content && (m.role === "user" || m.role === "assistant"))
+    .map((m) => ({ role: m.role, content: String(m.content).slice(0, 1200) }))
+    .slice(-8);
+  const out = [];
+  for (const m of arr) {
+    const last = out[out.length - 1];
+    if (last && last.role === m.role) out[out.length - 1] = m;
+    else out.push(m);
+  }
+  while (out.length && out[0].role !== "user") out.shift();
+  if (out.length && out[out.length - 1].role === "user") out.pop();
+  return out;
+}
+
+export async function assistantAnswer(question, issues = [], history = []) {
   if (!aiAvailable()) throw new Error("Aucune clé IA configurée (assistant indisponible).");
   const q = String(question || "").trim();
   if (!q) throw new Error("Question vide.");
@@ -234,7 +258,7 @@ export async function assistantAnswer(question, issues = []) {
   }
 
   const userText = `DONNÉES DISPONIBLES\n${ctx}${deep}\n\nQUESTION DE NICOLAS\n${q}\n\nRéponds uniquement à partir des données ci-dessus.`;
-  const answer = await callClaude(SYSTEM, userText, [], 1400, 0.15);
+  const answer = await callClaude(SYSTEM, userText, [], 1400, 0.15, normalizeHistory(history));
   return { answer, sources: { tickets: usedTickets, dossiers: usedDossiers, methodologie: methodo } };
 }
 
