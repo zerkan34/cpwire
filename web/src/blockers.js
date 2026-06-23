@@ -53,8 +53,8 @@ export function computeBlockers(issues = [], now = new Date()) {
     let reason = null;
     let ageDays = idle;
 
-    if (i.flagged) {
-      severity = "critique"; reason = "Drapeau posé (impediment)";
+    if (i.statut === "Bloqué") {
+      severity = "critique"; reason = "Bloqué (drapeau ou étiquette)";
     } else if (i.categorie === "retourProd") {
       severity = "critique"; reason = "Retour production — incident après MEP";
     } else if (i.enRetard) {

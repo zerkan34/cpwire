@@ -2,6 +2,33 @@ import React, { useState, useRef, useEffect } from "react";
 import { askAssistant, analyzeForAssistant, importToCorpus } from "../api.js";
 import { PILOT_DATA_URI } from "../pilot.js";
 
+// Rendu lisible et structuré des réponses (markdown-léger, sans dépendance) :
+// titres, puces, citations/recommandations, gras et code en ligne.
+function inlineBold(text, kb) {
+  return String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/g).map((p, i) => {
+    if (/^\*\*[^*]+\*\*$/.test(p)) return <strong key={kb + "-" + i}>{p.slice(2, -2)}</strong>;
+    if (/^`[^`]+`$/.test(p)) return <code key={kb + "-" + i} className="cwa-code">{p.slice(1, -1)}</code>;
+    return p;
+  });
+}
+function renderRich(text) {
+  const lines = String(text || "").replace(/\r/g, "").split("\n");
+  const out = [];
+  let list = null;
+  const flush = () => { if (list) { out.push(<ul key={"ul" + out.length} className="cwa-ul">{list}</ul>); list = null; } };
+  lines.forEach((raw, idx) => {
+    const t = raw.trim();
+    if (!t) { flush(); return; }
+    let m;
+    if ((m = t.match(/^#{1,6}\s+(.*)$/))) { flush(); out.push(<div key={"h" + idx} className="cwa-h">{inlineBold(m[1], "h" + idx)}</div>); }
+    else if ((m = t.match(/^>\s?(.*)$/))) { flush(); out.push(<div key={"q" + idx} className="cwa-quote">{inlineBold(m[1], "q" + idx)}</div>); }
+    else if ((m = t.match(/^[-*•]\s+(.*)$/))) { (list || (list = [])).push(<li key={"li" + idx}>{inlineBold(m[1], "li" + idx)}</li>); }
+    else { flush(); out.push(<div key={"p" + idx} className="cwa-p">{inlineBold(t, "p" + idx)}</div>); }
+  });
+  flush();
+  return out;
+}
+
 // Copilote ancré : réponses depuis les vraies données (chiffres point du soir, tickets,
 // référentiel, corpus, méthodologie). Glisser-déposer un fichier => analyse + import au corpus.
 export default function Assistant() {
@@ -10,8 +37,21 @@ export default function Assistant() {
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
+  const [copied, setCopied] = useState(null);
   const endRef = useRef(null);
   const fileRef = useRef(null);
+
+  const copyText = async (text, idx) => {
+    try { await navigator.clipboard.writeText(text); }
+    catch {
+      const ta = document.createElement("textarea"); ta.value = text;
+      document.body.appendChild(ta); ta.select();
+      try { document.execCommand("copy"); } catch { /* no-op */ }
+      ta.remove();
+    }
+    setCopied(idx);
+    setTimeout(() => setCopied((c) => (c === idx ? null : c)), 1600);
+  };
 
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy, open]);
   useEffect(() => {
@@ -91,7 +131,7 @@ export default function Assistant() {
             <img className="cwa-hd-av" src={PILOT_DATA_URI} alt="" />
             <div className="cwa-hd-tx">
               <div className="cwa-hd-t">Votre copilote</div>
-              <div className="cwa-hd-s">Ancré sur Jira — jamais inventé</div>
+              <div className="cwa-hd-s">Bent to Fly.</div>
             </div>
             <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter la conversation" aria-label="Exporter">⤓</button>
             <button className="cwa-hd-x" onClick={() => setOpen(false)} aria-label="Fermer">✕</button>
@@ -108,7 +148,12 @@ export default function Assistant() {
             )}
             {msgs.map((m, i) => (
               <div key={i} className={`cwa-msg ${m.role}`}>
-                <div className={`cwa-bub ${m.error ? "err" : ""}`}>{m.text}</div>
+                <div className={`cwa-bub ${m.error ? "err" : ""}`}>{m.role === "ai" && !m.error ? renderRich(m.text) : m.text}</div>
+                {m.role === "ai" && !m.error && (
+                  <button className="cwa-copy" onClick={() => copyText(m.text, i)} title="Copier la réponse" aria-label="Copier la réponse dans le presse-papier">
+                    {copied === i ? "✓ Copié" : "⧉ Copier"}
+                  </button>
+                )}
                 {m.role === "ai" && m.sources && m.sources.tickets && m.sources.tickets.length > 0 && (
                   <div className="cwa-src">
                     <span className="cwa-src-l">Sources :</span>
