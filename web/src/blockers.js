@@ -46,19 +46,20 @@ export function computeBlockers(issues = [], now = new Date()) {
 
     let severity = null;
     let reason = null;
-    let since = i.statutDepuis || i.maj || null; // date d'entrée dans l'état actuel
+    let kind = null;                              // bloque | retourProd | retard | retourTest | afaire
+    let since = i.statutDepuis || i.maj || null; // date d'entrée dans l'état actuel (approx. avant enrichissement)
 
     if (i.statut === "Bloqué") {
-      severity = "critique"; reason = "Bloqué — drapeau ou étiquette posé";
+      severity = "critique"; reason = "Bloqué — drapeau ou étiquette posé"; kind = "bloque";
     } else if (i.categorie === "retourProd") {
-      severity = "critique"; reason = "Retour production — incident après mise en production";
+      severity = "critique"; reason = "Retour production — incident après mise en production"; kind = "retourProd";
     } else if (i.enRetard) {
-      severity = "critique"; reason = "En retard — échéance dépassée";
+      severity = "critique"; reason = "En retard — échéance dépassée"; kind = "retard";
       since = i.echeance || since; // devenu bloquant à l'échéance
     } else if (i.categorie === "retourTest") {
-      severity = "majeur"; reason = "Retour test — recette rejetée, à reprendre";
+      severity = "majeur"; reason = "Retour test — recette rejetée, à reprendre"; kind = "retourTest";
     } else if (i.categorie === "afaire" && i.assigne && i.assigne !== "Non assigné") {
-      severity = "majeur"; reason = "Assigné mais resté en « À faire » — statut non transitionné";
+      severity = "majeur"; reason = "Assigné mais resté en « À faire » — statut non transitionné"; kind = "afaire";
     }
 
     if (!severity) continue;
@@ -67,8 +68,10 @@ export function computeBlockers(issues = [], now = new Date()) {
       title: i.resume,
       severity,
       reason,
-      since,                          // ISO — depuis quand dans cet état
+      kind,
+      since,                          // ISO — depuis quand dans cet état (raffiné via changelog à l'ouverture)
       daysSince: joursOuvres(since, now),
+      maj: i.maj || null,             // pour le cache d'enrichissement (clé cle+maj)
       assignee: i.assigne,
       project: i.dossier,
       ref: i,                         // ticket réel -> ouverture directe (TicketModal)

@@ -291,6 +291,56 @@ export async function fetchStatusTransitions(keys = [], startISO = null, endISO 
   return { configured: true, items, scanned: list.length, total: keys.length, capped };
 }
 
+// Pour les POINTS BLOQUANTS : date EXACTE d'entrée dans l'état bloquant actuel, via le changelog.
+// Renvoie par clé : { enteredStatusAt, flaggedAt, statut }.
+//   • enteredStatusAt = date de la DERNIÈRE transition VERS le statut courant ;
+//   • flaggedAt       = date de la dernière POSE du drapeau encore active (null si retiré).
+// Concurrence limitée (6) + cache par (clé + date de dernière MAJ) : un ticket inchangé n'est
+// pas relu, donc rouvrir le voyant est instantané et l'actualisation n'est pas ralentie.
+const _sinceCache = new Map(); // cle -> { maj, enteredStatusAt, flaggedAt, statut }
+export async function fetchBlockerSince(tickets = [], cap = 80) {
+  if (!isConfigured() || !tickets.length) return {};
+  const headers = { Authorization: authHeader(), Accept: "application/json" };
+  const list = tickets.slice(0, cap);
+  const out = {};
+  const toFetch = [];
+  for (const t of list) {
+    const c = _sinceCache.get(t.cle);
+    if (c && t.maj && c.maj === t.maj) out[t.cle] = c; // inchangé -> cache
+    else toFetch.push(t);
+  }
+  const fetchOne = async (t) => {
+    const enc = encodeURIComponent(t.cle);
+    try {
+      const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}?expand=changelog&fields=status`, { headers });
+      if (!r.ok) return;
+      const data = await r.json();
+      const curStatus = data.fields?.status?.name || "";
+      // Histoire en ordre chronologique croissant -> la dernière correspondance gagne.
+      const histories = (data.changelog?.histories || [])
+        .slice()
+        .sort((a, b) => String(a.created || "").localeCompare(String(b.created || "")));
+      let enteredStatusAt = null, flaggedAt = null;
+      for (const h of histories) {
+        for (const it of (h.items || [])) {
+          if (it.field === "status" && (it.toString || "") === curStatus) enteredStatusAt = h.created;
+          if (it.field === "Flagged" || it.fieldId === "Flagged") {
+            flaggedAt = (it.toString && String(it.toString).trim()) ? h.created : null; // posé / retiré
+          }
+        }
+      }
+      const rec = { maj: t.maj || null, enteredStatusAt, flaggedAt, statut: curStatus };
+      _sinceCache.set(t.cle, rec);
+      out[t.cle] = rec;
+    } catch { /* ignore : on gardera la date approximative côté client */ }
+  };
+  const CONC = 6;
+  for (let i = 0; i < toFetch.length; i += CONC) {
+    await Promise.all(toFetch.slice(i, i + CONC).map(fetchOne));
+  }
+  return out;
+}
+
 // Récupère la description d'UN seul ticket, à la demande (ouverture d'un ticket).
 export async function fetchIssueDescription(key) {
   if (!isConfigured() || !key) return "";

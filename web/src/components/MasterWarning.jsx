@@ -1,5 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
+import { blockerSince } from "../api.js";
+import BlockerAnalysis from "./BlockerAnalysis.jsx";
 
 /* cp|WIRE — MASTER WARNING : voyant cockpit des points bloquants.
    Bouton = un RADAR vert qui balaie (sweep rotatif) ; des blips ROUGES pulsent
@@ -33,12 +35,49 @@ function fmtD(iso) {
   return isNaN(d) ? "" : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
 }
 
+// Jours ouvrés écoulés depuis une date ISO (week-ends exclus) — pour le « (N j) ».
+function joursOuvres(iso, now = new Date()) {
+  if (!iso) return 0;
+  const d = new Date(iso);
+  if (isNaN(d)) return 0;
+  let n = 0; const cur = new Date(d);
+  while (cur < now) { cur.setDate(cur.getDate() + 1); const wd = cur.getDay(); if (wd !== 0 && wd !== 6) n++; }
+  return n;
+}
+
+// Date EXACTE d'entrée dans l'état bloquant, selon le type de point :
+//   • retard  -> l'échéance (déjà dans p.since) ;
+//   • bloque  -> pose du drapeau (flaggedAt), sinon entrée dans le statut courant ;
+//   • autres  -> entrée dans le statut courant (enteredStatusAt).
+// Repli systématique sur p.since (date approximative) si le changelog n'a rien donné.
+function preciseSince(p, sinceMap) {
+  if (p.kind === "retard") return p.since;
+  const s = sinceMap[p.id];
+  if (!s) return p.since;
+  if (p.kind === "bloque") return s.flaggedAt || s.enteredStatusAt || p.since;
+  return s.enteredStatusAt || p.since;
+}
+
+// Verbe limpide : « depuis quand l'a-t-on mis dans cet état ? »
+function sinceLabel(kind) {
+  switch (kind) {
+    case "retard": return "échéance dépassée le";
+    case "bloque": return "signalé bloquant le";
+    case "retourProd": return "passé en retour prod le";
+    case "retourTest": return "passé en retour test le";
+    case "afaire": return "en « À faire » depuis le";
+    default: return "dans cet état depuis le";
+  }
+}
+
 export default function MasterWarning({ points = [], onOpenTicket }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [client, setClient] = useState("");
   const [dev, setDev] = useState("");
   const [sort, setSort] = useState("gravite");
+  const [sinceMap, setSinceMap] = useState({});
+  const [analysis, setAnalysis] = useState(null); // { ticket, point } -> modal d'analyse
 
   const n = points.filter((p) => p.severity === "critique").length; // graves
   const armed = n > 0;
@@ -47,9 +86,31 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
   const clients = useMemo(() => [...new Set(points.map((p) => p.project).filter(Boolean))].sort(), [points]);
   const devs = useMemo(() => [...new Set(points.map((p) => p.assignee).filter(Boolean))].sort(), [points]);
 
+  // À l'ouverture du voyant : lecture dans le changelog de la date EXACTE d'entrée dans l'état
+  // (transition de statut / pose du drapeau), bornée aux points affichés. Les « en retard » n'ont
+  // pas besoin du serveur (la date = l'échéance). Cache serveur -> rouvrir est instantané.
+  useEffect(() => {
+    if (!open) return;
+    const tickets = points
+      .filter((p) => p.kind && p.kind !== "retard")
+      .map((p) => ({ cle: p.id, maj: p.maj || null }));
+    if (!tickets.length) return;
+    let alive = true;
+    blockerSince(tickets)
+      .then((r) => { if (alive && r && r.since) setSinceMap((m) => ({ ...m, ...r.since })); })
+      .catch(() => { /* repli sur la date approximative */ });
+    return () => { alive = false; };
+  }, [open, points]);
+
+  // Points enrichis : date précise d'entrée dans l'état + nb de jours ouvrés depuis cette date.
+  const enriched = useMemo(
+    () => points.map((p) => { const _since = preciseSince(p, sinceMap); return { ...p, _since, _days: joursOuvres(_since) }; }),
+    [points, sinceMap]
+  );
+
   const view = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    let arr = points.filter((p) => {
+    let arr = enriched.filter((p) => {
       if (client && p.project !== client) return false;
       if (dev && p.assignee !== dev) return false;
       if (needle && !`${p.id} ${p.title} ${p.assignee} ${p.project} ${p.reason}`.toLowerCase().includes(needle)) return false;
@@ -58,18 +119,29 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
     const grav = (p) => (p.severity === "critique" ? 1 : 0);
     arr = arr.slice().sort((a, b) => {
       switch (sort) {
-        case "date": return b.daysSince - a.daysSince;
+        case "date": return b._days - a._days;
         case "ticket": return String(a.id).localeCompare(String(b.id), "fr", { numeric: true });
         case "client": return String(a.project).localeCompare(String(b.project), "fr") || grav(b) - grav(a);
         case "dev": return String(a.assignee).localeCompare(String(b.assignee), "fr") || grav(b) - grav(a);
-        default: return grav(b) - grav(a) || b.daysSince - a.daysSince;
+        default: return grav(b) - grav(a) || b._days - a._days;
       }
     });
     return arr;
-  }, [points, q, client, dev, sort]);
+  }, [enriched, q, client, dev, sort]);
+
+  // Stats du voyant — recalculées sur la vue FILTRÉE (changent avec recherche / client / dev / tri).
+  const stats = useMemo(() => {
+    const crit = view.filter((p) => p.severity === "critique").length;
+    const nbClients = new Set(view.map((p) => p.project).filter(Boolean)).size;
+    const nbDevs = new Set(view.map((p) => p.assignee).filter(Boolean)).size;
+    const k = {};
+    view.forEach((p) => { k[p.kind] = (k[p.kind] || 0) + 1; });
+    return { total: view.length, crit, maj: view.length - crit, nbClients, nbDevs, k };
+  }, [view]);
 
   const openTicket = (p) => { if (onOpenTicket && p.ref) onOpenTicket(p.ref); setOpen(false); };
-  const askPilot = (p) => { window.dispatchEvent(new CustomEvent("cpwire-pilot-ticket", { detail: { ticket: p.ref } })); setOpen(false); };
+  // Exceptionnellement sur cette page : la tête du pilote ouvre le MODAL D'ANALYSE du point bloquant.
+  const askPilot = (p) => setAnalysis({ ticket: p.ref, point: p });
   const selStyle = { border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 9px", fontSize: 12.5, color: INK, background: "#fff", cursor: "pointer", outline: "none" };
   const GREEN = "#39ff8c";
 
@@ -180,6 +252,22 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
               )}
             </div>
 
+            {/* Stats — recalculées sur la sélection courante (filtres + recherche) */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 12px 0" }}>
+              {[
+                { lbl: "Points", val: stats.total, col: NAVY },
+                { lbl: "Critiques", val: stats.crit, col: RED },
+                { lbl: "Majeurs", val: stats.maj, col: AMBER },
+                { lbl: "Clients", val: stats.nbClients, col: INDIGO },
+                { lbl: "Développeurs", val: stats.nbDevs, col: INDIGO },
+              ].map((s) => (
+                <div key={s.lbl} style={{ flex: "1 1 90px", background: SOFT, border: `1px solid ${LINE}`, borderRadius: 10, padding: "7px 11px", borderLeft: `3px solid ${s.col}` }}>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: s.col, fontFamily: "Poppins,Inter,sans-serif", lineHeight: 1 }}>{s.val}</div>
+                  <div style={{ fontSize: 10.5, color: MUTED, textTransform: "uppercase", letterSpacing: ".04em", marginTop: 2 }}>{s.lbl}</div>
+                </div>
+              ))}
+            </div>
+
             <div style={{ overflowY: "auto", padding: 12 }}>
               {view.length === 0 ? (
                 <div style={{ padding: "34px 18px", textAlign: "center", color: MUTED }}>
@@ -208,12 +296,19 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                             <span style={{ fontWeight: 700, fontSize: 13.5, color: NAVY }}>{p.title}</span>
                           </span>
                           <span style={{ display: "block", color: col, fontSize: 12, marginTop: 3, fontWeight: 600 }}>{p.reason}</span>
-                          <span style={{ display: "block", color: MUTED, fontSize: 11.5, marginTop: 3 }}>
-                            {p.project} · {p.assignee}{p.since ? ` · depuis le ${fmtD(p.since)}${p.daysSince ? ` (${p.daysSince} j)` : ""}` : ""}</span>
+                          <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
+                            <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INDIGO, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>{p.project || "—"}</span>
+                            <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INK, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }}>👤 {p.assignee || "Non assigné"}</span>
+                            {p._since && (
+                              <span style={{ background: crit ? "rgba(192,57,43,.08)" : "rgba(194,105,26,.10)", border: `1px solid ${col}`, color: col, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>
+                                {sinceLabel(p.kind)} {fmtD(p._since)}{p._days ? ` · ${p._days} j` : ""}
+                              </span>
+                            )}
+                          </span>
                         </span>
                         <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, alignSelf: "center" }}>
                           <button onClick={(e) => { e.stopPropagation(); askPilot(p); }}
-                            title="Demander au copilote de traiter ce ticket" aria-label="Demander au copilote de traiter ce ticket"
+                            title="Analyser ce point bloquant avec le copilote" aria-label="Analyser ce point bloquant avec le copilote"
                             style={{ border: `1px solid ${GOLD}`, background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`,
                               padding: 0, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}>
                             <img src={PILOT_DATA_URI} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
@@ -228,6 +323,15 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
             </div>
           </div>
         </div>
+      )}
+
+      {analysis && (
+        <BlockerAnalysis
+          ticket={analysis.ticket}
+          point={analysis.point}
+          onClose={() => setAnalysis(null)}
+          onOpenTicket={onOpenTicket}
+        />
       )}
     </span>
   );

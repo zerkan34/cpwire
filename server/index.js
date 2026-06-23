@@ -8,7 +8,7 @@ import fs from "fs";
 import { fileURLToPath } from "url";
 import "dotenv/config";
 
-import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions } from "./jira.js";
+import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -147,7 +147,55 @@ function adminGuard(req, res, next) {
   next();
 }
 
-app.use(cors());
+// Derrière le proxy Render : faire confiance au premier saut pour obtenir la vraie IP cliente
+// (nécessaire au plafond de tentatives de connexion ci-dessous).
+app.set("trust proxy", 1);
+
+// CORS restreint par liste blanche (env ALLOWED_ORIGINS = origines séparées par des virgules).
+// Non configuré -> permissif (aucune régression). Le front étant servi par CE service, les appels
+// sont en général same-origin ; la liste blanche durcit le cas où un autre domaine appellerait l'API.
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter(Boolean);
+app.use(cors({
+  origin(origin, cb) {
+    if (!origin) return cb(null, true);                  // same-origin, curl, sondes de santé
+    if (!ALLOWED_ORIGINS.length) return cb(null, true);  // liste vide -> permissif (pas de régression)
+    return cb(null, ALLOWED_ORIGINS.includes(origin));
+  },
+}));
+
+// En-têtes de sécurité (équivalent minimal de helmet, sans dépendance) : anti-sniffing MIME,
+// anti-clickjacking, pas de fuite de referer, capacités navigateur réduites (micro autorisé en same-origin
+// car l'app enregistre l'audio des réunions).
+app.use((_req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("X-DNS-Prefetch-Control", "off");
+  res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=(self)");
+  next();
+});
+
+// Plafond de tentatives (anti-acharnement) : en mémoire, par IP. Réinitialisé au redémarrage,
+// ce qui suffit à casser le brute-force d'un mot de passe sans dépendance externe.
+function rateLimiter({ windowMs, max, message }) {
+  const hits = new Map(); // ip -> { count, reset }
+  return (req, res, next) => {
+    const now = Date.now();
+    const ip = req.ip || "?";
+    let e = hits.get(ip);
+    if (!e || now > e.reset) { e = { count: 0, reset: now + windowMs }; hits.set(ip, e); }
+    e.count++;
+    if (hits.size > 5000) { for (const [k, v] of hits) if (now > v.reset) hits.delete(k); } // purge légère
+    if (e.count > max) {
+      const retry = Math.ceil((e.reset - now) / 1000);
+      res.setHeader("Retry-After", String(retry));
+      return res.status(429).json({ error: message || "Trop de tentatives, réessayez plus tard.", retryAfter: retry });
+    }
+    next();
+  };
+}
+const loginLimiter = rateLimiter({ windowMs: 10 * 60 * 1000, max: 15, message: "Trop de tentatives de connexion. Réessayez dans quelques minutes." });
+
 app.use(express.json({ limit: "8mb" }));
 
 // Verrou global (ceinture + bretelles) : un consultant ne peut atteindre AUCUN récap/CR/réunion,
@@ -303,7 +351,7 @@ async function getIssues(arg, jqlArg) {
 }
 
 // ---- Auth ----
-app.post("/api/login", async (req, res) => {
+app.post("/api/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!AUTH_ENABLED) {
     const t = crypto.randomUUID(); sessions.set(t, { role: "owner", email: ME, lastSeen: Date.now() });
@@ -324,7 +372,7 @@ app.post("/api/login", async (req, res) => {
 });
 
 // Activation d'un compte invité : la personne arrive avec un lien (token) et choisit email + mot de passe.
-app.post("/api/account/claim", async (req, res) => {
+app.post("/api/account/claim", loginLimiter, async (req, res) => {
   const { token, email, password } = req.body || {};
   const inv = checkInviteToken(token);
   if (!inv) return res.status(400).json({ error: "Lien d'invitation invalide ou expiré." });
@@ -348,6 +396,16 @@ app.post("/api/logout", guard, (req, res) => {
   const t = req.headers["x-access-token"];
   if (t && sessions.has(t)) sessions.delete(t);
   res.json({ ok: true });
+});
+
+// Points bloquants : date EXACTE d'entrée dans l'état bloquant (transition de statut / pose du
+// drapeau), lue dans le changelog. Bornée + mise en cache → appelée à l'ouverture du voyant.
+app.post("/api/blockers/since", guard, async (req, res) => {
+  try {
+    const tickets = Array.isArray(req.body?.tickets) ? req.body.tickets : [];
+    const since = await fetchBlockerSince(tickets);
+    res.json({ since });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
 // Génère un lien d'invitation en lecture seule (réservé à l'owner). hours = durée de validité.
@@ -410,7 +468,7 @@ app.post("/api/admin/users/remove", guard, adminGuard, async (req, res) => {
 
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, app: "CPwire", authEnabled: AUTH_ENABLED, jiraConfigured: isConfigured(),
-    ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), me: ME, projects: PROJECTS, allowDemo: ALLOW_DEMO }));
+    ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), allowDemo: ALLOW_DEMO }));
 
 app.get("/api/portfolio", guard, async (req, res) => {
   try {

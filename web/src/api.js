@@ -31,6 +31,10 @@ const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type"
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
 export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });
 
+// Points bloquants : date exacte d'entrée dans l'état (transition statut / drapeau). tickets = [{cle, maj}].
+// Renvoie { since: { [cle]: { enteredStatusAt, flaggedAt, statut } } }.
+export const blockerSince = (tickets = []) => post("/api/blockers/since", { tickets });
+
 // Copilote — analyse d'un fichier déposé (multipart). Renvoie { ok, answer, note, guess, dossiers, filename } ou { error }.
 export async function analyzeForAssistant(file, question = "") {
   const form = new FormData();
