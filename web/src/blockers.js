@@ -71,7 +71,9 @@ export function computeBlockers(issues = [], now = new Date()) {
       kind,
       since,                          // ISO — depuis quand dans cet état (raffiné via changelog à l'ouverture)
       daysSince: joursOuvres(since, now),
-      maj: i.maj || null,             // pour le cache d'enrichissement (clé cle+maj)
+      maj: i.maj || null,             // dernière date de MOUVEMENT (cache + tri + détection dormant)
+      cree: i.cree || null,           // date de MISE EN PLACE du ticket (tri)
+      engagement: i.engagement || "", // "TMA" ou "Projet" -> pastille spéciale
       assignee: i.assigne,
       project: i.dossier,
       ref: i,                         // ticket réel -> ouverture directe (TicketModal)

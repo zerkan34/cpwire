@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { progResume } from "../ticket.js";
 
 // « Le point du soir » — reproduit le relevé quotidien par statut (mêmes libellés
@@ -25,31 +25,36 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
   const [copied, setCopied] = useState(false);
   const [openK, setOpenK] = useState(null);
   const [period, setPeriod] = useState("tout");
+  // Périmètre : pour un dossier multi-projets (ex. Tafanel = PTAF + TMT), on peut isoler un préfixe.
+  const [scope, setScope] = useState("all");
+  const prefixes = useMemo(() => [...new Set((items || []).map((i) => i.projet).filter(Boolean))].sort(), [items]);
+  const multi = prefixes.length > 1;
+  useEffect(() => { setScope("all"); }, [dossier]);
+  const srcItems = (scope === "all" || !multi) ? (items || []) : (items || []).filter((i) => i.projet === scope);
+  const scopeKey = scope === "all" ? "" : `::${scope}`;
+  const scopeLbl = scope === "all" ? prefixes.join(" + ") : scope;
 
   useEffect(() => {
     if (!dossier) return;
-    const key = `cpwire:point:${dossier}`;
+    const key = `cpwire:point:${dossier}${scopeKey}`;
     let store = {};
     try { store = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { store = {}; }
     const today = todayStr();
     const past = Object.keys(store).filter((d) => d < today).sort();
     setBaseline(past.length ? { date: past[past.length - 1], cats: store[past[past.length - 1]] } : null);
-    // Enregistre le relevé du jour (cats des 7 statuts), garde 14 jours.
-    // On mémorise la LISTE des clés par statut (et plus seulement le compte),
-    // pour afficher le mouvement (entrés / sortis) au relevé suivant.
     const curKeys = {}; ROWS.forEach(([k]) => { curKeys[k] = []; });
-    (items || []).forEach((i) => { if (curKeys[i.categorie]) curKeys[i.categorie].push(i.cle); });
+    (srcItems || []).forEach((i) => { if (curKeys[i.categorie]) curKeys[i.categorie].push(i.cle); });
     store[today] = curKeys;
     const keep = Object.keys(store).sort().slice(-14);
     const trimmed = {}; keep.forEach((d) => { trimmed[d] = store[d]; });
     try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch (e) { /* quota / privé : on ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dossier]);
+  }, [dossier, scope]);
 
   const WIN = { jour: 1, semaine: 7, mois: 30, annee: 365, tout: null };
   const cutoff = WIN[period] ? Date.now() - WIN[period] * 86400000 : null;
   const inWin = (i) => !cutoff || new Date(i.maj || i.resolu || i.cree || 0).getTime() >= cutoff;
-  const periodItems = cutoff ? (items || []).filter(inWin) : (items || []);
+  const periodItems = cutoff ? srcItems.filter(inWin) : srcItems;
   const itemsForCat = (k) => periodItems.filter((i) => i.categorie === k);
   const prevCount = (k) => {
     const p = baseline ? baseline.cats[k] : null;
@@ -57,16 +62,16 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
     return typeof p === "number" ? p : null;
   };
   const rows = ROWS.map(([k, label]) => {
-    const n = cutoff ? itemsForCat(k).length : (cats0[k] || 0);
+    const n = itemsForCat(k).length;
     const pc = prevCount(k);
     return { k, label, n, delta: cutoff ? null : (pc == null ? null : n - pc) };
   });
   const total = rows.reduce((s, r) => s + r.n, 0);
-  const horsPoint = cutoff ? 0 : (cats0.afaire || 0) + (cats0.annule || 0) + (cats0.retourProd || 0);
+  const horsPoint = cutoff ? 0 : srcItems.filter((i) => i.categorie === "afaire" || i.categorie === "annule" || i.categorie === "retourProd").length;
 
   const copy = async () => {
     const lines = rows.map((r) => `* ${r.label} : ${r.n} ${fmtDelta(r.delta)}`).join("\n");
-    const entete = dossier && dossier !== "Tous dossiers" ? ` — ${dossier}` : "";
+    const entete = (dossier && dossier !== "Tous dossiers" ? ` — ${dossier}` : "") + (multi ? ` (${scopeLbl})` : "");
     const txt = `Données suivies du ${new Date().toLocaleDateString("fr-FR")}${entete}\n\n${lines}`;
     try { await navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch (e) { /* clipboard indispo */ }
   };
@@ -76,6 +81,16 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
       <div className="pds-head">
         <h3 className="c360-sec" style={{ margin: 0 }}>Le point du soir{dossier === "Tous dossiers" ? " — tous dossiers" : ""}</h3>
         <div className="pds-head-r">
+          {multi && (
+            <div className="pds-scope" role="group" aria-label="Périmètre projet">
+              {["all", ...prefixes].map((s) => (
+                <button key={s} type="button" className={`pds-scope-b ${scope === s ? "on" : ""}`}
+                  onClick={() => { setScope(s); setOpenK(null); }}>
+                  {s === "all" ? prefixes.join(" + ") : s}
+                </button>
+              ))}
+            </div>
+          )}
           <select className="c360-sortsel" value={period} onChange={(e) => { setPeriod(e.target.value); setOpenK(null); }} aria-label="Période du point du soir">
             <option value="tout">Tout (état actuel)</option>
             <option value="jour">Aujourd'hui</option>
@@ -116,7 +131,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
                         <span className="pds-move-up">+{entered.size} entré{entered.size > 1 ? "s" : ""}</span>
                         <span className="pds-move-dn">−{leftKeys.length} sorti{leftKeys.length > 1 ? "s" : ""}</span>
                         {leftKeys.length ? (
-                          <div className="pds-left">Sortis : {leftKeys.map((c) => { const m = (items || []).find((x) => x.cle === c); return c + (m ? ` → ${CAT_FR[m.categorie] || m.categorie}` : " (hors point)"); }).join(" · ")}</div>
+                          <div className="pds-left">Sortis : {leftKeys.map((c) => { const m = srcItems.find((x) => x.cle === c); return c + (m ? ` → ${CAT_FR[m.categorie] || m.categorie}` : " (hors point)"); }).join(" · ")}</div>
                         ) : null}
                       </div>
                     ) : null}

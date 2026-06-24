@@ -15,8 +15,10 @@ const RED = "#C0392B", REDV = "#E5392B", AMBER = "#C2691A", GOLD = "#A8884E",
       SOFT = "#F5F2FC", LINE = "#e7e5f1";
 
 const SORTS = [
+  { v: "move", l: "Mouvement récent" },
+  { v: "created", l: "Mise en place récente" },
   { v: "gravite", l: "Gravité" },
-  { v: "date", l: "Ancienneté" },
+  { v: "date", l: "Ancienneté dans l'état" },
   { v: "ticket", l: "Ticket" },
   { v: "client", l: "Client" },
   { v: "dev", l: "Développeur" },
@@ -44,6 +46,12 @@ function joursOuvres(iso, now = new Date()) {
   while (cur < now) { cur.setDate(cur.getDate() + 1); const wd = cur.getDay(); if (wd !== 0 && wd !== 6) n++; }
   return n;
 }
+
+// Au-delà de ce nombre de jours SANS MOUVEMENT (dernière MAJ), un ticket est considéré « dormant »
+// (probablement obsolète) : on le masque par défaut du voyant et de l'export.
+const OBSOLETE_DAYS = 180;
+const daysCal = (iso) => { if (!iso) return 0; const d = new Date(iso); return isNaN(d) ? 0 : Math.floor((Date.now() - d.getTime()) / 86400000); };
+const timeOf = (iso) => { const d = new Date(iso || 0); return isNaN(d) ? 0 : d.getTime(); };
 
 // Date EXACTE d'entrée dans l'état bloquant, selon le type de point :
 //   • retard  -> l'échéance (déjà dans p.since) ;
@@ -75,9 +83,13 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
   const [q, setQ] = useState("");
   const [client, setClient] = useState("");
   const [dev, setDev] = useState("");
-  const [sort, setSort] = useState("gravite");
+  const [sort, setSort] = useState("move");
   const [sinceMap, setSinceMap] = useState({});
   const [analysis, setAnalysis] = useState(null); // { ticket, point } -> modal d'analyse
+  const [showDormant, setShowDormant] = useState(false); // afficher les tickets dormants (>180 j sans mouvement)
+  const [maxed, setMaxed] = useState(false);             // plein écran
+  const [statsHidden, setStatsHidden] = useState(false); // masquage des stats au défilement
+  const lastScrollY = React.useRef(0);
 
   const n = points.filter((p) => p.severity === "critique").length; // graves
   const armed = n > 0;
@@ -102,15 +114,22 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
     return () => { alive = false; };
   }, [open, points]);
 
-  // Points enrichis : date précise d'entrée dans l'état + nb de jours ouvrés depuis cette date.
+  // Points enrichis : date précise d'entrée dans l'état, ancienneté, et dormance (sans mouvement).
   const enriched = useMemo(
-    () => points.map((p) => { const _since = preciseSince(p, sinceMap); return { ...p, _since, _days: joursOuvres(_since) }; }),
+    () => points.map((p) => {
+      const _since = preciseSince(p, sinceMap);
+      const _moveDays = daysCal(p.maj);
+      return { ...p, _since, _days: joursOuvres(_since), _moveDays, _obsolete: _moveDays > OBSOLETE_DAYS };
+    }),
     [points, sinceMap]
   );
+
+  const dormantCount = useMemo(() => enriched.filter((p) => p._obsolete).length, [enriched]);
 
   const view = useMemo(() => {
     const needle = q.trim().toLowerCase();
     let arr = enriched.filter((p) => {
+      if (!showDormant && p._obsolete) return false;       // dormants masqués par défaut
       if (client && p.project !== client) return false;
       if (dev && p.assignee !== dev) return false;
       if (needle && !`${p.id} ${p.title} ${p.assignee} ${p.project} ${p.reason}`.toLowerCase().includes(needle)) return false;
@@ -119,6 +138,8 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
     const grav = (p) => (p.severity === "critique" ? 1 : 0);
     arr = arr.slice().sort((a, b) => {
       switch (sort) {
+        case "move": return timeOf(b.maj) - timeOf(a.maj);          // mouvement le plus récent d'abord
+        case "created": return timeOf(b.cree) - timeOf(a.cree);     // mise en place la plus récente d'abord
         case "date": return b._days - a._days;
         case "ticket": return String(a.id).localeCompare(String(b.id), "fr", { numeric: true });
         case "client": return String(a.project).localeCompare(String(b.project), "fr") || grav(b) - grav(a);
@@ -127,7 +148,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
       }
     });
     return arr;
-  }, [enriched, q, client, dev, sort]);
+  }, [enriched, q, client, dev, sort, showDormant]);
 
   // Stats du voyant — recalculées sur la vue FILTRÉE (changent avec recherche / client / dev / tri).
   const stats = useMemo(() => {
@@ -142,7 +163,17 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
   const openTicket = (p) => { if (onOpenTicket && p.ref) onOpenTicket(p.ref); setOpen(false); };
   // Exceptionnellement sur cette page : la tête du pilote ouvre le MODAL D'ANALYSE du point bloquant.
   const askPilot = (p) => setAnalysis({ ticket: p.ref, point: p });
-  const selStyle = { border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 9px", fontSize: 12.5, color: INK, background: "#fff", cursor: "pointer", outline: "none" };
+  const close = () => { setOpen(false); setMaxed(false); setStatsHidden(false); };
+  // Masque les stats en descendant, les réaffiche en remontant (header + filtres restent visibles).
+  const onScroll = (e) => {
+    const y = e.currentTarget.scrollTop;
+    const prev = lastScrollY.current;
+    if (y > prev + 6 && y > 24) setStatsHidden(true);
+    else if (y < prev - 6) setStatsHidden(false);
+    lastScrollY.current = y;
+  };
+  const fldStyle = { border: `1px solid ${LINE}`, borderRadius: 10, padding: "8px 11px", fontSize: 13, color: INK, background: "#fff", outline: "none" };
+  const selStyle = { ...fldStyle, cursor: "pointer", appearance: "none", paddingRight: 26, backgroundImage: `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%234B3F8F'/></svg>")`, backgroundRepeat: "no-repeat", backgroundPosition: "right 9px center" };
   const GREEN = "#39ff8c";
 
   return (
@@ -199,76 +230,90 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
       {/* ---- MODALE CENTRÉE ---- */}
       {open && (
         <div role="dialog" aria-modal="true" aria-label="Points bloquants"
-          onMouseDown={() => setOpen(false)}
+          onMouseDown={close}
           style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(20,16,40,.55)",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: 16,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: maxed ? 0 : 16,
             animation: "mwh-fade .15s ease-out",
             fontFamily: "ui-sans-serif,system-ui,'Segoe UI',Roboto,sans-serif" }}>
           <div onMouseDown={(e) => e.stopPropagation()}
-            style={{ width: "min(720px, 100%)", maxHeight: "86vh", display: "flex", flexDirection: "column",
-              background: "#fff", borderRadius: 16, overflow: "hidden",
+            style={{ width: maxed ? "100%" : "min(760px, 100%)", height: maxed ? "100%" : "auto",
+              maxHeight: maxed ? "100%" : "88vh", display: "flex", flexDirection: "column",
+              background: "#fff", borderRadius: maxed ? 0 : 16, overflow: "hidden",
               boxShadow: "0 24px 70px rgba(20,16,40,.45)", animation: "mwh-pop .18s ease-out" }}>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "16px 20px",
-              background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`, color: "#fff" }}>
-              <span style={{ width: 12, height: 12, borderRadius: "50%", background: armed ? REDV : "#3a7d54",
+            {/* HEADER — toujours visible, charte app (dégradé + filet doré) */}
+            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 18px",
+              background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`, color: "#fff",
+              boxShadow: `inset 0 -3px 0 ${GOLD}`, flex: "none" }}>
+              <span style={{ width: 11, height: 11, borderRadius: "50%", background: armed ? REDV : "#3a7d54",
                 boxShadow: armed ? "0 0 10px rgba(229,57,43,.9)" : "none", flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, letterSpacing: 2, fontSize: 14 }}>POINTS BLOQUANTS</div>
-                <div style={{ fontSize: 12, color: "rgba(255,255,255,.7)", marginTop: 2 }}>
-                  {n} grave{n > 1 ? "s" : ""} · {points.length} au total
-                  {(client || dev || q) ? ` · ${view.length} affiché${view.length > 1 ? "s" : ""}` : ""}
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: "Poppins,Inter,sans-serif", fontWeight: 700, letterSpacing: 1.5, fontSize: 14 }}>POINTS BLOQUANTS</div>
+                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.72)", marginTop: 1 }}>
+                  {view.length} affiché{view.length > 1 ? "s" : ""}{!showDormant && dormantCount ? ` · ${dormantCount} dormant${dormantCount > 1 ? "s" : ""} masqué${dormantCount > 1 ? "s" : ""}` : ""}
                 </div>
               </div>
-              <button className="mwh-x" onClick={() => setOpen(false)} aria-label="Fermer"
-                style={{ border: "none", background: "rgba(255,255,255,.14)", color: "#fff", width: 32, height: 32,
-                  borderRadius: 9, cursor: "pointer", fontSize: 17, lineHeight: 1 }}>×</button>
+              <button onClick={() => setMaxed((m) => !m)} title={maxed ? "Réduire" : "Agrandir (plein écran)"} aria-label="Agrandir / réduire"
+                style={{ border: "none", background: "rgba(255,255,255,.14)", color: "#fff", width: 32, height: 32, borderRadius: 9, cursor: "pointer", fontSize: 14, lineHeight: 1, flex: "none" }}>{maxed ? "🗗" : "⤢"}</button>
+              <button className="mwh-x" onClick={close} aria-label="Fermer"
+                style={{ border: "none", background: "rgba(255,255,255,.14)", color: "#fff", width: 32, height: 32, borderRadius: 9, cursor: "pointer", fontSize: 17, lineHeight: 1, flex: "none" }}>×</button>
             </div>
 
+            {/* STATS — sous le header ; se replient quand on défile vers le bas, reviennent en remontant */}
+            <div style={{ overflow: "hidden", flex: "none",
+              transition: "max-height .22s ease, opacity .18s ease, padding .22s ease",
+              maxHeight: statsHidden ? 0 : 130, opacity: statsHidden ? 0 : 1,
+              padding: statsHidden ? "0 14px" : "12px 14px", background: "#faf9fd", borderBottom: statsHidden ? "none" : `1px solid ${LINE}` }}>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {[
+                  { lbl: "Points", val: stats.total, col: NAVY },
+                  { lbl: "Critiques", val: stats.crit, col: RED },
+                  { lbl: "À surveiller", val: stats.maj, col: AMBER },
+                  { lbl: "Clients", val: stats.nbClients, col: INDIGO },
+                  { lbl: "Développeurs", val: stats.nbDevs, col: INDIGO },
+                ].map((s) => (
+                  <div key={s.lbl} style={{ flex: "1 1 96px", background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "7px 11px", borderLeft: `3px solid ${s.col}` }}>
+                    <div style={{ fontSize: 19, fontWeight: 800, color: s.col, fontFamily: "Poppins,Inter,sans-serif", lineHeight: 1 }}>{s.val}</div>
+                    <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: ".04em", marginTop: 2 }}>{s.lbl}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* FILTRES — toujours visibles */}
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
-              padding: "12px 16px", borderBottom: `1px solid ${LINE}`, background: "#faf9fd" }}>
-              <span style={{ position: "relative", flex: "1 1 200px", minWidth: 160 }}>
-                <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 12, opacity: .5 }}>🔎</span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ticket, texte…"
-                  style={{ width: "100%", border: `1px solid ${LINE}`, borderRadius: 8, padding: "7px 9px 7px 28px",
-                    fontSize: 12.5, color: INK, outline: "none" }} />
+              padding: "10px 14px", borderBottom: `1px solid ${LINE}`, background: "#fff", flex: "none" }}>
+              <span style={{ position: "relative", flex: "1 1 200px", minWidth: 150 }}>
+                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, opacity: .5 }}>🔎</span>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un texte…"
+                  style={{ ...fldStyle, width: "100%", paddingLeft: 30 }} />
               </span>
               <select value={client} onChange={(e) => setClient(e.target.value)} style={selStyle} title="Filtrer par client">
-                <option value="">Tous clients</option>
+                <option value="">Tous les clients</option>
                 {clients.map((c) => <option key={c} value={c}>{c}</option>)}
               </select>
               <select value={dev} onChange={(e) => setDev(e.target.value)} style={selStyle} title="Filtrer par développeur">
-                <option value="">Tous développeurs</option>
+                <option value="">Tous les développeurs</option>
                 {devs.map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
               <select value={sort} onChange={(e) => setSort(e.target.value)} style={selStyle} title="Trier">
                 {SORTS.map((s) => <option key={s.v} value={s.v}>Tri : {s.l}</option>)}
               </select>
-              {(client || dev || q || sort !== "gravite") && (
-                <button onClick={() => { setQ(""); setClient(""); setDev(""); setSort("gravite"); }}
-                  style={{ border: "none", background: "transparent", color: INDIGO, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+              {dormantCount > 0 && (
+                <button onClick={() => setShowDormant((v) => !v)} title={`Tickets sans mouvement depuis plus de ${OBSOLETE_DAYS} jours (probablement obsolètes)`}
+                  style={{ border: `1px solid ${showDormant ? INDIGO : LINE}`, background: showDormant ? INDIGO : "#fff", color: showDormant ? "#fff" : MUTED, borderRadius: 10, padding: "8px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                  {showDormant ? "Masquer les dormants" : `Afficher les dormants (${dormantCount})`}
+                </button>
+              )}
+              {(client || dev || q || sort !== "move") && (
+                <button onClick={() => { setQ(""); setClient(""); setDev(""); setSort("move"); }}
+                  style={{ border: "none", background: "transparent", color: INDIGO, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
                   Réinitialiser
                 </button>
               )}
             </div>
 
-            {/* Stats — recalculées sur la sélection courante (filtres + recherche) */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, padding: "10px 12px 0" }}>
-              {[
-                { lbl: "Points", val: stats.total, col: NAVY },
-                { lbl: "Critiques", val: stats.crit, col: RED },
-                { lbl: "Majeurs", val: stats.maj, col: AMBER },
-                { lbl: "Clients", val: stats.nbClients, col: INDIGO },
-                { lbl: "Développeurs", val: stats.nbDevs, col: INDIGO },
-              ].map((s) => (
-                <div key={s.lbl} style={{ flex: "1 1 90px", background: SOFT, border: `1px solid ${LINE}`, borderRadius: 10, padding: "7px 11px", borderLeft: `3px solid ${s.col}` }}>
-                  <div style={{ fontSize: 18, fontWeight: 800, color: s.col, fontFamily: "Poppins,Inter,sans-serif", lineHeight: 1 }}>{s.val}</div>
-                  <div style={{ fontSize: 10.5, color: MUTED, textTransform: "uppercase", letterSpacing: ".04em", marginTop: 2 }}>{s.lbl}</div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ overflowY: "auto", padding: 12 }}>
+            <div onScroll={onScroll} style={{ overflowY: "auto", padding: 12, flex: 1 }}>
               {view.length === 0 ? (
                 <div style={{ padding: "34px 18px", textAlign: "center", color: MUTED }}>
                   <div style={{ fontSize: 26, marginBottom: 6 }}>✓</div>
@@ -297,6 +342,16 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           </span>
                           <span style={{ display: "block", color: col, fontSize: 12, marginTop: 3, fontWeight: 600 }}>{p.reason}</span>
                           <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
+                            {p.engagement && (
+                              <span style={p.engagement === "Projet"
+                                ? { background: "rgba(168,136,78,.14)", border: `1px solid ${GOLD}`, color: "#8a6d2f", fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }
+                                : { background: "rgba(75,63,143,.12)", border: `1px solid ${INDIGO}`, color: INDIGO, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }}>
+                                {p.engagement === "Projet" ? "PROJET" : "TMA"}
+                              </span>
+                            )}
+                            {p._obsolete && (
+                              <span style={{ background: "#eceaf1", border: `1px solid ${LINE}`, color: MUTED, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }} title={`Sans mouvement depuis ${p._moveDays} j`}>DORMANT</span>
+                            )}
                             <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INDIGO, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>{p.project || "—"}</span>
                             <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INK, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }}>👤 {p.assignee || "Non assigné"}</span>
                             {p._since && (
