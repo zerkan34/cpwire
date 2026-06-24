@@ -5,7 +5,8 @@
 //  STRICTEMENT identiques à ceux du point du soir. Aucune IA, aucun recalcul,
 //  aucune invention : on lit cats[] et on l'affiche, dans la charte.
 // ============================================================================
-import { buildSimpleDoc, esc } from "./utils.js";
+import { esc } from "./utils.js";
+import { cover, section, chapter, kpiBand, charterDoc, C } from "./charter.js";
 import { progResume } from "./ticket.js";
 import { computeFacts } from "./facts.js";
 import { ACTIFS, RETOUR, RECETTE } from "./groups.js";
@@ -64,49 +65,84 @@ function blockHtml(dossier, b) {
     })
     .join("");
 
-  return `<section class="rsec"><h2>${esc(dossier)}</h2>${synth}${statusTable}`
-    + (detail ? `<h3>Détail par statut</h3>${detail}` : "")
-    + (hors ? `<p class="hors">Hors point du soir : ${hors} ticket(s) — à faire (${cats.afaire || 0}), retour prod (${cats.retourProd || 0}), annulés (${cats.annule || 0}).</p>` : "")
-    + `</section>`;
+  const inner = synth + statusTable
+    + (detail ? `<h3 class="rk-h3">Détail par statut</h3>${detail}` : "")
+    + (hors ? `<p class="hors">Hors point du soir : ${hors} ticket(s) — à faire (${cats.afaire || 0}), retour prod (${cats.retourProd || 0}), annulés (${cats.annule || 0}).</p>` : "");
+  return { inner, tracked };
 }
 
 // Document complet. scope = nom d'un dossier, ou "Tous" / "Tous dossiers".
 export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas Durand" } = {}) {
   const facts = computeFacts(issues);
-  const today = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
   const all = scope === "Tous" || scope === "Tous dossiers" || !scope;
+  const etabli = meName || "Nicolas Durand";
 
-  let subtitle, body, perim;
+  let perim, clients;
   if (all) {
-    const clients = Object.keys(facts.byDossier).filter((d) => d && d !== "—").sort((a, b) => a.localeCompare(b));
+    clients = Object.keys(facts.byDossier).filter((d) => d && d !== "—").sort((a, b) => a.localeCompare(b));
     perim = "Tous les clients";
-    subtitle = "Tous les clients";
-    body = clients.map((d) => blockHtml(d, facts.get(d))).join("");
   } else {
-    const b = facts.get(scope);
+    clients = [scope];
     perim = scope;
-    subtitle = `${scope}${modeOf(b.items) ? " · " + modeOf(b.items) : ""}`;
-    body = blockHtml(scope, b);
   }
 
-  const html = buildSimpleDoc({
-    kicker: "Armonie Group",
-    title: "Récapitulatif de la journée",
-    subtitle,
-    cartouche: [
-      ["Périmètre", perim],
-      ["Chef de projet", meName],
-      ["Date", today],
-      ["Source", "Jira — chiffres du point du soir"],
-    ],
-    bodyHtml: body || `<p class="muted">Aucun ticket sur ce périmètre.</p>`,
-    etabliPar: meName,
+  let totalTracked = 0, totalRetard = 0;
+  const body = clients.map((d) => {
+    const b = facts.get(d);
+    const { inner, tracked } = blockHtml(d, b);
+    totalTracked += tracked; totalRetard += (b.enRetard || 0);
+    const over = `Dossier${modeOf(b.items) ? " · " + modeOf(b.items) : ""}`;
+    return section({ over, name: d, inner });
+  }).join("");
+
+  const coverHtml = cover({
+    kicker: "Armonie Group · Récapitulatif",
+    title: "Récapitulatif<br>de la journée",
+    subtitle: all ? "Portefeuille TMA & Projets — tous les clients" : `Dossier ${perim}`,
+    meta: today,
+    pill: "Document de travail interne",
+    enBref: `Photo du portefeuille au ${today}. ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""} sur ${clients.length} dossier${clients.length > 1 ? "s" : ""}. Chiffres strictement alignés sur le point du soir (Jira), sans recalcul ni invention.`,
+    callout: totalRetard ? { value: totalRetard, label: "en retard", hint: "échéance dépassée — à arbitrer" } : null,
+    etabliPar: etabli,
+  });
+
+  const synth = chapter({ over: "Synthèse", title: "Vue d'ensemble", lead: `Récapitulatif par dossier des tickets suivis au point du soir. ${clients.length} dossier${clients.length > 1 ? "s" : ""} · ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""}.` })
+    + kpiBand([
+      { value: totalTracked, label: "tickets suivis" },
+      { value: totalRetard, label: "en retard", tone: "cri" },
+      { value: clients.length, label: "dossiers", tone: "idg" },
+    ]);
+
+  const html = charterDoc({
+    docTitle: `Récapitulatif — ${perim}`,
+    extraCss: RECAP_CSS,
+    coverHtml,
+    bodyHtml: synth + (body || `<p class="muted">Aucun ticket sur ce périmètre.</p>`),
+    footerText: `Récapitulatif du jour · ${today} · Confidentiel`,
   });
 
   const iso = new Date().toISOString().slice(0, 10);
   const filename = `Recap_${String(perim).replace(/[^\w-]+/g, "_")}_${iso}.html`;
   return { title: `Récapitulatif — ${perim}`, html, filename };
 }
+
+// Styles propres au récap (tables de statut, accordéons, etc.) — par-dessus la charte.
+const RECAP_CSS = `
+  .lede{font-size:12.5px;line-height:1.55;color:${C.ink};margin:0 0 12px}.lede b{color:${C.navy}}
+  table.rk,table{font-size:12px}
+  .ch-sec table th{background:${C.navy};color:#fff;text-transform:uppercase;font-size:9px;letter-spacing:.05em;padding:7px 10px;border:0}
+  .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:${C.navy};width:1%;white-space:nowrap}
+  .rk-h3{font-family:Poppins,Inter,sans-serif;font-size:13px;color:${C.indigo};margin:16px 0 6px}
+  details{border:1px solid ${C.line};border-radius:10px;margin:8px 0;overflow:hidden}
+  details>summary{cursor:pointer;list-style:none;padding:8px 13px;font-weight:600;color:${C.navy};background:${C.soft};display:flex;justify-content:space-between;align-items:center;font-size:12px}
+  details>summary::-webkit-details-marker{display:none}
+  summary .n{font-weight:700;color:${C.indigo};background:#fff;border:1px solid ${C.line};border-radius:99px;padding:1px 9px;font-size:11px}
+  details table{margin:0}
+  .rk-k{font-weight:700;color:${C.indigo};white-space:nowrap;width:1%}
+  .rk-a{color:${C.muted};white-space:nowrap;width:1%;text-align:right}
+  .hors{font-size:11px;color:${C.muted};margin:6px 0 4px}
+  .muted{color:${C.muted}}`;
 
 // ZIP « un fichier par client » (remplace buildDailyCrFiles, même forme de retour).
 export function buildRecapFiles(issues = [], { meName = "Nicolas Durand" } = {}) {

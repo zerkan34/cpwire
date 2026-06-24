@@ -3,6 +3,7 @@
 // mouvement depuis longtemps, probablement obsolètes) sont EXCLUS, comme dans le voyant.
 
 import { computeBlockers } from "./blockers.js";
+import { cover, section, chapter, kpiBand, charterDoc } from "./charter.js";
 
 const NAVY = "#2E2A5D", INDIGO = "#4B3F8F", GOLD = "#A8884E", INK = "#1F1B33";
 const MUTED = "#6E6A86", SOFT = "#F5F2FC", LINE = "#e7e5f1", RED = "#C0392B", AMBER = "#C2691A";
@@ -96,69 +97,44 @@ function renderBlockersHtml(pts, { meName = "", dormant = 0, caption = "" } = {}
         <td class="since">${sinceLabel(p.kind)}<br><b>${fmtD(p._since)}</b><span class="d">${p._days} j ouvrés</span></td>
       </tr>`;
     }).join("");
-    return `<section class="cli">
-      <div class="cli-h"><span class="cli-name">${esc(c)}</span><span class="cli-c">${list.length} point${list.length > 1 ? "s" : ""}</span></div>
-      <p class="intro">${esc(clientIntro(list))}</p>
-      <table><thead><tr><th>Gravité</th><th>Ticket</th><th>Sujet &amp; raison</th><th>Développeur</th><th>Depuis</th></tr></thead><tbody>${rows}</tbody></table>
-    </section>`;
+    const table = `<table><thead><tr><th>Gravité</th><th>Ticket</th><th>Sujet &amp; raison</th><th>Développeur</th><th>Depuis</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return section({ over: `Dossier · ${list.length} point${list.length > 1 ? "s" : ""}`, name: c, intro: esc(clientIntro(list)), inner: table });
   }).join("");
 
-  const body = pts.length
-    ? sections
-    : `<section class="cli"><p class="empty">Aucun point bloquant actif à signaler. Tous les voyants sont au vert.</p></section>`;
-
+  const body = pts.length ? sections : `<p class="ch-empty">Aucun point bloquant actif à signaler. Tous les voyants sont au vert.</p>`;
   const etabli = meName || "Nicolas Durand";
   const clientsLabel = clients.length ? clients.join(", ") : "—";
-  const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Points bloquants — ${esc(today)}</title>
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-    @page { size: A4; margin: 15mm 14mm; }
-    *{box-sizing:border-box} html,body{margin:0}
-    body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${INK};font-size:11.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    h1,h2,h3,.cli-name,.synth .s b,.cov-title{font-family:Poppins,Inter,sans-serif}
 
-    /* ---------- COUVERTURE ---------- */
-    .cover{position:relative;min-height:262mm;display:flex;flex-direction:column;justify-content:center;
-      background:linear-gradient(150deg,${NAVY} 0%,${INDIGO} 62%,#3a3470 100%);color:#fff;
-      margin:-15mm -14mm 0;padding:34mm 22mm;page-break-after:always}
-    .cover .eyebrow{font-size:10.5px;letter-spacing:.28em;text-transform:uppercase;color:#d8cda0;font-weight:700}
-    .cov-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:14px 0 0;line-height:1}
-    .cover .csub{font-size:15px;opacity:.9;margin-top:14px}
-    .cover .cmeta{font-size:12.5px;opacity:.8;margin-top:6px;text-transform:capitalize}
-    .cover .crule{width:96px;height:4px;background:${GOLD};border-radius:3px;margin:26px 0}
-    .cover .pill{display:inline-block;border:1px solid rgba(216,205,160,.6);color:#e9e0bf;font-size:9.5px;
-      letter-spacing:.22em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:20px}
-    .enbref{margin-top:30px;background:rgba(255,255,255,.07);border-left:3px solid ${GOLD};border-radius:0 8px 8px 0;padding:16px 20px;max-width:118mm}
-    .enbref .lab{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#d8cda0;font-weight:700}
-    .enbref p{margin:8px 0 0;font-size:12px;line-height:1.6;opacity:.95}
-    .cover .estab{margin-top:auto;padding-top:30px;font-size:11px;opacity:.85}
-    .cover .estab .lab{font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#d8cda0;font-weight:700;display:block;margin-bottom:3px}
-    .cover .conf{position:absolute;left:22mm;bottom:16mm;font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:rgba(255,255,255,.55)}
-    .cover .web{position:absolute;right:22mm;bottom:16mm;font-size:9px;letter-spacing:.06em;color:rgba(255,255,255,.55)}
+  const synth = chapter({
+    over: "Synthèse", title: "Vue d'ensemble",
+    lead: `Répartition des ${pts.length} point${pts.length > 1 ? "s" : ""} bloquant${pts.length > 1 ? "s" : ""} sur ${clients.length} client${clients.length > 1 ? "s" : ""}. Le détail par client suit.`,
+  })
+    + kpiBand([
+      { value: pts.length, label: "points bloquants" },
+      { value: crit, label: "critiques", tone: "cri" },
+      { value: pts.length - crit, label: "à surveiller", tone: "maj" },
+      { value: clients.length, label: "clients", tone: "idg" },
+    ])
+    + `<div class="ch-legend"><div class="lt">Comment lire ce document</div>
+        <div class="row"><span class="k c">Critique</span><span>Échéance dépassée.</span></div>
+        <div class="row"><span class="k m">Majeur</span><span>Assigné mais resté en « À faire » (statut non transitionné), recette rejetée, ou signalé bloquant.</span></div>
+        <div class="row"><span class="k d">Depuis</span><span>Date d'entrée réelle dans l'état bloquant, et ancienneté en jours ouvrés.</span></div>
+      </div>`
+    + (caption ? `<p class="ch-filt">Filtres appliqués : ${esc(caption)}</p>` : "")
+    + (dormant ? `<p class="ch-note">${dormant} ticket${dormant > 1 ? "s" : ""} dormant${dormant > 1 ? "s" : ""} (sans mouvement depuis plus de ${OBSOLETE_DAYS} jours, probablement obsolète${dormant > 1 ? "s" : ""}) exclu${dormant > 1 ? "s" : ""} de ce relevé.</p>` : "");
 
-    /* ---------- INTÉRIEUR ---------- */
-    .synth{display:flex;flex-wrap:wrap;gap:30px;padding:20px 4px 18px;border-bottom:2px solid ${GOLD};margin-bottom:4px}
-    .synth .s{font-size:9.5px;color:${MUTED};text-transform:uppercase;letter-spacing:.08em;font-weight:600}
-    .synth .s b{display:block;font-size:30px;font-weight:800;line-height:1;margin-bottom:4px}
-    .synth .s.tot b{color:${NAVY}} .synth .s.cri b{color:${RED}} .synth .s.maj b{color:${AMBER}} .synth .s.cli b{color:${INDIGO}}
-    h2.sec{font-size:13px;color:${NAVY};letter-spacing:.04em;margin:18px 0 6px;text-transform:uppercase}
-    .lead{color:${MUTED};font-size:11.5px;margin:0 0 14px}
-    .legend{background:${SOFT};border:1px solid ${LINE};border-radius:9px;padding:12px 16px;margin:0 0 18px}
-    .legend .lt{font-size:9.5px;letter-spacing:.18em;text-transform:uppercase;color:${INDIGO};font-weight:700;margin-bottom:7px}
-    .legend .row{display:flex;gap:9px;align-items:baseline;font-size:10.5px;color:${INK};margin:4px 0}
-    .legend .k{display:inline-block;min-width:64px;font-weight:800;font-size:8px;letter-spacing:.5px;color:#fff;padding:3px 7px;border-radius:5px;text-align:center}
-    .legend .k.c{background:${RED}} .legend .k.m{background:${AMBER}} .legend .k.d{background:${INDIGO}}
-    .filt{font-size:10.5px;color:${INDIGO};font-weight:600;margin:0 0 8px} .filt b{color:${NAVY}}
-    .note{font-size:10.5px;color:${MUTED};margin:0 0 14px;font-style:italic}
-    section.cli{margin:0 0 22px;break-inside:avoid;page-break-inside:avoid}
-    .cli-h{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,${NAVY},${INDIGO});color:#fff;border-radius:9px;padding:10px 15px;box-shadow:inset 0 -3px 0 rgba(168,136,78,.7)}
-    .cli-h .cli-name{font-size:15px;font-weight:700;letter-spacing:.3px}
-    .cli-h .cli-c{font-size:10px;text-transform:uppercase;letter-spacing:.1em;opacity:.85}
-    .intro{margin:9px 2px 10px;color:${MUTED};font-size:11px}
-    table{width:100%;border-collapse:separate;border-spacing:0}
-    thead{display:table-header-group}
-    th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:${MUTED};padding:5px 9px;border-bottom:1.5px solid ${GOLD}}
-    td{padding:9px;border-bottom:1px solid ${LINE};vertical-align:top}
+  const coverHtml = cover({
+    kicker: "Armonie Group · Points bloquants",
+    title: "Points<br>bloquants",
+    subtitle: "Portefeuille TMA & Projets — suivi multi-clients",
+    meta: `${clients.length} client${clients.length > 1 ? "s" : ""} · ${today}`,
+    pill: "Document de travail interne",
+    enBref: `${pts.length} point${pts.length > 1 ? "s" : ""} bloquant${pts.length > 1 ? "s" : ""} recensé${pts.length > 1 ? "s" : ""} sur l'ensemble du portefeuille. ${clients.length} client${clients.length > 1 ? "s" : ""} concerné${clients.length > 1 ? "s" : ""} : ${esc(clientsLabel)}. ${crit} critique${crit > 1 ? "s" : ""} (échéance dépassée) · ${pts.length - crit} à surveiller (statut figé). Données issues de Jira : statuts, drapeaux et historique.`,
+    callout: crit ? { value: crit, label: "dont critiques", hint: "échéance dépassée — à traiter en priorité" } : null,
+    etabliPar: etabli,
+  });
+
+  const extraCss = `
     td.sev{width:80px} td.cle{width:80px;font-family:ui-monospace,Menlo,monospace;font-weight:700;color:${GOLD};padding-top:11px}
     td.dev{width:120px;font-weight:600} td.since{width:108px;white-space:nowrap;color:${MUTED};font-size:10px;line-height:1.35}
     td.since b{color:${INK};font-size:11.5px} td.since .d{display:block;color:${MUTED};font-size:9.5px;margin-top:1px}
@@ -167,45 +143,16 @@ function renderBlockersHtml(pts, { meName = "", dormant = 0, caption = "" } = {}
     .eng-p{background:#fff2e7;color:#b4560b;border:1px solid #f0d2b0}
     .eng-t{background:#e2f3ea;color:#1f8a5f;border:1px solid #bfe3d0}
     .res .t{font-weight:600;line-height:1.35} .res .why{font-size:10px;font-weight:600;margin-top:3px}
-    .empty{color:${MUTED};padding:26px;text-align:center;font-size:13px}
-    .ft{margin-top:18px;padding-top:10px;color:${MUTED};font-size:9px;border-top:1px solid ${LINE};display:flex;justify-content:space-between}
-  </style></head><body>
+    .ch-filt{font-size:10.5px;color:${INDIGO};font-weight:600;margin:0 0 8px} .ch-note{font-size:10.5px;color:${MUTED};margin:0 0 14px;font-style:italic}
+    .ch-empty{color:${MUTED};padding:26px;text-align:center;font-size:13px}`;
 
-  <div class="cover">
-    <div class="eyebrow">Armonie Group · Points bloquants</div>
-    <h1 class="cov-title">Points<br>bloquants</h1>
-    <div class="csub">Portefeuille TMA &amp; Projets — suivi multi-clients</div>
-    <div class="cmeta">${clients.length} client${clients.length > 1 ? "s" : ""} · ${esc(today)}</div>
-    <div class="crule"></div>
-    <span class="pill">Document de travail interne</span>
-    <div class="enbref">
-      <div class="lab">En bref</div>
-      <p>${pts.length} point${pts.length > 1 ? "s" : ""} bloquant${pts.length > 1 ? "s" : ""} recensé${pts.length > 1 ? "s" : ""} sur l'ensemble du portefeuille. ${clients.length} client${clients.length > 1 ? "s" : ""} concerné${clients.length > 1 ? "s" : ""} : ${esc(clientsLabel)}. ${crit} critique${crit > 1 ? "s" : ""} (échéance dépassée) · ${pts.length - crit} à surveiller (statut figé). Données issues de Jira : statuts, drapeaux et historique.</p>
-    </div>
-    <div class="estab"><span class="lab">Établi par</span>${esc(etabli)}<br>Chef de projet (MOE) — Armonie Group</div>
-    <div class="conf">Armonie Group · Confidentiel</div>
-    <div class="web">armonie.group</div>
-  </div>
-
-  <h2 class="sec">Synthèse — vue d'ensemble</h2>
-  <p class="lead">Répartition des ${pts.length} point${pts.length > 1 ? "s" : ""} bloquant${pts.length > 1 ? "s" : ""} sur ${clients.length} client${clients.length > 1 ? "s" : ""}. Le détail par client suit.</p>
-  <div class="synth">
-    <div class="s tot"><b>${pts.length}</b>points bloquants</div>
-    <div class="s cri"><b>${crit}</b>critiques</div>
-    <div class="s maj"><b>${pts.length - crit}</b>à surveiller</div>
-    <div class="s cli"><b>${clients.length}</b>clients</div>
-  </div>
-  <div class="legend">
-    <div class="lt">Comment lire ce document</div>
-    <div class="row"><span class="k c">Critique</span><span>Échéance dépassée.</span></div>
-    <div class="row"><span class="k m">Majeur</span><span>Assigné mais resté en « À faire » (statut non transitionné), recette rejetée, ou signalé bloquant.</span></div>
-    <div class="row"><span class="k d">Depuis</span><span>Date d'entrée réelle dans l'état bloquant, et ancienneté en jours ouvrés.</span></div>
-  </div>
-  ${caption ? `<p class="filt">Filtres appliqués : ${esc(caption)}</p>` : ""}
-  ${dormant ? `<p class="note">${dormant} ticket${dormant > 1 ? "s" : ""} dormant${dormant > 1 ? "s" : ""} (sans mouvement depuis plus de ${OBSOLETE_DAYS} jours, probablement obsolète${dormant > 1 ? "s" : ""}) exclu${dormant > 1 ? "s" : ""} de ce relevé.</p>` : ""}
-  ${body}
-  <div class="ft"><span>Armonie Group · Points bloquants — document de travail interne · confidentiel</span><span>${esc(today)}</span></div>
-  </body></html>`;
+  const html = charterDoc({
+    docTitle: `Points bloquants — ${today}`,
+    extraCss,
+    coverHtml,
+    bodyHtml: synth + body,
+    footerText: `Points bloquants · ${today} · Confidentiel`,
+  });
 
   return { name: "Points-bloquants.html", dossier: "Points bloquants", html, count: pts.length };
 }
