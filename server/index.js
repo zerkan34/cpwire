@@ -18,7 +18,7 @@ import { buildHygiene } from "./hygiene.js";
 import { buildCadence } from "./cadence.js";
 import { buildRecapChiffres } from "./recapChiffres.js";
 import { readConnaissance, saveConnaissance, addNote } from "./connaissance.js";
-import { listUsers, createUser, verifyUser, removeUser } from "./users.js";
+import { listUsers, createUser, verifyUser, removeUser, setUserConfirmed } from "./users.js";
 import { probe as dolibarrProbe, dolibarrStatus } from "./dolibarr.js";
 import { crossReferentiel, referentielClients } from "./referentiel.js";
 import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "./projets.js";
@@ -93,6 +93,62 @@ function checkInviteToken(t) {
   if (!Number.isFinite(expMs) || Date.now() > expMs) return null;
   if (!safeEqual(parts[3], sign(`invite|${expMs}|${role}`))) return null;
   return { expMs, role };
+}
+
+// ---- Confirmation d'e-mail : jeton SIGNÉ + EXPIRANT encodant l'adresse ----
+// Format : c.<expirationMs>.<email base64url>.<signature>. Auto-vérifiable (aucun stockage).
+const CONFIRM_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours pour cliquer le lien
+const b64url = (s) => Buffer.from(String(s), "utf8").toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const unb64url = (s) => { try { return Buffer.from(String(s).replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"); } catch { return ""; } };
+function makeConfirmToken(email, expMs) {
+  const e = String(email).toLowerCase();
+  return `c.${expMs}.${b64url(e)}.${sign(`confirm|${e}|${expMs}`)}`;
+}
+function checkConfirmToken(t) {
+  if (!t || typeof t !== "string" || !t.startsWith("c.")) return null;
+  const parts = t.split(".");
+  if (parts.length !== 4) return null;
+  const expMs = Number(parts[1]); const email = unb64url(parts[2]).toLowerCase();
+  if (!email || !Number.isFinite(expMs) || Date.now() > expMs) return null;
+  if (!safeEqual(parts[3], sign(`confirm|${email}|${expMs}`))) return null;
+  return { email, expMs };
+}
+// URL publique de l'app, pour bâtir les liens de confirmation (env APP_URL prioritaire, sinon l'hôte appelé).
+function baseUrl(req) {
+  if (process.env.APP_URL) return String(process.env.APP_URL).replace(/\/+$/, "");
+  const proto = (req.headers["x-forwarded-proto"] || req.protocol || "https").split(",")[0];
+  return `${proto}://${req.get("host")}`;
+}
+// E-mail de confirmation (charte Armonie).
+function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;"); }
+function confirmEmailHtml(email, link) {
+  return `<div style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#1F1B33;max-width:520px;margin:0 auto">
+    <div style="background:linear-gradient(135deg,#2E2A5D,#4B3F8F);color:#fff;padding:22px 24px;border-bottom:3px solid #A8884E;border-radius:12px 12px 0 0">
+      <div style="font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:18px">cp|WIRE — Confirmation d'accès</div>
+    </div>
+    <div style="border:1px solid #ece9f3;border-top:none;border-radius:0 0 12px 12px;padding:22px 24px">
+      <p>Bonjour,</p>
+      <p>Un accès cp|WIRE a été créé pour <b>${esc(email)}</b>. Pour l'activer et sécuriser votre compte, confirmez votre adresse e-mail :</p>
+      <p style="text-align:center;margin:22px 0">
+        <a href="${esc(link)}" style="background:#4B3F8F;color:#fff;text-decoration:none;font-weight:600;padding:11px 22px;border-radius:9px;display:inline-block">Confirmer mon e-mail</a>
+      </p>
+      <p style="font-size:12px;color:#6E6A86">Ou copiez ce lien : ${esc(link)}</p>
+      <p style="font-size:12px;color:#6E6A86">Ce lien expire dans 7 jours. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message.</p>
+    </div>
+  </div>`;
+}
+// Petite page affichée après le clic sur le lien.
+function confirmPageHtml(ok, email = "") {
+  const msg = ok
+    ? `<h1 style="color:#2F7D4F">E-mail confirmé ✓</h1><p>L'accès${email ? " de <b>" + esc(email) + "</b>" : ""} est activé. Vous pouvez maintenant vous connecter à cp|WIRE.</p>`
+    : `<h1 style="color:#C0392B">Lien invalide ou expiré</h1><p>Le lien de confirmation n'est plus valable. Demandez un nouveau lien à un administrateur.</p>`;
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>cp|WIRE — Confirmation</title></head>
+    <body style="font-family:Inter,Segoe UI,Arial,sans-serif;color:#1F1B33;background:#f4f2fa;margin:0;display:flex;min-height:100vh;align-items:center;justify-content:center;padding:20px">
+      <div style="max-width:460px;background:#fff;border-radius:14px;box-shadow:0 18px 50px rgba(46,42,93,.18);overflow:hidden">
+        <div style="background:linear-gradient(135deg,#2E2A5D,#4B3F8F);color:#fff;padding:18px 24px;border-bottom:3px solid #A8884E;font-family:Poppins,Inter,sans-serif;font-weight:700">cp|WIRE</div>
+        <div style="padding:26px 24px">${msg}</div>
+      </div>
+    </body></html>`;
 }
 
 // ---- Session « owner » : jeton SIGNÉ + EXPIRANT (remplace l'ancien jeton statique) ----
@@ -364,6 +420,7 @@ app.post("/api/login", loginLimiter, async (req, res) => {
   try {
     const u = await verifyUser(email, password);
     if (u) {
+      if (u.confirmed === false) return res.status(403).json({ error: "Compte non confirmé. Cliquez le lien de confirmation reçu par e-mail, ou demandez à un administrateur de valider votre accès." });
       const t = crypto.randomUUID(); sessions.set(t, { role: u.role, email: u.email, lastSeen: Date.now() });
       return res.json({ token: t, me: u.email, role: u.role });
     }
@@ -372,15 +429,34 @@ app.post("/api/login", loginLimiter, async (req, res) => {
 });
 
 // Activation d'un compte invité : la personne arrive avec un lien (token) et choisit email + mot de passe.
+// Le compte est créé NON CONFIRMÉ ; un e-mail de confirmation est envoyé. Pas de session tant que non confirmé.
 app.post("/api/account/claim", loginLimiter, async (req, res) => {
   const { token, email, password } = req.body || {};
   const inv = checkInviteToken(token);
   if (!inv) return res.status(400).json({ error: "Lien d'invitation invalide ou expiré." });
   try {
-    const u = await createUser(email, password, inv.role || "consultation");
-    const t = crypto.randomUUID(); sessions.set(t, { role: u.role, email: u.email, lastSeen: Date.now() });
-    res.json({ token: t, me: u.email, role: u.role });
+    const u = await createUser(email, password, inv.role || "consultation", false); // non confirmé
+    const link = `${baseUrl(req)}/api/account/confirm?token=${encodeURIComponent(makeConfirmToken(u.email, Date.now() + CONFIRM_TTL_MS))}`;
+    let emailed = false;
+    if (msConfigured()) {
+      try { await sendMail({ to: u.email, subject: "Confirmez votre accès à cp|WIRE", html: confirmEmailHtml(u.email, link) }); emailed = true; }
+      catch (e) { console.error("[claim] envoi e-mail de confirmation échoué:", e.message); }
+    }
+    if (emailed) {
+      return res.json({ pending: true, email: u.email, message: `Compte créé. Un e-mail de confirmation a été envoyé à ${u.email}. Cliquez le lien pour activer votre accès, puis connectez-vous.` });
+    }
+    console.warn(`[claim] e-mail non configuré — lien de confirmation pour ${u.email} : ${link}`);
+    return res.json({ pending: true, email: u.email, message: "Compte créé, en attente de confirmation. L'envoi d'e-mail n'est pas configuré : un administrateur doit valider votre accès." });
   } catch (e) { res.status(400).json({ error: String(e.message || e) }); }
+});
+
+// Lien cliqué dans l'e-mail : confirme l'adresse et affiche une page de retour.
+app.get("/api/account/confirm", async (req, res) => {
+  res.set("Content-Type", "text/html; charset=utf-8");
+  const info = checkConfirmToken(req.query.token);
+  if (!info) return res.status(400).send(confirmPageHtml(false));
+  try { await setUserConfirmed(info.email); return res.send(confirmPageHtml(true, info.email)); }
+  catch (e) { console.error("[confirm]", e.message); return res.status(502).send(confirmPageHtml(false)); }
 });
 
 // Battement de cœur (présence). guard met déjà à jour lastSeen pour la session.
@@ -464,6 +540,13 @@ app.post("/api/admin/users/remove", guard, adminGuard, async (req, res) => {
   try { await removeUser(email); } catch (e) { return res.status(502).json({ error: String(e.message || e) }); }
   for (const [t, s] of sessions) if (s.email === email) sessions.delete(t);
   res.json({ ok: true });
+});
+
+// Validation manuelle d'un compte en attente (si l'e-mail n'est pas configuré, ou pour débloquer).
+app.post("/api/admin/users/confirm", guard, adminGuard, async (req, res) => {
+  const email = String(req.body?.email || "").toLowerCase();
+  try { const ok = await setUserConfirmed(email); res.json({ ok }); }
+  catch (e) { res.status(502).json({ error: String(e.message || e) }); }
 });
 
 app.get("/api/health", (_req, res) =>

@@ -91,9 +91,10 @@ export async function claimAccount(token, email, password) {
   const res = await fetch(`${BASE}/api/account/claim`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ token, email, password }) });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(data.error || "Activation impossible");
-  setToken(data.token);
-  return data;
+  if (data.token) setToken(data.token); // compatibilité : aujourd'hui le compte est « en attente » -> pas de token
+  return data; // { pending, email, message } en mode confirmation par e-mail
 }
+export const adminConfirmUser = (email) => post(`/api/admin/users/confirm`, { email });
 export const adminInvite = (opts = {}) => post(`/api/admin/invite`, opts);
 
 // Explorateur SharePoint (lecture en direct + aperçu Office en ligne)

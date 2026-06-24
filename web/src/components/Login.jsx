@@ -6,6 +6,7 @@ export default function Login({ onSuccess, invite }) {
   const [password, setPassword] = useState("");
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
 
   const submit = async (e) => {
     e.preventDefault();
@@ -26,12 +27,32 @@ export default function Login({ onSuccess, invite }) {
   const activate = async (e) => {
     e.preventDefault();
     setBusy(true); setErr("");
-    try { const d = await claimAccount(invite, email.trim(), password); onSuccess(d); }
+    try {
+      const d = await claimAccount(invite, email.trim(), password);
+      if (d && d.pending) { setNotice(d.message || "Compte créé. Confirmez votre e-mail pour activer l'accès."); setBusy(false); }
+      else onSuccess(d);
+    }
     catch (e2) { setErr(e2.message); setBusy(false); }
   };
 
   const isAccountInvite = invite && invite.startsWith("i.");
   const isGuestInvite = invite && invite.startsWith("g.");
+
+  // Compte créé : on affiche le message « confirmez votre e-mail » (pas de connexion tant que non confirmé).
+  if (isAccountInvite && notice) {
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-logo"><img src="/cpwire-logo.png" alt="CPwire" /></div>
+          <div className="login-tag">Cockpit de pilotage · chef de projet</div>
+          <div className="invite-note" style={{ textAlign: "center" }}>
+            <span className="invite-badge">Vérifiez votre e-mail</span>
+            {notice}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   // --- Activation d'un compte (lien d'invitation "consultation") ---
   if (isAccountInvite) {

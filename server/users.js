@@ -37,8 +37,13 @@ async function pg() {
       salt TEXT NOT NULL,
       hash TEXT NOT NULL,
       role TEXT NOT NULL DEFAULT 'consultation',
+      confirmed BOOLEAN NOT NULL DEFAULT false,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-    )`);
+    )`).then(() =>
+      // Migration des bases existantes : on ajoute la colonne en confirmant les comptes DÉJÀ créés
+      // (DEFAULT true ici) pour ne verrouiller personne ; les nouveaux comptes passeront explicitement à false.
+      pgPool.query(`ALTER TABLE cpwire_users ADD COLUMN IF NOT EXISTS confirmed BOOLEAN NOT NULL DEFAULT true`)
+    );
   }
   await pgReady;
   return pgPool;
@@ -59,10 +64,10 @@ function fwrite(users) {
 export async function listUsers() {
   const pool = await pg();
   if (pool) {
-    const r = await pool.query("SELECT email, role, created_at FROM cpwire_users ORDER BY created_at");
-    return r.rows.map((x) => ({ email: x.email, role: x.role, createdAt: x.created_at }));
+    const r = await pool.query("SELECT email, role, confirmed, created_at FROM cpwire_users ORDER BY created_at");
+    return r.rows.map((x) => ({ email: x.email, role: x.role, confirmed: x.confirmed !== false, createdAt: x.created_at }));
   }
-  return fread().map((u) => ({ email: u.email, role: u.role, createdAt: u.createdAt }));
+  return fread().map((u) => ({ email: u.email, role: u.role, confirmed: u.confirmed !== false, createdAt: u.createdAt }));
 }
 
 export async function findUser(email) {
@@ -72,31 +77,42 @@ export async function findUser(email) {
   return fread().find((u) => u.email === e) || null;
 }
 
-export async function createUser(email, password, role = "consultation") {
+export async function createUser(email, password, role = "consultation", confirmed = false) {
   const e = validate(email, password);
   const salt = crypto.randomBytes(16).toString("hex");
   const hash = hashPw(password, salt);
   const pool = await pg();
   if (pool) {
-    try { await pool.query("INSERT INTO cpwire_users(email, salt, hash, role) VALUES($1,$2,$3,$4)", [e, salt, hash, role]); }
+    try { await pool.query("INSERT INTO cpwire_users(email, salt, hash, role, confirmed) VALUES($1,$2,$3,$4,$5)", [e, salt, hash, role, confirmed]); }
     catch (err) {
       if (/duplicate|unique/i.test(String(err.message))) throw new Error("Un compte existe déjà avec cet email. Connectez-vous.");
       throw err;
     }
-    return { email: e, role };
+    return { email: e, role, confirmed };
   }
   const users = fread();
   if (users.some((u) => u.email === e)) throw new Error("Un compte existe déjà avec cet email. Connectez-vous.");
-  users.push({ email: e, salt, hash, role, createdAt: new Date().toISOString() });
+  users.push({ email: e, salt, hash, role, confirmed, createdAt: new Date().toISOString() });
   fwrite(users);
-  return { email: e, role };
+  return { email: e, role, confirmed };
+}
+
+// Marque un compte comme confirmé (clic sur le lien e-mail, ou validation par un administrateur).
+export async function setUserConfirmed(email) {
+  const e = norm(email);
+  const pool = await pg();
+  if (pool) { const r = await pool.query("UPDATE cpwire_users SET confirmed = true WHERE email = $1", [e]); return r.rowCount > 0; }
+  const users = fread();
+  const u = users.find((x) => x.email === e);
+  if (!u) return false;
+  u.confirmed = true; fwrite(users); return true;
 }
 
 export async function verifyUser(email, password) {
   const u = await findUser(email);
   if (!u) return null;
   if (!tsafe(hashPw(password, u.salt), u.hash)) return null;
-  return { email: u.email, role: u.role };
+  return { email: u.email, role: u.role, confirmed: u.confirmed !== false }; // absence -> confirmé (hérité)
 }
 
 export async function removeUser(email) {

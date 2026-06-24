@@ -71,6 +71,7 @@ const SEED = {
         "Base documentaire SharePoint TMA : rubriques Facturations, Documents & Supports Métiers, Projets, Archives, Astuces, Clôtures & RAZ. Deux sujets connexes au projet : une analyse « colis privé » (A. Quillère, nov. 2025) qui recoupe les longueurs d'adresse (colis privé limité à 32 car., DPD à 30) ; une procédure Clôture/RAZ documentée (oct. 2025) qui recoupe la priorité 2 « arrêt de l'ajout en colonne + RAZ scriptée ».",
         "Offre enrichie : 11 livres répartis sur l'année (1 nov., 2 déc., 1 janv., 1 févr., 2 mars, 1 avr., 1 mai, 2 juin). Lancement 2026/2027, réservé France métropolitaine, Belgique, Luxembourg, Suisse ; abonnements individuels ET regroupés ; papier ET web. Les évolutions DB2 lèvent trois limites historiques : nombre de clubs (8 → n), livres par club (8 → n), livres par tirage (1 → n), n compris entre 1 et 99.",
         "Chiffrage atelier (indicatif) : webservice à créer 5 J/H (+ ~1,5 J/H d'impact programmes) ; index ABO_ABO + ABO_ADR ~12 J/H ; extensions de longueurs (prospects, établissements, animatrices, auteurs, enveloppes) ~11 J/H ; fusion MX_II ~3,5 J/H + 2 J/H sur 8 programmes ; suppression edlmy ~1 J/H + PRI_CDE16 ~1 J/H ; refonte stockage stats à la clôture ~5 J/H (priorité 2).",
+        "Projet (suivi global) : Campagne des abonnements — n° PJ2509-0666, signé, 63 J/H budgétés, 43 650 € (correspond au projet MINIKILI+ / PEM).",
       ],
     },
     "DS Smith": {
@@ -87,6 +88,10 @@ const SEED = {
       glossaire: [],
       notes: [
         "Dossier SharePoint très actif (≈ 930 fichiers) : rubriques LES PROJETS, Contexte, Propositions commerciales, CR réunions internes, et une « TaskForce RPGFree ». Activité courante (juin 2026) sur la refonte RPG free et les tests fonctionnels (ISO_PROG, GESCOM CONDEC, ECRECO).",
+        "Refonte applicative — fichier « Chaînes par domaines » (mis à jour le 18/06/2026, sur la base des informations du 17/11/2025) : 4342 lignes de programmes réparties sur 20 domaines (bibliothèque applicative principale GESCOM ; menus CLP OPTIONnnn en LIBPROG). 916 tickets Jira distincts y sont référencés.",
+        "Refonte — statuts des lignes : 824 en mise en production, 591 terminées, 380 en recette client, 122 en attente client, 40 en recette Armonie, 44 annulées, 2 en retour test, et 2338 sans ticket associé (#N/A).",
+        "Refonte — volumétrie par domaine (nb de lignes) : 99 Non catégorisé 1821 ; 08 Administration commerciale 433 ; 21 Traitements fin de mois 330 ; 20 Traitements début et fin de journée 268 ; 10 Commandes Tafanel 233 ; 13 Logistique Tafanel 202 ; 17 Comptabilité clients et caisse 174 ; 19 Comptabilité générale et fournisseurs 155 ; 14 Logistique Socodis 154 ; 07 Articles-produits-tarifs 137 ; 09 Stocks et promotions des ventes 125 ; 04 Création des tarifs 77 ; 01 Mise à jour et affichage client 64 ; 11 Commandes Socodis 51 ; 12 Commandes Disney 51 ; 03 Mise à jour et affichage des articles 21 ; 06 Gestion des becs 20 ; 18 Investissements et prestations 17 ; 05 Gestion des réductions tarifaires 7 ; 02 Gestion des produits 2.",
+        "Projet (suivi global) : Modernisation code et applicatif — n° PJ2412-0601, terminé, 16 J/H budgétés, 10 893 €.",
       ],
     },
     Bellion: {
@@ -95,6 +100,7 @@ const SEED = {
       glossaire: [],
       notes: [
         "Dossier SharePoint volumineux (≈ 950 fichiers) : LES PROJETS, Contexte & Processus, Propositions commerciales, Architecture, Hébergement, Facture Électronique, plus Assistance IBM i (jetons) et Phase #02. Jalons tracés : COPIL #05 (17/11/2025), PV de migration vers le nouvel environnement (05/12/2025).",
+        "Projet (suivi global) : Modernisation SI — n° PJ2503-0631, en cours, 146 J/H budgétés, 96 780 €.",
       ],
     },
     IMA: {
@@ -103,6 +109,7 @@ const SEED = {
       glossaire: [],
       notes: [
         "Base SharePoint : Gouvernance, Documents & Supports Métiers, Facturations, et un chantier dédié « Migration JIRA » (CDC_Migration_Jira_IMA_Armonie, versions V1.1 → V1.2). Pilotage par COPIL ; dernier COPIL Mars 2026 (dernière mise à jour juin 2026, N. Durand).",
+        "Projets (suivi global) : Purge Higgins (n° PJ2411-0595, terminé, 10 J/H, 8 500 €) ; Automatisation purge MCS (TMA, en cours) ; Sésame Espagne (n° PJ2507-0651, proposition envoyée, 16 100 €) ; Décommissionnement UK (n° PJ2507-0650, en cours, 5 J/H, 4 950 €) ; Rétro-documentation REF-BEN (n° PJ2406-0536, proposition envoyée, 12 240 €).",
       ],
     },
     DIAPAR: {
@@ -111,6 +118,7 @@ const SEED = {
       glossaire: [],
       notes: [
         "Base SharePoint : Gouvernance + dossier partagé. Pilotage par COPIL mensuels (CR du 09/01/2026, présentations février et mars 2026).",
+        "Projets (suivi global, en TMA) : création d'une nouvelle partition DEV ; remplacement du formulaire papier resaisi par une page sur l'intranet ; projet d'optimisation des tournées (le « 986 »).",
       ],
     },
     Balas: {
@@ -127,6 +135,19 @@ const SEED = {
       glossaire: [{ terme: "GLOG", sens: "Applicatif logistique réécrit / réimplémenté sur AS/400 chez Segurel." }],
       notes: [
         "Base SharePoint : LES PROJETS, Contexte & Processus, Propositions commerciales, Facturations, Documentation technique + utilisateurs GLOG. Documents de référence : TEC « Réécriture GLOG » (L. Kieffer, janv. 2026), LDM Segurel, commande de reprise GLOG, planning projet. Les conventions de développement EDL/MINIKILI+ s'inspirent de l'applicatif Segurel.",
+        "Projet (suivi global) : Implémentation des fonctionnalités GLog sur AS/400 — n° PJ2507-0652, en cours, 9 J/H, 8 400 €.",
+      ],
+    },
+    DPIECE: {
+      contexte: "DPIECE — liste de suivi de l'avancement de 61 programmes d'intégration (interfaces de type ANAEL). Bibliothèques : source AXASP030 / objets AXSPE030 (44 programmes) et VINCIV8 (17 programmes). On y suit l'utilisation depuis la MEP V8R1 et la validation côté Vinci.",
+      attentes: ["À préciser : périmètre de recette et critères de validation Vinci."],
+      glossaire: [
+        { terme: "DPIECE", sens: "Liste de suivi des programmes d'intégration (interfaces ANAEL / Vinci) et de leur avancement (utilisation, état dev, validation)." },
+        { terme: "AXASP030 / AXSPE030", sens: "Bibliothèques source / objets des programmes d'intégration (44 des 61 programmes)." },
+        { terme: "VINCIV8", sens: "Bibliothèque regroupant 17 des programmes du périmètre." },
+      ],
+      notes: [
+        "Avancement (61 programmes). Utilisés depuis la MEP V8R1 : 36 « Oui », 22 « Non », 3 « Non (à tester en recette) ». État de développement : 26 en « Recette », 1 « À faire », 34 sans état renseigné. Colonnes de suivi du fichier : « Test Armonie » et « Validé (Vinci) ».",
       ],
     },
   },

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { adminInvite, fetchAdminUsers, removeAdminUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply } from "../api.js";
+import { adminInvite, fetchAdminUsers, removeAdminUser, adminConfirmUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply } from "../api.js";
 
 const sinceLabel = (ts) => {
   if (!ts) return "jamais connecté";
@@ -66,6 +66,11 @@ export default function Admin() {
   const revoke = async (email) => {
     if (!window.confirm(`Révoquer l'accès de ${email} ? La personne sera déconnectée immédiatement.`)) return;
     try { await removeAdminUser(email); load(); } catch (e) { setErr(e.message || "Erreur"); }
+  };
+
+  const confirmUser = async (email) => {
+    if (!window.confirm(`Valider manuellement le compte ${email} ? La personne pourra se connecter sans confirmer son e-mail.`)) return;
+    try { await adminConfirmUser(email); load(); } catch (e) { setErr(e.message || "Erreur"); }
   };
 
   const onPickImport = async (e) => {
@@ -148,11 +153,14 @@ export default function Admin() {
               {users.length === 0 && <tr><td colSpan={5} className="adm-muted">Aucun compte invité pour l'instant.</td></tr>}
               {users.map((u) => (
                 <tr key={u.email}>
-                  <td><b>{u.email}</b></td>
+                  <td><b>{u.email}</b>{u.confirmed === false && <span className="adm-pending" style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#C2691A", background: "rgba(194,105,26,.12)", border: "1px solid #C2691A", borderRadius: 999, padding: "1px 8px" }}>En attente d'e-mail</span>}</td>
                   <td>{u.role === "admin" ? <span className="adm-role-admin">Administrateur</span> : "Consultation"}</td>
                   <td>{u.online ? <span className="adm-on">● En ligne</span> : <span className="adm-off">○ Hors ligne</span>}</td>
                   <td>{u.online ? "maintenant" : sinceLabel(u.lastSeen)}</td>
-                  <td className="r"><button className="adm-revoke" onClick={() => revoke(u.email)}>Révoquer</button></td>
+                  <td className="r">
+                    {u.confirmed === false && <button className="adm-revoke" style={{ marginRight: 8, color: "#2F7D4F", borderColor: "#2F7D4F" }} onClick={() => confirmUser(u.email)}>Confirmer</button>}
+                    <button className="adm-revoke" onClick={() => revoke(u.email)}>Révoquer</button>
+                  </td>
                 </tr>
               ))}
             </tbody>
