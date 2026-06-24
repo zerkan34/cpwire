@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { progResume } from "../ticket.js";
 import { ProjetModal } from "./Projets.jsx";
-import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel } from "../api.js";
+import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel, importAnalyze, importApply } from "../api.js";
 import { buildRecapDoc } from "../recapDoc.js";
 import EdlMax from "./EdlMax.jsx";
 import { RECETTE, RETOUR } from "../groups.js";
@@ -26,6 +26,26 @@ const CAT_PILL = {
 export default function Client360({ c, issues = [], facts, canCR = true, onClose, onTicket, onDev }) {
   const [selP, setSelP] = useState(null);
   const [busy, setBusy] = useState("");
+  const fileRef = useRef(null);
+  // Import d'un document pour alimenter les données de l'app (rien n'est appliqué sans confirmation).
+  const onImportFile = async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (ev.target) ev.target.value = "";
+    if (!file) return;
+    setBusy("import");
+    try {
+      const r = await importAnalyze(file);
+      if (!r || r.ok === false || r.error) { alert(r && r.error ? r.error : "Type de fichier non géré pour l'import."); setBusy(""); return; }
+      const resume = (r.proposal && (r.proposal.resume || r.proposal.cible)) || r.apercu || "Document analysé.";
+      const ok = window.confirm(`Import détecté — ${file.name}\n\n${resume}\n\nMettre à jour les données de l'application ?`);
+      if (!ok) { setBusy(""); return; }
+      await importApply({ filename: r.filename || file.name, proposal: r.proposal, apercu: r.apercu, dataset: r.dataset, diff: r.diff });
+      alert("Données mises à jour ✓");
+    } catch (e) {
+      alert("Échec de l'import : " + (e && e.message ? e.message : "erreur"));
+    }
+    setBusy("");
+  };
   const [mails, setMails] = useState({ loading: true });
   const [hyg, setHyg] = useState(null);
   const [qualOpen, setQualOpen] = useState(false);
@@ -120,6 +140,8 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
           <div className="c360-hero-actions">
             {canCR && <button className="pf-tb-btn" onClick={() => doc("daily")} disabled={busy === "daily"}>{busy === "daily" ? "…" : "📄 CR du jour"}</button>}
             {canCR && <button className="pf-tb-btn" onClick={() => doc("written")} disabled={busy === "written"}>{busy === "written" ? "…" : "📝 CR écrit"}</button>}
+            <button className="pf-tb-btn" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy === "import"} title="Importer un fichier (CSV, PowerPoint, OneNote…) pour mettre à jour les données">{busy === "import" ? "…" : "📥 Importer"}</button>
+            <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.json,.md,.log,.pptx,.one,.iqy,.pdf,.zip,.xlsx,.docx" style={{ display: "none" }} onChange={onImportFile} />
             <button className="c360-x" onClick={onClose} title="Fermer (Échap)">×</button>
           </div>
         </div>

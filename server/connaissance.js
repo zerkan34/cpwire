@@ -9,10 +9,16 @@
 
 import fs from "fs";
 import path from "path";
+import { fileURLToPath } from "url";
 import { dataDir } from "./paths.js";
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIR = dataDir();
 const FILE = path.join(DIR, "connaissance.json");
+// Copie committée dans le dépôt (server/data/connaissance.json) : source DURABLE.
+// Sur Render gratuit, le dossier d'exécution est éphémère ; on réamorce depuis cette copie
+// à chaque démarrage si besoin. Pour rendre des ajouts permanents : Exporter → committer ce fichier.
+const REPO_FILE = path.join(__dirname, "data", "connaissance.json");
 
 // ---- SOCLE VERSIONNÉ (toujours présent) -----------------------------------
 const SEED = {
@@ -156,7 +162,15 @@ const SEED = {
 function ensure() {
   try {
     if (!fs.existsSync(DIR)) fs.mkdirSync(DIR, { recursive: true });
-    if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify(SEED, null, 2));
+    if (!fs.existsSync(FILE)) {
+      // Réamorçage : on privilégie la copie committée (durable) si elle existe, sinon le socle.
+      if (REPO_FILE !== FILE && fs.existsSync(REPO_FILE)) {
+        try { fs.copyFileSync(REPO_FILE, FILE); }
+        catch { fs.writeFileSync(FILE, JSON.stringify(SEED, null, 2)); }
+      } else {
+        fs.writeFileSync(FILE, JSON.stringify(SEED, null, 2));
+      }
+    }
   } catch (e) { console.error("[connaissance] init impossible:", e.message); }
 }
 
@@ -175,7 +189,10 @@ function mergeSeed(saved) {
 export function readConnaissance() {
   ensure();
   try { return mergeSeed(JSON.parse(fs.readFileSync(FILE, "utf-8"))); }
-  catch { return JSON.parse(JSON.stringify(SEED)); }
+  catch {
+    try { if (REPO_FILE !== FILE) return mergeSeed(JSON.parse(fs.readFileSync(REPO_FILE, "utf-8"))); } catch {}
+    return JSON.parse(JSON.stringify(SEED));
+  }
 }
 
 export function saveConnaissance(data) {

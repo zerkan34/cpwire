@@ -2543,7 +2543,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ---- « Le point du soir » (Fiche 360) ---- */
 .pds { margin-bottom: 20px; }
-.pds-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
+.pds-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: -16px -18px 14px; padding: 12px 18px; background: var(--purple-soft); border-bottom: 1px solid var(--purple-line); border-radius: 16px 16px 0 0; }
 .pds-copy { font-size: 12px; font-weight: 600; border: 1px solid var(--purple-line); background: var(--purple-soft); color: var(--purple-strong); border-radius: 9px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
 .pds-copy:hover { filter: brightness(.97); }
 .pds-tbl { width: 100%; border-collapse: collapse; }
