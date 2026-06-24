@@ -1070,7 +1070,7 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 
 /* Badge d'engagement client : TMA / Projet / mixte */
 .eng-badge { display: inline-block; font-size: 10.5px; font-weight: 800; letter-spacing: .03em; padding: 2px 9px; border-radius: 999px; vertical-align: middle; }
-.eng-badge.is-tma { background: var(--purple-soft); color: var(--purple-strong); border: 1px solid var(--purple-line); }
+.eng-badge.is-tma { background: var(--green-bg); color: var(--green); border: 1px solid #bfe3d0; }
 .eng-badge.is-projet { background: var(--orange-soft); color: var(--orange-deep); border: 1px solid #f0d2b0; }
 .eng-badge.is-mix { background: #eef3ff; color: #3a5bd0; border: 1px solid #d4e0ff; }
 .pcard .eng-badge { margin-top: 3px; }
@@ -1397,7 +1397,7 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .pf-etat.pf-av { background: var(--line-soft); color: var(--muted); }
 .pf-etat.pf-te { background: var(--green-bg); color: var(--green); }
 .pf-type { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 6px; background: var(--blue-bg); color: var(--blue); }
-.pf-type.tma { background: var(--orange-soft); color: var(--orange-deep); }
+.pf-type.tma { background: var(--green-bg); color: var(--green); }
 .pf-meteo { width: 12px; height: 12px; border-radius: 50%; margin-left: auto; box-shadow: 0 0 0 3px rgba(0,0,0,.04); }
 .pf-card-body { display: flex; gap: 12px; align-items: center; }
 .pf-ring { width: 44px; height: 44px; flex: none; }
@@ -1544,7 +1544,7 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .pf-etat { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em; padding: 3px 9px; border-radius: 99px; background: var(--row-alt); color: var(--ink); }
 .pf-etat.pf-en { background: var(--purple-soft); color: var(--purple-strong); } .pf-etat.pf-si { background: #fbf2dc; color: #8a6a1e; } .pf-etat.pf-pr { background: var(--orange-soft); color: var(--orange-deep); } .pf-etat.pf-av { background: #eef0f4; color: #6b6880; } .pf-etat.pf-te { background: #e3f6ea; color: #1f7a44; }
 .pf-type { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 99px; background: #eef0ff; color: #3a3d9e; }
-.pf-type.tma { background: #fff0e6; color: #9a5a12; }
+.pf-type.tma { background: #e2f3ea; color: #1f8a5f; }
 .pf-meteo { width: 9px; height: 9px; border-radius: 50%; flex: none; }
 .pf-cdp { margin-left: auto; width: 26px; height: 26px; border-radius: 50%; background: var(--indigo); color: #fff; font-size: 10px; font-weight: 800; display: inline-flex; align-items: center; justify-content: center; }
 .pf-cdp-none { background: var(--row-alt); color: var(--muted); }
@@ -2363,6 +2363,13 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* ===== v124 : "Bonjour Nikko" inline dans la barre au-dessus des onglets ===== */
 .greet-inline { margin-right: auto; align-self: center; font-family: "Poppins", sans-serif; font-weight: 700; font-size: 15px; color: var(--indigo); display: inline-flex; align-items: center; gap: 8px; line-height: 1; }
 .greet-inline::before { content: "👋"; font-size: 16px; }
+.greet-inline:has(+ .greet-memo) { margin-right: 12px; }
+.greet-memo { margin-right: auto; align-self: center; display: inline-flex; align-items: center; gap: 6px; max-width: 560px;
+  font-size: 12.5px; font-weight: 600; line-height: 1.35; color: #7a5a12;
+  background: linear-gradient(180deg, #fff6e6, #fdeccb); border: 1px solid #ecc98a; border-radius: 10px; padding: 7px 12px;
+  box-shadow: 0 1px 2px rgba(122,90,18,.08); }
+.greet-memo b { font-weight: 800; color: #5e4309; }
+@media (max-width: 720px) { .greet-memo { flex: 1 1 100%; max-width: none; margin-right: 0; } }
 
 /* ===== v131 : options d'invitation (durée heures/jours + indéfini + administrateur) ===== */
 .adm-inv-opts { display: flex; flex-direction: column; gap: 12px; margin: 10px 0 4px; }
@@ -2964,7 +2971,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .avc-split { display: flex; gap: 14px; flex-wrap: wrap; }
 .avc-fam { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--body); font-weight: 600; }
 .avc-fam i { width: 7px; height: 7px; border-radius: 50%; }
-.avc-fam i.tma { background: var(--purple-strong); }
+.avc-fam i.tma { background: var(--green); }
 .avc-fam i.prj { background: var(--orange); }
 .avc-fam i.mix { background: #3a5bd0; }
 

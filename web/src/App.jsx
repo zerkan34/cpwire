@@ -605,6 +605,11 @@ export default function App() {
       {role === "owner" ? (
         <div className="owner-bar">
           {greet && <span className="greet-inline">{greet}</span>}
+          {(() => { const d = new Date(); return d.getHours() > 16 || (d.getHours() === 16 && d.getMinutes() >= 45); })() && (
+            <span className="greet-memo" role="note" title="Pense-bête de fin de journée">
+              📌 Pense-bête : importer la <b>situation actuelle du SharePoint</b> + les <b>fichiers Excel des projets en cours</b>.
+            </span>
+          )}
           <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
           <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
@@ -648,7 +653,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v228" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v230" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />

@@ -51,6 +51,7 @@ function engTag(eng) {
   return "";
 }
 
+// Chemin « ZIP du récap » : recalcule tout depuis les tickets et exclut les dormants (>180 j).
 export function buildBlockersDoc(issues = [], { meName = "", sinceMap = {} } = {}) {
   const all = computeBlockers(issues).map((p) => {
     const _since = preciseSince(p, sinceMap);
@@ -58,6 +59,24 @@ export function buildBlockersDoc(issues = [], { meName = "", sinceMap = {} } = {
   });
   const dormant = all.filter((p) => p._moveDays > OBSOLETE_DAYS).length;
   const pts = all.filter((p) => p._moveDays <= OBSOLETE_DAYS); // dormants exclus
+  return renderBlockersHtml(pts, { meName, dormant });
+}
+
+// Chemin « export du voyant » : rend EXACTEMENT la liste déjà filtrée à l'écran
+// (client choisi, dormants masqués ou non, recherche, tri). Aucun recalcul, aucune
+// ré-exclusion — fidélité totale aux filtres. `caption` décrit les filtres appliqués.
+export function buildBlockersDocFromPoints(points = [], { meName = "", caption = "", dormant = 0 } = {}) {
+  const pts = points.map((p) => ({
+    ...p,
+    _since: (p._since != null ? p._since : p.since) || null,
+    _days: (p._days != null ? p._days : joursOuvres(p._since != null ? p._since : p.since)),
+    _moveDays: (p._moveDays != null ? p._moveDays : daysCal(p.maj)),
+  }));
+  return renderBlockersHtml(pts, { meName, dormant, caption });
+}
+
+// Rendu charté commun (depuis une liste de points déjà préparés).
+function renderBlockersHtml(pts, { meName = "", dormant = 0, caption = "" } = {}) {
   const crit = pts.filter((p) => p.severity === "critique").length;
   const byClient = {};
   pts.forEach((p) => { const c = p.project || "—"; (byClient[c] ||= []).push(p); });
@@ -102,6 +121,8 @@ export function buildBlockersDoc(issues = [], { meName = "", sinceMap = {} } = {
     .synth .s b{display:block;font-family:Poppins,Inter,sans-serif;font-size:23px;line-height:1.05;margin-top:2px}
     .synth .s.tot b{color:${NAVY}} .synth .s.cri b{color:${RED}} .synth .s.maj b{color:${AMBER}} .synth .s.cli b{color:${INDIGO}}
     .note{padding:10px 28px;font-size:10.5px;color:${MUTED};background:#fff;border-bottom:1px solid ${LINE}}
+    .filt{padding:9px 28px;font-size:10.5px;color:${INDIGO};background:${SOFT};border-bottom:1px solid ${LINE};font-weight:600}
+    .filt b{color:${NAVY}}
     .wrap{padding:20px 28px 8px}
     section.cli{margin:0 0 22px;break-inside:avoid;page-break-inside:avoid}
     .cli-h{display:flex;align-items:center;justify-content:space-between;background:linear-gradient(135deg,${NAVY},${INDIGO});color:#fff;border-radius:9px;padding:9px 14px;box-shadow:inset 0 -3px 0 rgba(168,136,78,.7)}
@@ -116,8 +137,8 @@ export function buildBlockersDoc(issues = [], { meName = "", sinceMap = {} } = {
     td.since b{color:${INK};font-size:11.5px} td.since .d{display:block;color:${MUTED};font-size:9.5px;margin-top:1px}
     .badge{display:inline-block;color:#fff;font-size:8px;font-weight:800;letter-spacing:.5px;padding:3px 7px;border-radius:5px}
     .eng{display:inline-block;margin-top:5px;font-size:7.5px;font-weight:800;letter-spacing:.5px;padding:2px 6px;border-radius:5px}
-    .eng-p{background:rgba(168,136,78,.16);color:#8a6d2f;border:1px solid ${GOLD}}
-    .eng-t{background:rgba(75,63,143,.13);color:${INDIGO};border:1px solid ${INDIGO}}
+    .eng-p{background:#fff2e7;color:#b4560b;border:1px solid #f0d2b0}
+    .eng-t{background:#e2f3ea;color:#1f8a5f;border:1px solid #bfe3d0}
     .res .t{font-weight:600;line-height:1.35} .res .why{font-size:10px;font-weight:600;margin-top:3px}
     .empty{color:${MUTED};padding:26px;text-align:center;font-size:13px}
     .ft{padding:10px 28px;color:${MUTED};font-size:9.5px;border-top:1px solid ${LINE}}
@@ -129,6 +150,7 @@ export function buildBlockersDoc(issues = [], { meName = "", sinceMap = {} } = {
     <div class="s maj"><b>${pts.length - crit}</b>à surveiller</div>
     <div class="s cli"><b>${clients.length}</b>clients</div>
   </div>
+  ${caption ? `<div class="filt">Filtres appliqués : ${esc(caption)}</div>` : ""}
   ${dormant ? `<div class="note">${dormant} ticket${dormant > 1 ? "s" : ""} dormant${dormant > 1 ? "s" : ""} (sans mouvement depuis plus de ${OBSOLETE_DAYS} jours, probablement obsolète${dormant > 1 ? "s" : ""}) exclu${dormant > 1 ? "s" : ""} de ce relevé.</div>` : ""}
   <div class="wrap">${body}</div>
   <div class="ft">cp|WIRE — données issues de Jira (statuts, drapeaux, historique). « Depuis » = entrée réelle dans l'état bloquant. PROJET / TMA = type d'engagement. Document de travail interne.</div>

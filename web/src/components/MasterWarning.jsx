@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
 import { blockerSince } from "../api.js";
+import { buildBlockersDocFromPoints } from "../blockersDoc.js";
+import { printHtml } from "../utils.js";
 import BlockerAnalysis from "./BlockerAnalysis.jsx";
 
 /* cp|WIRE — MASTER WARNING : voyant cockpit des points bloquants.
@@ -13,6 +15,13 @@ import BlockerAnalysis from "./BlockerAnalysis.jsx";
 const RED = "#C0392B", REDV = "#E5392B", AMBER = "#C2691A", GOLD = "#A8884E",
       NAVY = "#2E2A5D", INDIGO = "#4B3F8F", INK = "#2a2937", MUTED = "#6b6488",
       SOFT = "#F5F2FC", LINE = "#e7e5f1";
+
+// Code couleur engagement, unifié avec theme.css (.eng-badge) : TMA = vert, Projet = orange clair.
+const ENG = {
+  TMA:    { bg: "#e2f3ea", fg: "#1f8a5f", ln: "#bfe3d0" },
+  Projet: { bg: "#fff2e7", fg: "#e0600f", ln: "#f0d2b0" },
+};
+const engStyle = (e) => ENG[e] || null;
 
 const SORTS = [
   { v: "move", l: "Mouvement récent" },
@@ -150,6 +159,23 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
     return arr;
   }, [enriched, q, client, dev, sort, showDormant]);
 
+  // Export PDF charté du voyant — rend EXACTEMENT la vue filtrée (client, dév, recherche, dormants, tri).
+  const exportPdf = () => {
+    const needle = q.trim().toLowerCase();
+    const labelSort = (SORTS.find((s) => s.v === sort) || {}).l || "";
+    const parts = [client ? `client ${client}` : "tous clients"];
+    if (dev) parts.push(`développeur ${dev}`);
+    if (needle) parts.push(`recherche « ${q.trim()} »`);
+    parts.push(showDormant ? "dormants inclus" : "dormants masqués");
+    parts.push(`tri : ${labelSort}`);
+    const dormantExcl = showDormant ? 0 : enriched.filter((p) =>
+      p._obsolete && (!client || p.project === client) && (!dev || p.assignee === dev) &&
+      (!needle || `${p.id} ${p.title} ${p.assignee} ${p.project} ${p.reason}`.toLowerCase().includes(needle))
+    ).length;
+    const doc = buildBlockersDocFromPoints(view, { caption: parts.join(" · "), dormant: dormantExcl });
+    printHtml(doc.html);
+  };
+
   // Stats du voyant — recalculées sur la vue FILTRÉE (changent avec recherche / client / dev / tri).
   const stats = useMemo(() => {
     const crit = view.filter((p) => p.severity === "critique").length;
@@ -186,6 +212,8 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
         .mwh-btn:focus-visible{ outline:3px solid ${GOLD}; outline-offset:3px }
         .mwh-row:focus-visible,.mwh-x:focus-visible{ outline:2px solid ${GOLD}; outline-offset:2px }
         .mwh-row:hover{ background:${SOFT} !important }
+        .mwh-filt input:focus,.mwh-filt select:focus{ border-color:${INDIGO} !important; box-shadow:0 0 0 3px rgba(75,63,143,.15) }
+        .mwh-filt select:hover{ border-color:${INDIGO} !important }
         .mwh-btn:hover{ transform:translateY(-1px) scale(1.05) }
         @media (prefers-reduced-motion:reduce){ .mwh-sweep,.mwh-blip-d{ animation:none !important } }
       `}</style>
@@ -281,7 +309,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
             </div>
 
             {/* FILTRES — toujours visibles */}
-            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
+            <div className="mwh-filt" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
               padding: "10px 14px", borderBottom: `1px solid ${LINE}`, background: "#fff", flex: "none" }}>
               <span style={{ position: "relative", flex: "1 1 200px", minWidth: 150 }}>
                 <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, opacity: .5 }}>🔎</span>
@@ -311,6 +339,13 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                   Réinitialiser
                 </button>
               )}
+              <button onClick={exportPdf} disabled={!view.length} title="Exporter le relevé filtré en PDF (charte Armonie)"
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, border: "none", borderRadius: 10,
+                  background: view.length ? `linear-gradient(135deg, ${NAVY}, ${INDIGO})` : "#cdc9dd", color: "#fff",
+                  fontSize: 12.5, fontWeight: 700, padding: "8px 14px", cursor: view.length ? "pointer" : "default",
+                  boxShadow: view.length ? `inset 0 -2px 0 rgba(168,136,78,.7)` : "none" }}>
+                ⤓ Exporter PDF
+              </button>
             </div>
 
             <div onScroll={onScroll} style={{ overflowY: "auto", padding: 12, flex: 1 }}>
@@ -333,6 +368,10 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           borderRadius: 10, border: `1px solid ${LINE}`, borderLeft: `4px solid ${col}`,
                           padding: "11px 13px", display: "flex", gap: 12, alignItems: "flex-start", color: INK,
                           transition: "background .1s" }}>
+                        {engStyle(p.engagement) && (
+                          <span aria-hidden="true" title={p.engagement === "Projet" ? "Mode Projet" : "Mode TMA"}
+                            style={{ alignSelf: "stretch", flex: "0 0 auto", width: 5, borderRadius: 4, background: engStyle(p.engagement).fg }} />
+                        )}
                         <span style={{ background: col, color: "#fff", fontSize: 9, fontWeight: 800, letterSpacing: 1,
                           padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap", marginTop: 1 }}>{crit ? "CRITIQUE" : "MAJEUR"}</span>
                         <span style={{ flex: 1, minWidth: 0 }}>
@@ -342,10 +381,8 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           </span>
                           <span style={{ display: "block", color: col, fontSize: 12, marginTop: 3, fontWeight: 600 }}>{p.reason}</span>
                           <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
-                            {p.engagement && (
-                              <span style={p.engagement === "Projet"
-                                ? { background: "rgba(168,136,78,.14)", border: `1px solid ${GOLD}`, color: "#8a6d2f", fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }
-                                : { background: "rgba(75,63,143,.12)", border: `1px solid ${INDIGO}`, color: INDIGO, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }}>
+                            {p.engagement && engStyle(p.engagement) && (
+                              <span style={{ background: engStyle(p.engagement).bg, border: `1px solid ${engStyle(p.engagement).ln}`, color: engStyle(p.engagement).fg, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }}>
                                 {p.engagement === "Projet" ? "PROJET" : "TMA"}
                               </span>
                             )}

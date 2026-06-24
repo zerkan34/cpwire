@@ -1,7 +1,7 @@
 // jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
-import { dossierFromKey, engagementFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
+import { dossierFromKey, engagementFromKey, resolveEngagement, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
 import { displayName } from "./personnes.js";
 import { findProgram } from "./programmes.js";
 
@@ -161,7 +161,7 @@ function normalize(it) {
     mine: assigne === ME,
     projet: f.project?.key || "",
     dossier: dossierFromKey(it.key),
-    engagement: engagementFromKey(it.key), // "TMA" (projet T…) ou "Projet" (projet P…)
+    engagement: resolveEngagement(it.key, summary, labels), // marqueur explicite du ticket sinon déduction par préfixe
     resume: summary,
     prog: findProgram(summary), // localisation IBM i du programme (référentiel Arcad), ou repère "à compléter"
     assigne,

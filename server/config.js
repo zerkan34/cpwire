@@ -44,6 +44,28 @@ export function engagementFromKey(key = "") {
   return "—";
 }
 
+// Marqueurs EXPLICITES d'un mode écrit dans le ticket (titre, étiquettes, description).
+// Déterministe : on n'agit QUE sur une mention nette et directive — jamais sur une allusion
+// vague — pour rester fidèle au ticket sans rien inférer.
+const RX_TMA = /(?:[àa]\s+(?:traiter|basculer|passer|reporter)\s+en\s+tma|\bmode\s+tma\b|\ben\s+tma\b|[\[(]\s*tma\s*[\])]|#tma)/i;
+const RX_PROJET = /(?:[àa]\s+(?:traiter|basculer|passer)\s+en\s+projet|\bmode\s+projet\b|[\[(]\s*projet\s*[\])]|#projet)/i;
+
+export function engagementExplicit(text = "", labels = []) {
+  const labs = (labels || []).map((l) => String(l).toLowerCase());
+  if (labs.includes("tma") || labs.includes("run")) return "TMA";
+  if (labs.includes("projet") || labs.includes("build")) return "Projet";
+  const s = String(text || "");
+  if (RX_TMA.test(s)) return "TMA";
+  if (RX_PROJET.test(s)) return "Projet";
+  return null;
+}
+
+// Engagement final : un marqueur explicite écrit DANS le ticket PRIME sur la déduction
+// par préfixe de clé. C'est ce qui permet à TMT-3 (« …à traiter en TMA ») d'être classé TMA.
+export function resolveEngagement(key = "", text = "", labels = []) {
+  return engagementExplicit(text, labels) || engagementFromKey(key);
+}
+
 // --- Normalisation des statuts Jira -------------------------------------
 // Enlève accents + minuscule, pour comparer sans se soucier de la casse.
 function norm(s) {
