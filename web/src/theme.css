@@ -3338,3 +3338,10 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .rana-today li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
 .rana-li-meta { margin-left: auto; font-size: 10.5px; color: var(--muted); white-space: nowrap; }
 .rana-empty { color: var(--muted); font-size: 12px; font-style: italic; padding: 8px 0; }
+
+/* SharePoint — test liste directe */
+.sp-list-test { margin-bottom: 14px; }
+.sp-test-row { display: flex; gap: 8px; align-items: center; }
+.sp-test-res { margin-top: 10px; font-size: 12.5px; }
+.sp-test-cols { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.sp-test-cols code { background: var(--lav, #F5F2FC); color: var(--navy); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 11px; }

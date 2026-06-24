@@ -101,6 +101,8 @@ export const adminInvite = (opts = {}) => post(`/api/admin/invite`, opts);
 export const spStatus = () => req(`/api/sharepoint/status`);
 export const spList = (path = "") => req(`/api/sharepoint/list?path=${encodeURIComponent(path)}`);
 export const spPreview = (id) => post(`/api/sharepoint/preview`, { id });
+export const spListItems = (id, max = 5) => req(`/api/sharepoint/items/${encodeURIComponent(id)}?max=${max}`);
+export const spListInfo = (id) => req(`/api/sharepoint/listinfo/${encodeURIComponent(id)}`);
 export const fetchAdminUsers = () => req(`/api/admin/users`);
 export const removeAdminUser = (email) => post(`/api/admin/users/remove`, { email });
 export const ping = () => post(`/api/ping`, {});

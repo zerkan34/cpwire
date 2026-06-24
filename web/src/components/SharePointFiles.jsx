@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { spStatus, spList, spPreview } from "../api.js";
+import { spStatus, spList, spPreview, spListItems } from "../api.js";
 import { openExternal } from "../utils.js";
 
 const OFFICE = ["xlsx", "xls", "xlsm", "csv", "docx", "doc", "pptx", "ppt", "pdf"];
@@ -22,6 +22,18 @@ export default function SharePointFiles() {
   const [err, setErr] = useState("");
   const [q, setQ] = useState("");
   const [view, setView] = useState(null); // { name, ext, webUrl, previewUrl, mode:'apercu'|'edit' }
+
+  // Test « liste TMA en direct » (Graph) — GUID issu du .iqy, pré-rempli.
+  const [listId, setListId] = useState("235b08a7-1e15-4040-bd5c-481c01713d02");
+  const [tBusy, setTBusy] = useState(false);
+  const [tRes, setTRes] = useState(null);
+  const [tErr, setTErr] = useState("");
+  const testList = async () => {
+    setTBusy(true); setTErr(""); setTRes(null);
+    try { const r = await spListItems(listId.trim(), 5); setTRes(r); }
+    catch (e) { setTErr(e.message || "Erreur"); }
+    finally { setTBusy(false); }
+  };
 
   useEffect(() => { spStatus().then((s) => setConfigured(!!s.configured)).catch(() => setConfigured(false)); }, []);
   useEffect(() => { if (configured) load(path); /* eslint-disable-next-line */ }, [configured, path]);
@@ -71,6 +83,25 @@ export default function SharePointFiles() {
             <li><code>SP_SITE_ID</code> — l'identifiant du site SharePoint (et éventuellement <code>SP_DRIVE_ID</code> pour une bibliothèque précise).</li>
           </ul>
           <p className="hint">Une fois ces valeurs en place sur Render, cet écran liste automatiquement les fichiers — rien d'autre à faire.</p>
+        </div>
+      )}
+
+      {configured && (
+        <div className="panel sp-list-test">
+          <h3 style={{ margin: "0 0 4px" }}>Liste TMA en direct (Graph)</h3>
+          <p className="hint" style={{ margin: "0 0 8px" }}>Test de lecture directe de la liste SharePoint (pour remplacer l'export CSV manuel). Affiche les colonnes réelles.</p>
+          <div className="sp-test-row">
+            <input value={listId} onChange={(e) => setListId(e.target.value)} placeholder="GUID de la liste" aria-label="GUID de la liste" style={{ flex: 1, minWidth: 220 }} />
+            <button className="btn-line on" onClick={testList} disabled={tBusy}>{tBusy ? "Lecture…" : "Lire la liste"}</button>
+          </div>
+          {tErr && <div className="warn-note" style={{ marginTop: 8 }}>{tErr}</div>}
+          {tRes && (
+            <div className="sp-test-res">
+              <p><b>{tRes.count}</b> élément(s) lus. Colonnes détectées :</p>
+              <div className="sp-test-cols">{(tRes.sampleFields || []).map((f) => <code key={f}>{f}</code>)}</div>
+              {tRes.items && tRes.items[0] ? <p className="hint" style={{ marginTop: 6 }}>1er élément : {tRes.items[0].name || "—"}{tRes.items[0].modified ? ` · ${fmtDate(tRes.items[0].modified)}` : ""}</p> : null}
+            </div>
+          )}
         </div>
       )}
 
