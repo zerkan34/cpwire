@@ -31,7 +31,7 @@ import { logEvent, read as readHistory } from "./history.js";
 import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
-import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl } from "./microsoft.js";
+import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText } from "./import.js";
 
 const app = express();
@@ -1159,6 +1159,25 @@ app.post("/api/sharepoint/preview", guard, async (req, res) => {
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 app.get("/api/sharepoint/status", guard, (_req, res) => res.json({ configured: spConfigured() }));
+
+// Lecture directe d'une liste/bibliothèque SharePoint (remplace l'export CSV manuel).
+// GUID issu du .iqy ou de l'env SP_TMA_LIST_ID. Lecture seule.
+app.get("/api/sharepoint/listinfo/:id", guard, async (req, res) => {
+  try {
+    if (!spConfigured()) return res.status(409).json({ error: "SharePoint non configuré.", needsConfig: true });
+    const id = req.params.id || process.env.SP_TMA_LIST_ID || "";
+    res.json(await spListInfo(id));
+  } catch (e) { res.status(502).json({ error: String(e.message || e) }); }
+});
+app.get("/api/sharepoint/items/:id", guard, async (req, res) => {
+  try {
+    if (!spConfigured()) return res.status(409).json({ error: "SharePoint non configuré.", needsConfig: true });
+    const id = req.params.id || process.env.SP_TMA_LIST_ID || "";
+    const items = await spListItems(id, { max: Math.min(Number(req.query.max) || 5000, 5000) });
+    // Échantillon de champs sur le 1er élément : sert à figer le mappage colonnes.
+    res.json({ count: items.length, sampleFields: items[0] ? Object.keys(items[0].fields || {}) : [], items });
+  } catch (e) { res.status(502).json({ error: String(e.message || e) }); }
+});
 
 
 // Fiches développeur supprimées (soft-delete : on masque, on ne perd rien).

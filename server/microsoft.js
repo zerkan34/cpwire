@@ -131,3 +131,52 @@ export async function spPreviewUrl(itemId) {
   const data = await res.json();
   return data.getUrl || "";
 }
+
+// --- Lecture directe d'une LISTE/bibliothèque SharePoint via Graph -----------
+// Remplace l'export CSV manuel : tire les éléments de la liste (inventaire TMA)
+// directement, avec l'app Graph déjà consentie (Sites.ReadWrite.All).
+// `listId` = GUID de la liste (ex. issu du .iqy : List=...). Pagination gérée.
+// Renvoie les éléments BRUTS (champs Graph) : le mappage précis vers l'inventaire
+// se fige au premier tir réel, une fois les noms internes de colonnes connus.
+export async function spListItems(listId, { max = 5000 } = {}) {
+  if (!spConfigured()) throw new Error("SharePoint (Graph) non configuré : renseigne MS_* et SP_SITE_ID.");
+  if (!listId) throw new Error("Identifiant de liste manquant (GUID).");
+  const t = await token();
+  let url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/lists/${encodeURIComponent(listId)}/items?expand=fields,driveItem&$top=200`;
+  const out = [];
+  let guard = 0;
+  while (url && out.length < max && guard < 60) {
+    guard++;
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
+    if (!res.ok) throw new Error(`SharePoint — lecture liste refusée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
+    const data = await res.json();
+    for (const it of (data.value || [])) {
+      out.push({
+        id: it.id,
+        fields: it.fields || {},
+        webUrl: it.webUrl || (it.driveItem && it.driveItem.webUrl) || "",
+        path: it.driveItem?.parentReference?.path || "",
+        name: it.driveItem?.name || (it.fields && (it.fields.FileLeafRef || it.fields.Title)) || "",
+        modified: it.lastModifiedDateTime || (it.fields && it.fields.Modified) || "",
+      });
+    }
+    url = data["@odata.nextLink"] || "";
+  }
+  return out;
+}
+
+// Métadonnées d'une liste (titre, type) — utile pour confirmer qu'on vise la bonne.
+export async function spListInfo(listId) {
+  if (!spConfigured()) throw new Error("SharePoint (Graph) non configuré.");
+  if (!listId) throw new Error("Identifiant de liste manquant.");
+  const t = await token();
+  const url = `https://graph.microsoft.com/v1.0/sites/${SITE_ID}/lists/${encodeURIComponent(listId)}?$expand=columns`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${t}` } });
+  if (!res.ok) throw new Error(`SharePoint — info liste refusée (${res.status}) : ${(await res.text()).slice(0, 200)}`);
+  const d = await res.json();
+  return {
+    id: d.id, name: d.displayName || d.name || "",
+    template: d.list?.template || "",
+    columns: (d.columns || []).filter((c) => !c.readOnly && !c.hidden).map((c) => ({ name: c.name, display: c.displayName })),
+  };
+}
