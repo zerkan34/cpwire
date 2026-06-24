@@ -3205,9 +3205,9 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .imp-diff-first{ font-size:13px; color:var(--muted); margin:8px 0 0; }
 
 /* ===== Assistant ancré (flottant) ===== */
-.cwa-fab{position:fixed;right:20px;bottom:20px;z-index:1200;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#4B3F8F,#2E2A5D);color:#fff;font-size:22px;line-height:1;box-shadow:0 10px 28px rgba(46,42,93,.4);transition:filter .15s,transform .15s}
+.cwa-fab{position:fixed;right:20px;bottom:20px;z-index:4000;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#4B3F8F,#2E2A5D);color:#fff;font-size:22px;line-height:1;box-shadow:0 10px 28px rgba(46,42,93,.4);transition:filter .15s,transform .15s}
 .cwa-fab:hover{filter:brightness(1.1);transform:translateY(-1px)}
-.cwa-panel{position:fixed;right:20px;bottom:88px;z-index:1200;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 120px);background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(46,42,93,.32);display:flex;flex-direction:column;overflow:hidden;border:1px solid #ece9f3}
+.cwa-panel{position:fixed;right:20px;bottom:88px;z-index:4100;width:380px;max-width:calc(100vw - 32px);height:560px;max-height:calc(100vh - 120px);background:#fff;border-radius:16px;box-shadow:0 24px 60px rgba(46,42,93,.32);display:flex;flex-direction:column;overflow:hidden;border:1px solid #ece9f3}
 .cwa-hd{background:linear-gradient(135deg,#2E2A5D,#4B3F8F);color:#fff;padding:14px 16px;flex:none}
 .cwa-hd-t{font-weight:700;font-size:15px}
 .cwa-hd-s{font-size:11px;opacity:.82;margin-top:2px}
@@ -3345,3 +3345,14 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .sp-test-res { margin-top: 10px; font-size: 12.5px; }
 .sp-test-cols { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
 .sp-test-cols code { background: var(--lav, #F5F2FC); color: var(--navy); border: 1px solid var(--line); border-radius: 6px; padding: 2px 7px; font-size: 11px; }
+
+/* Logo copilote réutilisable sur conteneurs */
+.copilot-dot { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 3px 9px 3px 4px; cursor: pointer; transition: border-color .15s, box-shadow .15s; flex: none; }
+.copilot-dot:hover { border-color: var(--indigo); box-shadow: 0 3px 10px rgba(46,42,93,.16); }
+.copilot-dot img { width: 22px; height: 22px; border-radius: 50%; display: block; }
+.copilot-dot span { font-size: 10.5px; font-weight: 700; color: var(--indigo); letter-spacing: .02em; }
+
+/* Carte OPTION : contexte client + en-tête avec copilote */
+.recap-hd-r { display: inline-flex; align-items: center; gap: 10px; }
+.ref-card-ctx { font-size: 11px; color: var(--muted); margin-bottom: 6px; }
+.ref-card-ctx b { color: var(--navy); }

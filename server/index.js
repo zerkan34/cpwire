@@ -6,6 +6,8 @@ import crypto from "crypto";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { spawn } from "child_process";
+import os from "os";
 import "dotenv/config";
 
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
@@ -761,6 +763,38 @@ app.get("/api/projets/export", guard, async (_req, res) => {
     res.send(buf);
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
+
+// Rendu PDF SERVEUR à la charte exacte (WeasyPrint). Le client envoie les données
+// déjà préparées ({meta, clients}) ; on les passe à render.py qui produit le PDF.
+// Donne le rendu 1:1 du document de référence (couverture pleine, pied numéroté n/total).
+app.post("/api/export/pdf", guard, async (req, res) => {
+  try {
+    const { kind = "blockers", data, filename } = req.body || {};
+    if (!data || typeof data !== "object") return res.status(400).json({ error: "Données manquantes." });
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const script = path.join(here, "pdf", "render.py");
+    const out = path.join(os.tmpdir(), `cpwire_${kind}_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
+    const py = spawn(process.env.PYTHON_BIN || "python3", [script, out], { stdio: ["pipe", "ignore", "pipe"] });
+    const errs = [];
+    py.stderr.on("data", (d) => errs.push(d));
+    py.on("error", (e) => { try { res.status(500).json({ error: "Moteur PDF indisponible : " + (e.message || e) }); } catch {} });
+    py.on("close", async (code) => {
+      try {
+        const fs = await import("fs");
+        if (code !== 0 || !fs.existsSync(out)) {
+          return res.status(500).json({ error: "Rendu PDF échoué. " + Buffer.concat(errs).toString().slice(0, 400) });
+        }
+        const pdf = fs.readFileSync(out);
+        try { fs.unlinkSync(out); } catch {}
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${(filename || "Points-bloquants.pdf").replace(/[^\w.-]+/g, "_")}"`);
+        res.send(pdf);
+      } catch (e) { try { res.status(502).json({ error: String(e.message || e) }); } catch {} }
+    });
+    py.stdin.write(JSON.stringify(data));
+    py.stdin.end();
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
 app.get("/api/projets/doc", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
@@ -875,8 +909,14 @@ app.post("/api/assistant/analyze", guard, upload.single("file"), async (req, res
         try { await parser.destroy(); } catch {}
       } catch {}
     }
+    if (text == null && /\.pptx$/i.test(name)) {
+      try {
+        const { pptxToText } = await import("./pptx.js");
+        text = await pptxToText(req.file.buffer);
+      } catch {}
+    }
     if (text == null || !String(text).trim()) {
-      return res.json({ error: "Format non géré pour l'analyse (CSV, TXT, JSON, MD, XLSX, Word .docx, PDF). Pour un ancien .doc, un .msg ou une vidéo, copie-colle le texte dans le chat." });
+      return res.json({ error: "Format non géré pour l'analyse (CSV, TXT, JSON, MD, XLSX, Word .docx, PowerPoint .pptx, PDF). Pour un ancien .doc/.ppt, un .msg ou une vidéo, copie-colle le texte dans le chat." });
     }
     const got = await getIssues(false);
     const out = await analyzeFile({ filename: name, text, question: req.body.question || "", issues: got ? got.issues : [] });

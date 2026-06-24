@@ -211,8 +211,12 @@ function diffGeneric(prevRows, nextRows) {
 }
 const slugify = (s) => String(s || "").toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
 
-export async function analyzeDocument({ filename, buffer }) {  const text = bufferToText(buffer, filename);
-  if (text == null) return { ok: false, error: "Type de fichier non géré pour l'instant. Formats acceptés : CSV, TSV, TXT, JSON, MD." };
+export async function analyzeDocument({ filename, buffer }) {
+  let text = bufferToText(buffer, filename);
+  if (text == null && /\.pptx$/i.test(String(filename || ""))) {
+    try { const { pptxToText } = await import("./pptx.js"); text = await pptxToText(buffer); } catch {}
+  }
+  if (text == null) return { ok: false, error: "Type de fichier non géré pour l'instant. Formats acceptés : CSV, TSV, TXT, JSON, MD, PowerPoint .pptx." };
   // Type connu : arborescence écrans MAX (EDL) → on parse nous-mêmes, chiffres réels (pas d'IA).
   if (looksLikeMax(filename, text)) {
     const rows = parseMaxCsv(text);

@@ -76,6 +76,42 @@ export function buildBlockersDocFromPoints(points = [], { meName = "", caption =
   return renderBlockersHtml(pts, { meName, dormant, caption });
 }
 
+// Chemin « PDF serveur » : produit les DONNÉES (JSON) que render.py transforme en
+// PDF à la charte exacte. Mêmes points, mêmes filtres que l'export du voyant.
+export function buildBlockersPayload(points = [], { meName = "Nicolas Durand", caption = "", dormant = 0 } = {}) {
+  const pts = points.map((p) => ({
+    ...p,
+    _since: (p._since != null ? p._since : p.since) || null,
+    _days: (p._days != null ? p._days : joursOuvres(p._since != null ? p._since : p.since)),
+  }));
+  const crit = pts.filter((p) => p.severity === "critique").length;
+  const byClient = {};
+  pts.forEach((p) => { const c = p.project || "—"; (byClient[c] ||= []).push(p); });
+  const names = Object.keys(byClient).sort();
+  const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  const clients = names.map((c) => {
+    const list = byClient[c].slice().sort((a, b) => (b.severity === "critique") - (a.severity === "critique") || b._days - a._days);
+    return {
+      name: c, count: list.length, intro: clientIntro(list),
+      rows: list.map((p) => ({
+        severity: p.severity, ticket: p.id, subject: p.title || "", reason: p.reason || "",
+        dev: p.assignee || "Non assigné", engagement: p.engagement || "",
+        sinceLabel: sinceLabel(p.kind), sinceDate: fmtD(p._since), days: p._days,
+      })),
+    };
+  });
+  return {
+    meta: {
+      total: pts.length, crit, date: today, etabli: meName || "Nicolas Durand",
+      clientsLabel: names.join(", "), caption: caption || "",
+      dormantNote: dormant ? `${dormant} ticket${dormant > 1 ? "s" : ""} dormant${dormant > 1 ? "s" : ""} (sans mouvement depuis plus de ${OBSOLETE_DAYS} jours, probablement obsolète${dormant > 1 ? "s" : ""}) exclu${dormant > 1 ? "s" : ""} de ce relevé.` : "",
+      footerLeft: "armonie · Points bloquants — Portefeuille TMA & Projets",
+      footerRight: `Points-bloquants · ${today} · Confidentiel`,
+    },
+    clients,
+  };
+}
+
 // Rendu charté commun (depuis une liste de points déjà préparés).
 function renderBlockersHtml(pts, { meName = "", dormant = 0, caption = "" } = {}) {
   const crit = pts.filter((p) => p.severity === "critique").length;

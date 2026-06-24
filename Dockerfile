@@ -1,22 +1,31 @@
-# CPwire — image unique : construit l'interface puis la sert via le serveur Node.
-# Contexte de build attendu : le dossier pmo-cockpit/
+# cp|WIRE — image de production avec moteur PDF serveur (WeasyPrint).
+# Permet à l'app de générer les PDF à la charte exacte (couverture pleine,
+# pied de page numéroté), au lieu de l'impression navigateur.
+FROM node:20-slim
 
-# 1) Build de l'interface React
-FROM node:20-alpine AS web
-WORKDIR /web
-COPY web/package*.json ./
-RUN npm install
-COPY web/ ./
-RUN npm run build
+# Dépendances système : Python + WeasyPrint (Pango/Cairo/GDK-Pixbuf) + polices.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      python3 python3-pip \
+      libpango-1.0-0 libpangocairo-1.0-0 libcairo2 libgdk-pixbuf2.0-0 libffi-dev \
+      fonts-dejavu-core fontconfig \
+ && rm -rf /var/lib/apt/lists/*
 
-# 2) Serveur Node + interface statique
-FROM node:20-alpine
+# WeasyPrint (pip ; --break-system-packages requis sur Debian récent).
+RUN pip3 install --no-cache-dir --break-system-packages weasyprint
+
 WORKDIR /app
-COPY server/package*.json ./
-RUN npm install --omit=dev
-COPY server/ ./
-COPY --from=web /web/dist ./web-dist
-ENV WEB_DIST=/app/web-dist
-ENV PORT=4000
-EXPOSE 4000
-CMD ["node", "index.js"]
+COPY . .
+
+# Polices Poppins de la charte → disponibles pour WeasyPrint.
+RUN mkdir -p /usr/share/fonts/truetype/cpwire \
+ && cp server/pdf/fonts/*.ttf /usr/share/fonts/truetype/cpwire/ \
+ && fc-cache -f
+
+# Build du front puis dépendances serveur.
+RUN cd web && npm ci && npm run build
+RUN cd server && npm ci --omit=dev
+
+ENV NODE_ENV=production
+ENV PYTHON_BIN=python3
+# Render fournit PORT ; le serveur l'écoute déjà (process.env.PORT).
+CMD ["node", "server/index.js"]

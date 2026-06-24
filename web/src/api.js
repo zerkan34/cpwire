@@ -134,6 +134,22 @@ export const learnConnaissance = () => post(`/api/connaissance/learn`, {});
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 export const fetchProjets = () => req(`/api/projets`);
+// Rendu PDF côté serveur (WeasyPrint, charte exacte). data = { meta, clients }.
+export async function exportServerPdf(data, filename = "Points-bloquants.pdf", kind = "blockers") {
+  const res = await fetch(`${BASE}/api/export/pdf`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ kind, data, filename }),
+  });
+  if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch {} throw new Error(m || `HTTP ${res.status}`); }
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
 export async function downloadProjetsXlsx() {
   const res = await fetch(`${BASE}/api/projets/export`, { headers: { ...authHeaders() } });
   if (!res.ok) throw new Error("Export indisponible");

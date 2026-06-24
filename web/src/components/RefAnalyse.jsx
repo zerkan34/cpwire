@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import CopilotDot from "./CopilotDot.jsx";
 
 // Analyse & apprentissage — 100 % calculé sur les champs Jira réels (categorie,
 // statutDepuis, resolu, dev, dossier). Aucun chiffre inventé : si la donnée n'est
@@ -65,7 +66,7 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
 
       {/* 1 — Côté client */}
       <section className="rana-sec">
-        <h3 className="rana-h">Côté client — délais de recette / attente</h3>
+        <h3 className="rana-h">Côté client — délais de recette / attente<span style={{marginLeft:"auto"}}><CopilotDot prompt="Analyse les délais côté client (recette / attente) sur le portefeuille : quels clients sont les plus lents à recetter, depuis combien de temps, et quels tickets concentrent l'attente ? Uniquement les données Jira réelles." /></span></h3>
         <p className="rana-sub">Combien de tickets sont en main du client, et depuis combien de jours. Un délai moyen élevé = client lent à recetter / valider.</p>
         <div className="rana-grid">
           {recetteCli.length ? recetteCli.map((c) => (
@@ -83,7 +84,7 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
 
       {/* 2 — Reprises */}
       <section className="rana-sec">
-        <h3 className="rana-h">Reprises — recette rejetée (retour test/prod)</h3>
+        <h3 className="rana-h">Reprises — recette rejetée (retour test/prod)<span style={{marginLeft:"auto"}}><CopilotDot prompt="Analyse les reprises (tickets repassés en retour test/prod) sur le portefeuille : quels clients et quels tickets, et qu'est-ce que ça dit de la qualité des livraisons ? Uniquement les données Jira réelles." /></span></h3>
         <p className="rana-sub">Tickets renvoyés en correction après test : signal de qualité / d'allers-retours.</p>
         <div className="rana-grid">
           {reprises.length ? reprises.map((c) => (
@@ -102,7 +103,7 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
 
       {/* 3 — Efficacité dev */}
       <section className="rana-sec">
-        <h3 className="rana-h">Activité des développeurs</h3>
+        <h3 className="rana-h">Activité des développeurs<span style={{marginLeft:"auto"}}><CopilotDot prompt="Analyse l'activité des développeurs : qui résout le plus sur 30 jours, qui porte le plus de charge en cours, y a-t-il des déséquilibres ? Uniquement les données Jira réelles." /></span></h3>
         <p className="rana-sub">Tickets résolus sur 30 jours glissants et charge en cours. Cliquez un nom pour sa fiche.</p>
         <div className="rana-devs">
           {devs.length ? devs.map((d) => (
@@ -116,7 +117,7 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
 
       {/* 4 — Ce qui a bougé aujourd'hui */}
       <section className="rana-sec">
-        <h3 className="rana-h">Ce qui a bougé aujourd'hui <span className="rana-badge">{bouge.length}</span></h3>
+        <h3 className="rana-h">Ce qui a bougé aujourd'hui <span className="rana-badge">{bouge.length}</span><span style={{marginLeft:"auto"}}><CopilotDot prompt="Fais-moi la synthèse de ce qui a bougé aujourd'hui dans Jira sur le portefeuille : les mouvements notables, ce qui mérite mon attention. Uniquement les données réelles." /></span></h3>
         <p className="rana-sub">Tickets mis à jour dans Jira aujourd'hui. Le contexte appris par l'IA sur la durée est dans l'onglet « Mémoire ».</p>
         {bouge.length ? (
           <ul className="rana-today">

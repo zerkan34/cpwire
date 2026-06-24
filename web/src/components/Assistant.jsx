@@ -60,6 +60,7 @@ export default function Assistant() {
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
   const [copied, setCopied] = useState(null);
+  const [pendingAsk, setPendingAsk] = useState(null);
   const endRef = useRef(null);
   const fileRef = useRef(null);
   const taRef = useRef(null);
@@ -88,18 +89,24 @@ export default function Assistant() {
         setTimeout(() => { if (taRef.current) { taRef.current.focus(); const L = sujet.length; taRef.current.setSelectionRange(L, L); } }, 80);
       }
     };
+    // Ouvre le copilote ET lance directement l'analyse (déclenché par un logo copilote sur un conteneur).
+    const onAsk = (e) => { const p = e.detail && e.detail.prompt; setOpen(true); if (p) setPendingAsk(p); };
     window.addEventListener("cpwire-pilot", onPilot);
     window.addEventListener("cpwire-pilot-ticket", onTicket);
-    return () => { window.removeEventListener("cpwire-pilot", onPilot); window.removeEventListener("cpwire-pilot-ticket", onTicket); };
+    window.addEventListener("cpwire-pilot-ask", onAsk);
+    return () => { window.removeEventListener("cpwire-pilot", onPilot); window.removeEventListener("cpwire-pilot-ticket", onTicket); window.removeEventListener("cpwire-pilot-ask", onAsk); };
   }, []);
+
+  // Consomme une demande d'analyse forcée (envoi automatique).
+  useEffect(() => { if (pendingAsk != null) { const p = pendingAsk; setPendingAsk(null); send(p); } /* eslint-disable-next-line */ }, [pendingAsk]);
 
   const push = (m) => setMsgs((prev) => [...prev, m]);
   const patch = (idx, fn) => setMsgs((prev) => prev.map((m, i) => (i === idx ? fn(m) : m)));
 
-  const send = async () => {
-    const text = q.trim();
+  const send = async (forced) => {
+    const text = (typeof forced === "string" ? forced : q).trim();
     if (!text || busy) return;
-    setQ("");
+    if (typeof forced !== "string") setQ("");
     const history = msgs
       .filter((m) => !m.error && m.text)
       .slice(-8)
@@ -216,7 +223,7 @@ export default function Assistant() {
           <div className="cwa-body">
             {msgs.length === 0 && (
               <div className="cwa-hint">
-                Pose une question sur ton périmètre, ou <b>glisse un fichier</b> ici (CSV, TXT, JSON, MD, XLSX, Word, PDF) pour que je l'analyse et l'ajoute à la base.
+                Pose une question sur ton périmètre, ou <b>glisse un fichier</b> ici (CSV, TXT, JSON, MD, XLSX, Word, PowerPoint, PDF) pour que je l'analyse et l'ajoute à la base.
                 <div className="cwa-ex">
                   {examples.map((ex) => <button key={ex} className="cwa-ex-b" onClick={() => setQ(ex)}>{ex}</button>)}
                 </div>

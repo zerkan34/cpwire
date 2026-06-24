@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
-import { blockerSince } from "../api.js";
-import { buildBlockersDocFromPoints } from "../blockersDoc.js";
+import { blockerSince, exportServerPdf } from "../api.js";
+import { buildBlockersDocFromPoints, buildBlockersPayload } from "../blockersDoc.js";
 import { printHtml } from "../utils.js";
 import BlockerAnalysis from "./BlockerAnalysis.jsx";
 
@@ -160,7 +160,8 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
   }, [enriched, q, client, dev, sort, showDormant]);
 
   // Export PDF charté du voyant — rend EXACTEMENT la vue filtrée (client, dév, recherche, dormants, tri).
-  const exportPdf = () => {
+  const [exporting, setExporting] = useState(false);
+  const exportPdf = async () => {
     const needle = q.trim().toLowerCase();
     const labelSort = (SORTS.find((s) => s.v === sort) || {}).l || "";
     const parts = [client ? `client ${client}` : "tous clients"];
@@ -172,8 +173,17 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
       p._obsolete && (!client || p.project === client) && (!dev || p.assignee === dev) &&
       (!needle || `${p.id} ${p.title} ${p.assignee} ${p.project} ${p.reason}`.toLowerCase().includes(needle))
     ).length;
-    const doc = buildBlockersDocFromPoints(view, { caption: parts.join(" · "), dormant: dormantExcl });
-    printHtml(doc.html);
+    const caption = parts.join(" · ");
+    setExporting(true);
+    try {
+      // 1) PDF serveur (charte exacte, pied numéroté) — le rendu de référence.
+      const payload = buildBlockersPayload(view, { caption, dormant: dormantExcl });
+      await exportServerPdf(payload, "Points-bloquants.pdf");
+    } catch (e) {
+      // 2) Repli : impression navigateur (si le moteur serveur n'est pas déployé).
+      const doc = buildBlockersDocFromPoints(view, { caption, dormant: dormantExcl });
+      printHtml(doc.html);
+    } finally { setExporting(false); }
   };
 
   // Stats du voyant — recalculées sur la vue FILTRÉE (changent avec recherche / client / dev / tri).
@@ -339,12 +349,12 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                   Réinitialiser
                 </button>
               )}
-              <button onClick={exportPdf} disabled={!view.length} title="Exporter le relevé filtré en PDF (charte Armonie)"
+              <button onClick={exportPdf} disabled={!view.length || exporting} title="Exporter le relevé filtré en PDF (charte Armonie)"
                 style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, border: "none", borderRadius: 10,
                   background: view.length ? `linear-gradient(135deg, ${NAVY}, ${INDIGO})` : "#cdc9dd", color: "#fff",
-                  fontSize: 12.5, fontWeight: 700, padding: "8px 14px", cursor: view.length ? "pointer" : "default",
+                  fontSize: 12.5, fontWeight: 700, padding: "8px 14px", cursor: view.length && !exporting ? "pointer" : "default",
                   boxShadow: view.length ? `inset 0 -2px 0 rgba(168,136,78,.7)` : "none" }}>
-                ⤓ Exporter PDF
+                {exporting ? "Génération…" : "⤓ Exporter PDF"}
               </button>
             </div>
 

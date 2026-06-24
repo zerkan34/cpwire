@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchReferentiel, fetchReferentielClients } from "../api.js";
+import CopilotDot from "./CopilotDot.jsx";
 
 // Catégorie Jira → [libellé, classe de pastille]. Aligné sur server/config.js.
 const CAT = {
@@ -136,9 +137,13 @@ export default function Referentiel({ issues = [], onTicket }) {
                 <div className="recap-card" key={o.code}>
                   <div className="recap-hd">
                     <span className="recap-hd-name">{o.code}</span>
-                    <span className="recap-hd-meta">{o.statutRecette === "Armonie" ? "Recette Armonie" : "Recette client"}</span>
+                    <div className="recap-hd-r">
+                      <span className="recap-hd-meta">{o.statutRecette === "Armonie" ? "Recette Armonie" : "Recette client"}</span>
+                      <CopilotDot prompt={`Analyse l'option ${o.code} « ${o.libelle} » du client ${client} (domaine « ${dom.domaine.replace(/_/g, " ")} »). Explique à quoi elle sert, les programmes qu'elle regroupe, ce qui bloque et où en est la recette. Appuie-toi uniquement sur les tickets Jira réels.`} />
+                    </div>
                   </div>
                   <div className="recap-bd">
+                    <div className="ref-card-ctx"><b>{client}</b> · {dom.domaine.replace(/_/g, " ")}</div>
                     <div style={{ fontSize: 13, color: "var(--ink)", fontWeight: 600, marginBottom: 6 }}>{o.libelle}</div>
                     <div className="ref-meta">
                       {o.livraison ? <span>Livraison {o.livraison}</span> : null}
