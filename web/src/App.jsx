@@ -13,6 +13,7 @@ import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
 import Recette from "./components/Recette.jsx";
 import Referentiel from "./components/Referentiel.jsx";
+import Reference from "./components/Reference.jsx";
 import Projets from "./components/Projets.jsx";
 import SharePointFiles from "./components/SharePointFiles.jsx";
 import Hygiene from "./components/Hygiene.jsx";
@@ -653,7 +654,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v236" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v237" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
@@ -703,9 +704,8 @@ export default function App() {
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "outils" && sub === "reference" && (
         <>
-          <PageHero k="Cockpit" title="Référence" sub="Catalogue des programmes (annuaire Arcad) et mémoire d'équipe." />
-          <Referentiel issues={issues} onTicket={setTicket} />
-          {role === "owner" && <Connaissance />}
+          <PageHero k="Cockpit" title="Référence" sub="Le cœur de connaissance : annuaire programmes ↔ tickets, analyse du portefeuille, mémoire d'équipe." />
+          <Reference issues={issues} role={role} onTicket={setTicket} onDev={setDevFiche} />
         </>
       )}
       {tab === "outils" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}

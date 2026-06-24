@@ -3293,3 +3293,48 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pds-scope-b { border: none; background: transparent; color: var(--muted, #6E6A86); font: inherit; font-size: 12px; font-weight: 600; padding: 4px 11px; border-radius: 999px; cursor: pointer; white-space: nowrap; transition: background .12s, color .12s; }
 .pds-scope-b:hover { color: var(--indigo, #4B3F8F); }
 .pds-scope-b.on { background: var(--indigo, #4B3F8F); color: #fff; }
+
+/* ===== Référence — cœur navigable (Annuaire / Analyse / Mémoire) ===== */
+.ref-core { margin-top: 4px; }
+.ref-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
+.ref-navbtn { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 11px 16px; border-radius: 12px;
+  border: 1px solid var(--line); background: #fff; cursor: pointer; min-width: 180px; transition: all .15s; }
+.ref-navbtn:hover { border-color: var(--indigo); }
+.ref-navbtn.on { background: linear-gradient(135deg, var(--navy), var(--indigo)); border-color: transparent;
+  box-shadow: inset 0 -3px 0 rgba(168,136,78,.7); }
+.ref-navbtn-l { font-weight: 700; font-size: 13.5px; color: var(--ink); }
+.ref-navbtn-d { font-size: 10.5px; color: var(--muted); }
+.ref-navbtn.on .ref-navbtn-l, .ref-navbtn.on .ref-navbtn-d { color: #fff; }
+.ref-navbtn.on .ref-navbtn-d { opacity: .82; }
+.ref-view { animation: reffade .22s ease; }
+@keyframes reffade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* Analyse */
+.rana-sec { margin: 0 0 22px; }
+.rana-h { font-size: 14px; color: var(--navy); margin: 0 0 2px; display: flex; align-items: center; gap: 8px; }
+.rana-badge { background: var(--indigo); color: #fff; font-size: 11px; font-weight: 700; border-radius: 11px; padding: 1px 9px; }
+.rana-sub { font-size: 11.5px; color: var(--muted); margin: 0 0 12px; }
+.rana-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.rana-card { border: 1px solid var(--line); border-radius: 12px; background: #fff; padding: 13px 15px; }
+.rana-card-h { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.rana-cli { font-weight: 700; color: var(--navy); font-size: 14px; }
+.rana-n { font-size: 11px; color: var(--muted); } .rana-n.hot { color: var(--red, #C0392B); font-weight: 700; }
+.rana-metrics { display: flex; gap: 22px; margin-bottom: 8px; }
+.rana-m b { display: block; font-size: 26px; font-weight: 800; line-height: 1; color: var(--navy); }
+.rana-m b.hot { color: #C0392B; }
+.rana-m span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.rana-link { background: none; border: none; color: var(--indigo); font-weight: 700; cursor: pointer; padding: 0; font-size: 12px; font-family: inherit; }
+.rana-link:hover { text-decoration: underline; }
+.rana-list { list-style: none; margin: 0; padding: 0; }
+.rana-list li { font-size: 11.5px; margin: 3px 0; display: flex; gap: 6px; }
+.rana-li-t { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rana-more { color: var(--muted); font-size: 11px; font-style: italic; }
+.rana-devs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+.rana-dev { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--line); border-radius: 11px; background: #fff; padding: 11px 14px; cursor: pointer; transition: border-color .15s; font-family: inherit; }
+.rana-dev:hover { border-color: var(--indigo); }
+.rana-dev-n { font-weight: 700; color: var(--ink); font-size: 13px; }
+.rana-dev-m { font-size: 11px; color: var(--muted); } .rana-dev-m b { color: var(--navy); }
+.rana-today { list-style: none; margin: 0; padding: 0; }
+.rana-today li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.rana-li-meta { margin-left: auto; font-size: 10.5px; color: var(--muted); white-space: nowrap; }
+.rana-empty { color: var(--muted); font-size: 12px; font-style: italic; padding: 8px 0; }
