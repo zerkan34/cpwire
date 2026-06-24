@@ -91,6 +91,7 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
           {famPct(fams.Projet) != null ? <span className="avc-fam"><i className="prj" />Projet — {famPct(fams.Projet)}% · {fams.Projet.t} tickets</span> : null}
           {famPct(fams.Mixte) != null ? <span className="avc-fam"><i className="mix" />Mixte — {famPct(fams.Mixte)}% · {fams.Mixte.t} tickets</span> : null}
         </div>
+        <div className="avc-srcline">source : Jira — en temps réel (à l'import)</div>
       </div>
 
       {/* 3 — Portefeuille */}

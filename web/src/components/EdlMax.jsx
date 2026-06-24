@@ -17,10 +17,11 @@ const frDay = (iso) => { try { return new Date(iso).toLocaleDateString("fr-FR", 
 export default function EdlMax() {
   const [data, setData] = useState(DATA);
   const [updatedAt, setUpdatedAt] = useState(null);
+  const [srcFile, setSrcFile] = useState("");
   useEffect(() => {
     let alive = true;
     importDataset("edlmax").then((r) => {
-      if (alive && r && Array.isArray(r.rows) && r.rows.length) { setData(r.rows); setUpdatedAt(r.at || null); }
+      if (alive && r && Array.isArray(r.rows) && r.rows.length) { setData(r.rows); setUpdatedAt(r.at || null); setSrcFile(r.source?.filename || ""); }
     }).catch(() => { /* pas d'import : on garde le fichier livré */ });
     return () => { alive = false; };
   }, []);
@@ -39,7 +40,7 @@ export default function EdlMax() {
     <div className="emx">
       <div className="emx-head">
         <h3 className="c360-sec" style={{ margin: 0 }}>Refonte MAX — écrans</h3>
-        <span className="emx-src">source : {updatedAt ? `import du ${frDay(updatedAt)}` : "fichier EDL"} · {data.length} écrans</span>
+        <span className="emx-src" title={srcFile ? `Fichier importé : ${srcFile}` : ""}>source : {srcFile ? `${srcFile}` : "fichier EDL"}{updatedAt ? ` · importé le ${frDay(updatedAt)}` : ""} · {data.length} écrans</span>
       </div>
       <div className="emx-prog">
         <div className="emx-pct">{pct}<small>%</small> <span>validés · {val}/{inscope} concernés</span></div>

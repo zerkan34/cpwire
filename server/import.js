@@ -78,8 +78,8 @@ function maxStats(rows) {
 
 // --- Datasets persistés (résultat d'un import validé, lu par les écrans concernés). ---
 function datasetFile(name) { return path.join(DIR, `dataset_${String(name).replace(/[^a-z0-9_]/gi, "")}.json`); }
-export function saveDataset(name, rows) {
-  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(datasetFile(name), JSON.stringify({ at: new Date().toISOString(), rows })); return true; }
+export function saveDataset(name, rows, source = null) {
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(datasetFile(name), JSON.stringify({ at: new Date().toISOString(), source: source || null, rows })); return true; }
   catch (e) { console.error("saveDataset:", e.message); return false; }
 }
 export function getDataset(name) { try { return JSON.parse(fs.readFileSync(datasetFile(name), "utf8")); } catch { return null; } }
@@ -135,8 +135,83 @@ function diffTma(prevRows, nextRows) {
   return { total: nextRows.length, premiereFois: !prevRows, added, modified, removed, sample };
 }
 
-export async function analyzeDocument({ filename, buffer }) {
-  const text = bufferToText(buffer, filename);
+// --- Auto-ingestion générique « par dossier traité » -----------------------
+// On ne traite QUE les dossiers du portefeuille. Reconnaissance par nom de fichier
+// + signature d'en-tête. (Déterministe — aucune métrique inventée, on ne fait que
+// rattacher au bon client et differ vs le dépôt précédent.)
+const DOSSIER_SIGNS = [
+  { dossier: "EDL", rx: /\b(edl|tedl|minikili|ecran[s]? max|as ?400 max|ecole des loisirs|école des loisirs)\b/i },
+  { dossier: "Tafanel", rx: /\b(tafanel|gescom|ptaf|aftcli|aftour|socodis|chaines par domaines|chaînes par domaines)\b/i },
+  { dossier: "DS Smith", rx: /\b(ds ?smith|emage|tdss|wpress|gypublinic)\b/i },
+  { dossier: "IMA", rx: /\b(tima|dwhs|ima)\b/i },
+  { dossier: "DIAPAR", rx: /\b(diapar|diamsi|tdia)\b/i },
+  { dossier: "Balas", rx: /\bbalas\b/i },
+  { dossier: "Belmet", rx: /\b(belmet|bellion|erp26)\b/i },
+  { dossier: "SEGUREL", rx: /\bsegurel\b/i },
+  { dossier: "Transverse", rx: /\b(suivi global|suivi des projets|portefeuille|priorisation)\b/i },
+];
+export function detectDossier(filename, text) {
+  // Les noms de fichiers sont en underscore : on neutralise _ et - (sinon \b ne « voit » pas les mots).
+  const norm = (s) => String(s || "").replace(/[_\-]+/g, " ");
+  const hay = `${norm(filename)}\n${norm(String(text || "").slice(0, 800))}`;
+  for (const s of DOSSIER_SIGNS) if (s.rx.test(hay)) return s.dossier;
+  return "";
+}
+
+// Délimiteur dominant (les exports Excel sont en « ; », MAX en « , », parfois tab).
+function detectDelim(text) {
+  const head = text.split(/\r?\n/).filter((l) => l.trim()).slice(0, 25).join("\n");
+  const n = (re) => (head.match(re) || []).length;
+  const sc = n(/;/g), co = n(/,/g), tb = n(/\t/g);
+  if (sc >= co && sc >= tb) return ";";
+  if (tb > co) return "\t";
+  return ",";
+}
+function splitWith(line, delim) {
+  if (delim === ",") return splitCsvLine(line);
+  const out = []; let cur = "", q = false;
+  for (let i = 0; i < line.length; i++) {
+    const c = line[i];
+    if (q) { if (c === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += c; }
+    else if (c === '"') q = true;
+    else if (c === delim) { out.push(cur); cur = ""; }
+    else cur += c;
+  }
+  out.push(cur);
+  return out;
+}
+// Transforme le texte en lignes diffables ; clé = 1re cellule non vide (saute les
+// lignes-bannières/séparateurs « ;;;; » des exports Excel).
+function rowsForDiff(text, delim) {
+  const out = [];
+  for (const raw of text.split(/\r?\n/)) {
+    const cells = splitWith(raw, delim).map((s) => String(s || "").replace(/^\uFEFF+/, "").trim());
+    const key = cells.find((c) => c) || "";
+    if (!key) continue;
+    out.push({ key: key.toLowerCase(), line: cells.filter(Boolean).join(" | ") });
+  }
+  return out;
+}
+// Diff incrémental générique (même esprit que diffTma) : ajouts / modifs / suppressions.
+function diffGeneric(prevRows, nextRows) {
+  const indexOf = (rows) => {
+    const m = new Map();
+    rows.forEach((r, i) => { let k = r.key; while (m.has(k)) k = `${r.key}#${i}`; m.set(k, r.line); });
+    return m;
+  };
+  const next = indexOf(nextRows);
+  const prev = prevRows ? indexOf(prevRows) : null;
+  let added = 0, modified = 0, removed = 0; const sample = [];
+  for (const [k, line] of next) {
+    if (!prev || !prev.has(k)) { added++; if (sample.length < 15) sample.push({ kind: "ajout", line }); }
+    else if (prev.get(k) !== line) { modified++; if (sample.length < 15) sample.push({ kind: "modif", line }); }
+  }
+  if (prev) for (const k of prev.keys()) if (!next.has(k)) removed++;
+  return { total: nextRows.length, premiereFois: !prevRows, added, modified, removed, sample };
+}
+const slugify = (s) => String(s || "").toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
+
+export async function analyzeDocument({ filename, buffer }) {  const text = bufferToText(buffer, filename);
   if (text == null) return { ok: false, error: "Type de fichier non géré pour l'instant. Formats acceptés : CSV, TSV, TXT, JSON, MD." };
   // Type connu : arborescence écrans MAX (EDL) → on parse nous-mêmes, chiffres réels (pas d'IA).
   if (looksLikeMax(filename, text)) {
@@ -186,7 +261,41 @@ export async function analyzeDocument({ filename, buffer }) {
   }
   const sample = preview(text);
   const lignes = text.split(/\r?\n/).filter((l) => l.trim()).length;
+
+  // Auto-ingestion par DOSSIER TRAITÉ : on reconnaît le client, on diffe vs le dernier
+  // dépôt du même fichier, on promeut à la validation. Aucune métrique inventée.
+  const dossier = detectDossier(filename, text);
+  if (dossier) {
+    const delim = detectDelim(text);
+    const rows = rowsForDiff(text, delim);
+    const slug = `${dossier}_${slugify(filename)}`.toLowerCase().replace(/[^a-z0-9_]/g, "");
+    const prev = getDataset(`doc_${slug}`);
+    const diff = diffGeneric(prev ? prev.rows : null, rows);
+    saveDataset(`doc_${slug}__pending`, rows);
+    const chg = diff.premiereFois
+      ? `${diff.total} lignes enregistrées (premier dépôt — référence initiale).`
+      : `${diff.added} ajout(s) · ${diff.modified} modif(s) · ${diff.removed} suppression(s) depuis le dernier dépôt (${diff.total} lignes).`;
+    return {
+      ok: true, filename, chars: text.length, lignes: rows.length, dossier,
+      apercu: diff.sample.map((s) => `${s.kind === "ajout" ? "+ " : "~ "}${s.line}`).join("\n").slice(0, 1500) || "Aucun changement détecté.",
+      dataset: { name: `doc_${slug}`, promoteFrom: `doc_${slug}__pending`, count: rows.length },
+      diff,
+      proposal: {
+        type: "Document de dossier",
+        client: dossier,
+        cible: `Rattaché au dossier ${dossier} — diff incrémental. Aucune métrique calculée (le fichier est conservé tel quel et comparé au précédent).`,
+        resume: chg,
+        details: diff.premiereFois
+          ? [`${diff.total} lignes en référence.`]
+          : [`${diff.added} ajout(s) · ${diff.modified} modif(s) · ${diff.removed} suppression(s)`, `Total courant : ${diff.total} lignes.`],
+        confiance: "haute",
+      },
+    };
+  }
+
+  // Dossier non reconnu : repli IA, mais on signale qu'il est hors des dossiers traités.
   const proposal = await classifyImport(filename, sample);
+  if (proposal && typeof proposal === "object") proposal.note = "Dossier non reconnu automatiquement — à rattacher manuellement (hors des dossiers traités).";
   return { ok: true, filename, chars: text.length, lignes, apercu: sample.slice(0, 1500), proposal };
 }
 
@@ -205,12 +314,13 @@ export function applyImport({ filename, proposal, apercu, dataset, diff, by }) {
   store.items = [entry, ...(store.items || [])].slice(0, 100);
   save(store);
   // Promotion d'un dataset préparé côté serveur (gros volumes : pas de rows dans la requête).
+  const src = { filename: entry.filename, at: entry.at, by: entry.by };
   if (dataset && dataset.promoteFrom) {
     const pend = getDataset(dataset.promoteFrom);
-    if (pend && Array.isArray(pend.rows)) saveDataset(dataset.name, pend.rows);
+    if (pend && Array.isArray(pend.rows)) saveDataset(dataset.name, pend.rows, src);
   } else if (dataset && dataset.name && Array.isArray(dataset.rows) && dataset.rows.length) {
     // Type connu de petit volume : on déverse directement les lignes.
-    saveDataset(dataset.name, dataset.rows);
+    saveDataset(dataset.name, dataset.rows, src);
   }
   return entry;
 }

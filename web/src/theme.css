@@ -821,37 +821,49 @@ table.edit-tbl input:focus, table.edit-tbl select:focus { outline: 1px solid var
   img, svg, pre, table { max-width: 100%; }
   .notif-panel { top: calc(64px + env(safe-area-inset-top, 0px)); }
 
-  /* ---- Tableau cockpit → UNE CARTE PAR TICKET (aucune info masquée, aucun wrap) ---- */
+  /* ---- Tableau cockpit → UNE CARTE PAR TICKET (réordonnée, lisible au pouce) ---- */
   .cockpit-bd > table,
-  .cockpit-bd > table > tbody,
-  .cockpit-bd > table > tbody > tr,
-  .cockpit-bd > table > tbody > tr > td { display: block; width: 100%; }
+  .cockpit-bd > table > tbody { display: block; width: 100%; }
   .cockpit-bd > table > thead { display: none; }
   .cockpit-bd > table > tbody > tr {
-    border: 1px solid var(--line); border-radius: 14px;
-    padding: 12px 14px; margin: 0 0 10px; background: var(--card); box-shadow: var(--shadow);
+    display: flex; flex-wrap: wrap; align-items: center; column-gap: 8px; row-gap: 6px; width: 100%;
+    border: 1px solid var(--line); border-radius: 16px;
+    padding: 13px 15px; margin: 0 0 11px; background: var(--card); box-shadow: var(--shadow);
   }
   .cockpit-bd > table > tbody > tr.mine     { box-shadow: inset 4px 0 0 var(--gold-deep), var(--shadow); }
   .cockpit-bd > table > tbody > tr.has-flag { box-shadow: inset 4px 0 0 var(--orange), var(--shadow); }
   .cockpit-bd > table > tbody > tr.row-changed { border-color: var(--purple-line); }
   .cockpit-bd > table > tbody > tr > td {
-    display: flex; align-items: baseline; gap: 10px;
-    padding: 4px 0; border: 0 !important; background: transparent !important;
+    display: flex; align-items: center; gap: 7px; width: auto;
+    padding: 0; border: 0 !important; background: transparent !important; font-size: 12.5px;
   }
+  /* libellés discrets pour les métadonnées secondaires */
   .cockpit-bd > table > tbody > tr > td::before {
-    content: attr(data-label);
-    flex: 0 0 86px; font-size: 10.5px; font-weight: 700;
+    content: attr(data-label); font-size: 9.5px; font-weight: 700;
     text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
   }
-  /* Résumé : pleine largeur, mis en avant (le titre de la carte). */
+  /* En-tête de carte : Clé (gauche) + Statut (droite), sur une ligne pleine. */
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"]    { order: 1; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Statut"] { order: 2; margin-left: auto; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"]::before,
+  .cockpit-bd > table > tbody > tr > td[data-label="Statut"]::before { display: none; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"] .k { font-size: 13px; font-weight: 800; color: var(--gold-deep); }
+  /* Titre : pleine largeur, mis en avant. */
   .cockpit-bd > table > tbody > tr > td[data-label="Résumé"] {
-    display: block; font-size: 14.5px; font-weight: 600; color: var(--ink); padding: 2px 0 6px;
+    order: 3; flex: 1 1 100%; display: block; font-size: 15px; font-weight: 700; line-height: 1.35; color: var(--ink); margin: 2px 0 4px;
   }
-  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]::before { display: block; margin-bottom: 3px; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]::before { display: none; }
+  /* Méta secondaire (dossier, qui, échéance, priorité) : ligne pleine, repliable. */
+  .cockpit-bd > table > tbody > tr > td[data-label="Dossier"]      { order: 4; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Sur le ticket"]{ order: 5; flex: 1 1 100%; flex-wrap: wrap; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Échéance"]     { order: 6; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Priorité"]     { order: 7; margin-left: auto; }
   /* Pastilles / chips : jamais étirées, jamais coupées. */
   .cockpit-bd > table > tbody > tr > td .pill,
   .cockpit-bd > table > tbody > tr > td .tag,
   .cockpit-bd > table > tbody > tr > td .k { white-space: nowrap; }
+  .cockpit-bd > table > tbody > tr > td .me-badge,
+  .cockpit-bd > table > tbody > tr > td .chg-badge { margin-left: 6px; }
 
   /* ---- Tableaux denses des modales (fiche / activité / worklog) → cartes empilées ---- */
   .fiche-tbl > thead, .act-tbl > thead, .work-tbl > thead { display: none; }
@@ -2974,6 +2986,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .avc-fam i.tma { background: var(--green); }
 .avc-fam i.prj { background: var(--orange); }
 .avc-fam i.mix { background: #3a5bd0; }
+.avc-srcline { margin-top: 8px; font-size: 10.5px; color: var(--muted); font-style: italic; }
 
 /* ── Bandeau « Équipe » dans Attention (dév surchargé — signal d'équipe) ── */
 .attn-team { display: flex; align-items: center; gap: 10px; margin-top: 10px; padding: 10px 14px; border-radius: 12px; background: var(--amber-bg); color: var(--amber); font-size: 12.5px; font-weight: 600; border: 1px solid #f0d9b8; }
