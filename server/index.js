@@ -915,8 +915,22 @@ app.post("/api/assistant/analyze", guard, upload.single("file"), async (req, res
         text = await pptxToText(req.file.buffer);
       } catch {}
     }
+    if (text == null && /\.one$/i.test(name)) {
+      try {
+        const os = await import("os"); const { spawn } = await import("child_process");
+        const here = path.dirname(fileURLToPath(import.meta.url));
+        const tmp = path.join(os.tmpdir(), `cpwire_one_${Date.now()}.one`);
+        fs.writeFileSync(tmp, req.file.buffer);
+        text = await new Promise((resolve) => {
+          const py = spawn(process.env.PYTHON_BIN || "python3", [path.join(here, "onenote.py"), tmp]);
+          const out = []; py.stdout.on("data", (d) => out.push(d));
+          py.on("error", () => resolve(null));
+          py.on("close", () => { try { fs.unlinkSync(tmp); } catch {} resolve(Buffer.concat(out).toString("utf8") || null); });
+        });
+      } catch {}
+    }
     if (text == null || !String(text).trim()) {
-      return res.json({ error: "Format non géré pour l'analyse (CSV, TXT, JSON, MD, XLSX, Word .docx, PowerPoint .pptx, PDF). Pour un ancien .doc/.ppt, un .msg ou une vidéo, copie-colle le texte dans le chat." });
+      return res.json({ error: "Format non géré pour l'analyse (CSV, TXT, JSON, MD, XLSX, Word .docx, PowerPoint .pptx, OneNote .one, PDF). Pour un ancien .doc/.ppt, un .msg ou une vidéo, copie-colle le texte dans le chat." });
     }
     const got = await getIssues(false);
     const out = await analyzeFile({ filename: name, text, question: req.body.question || "", issues: got ? got.issues : [] });

@@ -211,12 +211,40 @@ function diffGeneric(prevRows, nextRows) {
 }
 const slugify = (s) => String(s || "").toLowerCase().replace(/\.[a-z0-9]+$/i, "").replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 60);
 
+// Extraction OneNote (.one) : délègue au script Python (pyOneNote, auto-patché).
+// Nécessite python3 + pyOneNote dans l'environnement (fournis par le Dockerfile).
+async function oneToText(buffer) {
+  const os = await import("os");
+  const { spawn } = await import("child_process");
+  const { fileURLToPath } = await import("url");
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  const script = path.join(here, "onenote.py");
+  const tmp = path.join(os.tmpdir(), `cpwire_one_${Date.now()}_${Math.random().toString(36).slice(2)}.one`);
+  fs.writeFileSync(tmp, buffer);
+  return await new Promise((resolve, reject) => {
+    const py = spawn(process.env.PYTHON_BIN || "python3", [script, tmp]);
+    const out = [], err = [];
+    py.stdout.on("data", (d) => out.push(d));
+    py.stderr.on("data", (d) => err.push(d));
+    py.on("error", reject);
+    py.on("close", (code) => {
+      try { fs.unlinkSync(tmp); } catch {}
+      const txt = Buffer.concat(out).toString("utf8");
+      if (code === 0 && txt.trim()) resolve(txt);
+      else reject(new Error(Buffer.concat(err).toString().slice(0, 300) || "extraction OneNote échouée"));
+    });
+  });
+}
+
 export async function analyzeDocument({ filename, buffer }) {
   let text = bufferToText(buffer, filename);
   if (text == null && /\.pptx$/i.test(String(filename || ""))) {
     try { const { pptxToText } = await import("./pptx.js"); text = await pptxToText(buffer); } catch {}
   }
-  if (text == null) return { ok: false, error: "Type de fichier non géré pour l'instant. Formats acceptés : CSV, TSV, TXT, JSON, MD, PowerPoint .pptx." };
+  if (text == null && /\.one$/i.test(String(filename || ""))) {
+    try { text = await oneToText(buffer); } catch {}
+  }
+  if (text == null) return { ok: false, error: "Type de fichier non géré pour l'instant. Formats acceptés : CSV, TSV, TXT, JSON, MD, PowerPoint .pptx, OneNote .one." };
   // Type connu : arborescence écrans MAX (EDL) → on parse nous-mêmes, chiffres réels (pas d'IA).
   if (looksLikeMax(filename, text)) {
     const rows = parseMaxCsv(text);

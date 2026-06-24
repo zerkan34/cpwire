@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       fonts-dejavu-core fontconfig \
  && rm -rf /var/lib/apt/lists/*
 
-# WeasyPrint (pip ; --break-system-packages requis sur Debian récent).
-RUN pip3 install --no-cache-dir --break-system-packages weasyprint
+# WeasyPrint + pyOneNote (extraction OneNote) — pip ; --break-system-packages requis.
+RUN pip3 install --no-cache-dir --break-system-packages weasyprint pyOneNote
 
 WORKDIR /app
 COPY . .
