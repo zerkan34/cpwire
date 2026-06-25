@@ -1780,7 +1780,7 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 .cad-foot { margin-top: 16px; font-size: 12px; color: var(--muted); line-height: 1.6; }
 
 /* ===== Mémoire d'équipe ===== */
-.cn-warn { background: #fff7f0; border: 1px solid var(--orange); border-radius: 12px; padding: 12px 14px; font-size: 13px; color: var(--orange-deep); margin-bottom: 16px; line-height: 1.5; }
+.cn-warn { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; padding: 11px 14px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
 .cn-warn code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .cn-block { padding: 18px; }
 .cn-block h3 { font-family: Poppins, sans-serif; font-size: 14px; color: var(--indigo); margin: 14px 0 6px; }
@@ -3296,18 +3296,37 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===== Référence — cœur navigable (Annuaire / Analyse / Mémoire) ===== */
 .ref-core { margin-top: 4px; }
-.ref-nav { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 18px; }
-.ref-navbtn { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 11px 16px; border-radius: 12px;
-  border: 1px solid var(--line); background: #fff; cursor: pointer; min-width: 180px; transition: all .15s; }
-.ref-navbtn:hover { border-color: var(--indigo); }
-.ref-navbtn.on { background: linear-gradient(135deg, var(--navy), var(--indigo)); border-color: transparent;
-  box-shadow: inset 0 -3px 0 rgba(168,136,78,.7); }
+.ref-head { margin: 2px 0 18px; }
+.ref-head h2 { font-family: "Poppins"; font-weight: 700; font-size: 22px; color: var(--ink); margin: 0; display: flex; align-items: center; gap: 11px; }
+.ref-head h2:before { content: ""; width: 11px; height: 28px; border-radius: 5px; background: linear-gradient(var(--purple), var(--purple-strong)); }
+.ref-head p { font-size: 13px; color: var(--muted); margin: 8px 0 0 22px; max-width: 720px; }
+.ref-nav { display: flex; gap: 10px; flex-wrap: wrap; margin: 16px 0 20px; padding: 6px; background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 16px; }
+.ref-navbtn { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 10px 16px; border-radius: 11px;
+  border: 1px solid transparent; background: transparent; cursor: pointer; flex: 1; min-width: 170px; transition: background .15s, box-shadow .15s, transform .12s; }
+.ref-navbtn:hover { background: rgba(255,255,255,.6); }
+.ref-navbtn.on { background: linear-gradient(135deg, var(--indigo-deep), var(--indigo)); border-color: transparent;
+  box-shadow: 0 6px 16px rgba(58,54,88,.22), inset 0 -3px 0 var(--gold); transform: translateY(-1px); }
 .ref-navbtn-l { font-weight: 700; font-size: 13.5px; color: var(--ink); }
 .ref-navbtn-d { font-size: 10.5px; color: var(--muted); }
 .ref-navbtn.on .ref-navbtn-l, .ref-navbtn.on .ref-navbtn-d { color: #fff; }
-.ref-navbtn.on .ref-navbtn-d { opacity: .82; }
+.ref-navbtn.on .ref-navbtn-d { opacity: .85; }
 .ref-view { animation: reffade .22s ease; }
 @keyframes reffade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+
+/* États propres (chargement / vide / erreur) — fini les messages bruts */
+.ref-state { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px;
+  padding: 44px 26px; background: var(--card); border: 1px solid var(--line); border-radius: 16px; margin-top: 6px; }
+.ref-state .rs-ic { width: 52px; height: 52px; border-radius: 14px; display: grid; place-items: center; font-size: 24px;
+  background: var(--purple-soft); border: 1px solid var(--purple-line); }
+.ref-state.err .rs-ic { background: var(--red-bg); border-color: transparent; }
+.ref-state .rs-t { font-family: "Poppins"; font-weight: 700; font-size: 16px; color: var(--ink); }
+.ref-state .rs-m { font-size: 13px; color: var(--muted); max-width: 460px; line-height: 1.55; }
+.ref-state .rs-d { font-size: 11px; color: var(--muted); opacity: .7; font-family: ui-monospace, monospace; margin-top: 2px; word-break: break-word; }
+.ref-state .rs-retry { margin-top: 6px; padding: 8px 18px; border-radius: 10px; border: 1px solid var(--indigo);
+  background: #fff; color: var(--indigo); font-weight: 600; font-size: 13px; cursor: pointer; transition: all .15s; }
+.ref-state .rs-retry:hover { background: var(--indigo); color: #fff; }
+.ref-state.load .rs-ic { animation: refspin 1s linear infinite; }
+@keyframes refspin { to { transform: rotate(360deg); } }
 
 /* Analyse */
 .rana-sec { margin: 0 0 22px; }

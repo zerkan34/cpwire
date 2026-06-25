@@ -12,37 +12,16 @@ export function downloadHtml(html, filename) {
 
 // Impression via une iframe cachée : pas de nouvelle fenêtre/onglet « about:blank »,
 // et l'app ne se fige plus (l'aperçu d'impression est isolé dans l'iframe).
-export function printHtml(html) {
+export async function printHtml(html, filename = "Document.pdf") {
+  // Plus de boîte d'impression : on produit un VRAI PDF côté serveur (WeasyPrint)
+  // et on le télécharge. En repli (moteur indisponible), on télécharge le HTML.
+  const name = /\.pdf$/i.test(filename) ? filename : `${filename}.pdf`;
   try {
-    const old = document.getElementById("cpwire-print-frame");
-    if (old) old.remove();
-    const iframe = document.createElement("iframe");
-    iframe.id = "cpwire-print-frame";
-    iframe.setAttribute("aria-hidden", "true");
-    iframe.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;";
-    document.body.appendChild(iframe);
-
-    let done = false;
-    const cleanup = () => { setTimeout(() => { try { iframe.remove(); } catch { /* */ } }, 1500); };
-
-    iframe.onload = () => {
-      if (done) return; done = true;
-      try {
-        const w = iframe.contentWindow;
-        try { w.document.title = " "; } catch { /* */ }
-        w.focus();
-        w.onafterprint = cleanup;
-        w.print();
-        setTimeout(cleanup, 60000); // filet de sécurité
-      } catch (e) {
-        cleanup();
-        try { downloadHtml(html, "document.html"); } catch { /* */ }
-      }
-    };
-    iframe.srcdoc = html;
+    const { exportHtmlPdf } = await import("./api.js");
+    await exportHtmlPdf(html, name);
     return true;
   } catch (e) {
-    try { downloadHtml(html, "document.html"); } catch { /* */ }
+    try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
     return false;
   }
 }

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchReferentiel, fetchReferentielClients } from "../api.js";
 import CopilotDot from "./CopilotDot.jsx";
+import { RefState } from "./RefState.jsx";
 
 // Catégorie Jira → [libellé, classe de pastille]. Aligné sur server/config.js.
 const CAT = {
@@ -79,7 +80,9 @@ export default function Referentiel({ issues = [], onTicket }) {
   const [data, setData] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const [nonce, setNonce] = useState(0);
   const [open, setOpen] = useState({}); // code option → déplié ?
+  const retry = () => { setErr(""); setData(null); setLoading(true); setNonce((n) => n + 1); };
 
   // Pour ouvrir la fiche ticket complète au clic, on retrouve l'issue par sa clé.
   const byCle = useMemo(() => {
@@ -96,7 +99,7 @@ export default function Referentiel({ issues = [], onTicket }) {
         if (cs.length) setClient(cs[0]); else setLoading(false);
       })
       .catch((e) => { setErr(e.message); setLoading(false); });
-  }, []);
+  }, [nonce]);
 
   useEffect(() => {
     if (!client) return;
@@ -104,13 +107,13 @@ export default function Referentiel({ issues = [], onTicket }) {
     fetchReferentiel(client)
       .then((d) => { setData(d); setLoading(false); })
       .catch((e) => { setErr(e.message); setLoading(false); });
-  }, [client]);
+  }, [client, nonce]);
 
   const openTicket = (cle) => { const full = byCle[cle]; if (full && onTicket) onTicket(full); };
 
-  if (loading) return <div className="panel">Chargement du référentiel…</div>;
-  if (err) return <div className="banner">Erreur : {err}</div>;
-  if (!clients.length || !data) return <div className="panel empty">Aucun référentiel défini pour l'instant.</div>;
+  if (loading) return <RefState kind="load" title="Chargement de l'annuaire…" message="Rapprochement des programmes et de leurs tickets Jira." />;
+  if (err) return <RefState kind="err" title="L'annuaire n'a pas pu se charger" message="La récupération du référentiel a échoué. Vérifiez la connexion à Jira, puis réessayez." detail={err} onRetry={retry} />;
+  if (!clients.length || !data) return <RefState kind="empty" title="Aucun référentiel pour l'instant" message="Aucune option ni programme n'est encore rattaché. L'annuaire se remplira dès que des programmes seront renseignés et liés à des tickets." />;
 
   return (
     <>

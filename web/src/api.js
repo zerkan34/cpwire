@@ -133,6 +133,23 @@ export const saveConnaissance = (data) => put(`/api/connaissance`, data);
 export const learnConnaissance = () => post(`/api/connaissance/learn`, {});
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
+// Rendu PDF d'un HTML autonome côté serveur → fichier téléchargeable (pas de boîte d'impression).
+export async function exportHtmlPdf(html, filename = "Document.pdf") {
+  const res = await fetch(`${BASE}/api/pdf/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ html, filename }),
+  });
+  if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch {} throw new Error(m || `HTTP ${res.status}`); }
+  const blob = await res.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  return true;
+}
+
 export const fetchProjets = () => req(`/api/projets`);
 // Rendu PDF côté serveur (WeasyPrint, charte exacte). data = { meta, clients }.
 export async function exportServerPdf(data, filename = "Points-bloquants.pdf", kind = "blockers") {

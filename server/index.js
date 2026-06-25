@@ -795,6 +795,35 @@ app.post("/api/export/pdf", guard, async (req, res) => {
     py.stdin.end();
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
+// Rendu PDF générique : reçoit un HTML autonome, renvoie un PDF téléchargeable
+// (remplace l'ouverture de la boîte d'impression pour les récaps, CR, etc.).
+app.post("/api/pdf/render", guard, async (req, res) => {
+  try {
+    const { html, filename } = req.body || {};
+    if (!html || typeof html !== "string") return res.status(400).json({ error: "HTML manquant." });
+    const here = path.dirname(fileURLToPath(import.meta.url));
+    const script = path.join(here, "pdf", "html2pdf.py");
+    const out = path.join(os.tmpdir(), `cpwire_html_${Date.now()}_${Math.random().toString(36).slice(2)}.pdf`);
+    const py = spawn(process.env.PYTHON_BIN || "python3", [script, out], { stdio: ["pipe", "ignore", "pipe"] });
+    const errs = [];
+    py.stderr.on("data", (d) => errs.push(d));
+    py.on("error", (e) => { try { res.status(500).json({ error: "Moteur PDF indisponible : " + (e.message || e) }); } catch {} });
+    py.on("close", (code) => {
+      try {
+        if (code !== 0 || !fs.existsSync(out)) {
+          return res.status(500).json({ error: "Rendu PDF échoué. " + Buffer.concat(errs).toString().slice(0, 400) });
+        }
+        const pdf = fs.readFileSync(out);
+        try { fs.unlinkSync(out); } catch {}
+        res.setHeader("Content-Type", "application/pdf");
+        res.setHeader("Content-Disposition", `attachment; filename="${(filename || "Document.pdf").replace(/[^\w.-]+/g, "_")}"`);
+        res.send(pdf);
+      } catch (e) { try { res.status(502).json({ error: String(e.message || e) }); } catch {} }
+    });
+    py.stdin.write(html);
+    py.stdin.end();
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
 app.get("/api/projets/doc", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);

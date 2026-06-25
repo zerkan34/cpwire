@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchConnaissance, saveConnaissance, learnConnaissance } from "../api.js";
+import { RefState } from "./RefState.jsx";
 
 const arrToText = (a) => (Array.isArray(a) ? a.join("\n") : "");
 const textToArr = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -16,6 +17,8 @@ export default function Connaissance() {
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
   const [learning, setLearning] = useState(false);
+  const [nonce, setNonce] = useState(0);
+  const retry = () => { setErr(""); setLoading(true); setNonce((n) => n + 1); };
 
   const [conv, setConv] = useState("");
   const [glossG, setGlossG] = useState("");
@@ -42,7 +45,7 @@ export default function Connaissance() {
       .catch((e) => { if (alive) setErr(e.message || "Erreur"); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [nonce]);
 
   const clientKeys = useMemo(() => (k ? Object.keys(k.clients || {}) : []), [k]);
 
@@ -84,8 +87,8 @@ export default function Connaissance() {
 
   const fmtAt = (iso) => { try { return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; } };
 
-  if (loading) return <div className="empty">Chargement de la mémoire d'équipe…</div>;
-  if (err && !k) return <div className="empty">Mémoire indisponible : {err}</div>;
+  if (loading) return <RefState kind="load" title="Chargement de la mémoire d'équipe…" message="Récupération des conventions, du glossaire et du contexte appris par l'IA." />;
+  if (err && !k) return <RefState kind="err" title="La mémoire n'a pas pu se charger" message="La base de connaissance est momentanément indisponible. Réessayez dans un instant." detail={err} onRetry={retry} />;
   if (!k) return null;
 
   return (
@@ -97,8 +100,7 @@ export default function Connaissance() {
       </p>
 
       <div className="cn-warn">
-        ⚠ Sur Render gratuit, les ajouts faits ici sont effacés au prochain déploiement. Cliquez <b>Exporter</b> et remplacez le fichier
-        <code> server/data/connaissance.json</code> dans votre dépôt pour les rendre permanents (ou définissez un disque persistant <code>DATA_DIR</code>).
+        Pour rendre des ajouts <b>permanents</b> : cliquez <b>Exporter</b>, puis remplacez <code>server/data/connaissance.json</code> dans le dépôt — l'application le recharge automatiquement au déploiement suivant. Avec un disque persistant <code>DATA_DIR</code>, la sauvegarde est immédiate et rien n'est à faire.
       </div>
 
       <div className="panel cn-block">
