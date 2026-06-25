@@ -39,7 +39,7 @@ import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
 import { readAll as readDossiers, saveOne as saveDossier } from "./dossiers.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
-import { analyzeDocument, applyImport, listImports, getDataset, bufferToText } from "./import.js";
+import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -1314,6 +1314,7 @@ if (fs.existsSync(WEB_DIST)) {
 }
 
 try { const restored = await initMemory(); if (restored) console.log("[connaissance] mémoire restaurée depuis la base durable."); } catch (e) { console.error("initMemory:", e.message); }
+try { const ri = await initImports(); if (ri) console.log("[import] historique et datasets restaurés depuis la base durable."); } catch (e) { console.error("initImports:", e.message); }
 app.listen(PORT, () => {
   console.log(`CPwire API sur http://localhost:${PORT}`);
   console.log(`Auth: ${AUTH_ENABLED ? "oui" : "non"} | Jira: ${isConfigured() ? "oui" : (ALLOW_DEMO ? "démo" : "non configuré")} | IA: ${aiAvailable() ? "oui" : "gabarit"} | moi: ${ME}`);

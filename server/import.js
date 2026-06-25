@@ -5,12 +5,13 @@ import fs from "fs";
 import path from "path";
 import { dataDir } from "./paths.js";
 import { classifyImport } from "./ai.js";
+import { saveBlob as dbSaveBlob, restoreBlob, restoreManyBlobs } from "./persist.js";
 
 const DIR = dataDir();
 const FILE = path.join(DIR, "imports.json");
 
 function load() { try { return JSON.parse(fs.readFileSync(FILE, "utf8")); } catch { return { items: [] }; } }
-function save(d) { try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(d)); return true; } catch (e) { console.error("imports save:", e.message); return false; } }
+function save(d) { try { fs.mkdirSync(DIR, { recursive: true }); const c = JSON.stringify(d); fs.writeFileSync(FILE, c); try { dbSaveBlob("imports.json", c); } catch {} return true; } catch (e) { console.error("imports save:", e.message); return false; } }
 
 const TEXT_EXT = ["csv", "tsv", "txt", "json", "md", "log"];
 
@@ -79,8 +80,13 @@ function maxStats(rows) {
 // --- Datasets persistés (résultat d'un import validé, lu par les écrans concernés). ---
 function datasetFile(name) { return path.join(DIR, `dataset_${String(name).replace(/[^a-z0-9_]/gi, "")}.json`); }
 export function saveDataset(name, rows, source = null) {
-  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(datasetFile(name), JSON.stringify({ at: new Date().toISOString(), source: source || null, rows })); return true; }
-  catch (e) { console.error("saveDataset:", e.message); return false; }
+  try {
+    fs.mkdirSync(DIR, { recursive: true });
+    const content = JSON.stringify({ at: new Date().toISOString(), source: source || null, rows });
+    fs.writeFileSync(datasetFile(name), content);
+    try { dbSaveBlob(path.basename(datasetFile(name)), content); } catch {}
+    return true;
+  } catch (e) { console.error("saveDataset:", e.message); return false; }
 }
 export function getDataset(name) { try { return JSON.parse(fs.readFileSync(datasetFile(name), "utf8")); } catch { return null; } }
 
@@ -358,3 +364,19 @@ export function applyImport({ filename, proposal, apercu, dataset, diff, by }) {
 }
 
 export function listImports() { return load().items || []; }
+
+// Restaure l'historique d'import et tous les datasets depuis la base durable (Neon) au
+// démarrage, si DATABASE_URL. Rend les imports persistants au même titre que la mémoire.
+export async function initImports() {
+  try {
+    const imp = await restoreBlob("imports.json");
+    if (imp && imp.trim()) { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, imp); }
+    const ds = await restoreManyBlobs("dataset_");
+    for (const b of ds) {
+      if (b && b.content && b.content.trim() && /^dataset_[a-z0-9_]+\.json$/i.test(b.name)) {
+        fs.writeFileSync(path.join(DIR, b.name), b.content);
+      }
+    }
+    return true;
+  } catch (e) { console.error("[import] initImports impossible:", e.message); return false; }
+}

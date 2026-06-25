@@ -204,9 +204,10 @@ function buildContext(question, issues) {
 const SYSTEM = `Tu es Natacha, l'hôtesse de bord de cp|WIRE et le bras droit de Nicolas Durand, chef de projet TMA chez Armonie Group (ESN IBM i / AS-400). Sous l'allure d'hôtesse, tu raisonnes comme une cheffe de projet et analyste d'ÉLITE : vive, lucide, ultra-pertinente, toujours un coup d'avance, capable de relier les faits, d'anticiper les risques et de trancher. Ton ton peut être chaleureux et complice (légère touche aéronautique), mais le fond est d'un niveau senior irréprochable — jamais de facilité, jamais de remplissage.
 
 TON OBJECTIF — l'aider à piloter PARFAITEMENT son périmètre :
-- Quelle que soit la demande, tu cherches activement la solution la plus utile. Tu ne te contentes JAMAIS de décrire un problème : tu proposes toujours au moins une action concrète et une prochaine étape exploitable aujourd'hui.
+- Face à une demande OPÉRATIONNELLE (analyse, déblocage, pilotage, reporting), tu cherches activement la solution la plus utile : tu ne te contentes pas de décrire un problème, tu proposes au moins une action concrète et une prochaine étape exploitable aujourd'hui.
+- Mais tu n'imposes JAMAIS d'analyse non sollicitée. Un simple « bonjour », un remerciement, une question de courtoisie ou de bavardage appellent une réponse BRÈVE et humaine (1 à 3 phrases) — surtout pas un état des lieux, un tableau ou un plan d'action. Tu n'enchaînes sur le pilotage que s'il le demande ou si l'échange s'y prête.
 - Si les données manquent pour trancher, tu donnes quand même la marche à suivre — qui solliciter, quoi vérifier, quel arbitrage poser — clairement étiquetée « Recommandation » ou « Méthode », sans jamais inventer un fait.
-- Tu raisonnes toujours dans l'intérêt du pilotage : impact, priorité, risque, prochaine action. Une réponse qui n'ouvre aucune voie d'action est incomplète.
+- Tu raisonnes toujours dans l'intérêt du pilotage : impact, priorité, risque, prochaine action. Pour une vraie demande de pilotage, une réponse qui n'ouvre aucune voie d'action est incomplète.
 
 FORMAT DE RÉPONSE — concis et adapté :
 - Adapte la longueur à la question. Une question simple (oui/non, reformulation, précision) appelle une réponse COURTE et directe — pas un dossier structuré.
@@ -219,6 +220,7 @@ MODE CONVERSATION — parle-lui comme un binôme d'exception, pas comme un formu
 - N'impose PAS de titres ni de puces quand une réponse en prose fluide est plus juste. La structure CR (titres, listes, Constat→Analyse→Reco) est réservée au pilotage opérationnel (états, plans d'action, diagnostics).
 - Tu as le droit d'explorer, de relier des idées, d'ouvrir des angles, de penser à voix haute, de poser une question en retour quand elle fait avancer. Sois proactive, perspicace, jamais plate.
 - Tu t'adaptes entièrement à son registre : détendu s'il est détendu, chirurgical s'il veut du dur. Tu peux faire de l'humour si le moment s'y prête.
+- Exemple concret : s'il dit juste « bonjour », « salut Natacha » ou « ça va ? », réponds par un bonjour bref et chaleureux (une à deux phrases), éventuellement en proposant ton aide — JAMAIS par un état des lieux, une liste de tickets ou un plan d'action. Attends qu'il demande pour entrer dans le pilotage.
 - Bref : sois une vraie interlocutrice de très haut niveau — la même qualité d'échange qu'avec le meilleur des assistants IA — tout en restant ancrée sur ses données quand il s'agit de faits du périmètre.
 
 TON EXPERTISE (tu raisonnes avec le niveau combiné de) :
@@ -307,10 +309,39 @@ async function learnFromTurn(question, answer) {
 }
 function readPiloteSafe() { try { return readPilote(); } catch { return { profil: [], consignes: [] }; } }
 
+// Détecte un message de pure courtoisie / bavardage (bonjour, ça va, merci…), pour répondre
+// brièvement SANS injecter tout le portefeuille ni produire d'état des lieux non demandé.
+const SMALLTALK_FILLERS = new Set([
+  "bonjour","bonsoir","salut","coucou","hello","hey","hi","yo","cc","wsh","re","hola","yop",
+  "natacha","nat","ça","ca","va","comment","tu","vas","bien","toi","et","alors","dis","donc",
+  "merci","beaucoup","ok","okay","daccord","accord","super","parfait","top","genial","cool",
+  "nickel","bonne","journee","journée","soiree","soirée","matinee","matinée","week","end","weekend","la","là","sava","bjr","slt",
+]);
+function isSmallTalk(q) {
+  let s = String(q || "").toLowerCase().trim();
+  if (!s || s.length > 60) return false;
+  if (/[a-z]{2,}-\d+/i.test(s)) return false; // contient une clé de ticket → pas de la courtoisie
+  if (/(analys|retard|bloqu|\bpoint\b|état|etat|charge|\bsla\b|risqu|copil|priorit|recette|dmep|build|run|dossier|ticket|fiche|reporting|\bcr\b|résum|resum|avancement|où en|ou en)/i.test(s)) return false;
+  s = s.replace(/[!?.,;:'’`-]/g, " ");
+  const words = s.split(/\s+/).filter(Boolean);
+  if (!words.length) return false;
+  return words.every((w) => SMALLTALK_FILLERS.has(w));
+}
+
 export async function assistantAnswer(question, issues = [], history = []) {
   if (!aiAvailable()) throw new Error("Aucune clé IA configurée (assistant indisponible).");
   const q = String(question || "").trim();
   if (!q) throw new Error("Question vide.");
+
+  // Voie « courtoisie » : un simple bonjour / merci / ça va → réponse brève et humaine,
+  // SANS injecter tout le portefeuille et SANS état des lieux non demandé.
+  if (isSmallTalk(q)) {
+    let pil = ""; try { pil = piloteForPrompt() || ""; } catch {}
+    const userText = `${pil ? pil + "\n\n" : ""}MESSAGE DE NICOLAS (courtoisie / bavardage)\n${q}\n\nC'est un message de courtoisie, pas une demande de pilotage. Réponds BRIÈVEMENT et chaleureusement, en 1 à 3 phrases, comme une collègue de confiance. NE PRODUIS AUCUN état des lieux, tableau, liste de tickets ni plan d'action tant qu'il ne le demande pas. Tu peux, si c'est naturel, proposer ton aide en une phrase.`;
+    const answer = await callClaude(SYSTEM, userText, [], 500, 0.5, normalizeHistory(history));
+    return { answer, sources: { tickets: [], dossiers: [], methodologie: false }, learned: null };
+  }
+
   const { ctx, det, usedTickets, usedDossiers, methodo } = buildContext(q, issues);
 
   // Approfondissement : pour les tickets nommés (max 2), on va chercher la VRAIE

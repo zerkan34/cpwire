@@ -48,6 +48,20 @@ export async function restoreBlob(name) {
   }
 }
 
+// Restaure TOUS les blobs dont le nom commence par `prefix` (ex. "dataset_").
+// Renvoie [{name, content}] (vide si base absente ou erreur).
+export async function restoreManyBlobs(prefix) {
+  try {
+    const pool = await pg();
+    if (!pool) return [];
+    const r = await pool.query("SELECT name, content FROM cpwire_blobs WHERE name LIKE $1", [String(prefix).replace(/[%_]/g, "\\$&") + "%"]);
+    return r.rows.map((x) => ({ name: x.name, content: x.content }));
+  } catch (e) {
+    console.error(`[persist] restoreMany ${prefix} impossible:`, e.message);
+    return [];
+  }
+}
+
 // Sauvegarde (upsert) un blob dans la base. Fire-and-forget : n'attend pas et
 // ne casse jamais l'appelant. Petit anti-rafale (debounce) par nom.
 const _timers = {};
