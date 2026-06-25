@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { progResume } from "../ticket.js";
 import { pointBaseline } from "../api.js";
+import { charterDoc, cover } from "../charter.js";
+import { printHtml } from "../utils.js";
 
 // « Le point du soir » — reproduit le relevé quotidien par statut (mêmes libellés
 // que le mail de la direction), avec les écarts vs le dernier relevé d'un jour
@@ -97,6 +99,61 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
     try { await navigator.clipboard.writeText(txt); setCopied(true); setTimeout(() => setCopied(false), 1800); } catch (e) { /* clipboard indispo */ }
   };
 
+  // Export PDF à la charte Armonie (moteur standard : serveur WeasyPrint → navigateur → repli).
+  const exportPdf = () => {
+    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const dateStr = new Date().toLocaleDateString("fr-FR");
+    const dossierLbl = dossier && dossier !== "Tous dossiers" ? dossier : "Tous dossiers";
+    const periodLbl = { tout: "État actuel", jour: "Aujourd'hui", semaine: "7 jours", mois: "30 jours", annee: "1 an" }[period] || "État actuel";
+    const tblRows = rows.map((r) => {
+      const d = r.delta == null ? "·" : r.delta === 0 ? "(=)" : r.delta > 0 ? `+${r.delta}` : `${r.delta}`;
+      const cls = r.delta > 0 ? "up" : r.delta < 0 ? "down" : "";
+      return `<tr><td>${esc(r.label)}</td><td class="num">${r.n}</td><td class="num ${cls}">${d}</td></tr>`;
+    }).join("");
+    const breakdown = rows.filter((r) => r.n > 0).map((r) => {
+      const lis = itemsForCat(r.k).map((i) =>
+        `<li><b>${esc(i.cle)}</b> ${i.flagged ? "🚩 " : ""}${esc(progResume(i))} <span class="asg">${esc(i.assigne || "non assigné")}</span></li>`
+      ).join("");
+      return `<h4>${esc(r.label)} <span class="cnt">${r.n}</span></h4><ul class="tk">${lis}</ul>`;
+    }).join("");
+    const bodyHtml = `
+      <table class="ps"><thead><tr><th>Statut</th><th class="num">Nombre</th><th class="num">Écart</th></tr></thead>
+      <tbody>${tblRows}</tbody></table>
+      <p class="tot">${total} tickets suivis${horsPoint ? ` · ${horsPoint} hors point (à faire / annulés / retour prod)` : ""}${!cutoff && baseline ? ` · écarts vs le ${esc(baseline.date)}` : ""}</p>
+      ${breakdown ? `<h3>Détail par statut</h3>${breakdown}` : ""}`;
+    const extraCss = `
+      table.ps { width: 100%; border-collapse: collapse; margin: 4px 0 10px; font-size: 13px; }
+      table.ps th { background: #2E2A5D; color: #fff; text-align: left; padding: 7px 11px; font-family: Poppins, Inter, sans-serif; font-size: 12px; font-weight: 600; }
+      table.ps th.num, table.ps td.num { text-align: right; }
+      table.ps td { padding: 6px 11px; border-bottom: 1px solid #E7E5F1; }
+      table.ps tbody tr:nth-child(even) { background: #F5F2FC; }
+      table.ps td.num.up { color: #1f8a5f; } table.ps td.num.down { color: #C0392B; }
+      .tot { color: #6E6A86; font-size: 12px; margin: 2px 0 14px; }
+      .ch-body h3 { font-family: Poppins, Inter, sans-serif; color: #2E2A5D; font-size: 15px; margin: 16px 0 6px; }
+      .ch-body h4 { font-family: Poppins, Inter, sans-serif; color: #4B3F8F; font-size: 13px; margin: 11px 0 3px; }
+      .ch-body h4 .cnt { color: #A8884E; font-weight: 700; }
+      ul.tk { margin: 3px 0 8px; padding-left: 18px; } ul.tk li { margin: 2px 0; font-size: 12.5px; line-height: 1.4; }
+      ul.tk .asg { color: #6E6A86; }`;
+    const html = charterDoc({
+      docTitle: `Le point du soir — ${dossierLbl}`,
+      extraCss,
+      coverHtml: cover({
+        kicker: "Pilotage TMA",
+        title: "Le point du soir",
+        subtitle: `${dossierLbl}${multi ? ` · ${scopeLbl}` : ""} — ${periodLbl}`,
+        meta: dateStr,
+        pill: dossierLbl,
+        enBref: `Relevé quotidien par statut${!cutoff && baseline ? `, avec écarts vs le ${esc(baseline.date)}` : ""}. Chiffres issus du point du soir (source Jira), sans recalcul ni invention.`,
+        callout: { value: String(total), label: "tickets suivis" },
+        etabliPar: "Nicolas Durand",
+      }),
+      bodyHtml,
+      footerText: "cp|WIRE · Le point du soir",
+    });
+    const slug = String(dossierLbl).toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+    printHtml(html, `Point_du_soir_${slug}_${todayStr()}.pdf`);
+  };
+
   return (
     <div className="pds">
       <div className="pds-head">
@@ -119,6 +176,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
             <option value="mois">30 jours</option>
             <option value="annee">1 an</option>
           </select>
+          <button className="pds-copy" onClick={exportPdf} title="Télécharger le point du soir en PDF (charte Armonie)">⤓ PDF</button>
           <button className="pds-copy" onClick={copy}>{copied ? "Copié ✓" : "Copier le point"}</button>
         </div>
       </div>
