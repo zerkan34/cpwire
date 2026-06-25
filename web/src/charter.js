@@ -87,9 +87,9 @@ export function charterCss() {
   .ch-logo-sub{font-size:8px;letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
 
   /* ---------- COUVERTURE (fond blanc, éléments centrés) ---------- */
-  .ch-cover{position:relative;min-height:258mm;display:flex;flex-direction:column;
+  .ch-cover{position:relative;min-height:255mm;display:flex;flex-direction:column;
     background:#fff;color:${C.ink};
-    margin:-15mm -14mm 0;padding:22mm 26mm 16mm;page-break-after:always}
+    margin:0;padding:14mm 10mm 12mm;page-break-after:always}
   .ch-cover::before{content:"";position:absolute;top:0;left:0;right:0;height:5mm;
     background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
