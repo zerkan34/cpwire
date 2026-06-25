@@ -105,8 +105,13 @@ function blockHtml(dossier, b) {
 }
 
 // Document complet. scope = nom d'un dossier, ou "Tous" / "Tous dossiers".
-export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas Durand" } = {}) {
-  const facts = computeFacts(issues);
+export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas Durand", engagement = "all" } = {}) {
+  // Périmètre d'engagement : TMA seul, Projet seul, ou les deux ("all").
+  const eng = engagement === "TMA" || engagement === "Projet" ? engagement : "all";
+  const ENG_SHORT = { all: "TMA & Projets", TMA: "TMA", Projet: "Projet" };
+  const engShort = ENG_SHORT[eng];
+  const srcIssues = eng === "all" ? issues : issues.filter((i) => i.engagement === eng);
+  const facts = computeFacts(srcIssues);
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
   const todayShort = new Date().toLocaleDateString("fr-FR"); // 25/06/2026 — affiché à côté du titre
   const all = scope === "Tous" || scope === "Tous dossiers" || !scope;
@@ -131,26 +136,27 @@ export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas D
   }).join("");
 
   const coverHtml = cover({
-    kicker: "Armonie Group · Récapitulatif",
+    kicker: `Armonie Group · Récapitulatif${eng !== "all" ? " · " + engShort : ""}`,
     title: "Récapitulatif",
     titleNote: todayShort,
-    subtitle: all ? "Portefeuille TMA & Projets — tous les clients" : `Dossier ${perim}`,
+    subtitle: all ? `Portefeuille ${engShort} — tous les clients` : `Dossier ${perim}${eng !== "all" ? " · " + engShort : ""}`,
     meta: "",
     pill: "Document de travail interne",
-    enBref: `Photo du portefeuille au ${today}. ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""} sur ${clients.length} dossier${clients.length > 1 ? "s" : ""}. Chiffres strictement alignés sur le point du soir (Jira), sans recalcul ni invention.`,
+    enBref: `Photo du portefeuille au ${today}. ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""} sur ${clients.length} dossier${clients.length > 1 ? "s" : ""}. Périmètre : ${engShort}. Chiffres strictement alignés sur le point du soir (Jira), sans recalcul ni invention.`,
     callout: totalRetard ? { value: totalRetard, label: "en retard", hint: "échéance dépassée — à arbitrer" } : null,
     etabliPar: etabli,
   });
 
-  const synth = chapter({ over: "Synthèse", title: "Vue d'ensemble", lead: `Récapitulatif par dossier des tickets suivis au point du soir. ${clients.length} dossier${clients.length > 1 ? "s" : ""} · ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""}.` })
+  const synth = chapter({ over: "Synthèse", title: "Vue d'ensemble", lead: `Récapitulatif par dossier des tickets suivis au point du soir. Périmètre : ${engShort}. ${clients.length} dossier${clients.length > 1 ? "s" : ""} · ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""}.` })
     + kpiBand([
       { value: totalTracked, label: "tickets suivis" },
       { value: totalRetard, label: "en retard", tone: "cri" },
       { value: clients.length, label: "dossiers", tone: "idg" },
     ]);
 
+  const docTitle = `Récapitulatif — ${perim}${eng !== "all" ? ` (${engShort})` : ""}`;
   const html = charterDoc({
-    docTitle: `Récapitulatif — ${perim}`,
+    docTitle,
     extraCss: RECAP_CSS,
     coverHtml,
     bodyHtml: synth + (body || `<p class="muted">Aucun ticket sur ce périmètre.</p>`),
@@ -158,8 +164,9 @@ export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas D
   });
 
   const iso = new Date().toISOString().slice(0, 10);
-  const filename = `Recap_${String(perim).replace(/[^\w-]+/g, "_")}_${iso}.html`;
-  return { title: `Récapitulatif — ${perim}`, html, filename };
+  const engTag = eng === "all" ? "complet" : eng;
+  const filename = `Recap_${String(perim).replace(/[^\w-]+/g, "_")}_${engTag}_${iso}.html`;
+  return { title: docTitle, html, filename };
 }
 
 // Styles propres au récap (tables de statut, accordéons, etc.) — par-dessus la charte.
@@ -186,16 +193,19 @@ const RECAP_CSS = `
   .muted{color:${C.muted}}`;
 
 // ZIP « un fichier par client » (remplace buildDailyCrFiles, même forme de retour).
-export function buildRecapFiles(issues = [], { meName = "Nicolas Durand" } = {}) {
-  const facts = computeFacts(issues);
+export function buildRecapFiles(issues = [], { meName = "Nicolas Durand", engagement = "all" } = {}) {
+  const eng = engagement === "TMA" || engagement === "Projet" ? engagement : "all";
+  const srcIssues = eng === "all" ? issues : issues.filter((i) => i.engagement === eng);
+  const facts = computeFacts(srcIssues);
+  const engTag = eng === "all" ? "complet" : eng;
   const now = new Date();
   const iso = now.toISOString().slice(0, 10);
   const human = now.toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const heure = now.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
   const clients = Object.keys(facts.byDossier).filter((d) => d && d !== "—").sort((a, b) => a.localeCompare(b));
   const files = clients.map((d) => {
-    const { html } = buildRecapDoc({ issues, scope: d, meName });
-    return { dossier: d, count: facts.get(d).total, name: `Recap ${String(d).replace(/[^\w-]+/g, "_")} ${iso}.html`, html };
+    const { html } = buildRecapDoc({ issues, scope: d, meName, engagement: eng });
+    return { dossier: d, count: facts.get(d).total, name: `Recap ${String(d).replace(/[^\w-]+/g, "_")} ${engTag} ${iso}.html`, html };
   });
-  return { iso, human, heure, fileBase: `Recap du ${iso}`, files };
+  return { iso, human, heure, fileBase: `Recap du ${iso} (${engTag})`, files };
 }

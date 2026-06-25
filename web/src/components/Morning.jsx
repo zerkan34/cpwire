@@ -23,6 +23,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
   const [doc, setDoc] = useState(null);
   const [err, setErr] = useState("");
   const [openD, setOpenD] = useState(null);
+  const [eng, setEng] = useState("all"); // périmètre du récap à générer : all | TMA | Projet
 
   const parDossier = useMemo(() => {
     const m = {};
@@ -43,7 +44,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
       } else {
         // Récap = générateur unique, alimenté par computeFacts (mêmes chiffres que le point du soir).
         const scope = dossier === "Tous" ? "Tous" : dossier;
-        const { html, filename, title } = buildRecapDoc({ issues, scope });
+        const { html, filename, title } = buildRecapDoc({ issues, scope, engagement: eng });
         setDoc({ title, html, filename });
       }
     } catch (e) { setErr(e.message); }
@@ -67,9 +68,18 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
         </>
       )}
       {err && <div className="banner">Erreur : {err}</div>}
-      <div className="row-actions" style={{ marginBottom: 16 }}>
+      <div className="row-actions" style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+          <span className="hint" style={{ margin: 0 }}>Périmètre du récap</span>
+          <div className="pds-scope" role="group" aria-label="Périmètre du récap à générer">
+            {[["all", "TMA + Projet"], ["TMA", "TMA"], ["Projet", "Projet"]].map(([id, label]) => (
+              <button key={id} type="button" className={`pds-scope-b ${eng === id ? "on" : ""}`}
+                aria-pressed={eng === id} onClick={() => setEng(id)}>{label}</button>
+            ))}
+          </div>
+        </div>
         <button className="btn-solid" onClick={() => make("Tous", "morning")} disabled={busy === "Tous|morning"}>
-          {busy === "Tous|morning" ? "Préparation…" : "Préparer le récap (tous les clients)"}
+          {busy === "Tous|morning" ? "Préparation…" : `Préparer le récap (tous les clients)${eng !== "all" ? " · " + eng : ""}`}
         </button>
       </div>
 
