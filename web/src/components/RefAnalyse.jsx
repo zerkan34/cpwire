@@ -1,5 +1,7 @@
 import React, { useMemo, useState } from "react";
 import CopilotDot from "./CopilotDot.jsx";
+import { buildAnalyseDoc } from "../refDoc.js";
+import { printHtml, downloadHtml } from "../utils.js";
 
 // ============================================================================
 //  Analyse & apprentissage — COCKPIT analytique du portefeuille.
@@ -183,6 +185,12 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
     return Object.entries(m).map(([cl, v]) => ({ client: cl, n: v.n, avg: moy(v.ages), max: v.ages.length ? Math.max(...v.ages) : 0, oldest: v.oldest })).sort((a, b) => b.avg - a.avg);
   }, [F]);
 
+  // 6 bis — Recette client : tickets actuellement en recette côté client (liste cliquable).
+  const recetteClient = useMemo(() => {
+    const m = {}; F.forEach((i) => { if (i.categorie === "recetteClient") (m[i.dossier] ||= []).push(i); });
+    return Object.entries(m).map(([cl, list]) => ({ client: cl, n: list.length, list })).sort((a, b) => b.n - a.n);
+  }, [F]);
+
   // 7 — Reprises (recette rejetée).
   const reprises = useMemo(() => {
     const m = {}; F.forEach((i) => { if (RETOUR.has(i.categorie)) (m[i.dossier] ||= []).push(i); });
@@ -210,8 +218,23 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
   const open = (cle) => { const f = byCle[cle]; if (f && onTicket) onTicket(f); };
   const KPI = ({ v, l, tone }) => <div className={`rana-kpi ${tone || ""}`}><b>{v}</b><span>{l}</span></div>;
 
+  // Export : un seul HTML charté → PDF (impression) ou Web cliquable (téléchargement).
+  const makeDoc = () => buildAnalyseDoc({
+    client, eng, weeks, kpis, flow, repartition, aging, charge, prio, recetteCli, recetteClient, reprises, devs,
+    urlOf: (cle) => (byCle[cle] && byCle[cle].url) || "",
+  });
+  const exportPdf = () => { const { html, filename } = makeDoc(); printHtml(html, filename); };
+  const exportWeb = () => { const { html, filename } = makeDoc(); downloadHtml(html, filename.replace(/\.pdf$/, ".html")); };
+
   return (
     <div className="rana">
+      <div className="rana-top">
+        <span className="rana-top-t">Lecture analytique du portefeuille — calculée en direct sur Jira.</span>
+        <div className="rana-top-ex">
+          <button className="rana-exb" onClick={exportPdf} title="Télécharger en PDF (charte Armonie)">⤓ PDF</button>
+          <button className="rana-exb ghost" onClick={exportWeb} title="Télécharger en page web cliquable (charte Armonie)">🌐 Web</button>
+        </div>
+      </div>
       {/* Barre d'outils : filtres */}
       <div className="rana-tools">
         <label className="rana-tool">
@@ -291,6 +314,26 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
               </ul>
             </>
           ) : <p className="rana-empty">Aucun ticket côté client sur ce périmètre.</p>}
+        </Panel>
+
+        {/* Recette client */}
+        <Panel title="Recette client — en cours de validation" badge={recetteClient.reduce((s, c) => s + c.n, 0)} sub="Tickets actuellement en recette côté client : ce que le client doit valider pour avancer."
+          prompt="Analyse les tickets en recette client : quels clients, quels tickets attendent leur validation, et lesquels traînent. Uniquement les données Jira réelles.">
+          {recetteClient.length ? (
+            <div className="rana-repr">
+              {recetteClient.map((c) => (
+                <div className="rana-repr-c" key={c.client}>
+                  <div className="rana-repr-h"><span>{c.client}</span><b>{c.n}</b></div>
+                  <ul className="rana-list">
+                    {c.list.slice(0, 5).map((i) => (
+                      <li key={i.cle}><button className="rana-link" onClick={() => open(i.cle)} title={i.resume}>{i.cle}</button> <span className="rana-li-t">{i.resume}</span></li>
+                    ))}
+                    {c.list.length > 5 ? <li className="rana-more">+ {c.list.length - 5} autre(s)</li> : null}
+                  </ul>
+                </div>
+              ))}
+            </div>
+          ) : <p className="rana-empty">Aucun ticket en recette client sur ce périmètre.</p>}
         </Panel>
 
         {/* Reprises */}

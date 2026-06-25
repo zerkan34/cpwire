@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchConnaissance, saveConnaissance, learnConnaissance } from "../api.js";
 import { RefState } from "./RefState.jsx";
+import { buildMemoireDoc } from "../refDoc.js";
+import { printHtml, downloadHtml } from "../utils.js";
 
 const arrToText = (a) => (Array.isArray(a) ? a.join("\n") : "");
 const textToArr = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -73,6 +75,15 @@ export default function Connaissance() {
     URL.revokeObjectURL(url);
   };
 
+  // Export charté (PDF / Web) — on enrichit la charge éditable avec les blocs « appris » (auto).
+  const docPayload = () => {
+    const p = buildPayload();
+    Object.keys(p.clients).forEach((key) => { if (k.clients[key] && k.clients[key].auto) p.clients[key].auto = k.clients[key].auto; });
+    return p;
+  };
+  const exportPdf = () => { const { html, filename } = buildMemoireDoc(docPayload()); printHtml(html, filename); };
+  const exportWeb = () => { const { html, filename } = buildMemoireDoc(docPayload()); downloadHtml(html, filename.replace(/\.pdf$/, ".html")); };
+
   // Déclenche l'apprentissage IA tout de suite (sinon il tourne seul en tâche de fond).
   const onLearn = async () => {
     setLearning(true); setMsg(""); setErr("");
@@ -94,10 +105,17 @@ export default function Connaissance() {
   return (
     <div className="cn">
       <div className="section-title">Mémoire d'équipe — ce que l'assistant sait de votre façon de travailler</div>
-      <p className="hint">
-        Tout ce qui est ici est relu par l'IA à chaque rapport. Plus vous l'enrichissez, plus les comptes rendus collent à vos usages.
-        Astuce : une ligne par règle. Glossaire : « terme = définition » par ligne.
-      </p>
+      <div className="cn-explain">
+        <b>À quoi ça sert ?</b> La mémoire, c'est le <b>cerveau de contexte</b> de cp|WIRE. Tout ce qui est écrit ici est <b>relu par l'assistant à chaque compte rendu, analyse ou réponse</b> — pour qu'il parle <i>votre</i> langage et connaisse <i>vos</i> clients, au lieu de repartir de zéro à chaque fois.
+        <ul>
+          <li><b>Conventions</b> : vos règles d'écriture (ex. « chez EDL, les commerciaux sont des “animateurs” »). L'assistant les applique partout.</li>
+          <li><b>Glossaire</b> : vos sigles et termes métier (ex. « PTAF = projet Tafanel »), pour qu'ils soient compris et bien employés.</li>
+          <li><b>Par client</b> : contexte, attentes, vocabulaire et notes — ce qu'il faut garder en tête pour chacun.</li>
+          <li><b>🤖 Appris de Jira</b> : cp|WIRE observe l'activité et résume tout seul le contexte de chaque client (périmètre, intervenants, charge). Vous n'avez rien à faire.</li>
+        </ul>
+        Concrètement : plus la mémoire est riche, plus les CR et analyses sortent <b>justes et personnalisés</b>, sans avoir à tout réexpliquer.
+      </div>
+      <p className="hint">Astuce : une ligne par règle. Glossaire : « terme = définition » par ligne.</p>
 
       <div className="cn-warn">
         Pour rendre des ajouts <b>permanents</b> : cliquez <b>Exporter</b>, puis remplacez <code>server/data/connaissance.json</code> dans le dépôt — l'application le recharge automatiquement au déploiement suivant. Avec un disque persistant <code>DATA_DIR</code>, la sauvegarde est immédiate et rien n'est à faire.
@@ -146,6 +164,8 @@ export default function Connaissance() {
         <button className="btn cn-save" onClick={onSave} disabled={saving}>{saving ? "Enregistrement…" : "Enregistrer la mémoire"}</button>
         <button className="btn cn-ghost" onClick={onLearn} disabled={learning} title="Forcer l'analyse IA de tous les clients maintenant">{learning ? "Apprentissage…" : "🤖 Mettre à jour l'apprentissage"}</button>
         <button className="btn cn-ghost" onClick={onExport}>Exporter (connaissance.json)</button>
+        <button className="btn cn-ghost" onClick={exportPdf} title="Télécharger la mémoire en PDF (charte Armonie)">⤓ PDF</button>
+        <button className="btn cn-ghost" onClick={exportWeb} title="Télécharger la mémoire en page web cliquable">🌐 Web</button>
         {msg && <span className="cn-ok">{msg}</span>}
         {err && <span className="cn-err">{err}</span>}
       </div>

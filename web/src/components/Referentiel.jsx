@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { fetchReferentiel, fetchReferentielClients } from "../api.js";
 import CopilotDot from "./CopilotDot.jsx";
 import { RefState } from "./RefState.jsx";
+import { buildAnnuaireDoc } from "../refDoc.js";
+import { printHtml, downloadHtml } from "../utils.js";
 
 // Catégorie Jira → [libellé, classe de pastille]. Aligné sur server/config.js.
 const CAT = {
@@ -135,6 +137,11 @@ export default function Referentiel({ issues = [], onTicket }) {
   }, [data, needle, etat]);
   const nbMatch = useMemo(() => filteredDomaines.reduce((s, d) => s + d.options.length, 0), [filteredDomaines]);
 
+  // Export charté de l'annuaire du client courant (PDF ou Web cliquable).
+  const makeDoc = () => buildAnnuaireDoc(data, client, (cle) => (byCle[cle] && byCle[cle].url) || "");
+  const exportPdf = () => { const { html, filename } = makeDoc(); printHtml(html, filename); };
+  const exportWeb = () => { const { html, filename } = makeDoc(); downloadHtml(html, filename.replace(/\.pdf$/, ".html")); };
+
   if (loading) return <RefState kind="load" title="Chargement de l'annuaire…" message="Rapprochement des programmes et de leurs tickets Jira." />;
   if (err) return <RefState kind="err" title="L'annuaire n'a pas pu se charger" message="La récupération du référentiel a échoué. Vérifiez la connexion à Jira, puis réessayez." detail={err} onRetry={retry} />;
   if (!clients.length || !data) return <RefState kind="empty" title="Aucun référentiel pour l'instant" message="Aucune option ni programme n'est encore rattaché. L'annuaire se remplira dès que des programmes seront renseignés et liés à des tickets." />;
@@ -165,6 +172,10 @@ export default function Referentiel({ issues = [], onTicket }) {
           ))}
         </div>
         <span className="ref-tool-count">{nbMatch} option{nbMatch > 1 ? "s" : ""}</span>
+        <div className="ref-tool-ex">
+          <button className="rana-exb" onClick={exportPdf} title="Télécharger l'annuaire en PDF (charte Armonie)">⤓ PDF</button>
+          <button className="rana-exb ghost" onClick={exportWeb} title="Télécharger l'annuaire en page web cliquable">🌐 Web</button>
+        </div>
       </div>
 
       {filteredDomaines.length === 0 ? (
