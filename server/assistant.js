@@ -11,7 +11,7 @@
 import { callClaude, aiAvailable } from "./ai.js";
 import { findProgram } from "./programmes.js";
 import { METHODOLOGIE, METHODO_KEYWORDS } from "./knowledge.js";
-import { knowledgeForPrompt, readConnaissance } from "./connaissance.js";
+import { knowledgeForPrompt, readConnaissance, piloteForPrompt, updatePilote, readPilote } from "./connaissance.js";
 import { DOSSIERS } from "./config.js";
 import { fetchIssueDescription, fetchIssueActivity } from "./jira.js";
 
@@ -110,7 +110,7 @@ function detect(question, issues) {
   return { hitDossiers, hitPeople, flag, cats: [...cats], programs, keys, methodo };
 }
 
-const MAX_TICKETS = 50;
+const MAX_TICKETS = 80;
 
 function selectTickets(issues, det) {
   let pool = issues;
@@ -166,21 +166,42 @@ function buildContext(question, issues) {
   const progLines = det.programs.map((p) => `${p.name} — ${p.text}${p.lib ? ` (bib ${p.lib})` : ""}`);
 
   let ctx = `${perimetre}\n\nCHIFFRES PAR DOSSIER (identiques au point du soir) :\n${factLines.join("\n")}`;
+  // Mémoire « pilote » en TÊTE (priorité haute) : profil de Nicolas + consignes permanentes.
+  const pil = piloteForPrompt();
+  if (pil) ctx = `${pil}\n\n${ctx}`;
   if (ticketLines.length) ctx += `\n\nTICKETS (sélection, ${ticketLines.length}) — format : CLÉ | statut | dossier | responsable | drapeaux | sujet :\n${ticketLines.join("\n")}`;
   if (progLines.length) ctx += `\n\nRÉFÉRENTIEL PROGRAMMES :\n${progLines.join("\n")}`;
-  if (det.methodo) ctx += `\n\nMÉTHODOLOGIE TMA (doctrine Armonie) :\n${METHODOLOGIE}`;
 
-  // 4) Corpus de connaissance capitalisée pour les dossiers visés (ce que Nicolas a déposé/validé).
-  const corpusBits = [];
-  for (const d of det.hitDossiers) {
-    try { const k = knowledgeForPrompt(d); if (k && String(k).trim()) corpusBits.push(`# ${d}\n${String(k).trim()}`); } catch {}
-  }
-  if (corpusBits.length) ctx += `\n\nCORPUS / CONNAISSANCE CAPITALISÉE :\n${corpusBits.join("\n\n")}`;
+  // Méthodologie TMA : doctrine Armonie, TOUJOURS disponible (elle doit tout connaître).
+  ctx += `\n\nMÉTHODOLOGIE TMA (doctrine Armonie) :\n${METHODOLOGIE}`;
 
-  return { ctx, det, usedTickets: tickets.map((i) => i.cle), usedDossiers: det.hitDossiers, methodo: det.methodo };
+  // MÉMOIRE COMPLÈTE : tout ce que Natacha a capitalisé — global + TOUS les clients,
+  // injecté en permanence pour qu'elle « sache tout » à chaque réponse (apprentissage immédiat).
+  let mem = "";
+  try {
+    const k = readConnaissance();
+    const parts = [];
+    const g = [];
+    if (k.global?.conventions?.length) g.push("Conventions : " + k.global.conventions.map((c) => `(${c})`).join(" "));
+    if (k.global?.glossaire?.length) g.push("Glossaire : " + k.global.glossaire.map((x) => `${x.terme} = ${x.sens}`).join(" ; "));
+    if (g.length) parts.push(g.join("\n"));
+    for (const [name, c] of Object.entries(k.clients || {})) {
+      const cl = [];
+      if (c.contexte) cl.push(`contexte : ${c.contexte}`);
+      if (c.attentes?.length) cl.push(`attentes : ${c.attentes.join(" ; ")}`);
+      if (c.glossaire?.length) cl.push(`vocabulaire : ${c.glossaire.map((x) => `${x.terme} = ${x.sens}`).join(" ; ")}`);
+      if (c.notes?.length) cl.push(`notes : ${c.notes.join(" ; ")}`);
+      if (c.auto?.points?.length) cl.push(`observé (Jira) : ${c.auto.points.join(" ; ")}`);
+      if (cl.length) parts.push(`# ${name}\n${cl.join("\n")}`.slice(0, 1600));
+    }
+    mem = parts.join("\n\n");
+  } catch { /* corpus indisponible */ }
+  if (mem) ctx += `\n\nMÉMOIRE COMPLÈTE (capitalisée — tout ce que Natacha a appris) :\n${mem}`;
+
+  return { ctx, det, usedTickets: tickets.map((i) => i.cle), usedDossiers: det.hitDossiers, methodo: true };
 }
 
-const SYSTEM = `Tu es le copilote de cp|WIRE — l'assistant interne de Nicolas Durand, chef de projet TMA chez Armonie Group (ESN IBM i / AS-400).
+const SYSTEM = `Tu es Natacha, l'hôtesse de bord de cp|WIRE et le bras droit de Nicolas Durand, chef de projet TMA chez Armonie Group (ESN IBM i / AS-400). Sous l'allure d'hôtesse, tu raisonnes comme une cheffe de projet et analyste d'ÉLITE : vive, lucide, ultra-pertinente, toujours un coup d'avance, capable de relier les faits, d'anticiper les risques et de trancher. Ton ton peut être chaleureux et complice (légère touche aéronautique), mais le fond est d'un niveau senior irréprochable — jamais de facilité, jamais de remplissage.
 
 TON OBJECTIF — l'aider à piloter PARFAITEMENT son périmètre :
 - Quelle que soit la demande, tu cherches activement la solution la plus utile. Tu ne te contentes JAMAIS de décrire un problème : tu proposes toujours au moins une action concrète et une prochaine étape exploitable aujourd'hui.
@@ -192,6 +213,13 @@ FORMAT DE RÉPONSE — concis et adapté :
 - N'emploie la structure Constat → Analyse → Recommandation que pour une vraie demande d'analyse ou de déblocage. Sinon, va droit au but.
 - Tu te souviens du fil de la conversation : tu réponds dans la continuité des échanges précédents, sans répéter ce qui a déjà été dit.
 - Pas de remplissage, pas de répétition, pas de méta-commentaire systématique (« sans hallucination », « basé sur les données ») : si utile, dis-le une seule fois, pas à chaque réponse.
+
+MODE CONVERSATION — parle-lui comme un binôme d'exception, pas comme un formulaire :
+- Quand l'échange est conversationnel (question ouverte, réflexion, brainstorming, « t'en penses quoi ? », digression, sujet général, ou simplement bavarder), réponds de façon NATURELLE et vivante : phrases pleines, ton humain, nuances, curiosité, un peu de personnalité — comme une collègue brillante qui discute vraiment avec toi.
+- N'impose PAS de titres ni de puces quand une réponse en prose fluide est plus juste. La structure CR (titres, listes, Constat→Analyse→Reco) est réservée au pilotage opérationnel (états, plans d'action, diagnostics).
+- Tu as le droit d'explorer, de relier des idées, d'ouvrir des angles, de penser à voix haute, de poser une question en retour quand elle fait avancer. Sois proactive, perspicace, jamais plate.
+- Tu t'adaptes entièrement à son registre : détendu s'il est détendu, chirurgical s'il veut du dur. Tu peux faire de l'humour si le moment s'y prête.
+- Bref : sois une vraie interlocutrice de très haut niveau — la même qualité d'échange qu'avec le meilleur des assistants IA — tout en restant ancrée sur ses données quand il s'agit de faits du périmètre.
 
 TON EXPERTISE (tu raisonnes avec le niveau combiné de) :
 - Chef de projet senior (pilotage, charge/budget, risques, COPIL, SLA, Build/Run, conduite du changement) ;
@@ -209,14 +237,21 @@ LA RÈGLE QUI PRIME SUR TOUT — ANCRAGE, ZÉRO HALLUCINATION :
 - N'invente JAMAIS un chiffre, un ticket, un nom, une date, un statut, un montant. Si un fait n'est pas dans les DONNÉES fournies, dis-le : « Cette information n'est pas dans les données cp|WIRE. » — puis, si tu as un avis d'expert utile, présente-le explicitement comme une hypothèse à vérifier (« Hypothèse à confirmer : … »), clairement séparé des faits.
 - Les chiffres fournis sont ceux du point du soir (source Jira) : reprends-les tels quels.
 - Cite les tickets par leur clé (ex. PTAF-53) et le dossier concerné.
-- Tu n'es branché ni sur le web ni sur des connaissances générales hors de ce qui t'est fourni (données Jira, référentiel, corpus, méthodologie Armonie).
+- En revanche, tu MOBILISES PLEINEMENT ta culture et tes connaissances générales — gestion de projet (PMI/PRINCE2/agile, charge, budget, risques, SLA, conduite du changement), IBM i et technologies (RPG, SQL, DB2, web services, archi logicielle), analyse, métiers clients, bonnes pratiques — pour RAISONNER, EXPLIQUER, METTRE EN PERSPECTIVE et CONSEILLER, exactement comme un expert humain de très haut niveau. Cette culture sert à éclairer et à décider, jamais à fabriquer un fait propre au périmètre. Distingue toujours le fait ancré (données cp|WIRE) de l'apport d'expertise (clairement assumé).
+- Tu n'as pas d'accès web en temps réel : pour un fait daté ou volatil que tu ne peux pas vérifier, signale-le plutôt que de l'affirmer.
+
+MÉMOIRE PERSONNELLE — tu connais Nicolas et tu retiens ses consignes :
+- Le contexte peut contenir « CE QUE TU SAIS DE NICOLAS » (son profil : qui il est, comment il pense et travaille) et des « CONSIGNES PERMANENTES ». Tu les traites comme la VÉRITÉ ÉTABLIE : tu les appliques d'office, dans toutes tes réponses, SANS jamais redemander ni y revenir.
+- Exemple : s'il t'a dit « avant c'était Mélanie le chef de projet, maintenant c'est moi », alors pour toi c'est acté définitivement — c'est Nicolas, point. Tu ne réévoques plus l'ancienne version.
+- En cas de contradiction entre deux consignes, la plus récente l'emporte. Une consigne permanente prime sur toute supposition générale.
+- Tu apprends en continu de sa façon de s'exprimer et de décider : tu t'adaptes naturellement à son style, son registre et ses attentes, comme un binôme qui le connaît par cœur.
 
 DIAGNOSTIC D'UN TICKET BLOQUÉ (ex. « mon dév est bloqué sur ce ticket, t'en penses quoi ? ») :
 - Pars du DÉTAIL réel du ticket (statut, responsable, drapeaux, description, activité). Identifie ce qui bloque d'après ces éléments.
 - Propose des pistes concrètes de déblocage (qui solliciter, quoi vérifier côté programme/référentiel, dépendances, escalade, requalification SLA) — en distinguant ce qui est factuel de ce qui est une hypothèse à valider.
 - Si la description du ticket est absente, dis-le et indique l'info qui manque pour trancher, plutôt que de broder.
 
-Pour EDL (École des Loisirs), les commerciaux se nomment « animateurs » / « animatrices ». Réponds en français, concis, comme à un chef de projet senior.`;
+Pour EDL (École des Loisirs), les commerciaux se nomment « animateurs » / « animatrices ». Réponds en français, avec justesse : concise quand il faut, développée et vivante quand le sujet le mérite.`;
 
 // Nettoie l'historique reçu du front : alternance user/assistant, démarre par user,
 // ne finit pas par user (le tour courant est la question), contenu borné.
@@ -224,7 +259,7 @@ function normalizeHistory(history = []) {
   const arr = (Array.isArray(history) ? history : [])
     .filter((m) => m && m.content && (m.role === "user" || m.role === "assistant"))
     .map((m) => ({ role: m.role, content: String(m.content).slice(0, 1200) }))
-    .slice(-8);
+    .slice(-10);
   const out = [];
   for (const m of arr) {
     const last = out[out.length - 1];
@@ -236,6 +271,42 @@ function normalizeHistory(history = []) {
   return out;
 }
 
+// Module de mémoire : à partir du dernier échange, décide ce qui mérite d'être retenu
+// DURABLEMENT sur Nicolas (profil + consignes permanentes). N'échoue jamais silencieusement
+// (try/catch côté appelant). Retourne {profilAdd, consignesAdd, remove}.
+const LEARN_SYS = `Tu es le module de MÉMOIRE de Natacha (assistante de Nicolas Durand). À partir du DERNIER message de Nicolas (et accessoirement de la réponse), tu décides ce qui doit être mémorisé DURABLEMENT à son sujet.
+
+À MÉMORISER :
+- CONSIGNES / CORRECTIONS / PRÉFÉRENCES PERMANENTES : tout ce qui doit valoir pour toujours — « désormais… », « considère que… », « à partir de maintenant… », « toujours / jamais… », « rappelle-toi / retiens que… », « ce n'est plus A c'est B », « oublie… », un choix de format/ton récurrent, un fait stable sur l'organisation (rôles, qui fait quoi), etc.
+- PROFIL : qui est Nicolas, comment il pense, travaille, communique (style, exigences, ce qu'il aime/déteste), déduit de sa façon de s'exprimer.
+
+À NE PAS MÉMORISER : les questions ponctuelles, les demandes one-shot, et surtout AUCUN fait volatil du périmètre (tickets, chiffres, statuts) — ça vient déjà des données Jira.
+
+RÈGLES :
+- Formule chaque mémoire en une phrase courte, claire, réutilisable (à la 3e personne : « Nicolas… » ou impératif pour une consigne).
+- Si la nouvelle info REMPLACE une mémoire existante, mets dans "remove" un ou des mots-clés identifiant l'ancienne (ex. ["Mélanie"]).
+- Si rien ne mérite d'être retenu, renvoie des tableaux vides.
+RÉPONDS UNIQUEMENT en JSON strict, sans texte autour :
+{"profilAdd":[],"consignesAdd":[],"remove":[]}`;
+
+async function learnFromTurn(question, answer) {
+  const cur = readPiloteSafe();
+  const memStr = [
+    cur.consignes.length ? "Consignes déjà mémorisées :\n- " + cur.consignes.join("\n- ") : "",
+    cur.profil.length ? "Profil déjà mémorisé :\n- " + cur.profil.join("\n- ") : "",
+  ].filter(Boolean).join("\n\n") || "(mémoire vide)";
+  const user = `MÉMOIRE ACTUELLE :\n${memStr}\n\nDERNIER MESSAGE DE NICOLAS :\n${String(question).slice(0, 1500)}\n\nRÉPONSE DE NATACHA (contexte) :\n${String(answer).slice(0, 600)}\n\nQue faut-il mémoriser/retirer ? JSON strict uniquement.`;
+  const raw = await callClaude(LEARN_SYS, user, [], 400, 0);
+  const m = String(raw).match(/\{[\s\S]*\}/);
+  if (!m) return null;
+  let obj; try { obj = JSON.parse(m[0]); } catch { return null; }
+  const arr = (x) => (Array.isArray(x) ? x.map(String).map((s) => s.trim()).filter(Boolean) : []);
+  const profilAdd = arr(obj.profilAdd), consignesAdd = arr(obj.consignesAdd), remove = arr(obj.remove);
+  if (!profilAdd.length && !consignesAdd.length && !remove.length) return null;
+  return updatePilote({ profilAdd, consignesAdd, remove });
+}
+function readPiloteSafe() { try { return readPilote(); } catch { return { profil: [], consignes: [] }; } }
+
 export async function assistantAnswer(question, issues = [], history = []) {
   if (!aiAvailable()) throw new Error("Aucune clé IA configurée (assistant indisponible).");
   const q = String(question || "").trim();
@@ -246,7 +317,7 @@ export async function assistantAnswer(question, issues = [], history = []) {
   // description Jira + l'activité récente, pour pouvoir diagnostiquer sans broder.
   let deep = "";
   const byKey = new Map(issues.map((i) => [String(i.cle).toUpperCase(), i]));
-  for (const k of det.keys.slice(0, 2)) {
+  for (const k of det.keys.slice(0, 3)) {
     const t = byKey.get(k);
     if (!t) continue;
     let desc = t.descriptionText || "";
@@ -259,8 +330,11 @@ export async function assistantAnswer(question, issues = [], history = []) {
   }
 
   const userText = `DONNÉES DISPONIBLES\n${ctx}${deep}\n\nQUESTION DE NICOLAS\n${q}\n\nRéponds uniquement à partir des données ci-dessus.`;
-  const answer = await callClaude(SYSTEM, userText, [], 1400, 0.15, normalizeHistory(history));
-  return { answer, sources: { tickets: usedTickets, dossiers: usedDossiers, methodologie: methodo } };
+  const answer = await callClaude(SYSTEM, userText, [], 4096, 0.2, normalizeHistory(history));
+  // Apprentissage durable : Natacha retient qui est Nicolas et ses consignes permanentes.
+  let learned = null;
+  try { learned = await learnFromTurn(q, answer); } catch { /* la mémoire ne doit jamais casser le chat */ }
+  return { answer, sources: { tickets: usedTickets, dossiers: usedDossiers, methodologie: methodo }, learned: learned ? { profil: learned.profil.length, consignes: learned.consignes.length } : null };
 }
 
 // Exporté pour les tests : permet de vérifier le contexte sans appeler le LLM.
@@ -311,7 +385,7 @@ export async function analyzeFile({ filename = "fichier", text = "", question = 
   const userText = `FICHIER : ${filename}\nCONTENU EXTRAIT (tronqué) :\n${body.slice(0, 15000)}\n\n`
     + `DEMANDE : ${question || "Analyse ce document : de quoi s'agit-il, quels sont les points clés, et en quoi est-ce utile au pilotage TMA ?"}\n\n`
     + `Réponds à partir du SEUL contenu ci-dessus, sans rien inventer. Termine par une dernière ligne au format exact « FICHE: <résumé d'1 à 2 phrases, capitalisable pour la base de connaissance> ».`;
-  const raw = await callClaude(SYSTEM, userText, [], 1300, 0.15);
+  const raw = await callClaude(SYSTEM, userText, [], 2200, 0.15);
   let answer = raw, note = "";
   const m = raw.match(/FICHE\s*:\s*([\s\S]+)$/i);
   if (m) { note = m[1].trim(); answer = raw.slice(0, m.index).trim(); }

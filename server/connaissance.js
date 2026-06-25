@@ -183,6 +183,14 @@ function mergeSeed(saved) {
   for (const k of Object.keys(SEED.clients)) {
     out.clients[k] = { ...SEED.clients[k], ...(out.clients[k] || {}) };
   }
+  // Mémoire « pilote » : profil de Nicolas + consignes permanentes (toujours préservée).
+  out.pilote = (saved.pilote && typeof saved.pilote === "object")
+    ? {
+        profil: Array.isArray(saved.pilote.profil) ? saved.pilote.profil.map(String).filter(Boolean) : [],
+        consignes: Array.isArray(saved.pilote.consignes) ? saved.pilote.consignes.map(String).filter(Boolean) : [],
+        maj: saved.pilote.maj || null,
+      }
+    : { profil: [], consignes: [], maj: null };
   return out;
 }
 
@@ -218,6 +226,7 @@ export function saveConnaissance(data) {
       safe.clients[k].auto = { points: keptAuto.points.map(String).filter(Boolean).slice(0, 6), at: String(keptAuto.at || "") };
     }
   }
+  safe.pilote = current.pilote || { profil: [], consignes: [], maj: null };
   try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(safe, null, 2)); }
   catch (e) { console.error("[connaissance] écriture impossible:", e.message); }
   return mergeSeed(safe);
@@ -266,4 +275,67 @@ export function addNote(dossier, note) {
   if (!Array.isArray(k.clients[dossier].notes)) k.clients[dossier].notes = [];
   k.clients[dossier].notes.push(txt.slice(0, 1200));
   return saveConnaissance(k);
+}
+
+// ============================================================================
+//  MÉMOIRE « PILOTE » — ce que Natacha sait de Nicolas (profil : qui il est,
+//  comment il pense/travaille) + ses CONSIGNES PERMANENTES (corrections,
+//  préférences durables, « désormais X = Y »). Posée une fois, appliquée pour
+//  toujours. Injectée dans CHAQUE réponse de l'assistant.
+// ============================================================================
+const _norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+
+export function readPilote() {
+  const p = readConnaissance().pilote || { profil: [], consignes: [], maj: null };
+  return { profil: p.profil || [], consignes: p.consignes || [], maj: p.maj || null };
+}
+
+// Mise à jour INCRÉMENTALE et sûre : ajoute (dédup), retire (corrections), borne, horodate.
+// remove = liste de chaînes ; toute ligne (profil OU consigne) qui contient l'une d'elles est supprimée
+// AVANT l'ajout des nouvelles → permet « oublie X / ce n'est plus Mélanie c'est moi ».
+export function updatePilote({ profilAdd = [], consignesAdd = [], remove = [] } = {}) {
+  const k = readConnaissance();
+  const cur = k.pilote || { profil: [], consignes: [], maj: null };
+  let profil = (cur.profil || []).map(String);
+  let consignes = (cur.consignes || []).map(String);
+
+  const rem = (remove || []).map(_norm).filter((x) => x.length >= 3);
+  const drop = (arr) => arr.filter((line) => !rem.some((r) => _norm(line).includes(r)));
+  if (rem.length) { profil = drop(profil); consignes = drop(consignes); }
+
+  const addInto = (arr, adds) => {
+    for (const raw of adds || []) {
+      const v = String(raw || "").trim().slice(0, 400);
+      if (!v) continue;
+      const nv = _norm(v);
+      if (nv.length < 3) continue;
+      // dédup : ignore si déjà présent (ou quasi-identique) ; remplace une variante plus courte.
+      const idx = arr.findIndex((l) => { const nl = _norm(l); return nl === nv || nl.includes(nv) || nv.includes(nl); });
+      if (idx >= 0) { if (nv.length > _norm(arr[idx]).length) arr[idx] = v; }
+      else arr.push(v);
+    }
+    return arr;
+  };
+  profil = addInto(profil, profilAdd).slice(-30);
+  consignes = addInto(consignes, consignesAdd).slice(-40);
+
+  k.pilote = { profil, consignes, maj: new Date().toISOString() };
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); }
+  catch (e) { console.error("[connaissance] updatePilote impossible:", e.message); }
+  return k.pilote;
+}
+
+// Bloc injecté en TÊTE du contexte de l'assistant (priorité haute).
+export function piloteForPrompt() {
+  const p = readPilote();
+  const out = [];
+  if (p.consignes.length) {
+    out.push("CONSIGNES PERMANENTES DE NICOLAS — à appliquer SANS jamais y revenir ni redemander (en cas de contradiction, la plus récente prime) :");
+    out.push(p.consignes.map((c) => `• ${c}`).join("\n"));
+  }
+  if (p.profil.length) {
+    out.push("CE QUE TU SAIS DE NICOLAS (qui il est, comment il pense et travaille — adapte-toi à lui) :");
+    out.push(p.profil.map((c) => `• ${c}`).join("\n"));
+  }
+  return out.length ? out.join("\n") : "";
 }
