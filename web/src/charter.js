@@ -92,16 +92,19 @@ export function charterCss() {
   .ch-logo-main{font-size:21px;font-weight:800;letter-spacing:.5px}
   .ch-logo-sub{font-size:8px;letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
 
-  /* ---------- COUVERTURE (fond blanc, éléments centrés) ---------- */
-  .ch-cover{position:relative;min-height:255mm;display:flex;flex-direction:column;
+  /* ---------- COUVERTURE (fond blanc, éléments centrés) ----------
+     IMPORTANT : pas de flexbox + margin:auto ici — WeasyPrint (moteur PDF
+     serveur) n'honore pas margin:auto en flex, ce qui laissait le bas de page
+     vide et le pied flottant. On reste en flux normal + pied ancré en absolu. */
+  .ch-cover{position:relative;min-height:262mm;
     background:#fff;background-image:${VERGE};color:${C.ink};
-    margin:0;padding:16mm 12mm 14mm;page-break-after:always}
+    margin:0;padding:16mm 12mm 16mm;page-break-after:always}
   .ch-cover::before{content:"";position:absolute;top:0;left:0;right:0;height:5mm;
     background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
   .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:60mm}
-  .ch-cover-mid{margin-top:34mm;text-align:center}
-  .ch-cover-low{margin-top:auto;text-align:center;padding-bottom:4mm}
+  .ch-cover-mid{margin-top:42mm;text-align:center}
+  .ch-cover-low{margin-top:46mm;text-align:center}
   .ch-cover-date{font-size:.42em;font-weight:600;color:${C.gold};margin-left:.5em;letter-spacing:.01em;white-space:nowrap;vertical-align:baseline}
   .ch-cover-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:0;line-height:1.02;color:${C.navy}}
   .ch-cover-sub{font-size:15px;color:${C.muted};margin-top:26px;font-weight:500}
@@ -121,7 +124,7 @@ export function charterCss() {
   .ch-estab-l{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:5px}
   .ch-estab-n{display:block;font-size:13px;font-weight:600;color:${C.navy}}
   .ch-estab-r{display:block;font-size:10.5px;color:${C.muted};margin-top:2px}
-  .ch-cover-foot{margin-top:auto;padding-top:18px}
+  .ch-cover-foot{position:absolute;left:12mm;right:12mm;bottom:9mm}
   .ch-cover-legal{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.muted}}
 
   /* ---------- CHAPITRE / SYNTHÈSE ---------- */
