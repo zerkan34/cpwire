@@ -20,6 +20,9 @@ const CSS = `
   .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:22px;}
   .brand{display:flex;align-items:center;gap:12px;}
   .brand-logo{height:42px;width:auto;display:block;}
+  .brand-arm{font-family:'Poppins',sans-serif;font-weight:800;font-size:26px;color:#2E2A5D;line-height:1;letter-spacing:-.01em;}
+  .brand-arm .g{color:#A8884E;}
+  .brand-arm small{display:block;font-size:9px;font-weight:700;letter-spacing:.03em;color:#2E2A5D;margin-top:3px;}
   .lede{font-size:15px;line-height:1.6;color:#3f3d57;margin:0 0 18px;}
   .lede b{color:#2E2A5D;}
   .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:#74718a;text-align:right;}
@@ -33,8 +36,8 @@ const CSS = `
   .cartouche td{border:none;border-bottom:1px solid #ece9f3;padding:9px 14px;}
   .cartouche tr:last-child td{border-bottom:none;}
   .cartouche td:first-child{background:transparent;font-weight:700;color:#6b6488;width:160px;font-size:11px;text-transform:uppercase;letter-spacing:.06em;}
-  h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:17px;color:#2E2A5D;margin:26px 0 10px;padding-left:12px;border-left:5px solid #4B3F8F;}
-  h3{font-size:14px;color:#2E2A5D;margin:16px 0 6px;}
+  h2{font-family:'Poppins',sans-serif;font-weight:700;font-size:17px;color:#2E2A5D;margin:32px 0 12px;padding-left:12px;border-left:5px solid #4B3F8F;}
+  h3{font-size:14px;color:#2E2A5D;margin:22px 0 8px;}
   p{margin:8px 0;}
   ul{margin:8px 0 8px 4px;padding-left:18px;} li{margin:4px 0;}
   table.data{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;margin:12px 0;border:1px solid #e9e5f3;border-radius:12px;overflow:hidden;}
@@ -149,7 +152,7 @@ export function buildDoc({ kicker, title, subtitle, cartouche = [], bodyHtml, et
   const sign = String(etabliPar || "").replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase());
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${FONTS}<style>${CSS}</style><title>${title}</title></head>
 <body><div class="page"><div class="bar"></div><div class="inner">
-  <div class="top"><div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${date}</div></div>
+  <div class="top"><div class="brand"><div class="brand-arm">armo<span class="g">n</span>ie<small>notos <span class="g">phl</span>soft</small></div></div><div class="conf">Armonie Group · Confidentiel<br>${date}</div></div>
   <div class="eyebrow">${kicker || ""}</div>
   <h1>${title}</h1>
   ${subtitle ? `<div class="sub">${subtitle}</div>` : ""}

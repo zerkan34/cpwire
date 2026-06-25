@@ -12,12 +12,14 @@ export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A8884E", ink: "#1
 
 export function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
-// Lockup logo « armonie / notos · PHL Soft » (texte, fidèle à l'en-tête du PDF).
+// Lockup logo « armo·n·ie / notos phl·soft » (texte fidèle : le « n » et « phl » en or).
 export function logoLockup({ light = false } = {}) {
   const main = light ? "#fff" : C.navy;
-  const sub = light ? "rgba(255,255,255,.7)" : C.muted;
-  return `<div class="ch-logo"><span class="ch-logo-main" style="color:${main}">armonie</span>`
-    + `<span class="ch-logo-sub" style="color:${sub}">notos · PHL Soft</span></div>`;
+  const sub = light ? "rgba(255,255,255,.85)" : C.navy;
+  const gold = light ? "#E9D9A8" : C.gold;
+  return `<div class="ch-logo">`
+    + `<span class="ch-logo-main" style="color:${main}">armo<span style="color:${gold}">n</span>ie</span>`
+    + `<span class="ch-logo-sub" style="color:${sub}">notos <span style="color:${gold}">phl</span>soft</span></div>`;
 }
 
 // Bandeau « capitales espacées » — la signature typographique.
@@ -32,7 +34,7 @@ export function kpiBand(items) {
 //  title peut contenir un <br> ; callout = { value, label, hint } (gros chiffre).
 export function cover({ kicker, title, subtitle = "", meta = "", pill = "", enBref = "", callout = null, etabliPar = "", confidential = "Armonie Group · Confidentiel", web = "armonie.group" }) {
   return `<section class="ch-cover">
-    <div class="ch-cover-top">${logoLockup({ light: true })}<div class="ch-kicker">${esc(kicker || "")}</div></div>
+    <div class="ch-cover-top">${logoLockup({ light: false })}<div class="ch-kicker">${esc(kicker || "")}</div></div>
     <div class="ch-cover-mid">
       <h1 class="ch-cover-title">${title}</h1>
       ${subtitle ? `<div class="ch-cover-sub">${esc(subtitle)}</div>` : ""}
@@ -77,43 +79,45 @@ export function charterCss() {
   h1,h2,h3,.ch-cover-title,.ch-sec-name,.ch-chap-t,.ch-kpi-i b,.ch-callout b,.ch-logo-main{font-family:Poppins,Inter,sans-serif}
 
   /* Signature : sur-titre capitales espacées */
-  .ch-eyebrow{font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:5px}
+  .ch-eyebrow{font-size:9.5px;letter-spacing:.28em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:8px}
 
   /* Lockup logo */
   .ch-logo{display:flex;flex-direction:column;line-height:1}
   .ch-logo-main{font-size:21px;font-weight:800;letter-spacing:.5px}
   .ch-logo-sub{font-size:8px;letter-spacing:.18em;text-transform:uppercase;margin-top:3px}
 
-  /* ---------- COUVERTURE ---------- */
+  /* ---------- COUVERTURE (fond blanc, éléments centrés) ---------- */
   .ch-cover{position:relative;min-height:258mm;display:flex;flex-direction:column;
-    background:linear-gradient(150deg,${C.navy} 0%,${C.indigo} 60%,#3a3470 100%);color:#fff;
-    margin:-15mm -14mm 0;padding:20mm 22mm 16mm;page-break-after:always}
+    background:#fff;color:${C.ink};
+    margin:-15mm -14mm 0;padding:22mm 26mm 16mm;page-break-after:always}
+  .ch-cover::before{content:"";position:absolute;top:0;left:0;right:0;height:5mm;
+    background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
-  .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:#d8cda0;font-weight:700;text-align:right;max-width:60mm}
-  .ch-cover-mid{margin:auto 0}
-  .ch-cover-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:0;line-height:1.02}
-  .ch-cover-sub{font-size:15px;opacity:.92;margin-top:14px}
-  .ch-cover-meta{font-size:12.5px;opacity:.8;margin-top:6px;text-transform:capitalize}
-  .ch-cover-rule{width:96px;height:4px;background:${C.gold};border-radius:3px;margin:24px 0}
-  .ch-pill{display:inline-block;border:1px solid rgba(216,205,160,.6);color:#e9e0bf;font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;padding:6px 13px;border-radius:20px}
-  .ch-cover-cols{display:flex;gap:24px;margin-top:30px;align-items:stretch}
-  .ch-enbref{flex:1;background:rgba(255,255,255,.07);border-left:3px solid ${C.gold};border-radius:0 8px 8px 0;padding:16px 20px}
-  .ch-enbref-l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#d8cda0;font-weight:700}
-  .ch-enbref p{margin:8px 0 0;font-size:12px;line-height:1.6;opacity:.95}
-  .ch-callout{width:52mm;background:rgba(192,57,43,.16);border:1px solid rgba(216,205,160,.35);border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
+  .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:60mm}
+  .ch-cover-mid{margin:auto 0;text-align:center}
+  .ch-cover-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:0;line-height:1.02;color:${C.navy}}
+  .ch-cover-sub{font-size:15px;color:${C.muted};margin-top:14px}
+  .ch-cover-meta{font-size:12.5px;color:${C.muted};margin-top:6px;text-transform:capitalize}
+  .ch-cover-rule{width:96px;height:4px;background:${C.gold};border-radius:3px;margin:24px auto}
+  .ch-pill{display:inline-block;border:1px solid ${C.gold};color:${C.gold};font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;padding:6px 13px;border-radius:20px}
+  .ch-cover-cols{display:flex;gap:24px;margin:30px auto 0;align-items:stretch;justify-content:center;max-width:150mm;text-align:left}
+  .ch-enbref{flex:1;background:${C.soft};border-left:3px solid ${C.gold};border-radius:0 8px 8px 0;padding:16px 20px}
+  .ch-enbref-l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:${C.indigo};font-weight:700}
+  .ch-enbref p{margin:8px 0 0;font-size:12px;line-height:1.6;color:${C.ink}}
+  .ch-callout{width:52mm;background:${C.navy};border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
   .ch-callout b{font-size:46px;font-weight:800;line-height:.95;color:#fff}
-  .ch-callout-l{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:#f0d6cf;font-weight:700;margin-top:4px}
-  .ch-callout-h{font-size:10px;opacity:.82;margin-top:6px;line-height:1.4}
-  .ch-cover-foot{margin-top:auto;padding-top:26px}
-  .ch-estab{font-size:11px;opacity:.9}
-  .ch-estab-l{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:#d8cda0;font-weight:700;margin-bottom:3px}
-  .ch-estab-r{opacity:.8}
-  .ch-cover-legal{display:flex;justify-content:space-between;margin-top:18px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.55)}
+  .ch-callout-l{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-top:4px}
+  .ch-callout-h{font-size:10px;color:rgba(255,255,255,.82);margin-top:6px;line-height:1.4}
+  .ch-cover-foot{margin-top:auto;padding-top:26px;text-align:center}
+  .ch-estab{font-size:11px;color:${C.ink}}
+  .ch-estab-l{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:3px}
+  .ch-estab-r{color:${C.muted}}
+  .ch-cover-legal{display:flex;justify-content:space-between;margin-top:18px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.muted}}
 
   /* ---------- CHAPITRE / SYNTHÈSE ---------- */
-  .ch-chap{margin:0 0 6px}
+  .ch-chap{margin:26px 0 12px}
   .ch-chap-t{font-size:20px;color:${C.navy};margin:0;font-weight:700}
-  .ch-lead{color:${C.muted};font-size:11.5px;margin:4px 0 14px}
+  .ch-lead{color:${C.muted};font-size:11.5px;margin:6px 0 16px}
 
   /* Bandeau KPI */
   .ch-kpi{display:flex;flex-wrap:wrap;gap:30px;padding:16px 4px 16px;border-top:2px solid ${C.gold};border-bottom:1px solid ${C.line};margin:0 0 16px}
@@ -129,9 +133,9 @@ export function charterCss() {
   .ch-legend .k.c{background:${C.red}} .ch-legend .k.m{background:${C.amber}} .ch-legend .k.d{background:${C.indigo}}
 
   /* ---------- SECTION DOSSIER ---------- */
-  .ch-sec{margin:0 0 24px;break-inside:avoid;page-break-inside:avoid}
+  .ch-sec{margin:30px 0 24px;break-inside:avoid;page-break-inside:avoid}
   .ch-sec-name{font-size:22px;color:${C.navy};margin:0;font-weight:700;letter-spacing:.2px}
-  .ch-sec-intro{margin:7px 0 12px;color:${C.muted};font-size:11px}
+  .ch-sec-intro{margin:9px 0 14px;color:${C.muted};font-size:11px}
 
   /* Tableaux */
   table{width:100%;border-collapse:separate;border-spacing:0}
