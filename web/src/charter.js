@@ -36,14 +36,16 @@ export function kpiBand(items) {
 
 // Page de couverture pleine.
 //  title peut contenir un <br> ; callout = { value, label, hint } (gros chiffre).
-export function cover({ kicker, title, subtitle = "", meta = "", pill = "", enBref = "", callout = null, etabliPar = "", confidential = "Armonie Group · Confidentiel", web = "armonie.group" }) {
+export function cover({ kicker, title, titleNote = "", subtitle = "", meta = "", pill = "", enBref = "", callout = null, etabliPar = "", confidential = "Armonie Group · Confidentiel", web = "armonie.group" }) {
   return `<section class="ch-cover">
     <div class="ch-cover-top">${logoLockup({ light: false })}<div class="ch-kicker">${esc(kicker || "")}</div></div>
     <div class="ch-cover-mid">
-      <h1 class="ch-cover-title">${title}</h1>
+      <h1 class="ch-cover-title">${title}${titleNote ? `<span class="ch-cover-date">${esc(titleNote)}</span>` : ""}</h1>
       ${subtitle ? `<div class="ch-cover-sub">${esc(subtitle)}</div>` : ""}
       ${meta ? `<div class="ch-cover-meta">${esc(meta)}</div>` : ""}
       <div class="ch-cover-rule"></div>
+    </div>
+    <div class="ch-cover-low">
       ${pill ? `<span class="ch-pill">${esc(pill)}</span>` : ""}
       <div class="ch-cover-cols">
         ${enBref ? `<div class="ch-enbref"><div class="ch-enbref-l">En bref</div><p>${enBref}</p></div>` : ""}
@@ -98,7 +100,9 @@ export function charterCss() {
     background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
   .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:60mm}
-  .ch-cover-mid{margin:auto 0;text-align:center}
+  .ch-cover-mid{margin-top:34mm;text-align:center}
+  .ch-cover-low{margin-top:auto;text-align:center;padding-bottom:4mm}
+  .ch-cover-date{font-size:.42em;font-weight:600;color:${C.gold};margin-left:.5em;letter-spacing:.01em;white-space:nowrap;vertical-align:baseline}
   .ch-cover-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:0;line-height:1.02;color:${C.navy}}
   .ch-cover-sub{font-size:15px;color:${C.muted};margin-top:26px;font-weight:500}
   .ch-cover-meta{font-size:12.5px;color:${C.muted};margin-top:7px;text-transform:capitalize}
@@ -140,7 +144,7 @@ export function charterCss() {
 
   /* ---------- SECTION DOSSIER ---------- */
   .ch-sec{margin:30px 0 24px;break-inside:avoid;page-break-inside:avoid}
-  .ch-sec-name{font-size:22px;color:${C.navy};margin:0;font-weight:700;letter-spacing:.2px}
+  .ch-sec-name{font-size:22px;color:${C.gold};margin:0;font-weight:700;letter-spacing:.2px}
   .ch-sec-intro{margin:9px 0 14px;color:${C.muted};font-size:11px}
 
   /* Tableaux */

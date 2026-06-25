@@ -22,9 +22,7 @@ createRoot(document.getElementById("root")).render(
   </React.StrictMode>
 );
 
-// Active la PWA (installation sur l'écran d'accueil + coquille hors-ligne).
-if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => {
-    navigator.serviceWorker.register("/sw.js").catch(() => {});
-  });
-}
+// Active la PWA : enregistrement du service worker, mise à jour contrôlée
+// (bandeau « Actualiser ») et capture de l'invite d'installation.
+import { registerPwa } from "./pwa.js";
+registerPwa();

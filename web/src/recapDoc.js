@@ -41,40 +41,74 @@ function ticketTable(items) {
   return `<table><tbody>${rows}</tbody></table>`;
 }
 
-// Section d'UN dossier, à partir de son bloc computeFacts (b.cats / b.items / b.enRetard).
-function blockHtml(dossier, b) {
-  const cats = b.cats;
-  const mode = modeOf(b.items);
-  const tracked = sum(cats, TRACKED);
-  const actifs = sum(cats, ACTIFS), retours = sum(cats, RETOUR), recette = sum(cats, RECETTE);
-  const hors = (cats.afaire || 0) + (cats.annule || 0) + (cats.retourProd || 0);
+// Compte les catégories à partir d'une liste de tickets (i.categorie), pour ventiler
+// SANS jamais mélanger TMA et Projet : on recompte sur le sous-ensemble concerné.
+const catsOf = (items) => {
+  const c = {};
+  for (const i of (items || [])) c[i.categorie] = (c[i.categorie] || 0) + 1;
+  return c;
+};
+const trackedCount = (items) => (items || []).filter((i) => TRACKED.includes(i.categorie)).length;
 
-  const synth = `<p class="lede"><b>${esc(dossier)}</b>${mode ? ` · ${esc(mode)}` : ""} — <b>${tracked}</b> ticket${tracked > 1 ? "s" : ""} suivi${tracked > 1 ? "s" : ""} : `
-    + `<b>${actifs}</b> actif${actifs > 1 ? "s" : ""} (en cours + retours), <b>${recette}</b> en recette/validation`
-    + `${b.enRetard ? `, <b>${b.enRetard}</b> en retard` : ""}.</p>`;
-
-  const statusTable = `<table><thead><tr><th>Statut</th><th class="num">Tickets</th></tr></thead><tbody>`
+function statusTableHtml(cats) {
+  return `<table><thead><tr><th>Statut</th><th class="num">Tickets</th></tr></thead><tbody>`
     + ROWS.map(([k, label]) => `<tr><td>${label}</td><td class="num">${cats[k] || 0}</td></tr>`).join("")
     + `</tbody></table>`;
+}
+function detailHtml(cats, items) {
+  return ROWS.filter(([k]) => (cats[k] || 0) > 0).map(([k, label]) => {
+    const its = (items || []).filter((i) => i.categorie === k);
+    return `<details><summary><span>${label}</span><span class="n">${its.length}</span></summary>${ticketTable(its)}</details>`;
+  }).join("");
+}
+function horsHtml(cats) {
+  const hors = (cats.afaire || 0) + (cats.annule || 0) + (cats.retourProd || 0);
+  return hors ? `<p class="hors">Hors point du soir : ${hors} ticket(s) — à faire (${cats.afaire || 0}), retour prod (${cats.retourProd || 0}), annulés (${cats.annule || 0}).</p>` : "";
+}
 
-  const detail = ROWS
-    .filter(([k]) => (cats[k] || 0) > 0)
-    .map(([k, label]) => {
-      const its = (b.items || []).filter((i) => i.categorie === k);
-      return `<details><summary><span>${label}</span><span class="n">${its.length}</span></summary>${ticketTable(its)}</details>`;
-    })
-    .join("");
+// Section d'UN dossier. Si le dossier mêle TMA et Projet, on présente les DEUX
+// SÉPARÉMENT (tableaux et détails distincts) : aucun chiffre n'est mélangé.
+function blockHtml(dossier, b) {
+  const items = b.items || [];
+  const tma = items.filter((i) => i.engagement === "TMA");
+  const proj = items.filter((i) => i.engagement === "Projet");
+  const other = items.filter((i) => i.engagement !== "TMA" && i.engagement !== "Projet");
+  const groups = [];
+  if (tma.length) groups.push({ label: "Maintenance courante (TMA)", noun: "en TMA", items: tma });
+  if (proj.length) groups.push({ label: "Projet", noun: "en projet", items: proj });
+  if (other.length) groups.push({ label: "Autres engagements", noun: "autre", items: other });
 
-  const inner = synth + statusTable
-    + (detail ? `<h3 class="rk-h3">Détail par statut</h3>${detail}` : "")
-    + (hors ? `<p class="hors">Hors point du soir : ${hors} ticket(s) — à faire (${cats.afaire || 0}), retour prod (${cats.retourProd || 0}), annulés (${cats.annule || 0}).</p>` : "");
-  return { inner, tracked };
+  const totalTracked = trackedCount(items);
+  const split = groups.length > 1;
+  const ventil = split ? ` : ${groups.map((g) => `<b>${trackedCount(g.items)}</b> ${g.noun}`).join(", ")}` : "";
+  const synth = `<p class="lede"><span class="rk-client">${esc(dossier)}</span> — <b>${totalTracked}</b> ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""}${ventil}`
+    + `${b.enRetard ? ` · <b>${b.enRetard}</b> en retard` : ""}.</p>`;
+
+  let inner;
+  if (!split) {
+    const cats = groups.length ? catsOf(items) : b.cats;
+    const d = detailHtml(cats, items);
+    inner = synth + statusTableHtml(cats) + (d ? `<h3 class="rk-h3">Détail par statut</h3>${d}` : "") + horsHtml(cats);
+  } else {
+    inner = synth + groups.map((g) => {
+      const cats = catsOf(g.items);
+      const d = detailHtml(cats, g.items);
+      const n = trackedCount(g.items);
+      return `<div class="rk-grp"><div class="rk-grp-h"><span class="rk-grp-t">${esc(g.label)}</span><span class="rk-grp-n">${n} suivi${n > 1 ? "s" : ""}</span></div>`
+        + statusTableHtml(cats)
+        + (d ? `<h4 class="rk-h4">Détail par statut</h4>${d}` : "")
+        + horsHtml(cats)
+        + `</div>`;
+    }).join("");
+  }
+  return { inner, tracked: totalTracked };
 }
 
 // Document complet. scope = nom d'un dossier, ou "Tous" / "Tous dossiers".
 export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas Durand" } = {}) {
   const facts = computeFacts(issues);
   const today = new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
+  const todayShort = new Date().toLocaleDateString("fr-FR"); // 25/06/2026 — affiché à côté du titre
   const all = scope === "Tous" || scope === "Tous dossiers" || !scope;
   const etabli = meName || "Nicolas Durand";
 
@@ -98,9 +132,10 @@ export function buildRecapDoc({ issues = [], scope = "Tous", meName = "Nicolas D
 
   const coverHtml = cover({
     kicker: "Armonie Group · Récapitulatif",
-    title: "Récapitulatif<br>de la journée",
+    title: "Récapitulatif",
+    titleNote: todayShort,
     subtitle: all ? "Portefeuille TMA & Projets — tous les clients" : `Dossier ${perim}`,
-    meta: today,
+    meta: "",
     pill: "Document de travail interne",
     enBref: `Photo du portefeuille au ${today}. ${totalTracked} ticket${totalTracked > 1 ? "s" : ""} suivi${totalTracked > 1 ? "s" : ""} sur ${clients.length} dossier${clients.length > 1 ? "s" : ""}. Chiffres strictement alignés sur le point du soir (Jira), sans recalcul ni invention.`,
     callout: totalRetard ? { value: totalRetard, label: "en retard", hint: "échéance dépassée — à arbitrer" } : null,
@@ -142,6 +177,12 @@ const RECAP_CSS = `
   .rk-k{font-weight:700;color:${C.indigo};white-space:nowrap;width:1%}
   .rk-a{color:${C.muted};white-space:nowrap;width:1%;text-align:right}
   .hors{font-size:11px;color:${C.muted};margin:6px 0 4px}
+  .rk-client{font-weight:800;color:${C.gold}}
+  .rk-grp{margin:14px 0 6px;padding:2px 0 2px 14px;border-left:3px solid ${C.line}}
+  .rk-grp-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:0 0 7px}
+  .rk-grp-t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:14px;color:${C.indigo}}
+  .rk-grp-n{font-size:11px;font-weight:700;color:${C.gold};white-space:nowrap}
+  .rk-h4{font-family:Poppins,Inter,sans-serif;font-size:11px;color:${C.muted};margin:12px 0 5px;text-transform:uppercase;letter-spacing:.05em}
   .muted{color:${C.muted}}`;
 
 // ZIP « un fichier par client » (remplace buildDailyCrFiles, même forme de retour).

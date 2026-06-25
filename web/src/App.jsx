@@ -154,6 +154,7 @@ export default function App() {
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
   const [sub, setSub] = useState("accueil");   // sous-onglet actif dans un onglet groupé
+  const pwaGoRef = useRef(false);              // raccourci PWA (?go=) appliqué une seule fois
   const [drawer, setDrawer] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);   // feuille « accès rapide » (bouton central mobile)
   const [isMobile, setIsMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 768px)").matches);
@@ -381,6 +382,23 @@ export default function App() {
 
   // À chaque changement d'onglet groupé, on positionne le sous-onglet sur le 1er autorisé.
   useEffect(() => { const subs = subsForRole(tab, role); setSub(subs.length ? subs[0].id : ""); }, [tab, role]);
+
+  // Raccourcis PWA (long-appui sur l'icône) : « /?go=morning » ouvre directement
+  // la bonne page. Appliqué une seule fois, après que le rôle (et donc les
+  // sous-onglets autorisés) soit connu.
+  useEffect(() => {
+    if (pwaGoRef.current || !role) return;
+    let go = "";
+    try { go = new URLSearchParams(window.location.search).get("go") || ""; } catch { /* ignoré */ }
+    if (!go) { pwaGoRef.current = true; return; }
+    pwaGoRef.current = true;
+    const grp = Object.keys(SUBTABS).find((g) => SUBTABS[g].some((s) => s.id === go));
+    if (grp && subsForRole(grp, role).some((s) => s.id === go)) {
+      setTab(grp);
+      setTimeout(() => setSub(go), 0); // après le reset de sous-onglet déclenché par setTab
+    }
+    try { window.history.replaceState(null, "", window.location.pathname); } catch { /* ignoré */ }
+  }, [role]);
 
   // Battement de cœur (présence) : permet au super-admin de voir qui est en ligne.
   useEffect(() => {
@@ -675,7 +693,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v267" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v269" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
