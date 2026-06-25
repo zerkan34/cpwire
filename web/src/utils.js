@@ -1,13 +1,25 @@
 // utils.js — helpers partagés.
 import { LOGO_DATA_URI } from "./logo.js";
 
-export function downloadHtml(html, filename) {
-  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+export async function downloadHtml(html, filename = "Document.html") {
+  const name = /\.html?$/i.test(filename) ? filename : `${String(filename).replace(/\.[a-z0-9]+$/i, "")}.html`;
+  const veil = pdfVeil(name);
+  try {
+    veil.status("Préparation du fichier…");
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    veil.status("Fichier prêt — choisissez l'emplacement d'enregistrement…");
+    try {
+      await saveBlobAs(blob, name, { description: "Page web", mime: "text/html", ext: ".html" });
+      veil.success("Enregistré sur votre ordinateur.");
+      await new Promise((r) => setTimeout(r, 1300)); // laisse voir le rond vert
+      return true;
+    } catch (e) {
+      if (e && e.name === "AbortError") return false; // annulation volontaire
+      return false;
+    }
+  } finally {
+    veil.remove();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -81,12 +93,19 @@ function pdfVeil(name) {
   el.querySelector(".cpw-veil-x").addEventListener("click", remove);
   document.body.appendChild(el);
   const status = (txt) => { const n = el.querySelector(".cpw-veil-s"); if (n) n.textContent = txt; };
+  const setTitle = (txt) => { const n = el.querySelector(".cpw-veil-t"); if (n) n.textContent = txt; };
   const done = () => {
     const card = el.querySelector(".cpw-veil-card"); if (card) card.classList.add("done");
-    const t = el.querySelector(".cpw-veil-t"); if (t) t.textContent = "Document prêt";
+    setTitle("Document prêt");
     status("Choisissez l'emplacement d'enregistrement.");
   };
-  return { remove, status, done };
+  // État de SUCCÈS : affiché APRÈS l'enregistrement réel du fichier (rond vert coché).
+  const success = (msg) => {
+    const card = el.querySelector(".cpw-veil-card"); if (card) card.classList.add("done");
+    setTitle("Enregistré");
+    status(msg || "Fichier enregistré sur votre ordinateur.");
+  };
+  return { remove, status, title: setTitle, done, success };
 }
 
 // Enregistre un blob en laissant l'utilisateur CHOISIR l'emplacement (File System
@@ -176,13 +195,25 @@ export async function printHtml(html, filename = "Document.pdf") {
       catch (e) { /* échec rare → dernier recours */ }
     }
     if (blob) {
-      veil.done();
-      try { await saveBlob(blob, name); return true; }
-      catch (e) { if (e && e.name === "AbortError") return false; /* sinon repli HTML */ }
+      veil.status("Document prêt — choisissez l'emplacement d'enregistrement…");
+      try {
+        await saveBlob(blob, name);
+        veil.success("Enregistré sur votre ordinateur.");
+        await new Promise((r) => setTimeout(r, 1300)); // laisse voir le rond vert
+        return true;
+      } catch (e) {
+        if (e && e.name === "AbortError") return false; // annulation volontaire du sélecteur
+        /* autre échec d'enregistrement → repli HTML ci-dessous */
+      }
     }
-    // 3) Dernier recours : téléchargement HTML.
-    veil.status("Format PDF indisponible — téléchargement HTML.");
-    try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
+    // 3) Dernier recours : enregistrer la version web (même voile, même sélecteur d'emplacement).
+    veil.status("PDF indisponible — enregistrement de la version web…");
+    try {
+      const hblob = new Blob([html], { type: "text/html;charset=utf-8" });
+      await saveBlobAs(hblob, name.replace(/\.pdf$/i, ".html"), { description: "Page web", mime: "text/html", ext: ".html" });
+      veil.success("Enregistré (version web).");
+      await new Promise((r) => setTimeout(r, 1300));
+    } catch { /* annulation ou échec : on referme simplement */ }
     return false;
   } finally {
     veil.remove();

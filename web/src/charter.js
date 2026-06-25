@@ -154,6 +154,21 @@ export function charterCss() {
   .ch-runfoot{position:fixed;left:0;right:0;bottom:6mm;display:flex;justify-content:space-between;
     padding:0 14mm;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:${C.muted}}
   .ch-runfoot b{color:${C.navy};font-weight:700}
+
+  /* ----- RENDU ÉCRAN (fichiers cliquables ouverts dans un navigateur) -----
+     Le @page ne s'applique qu'à l'impression : sans cela, le contenu — pensé
+     pour une page A4 — s'étalait sur toute la largeur de l'écran (effet
+     « paysage élargi, sans marges »). On reconstitue ici une feuille A4
+     portrait centrée, avec marges et ombre, pour un rendu identique au PDF. */
+  @media screen {
+    html{background:#e9eaf0}
+    body{background:#e9eaf0;background-image:none;padding:28px 14px}
+    .ch-cover,.ch-body{width:210mm;max-width:100%;margin:0 auto 22px;box-sizing:border-box;
+      background:#fff;box-shadow:0 10px 40px rgba(31,27,51,.14);border-radius:3px}
+    .ch-cover{min-height:297mm}
+    .ch-body{min-height:297mm;padding:16mm 15mm 18mm}
+    .ch-runfoot{display:none}
+  }
   `;
 }
 
