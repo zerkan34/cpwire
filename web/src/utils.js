@@ -12,18 +12,58 @@ export function downloadHtml(html, filename) {
 
 // Impression via une iframe cachée : pas de nouvelle fenêtre/onglet « about:blank »,
 // et l'app ne se fige plus (l'aperçu d'impression est isolé dans l'iframe).
+// Génère un VRAI PDF côté navigateur (portrait A4, marges) — sans dépendre de Docker.
+// Le holder doit être en flux normal pour html2canvas ; un overlay masque le rendu.
+async function clientPdf(html, filename) {
+  const html2pdf = (await import("html2pdf.js")).default;
+  const inner = html.replace(/^[\s\S]*?<body[^>]*>/i, "").replace(/<\/body>[\s\S]*$/i, "");
+  const sm = html.match(/<style>[\s\S]*?<\/style>/i);
+  let css = sm ? sm[0] : "";
+  // Neutralise les règles globales (sinon elles affecteraient l'app) + le @page.
+  css = css.replace(/@page[^}]*}/gi, "")
+           .replace(/(^|})\s*body\s*\{/gi, "$1 .cpw-pdf-root{")
+           .replace(/(^|})\s*\*\s*\{/gi, "$1 .cpw-pdf-root *{");
+  const ov = document.createElement("div");
+  ov.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(31,27,51,.55);display:flex;align-items:center;justify-content:center;color:#fff;font:600 15px/1.4 Inter,system-ui,sans-serif;";
+  ov.textContent = "Génération du PDF…";
+  const holder = document.createElement("div");
+  holder.className = "cpw-pdf-root";
+  holder.style.cssText = "width:794px;background:#fff;";
+  holder.innerHTML = css + inner;
+  holder.querySelectorAll(".ch-runfoot").forEach((n) => n.remove());
+  document.body.appendChild(ov);
+  document.body.appendChild(holder);
+  try {
+    await html2pdf().set({
+      margin: [10, 10, 12, 10],
+      filename,
+      image: { type: "jpeg", quality: 0.95 },
+      html2canvas: { scale: 2, backgroundColor: "#ffffff", windowWidth: 794, width: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 },
+      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
+      pagebreak: { mode: ["css", "legacy"] },
+    }).from(holder).save();
+  } finally {
+    holder.remove();
+    ov.remove();
+  }
+}
+
 export async function printHtml(html, filename = "Document.pdf") {
-  // Plus de boîte d'impression : on produit un VRAI PDF côté serveur (WeasyPrint)
-  // et on le télécharge. En repli (moteur indisponible), on télécharge le HTML.
   const name = /\.pdf$/i.test(filename) ? filename : `${filename}.pdf`;
+  // 1) PDF serveur (WeasyPrint, qualité maximale) si le moteur est disponible.
   try {
     const { exportHtmlPdf } = await import("./api.js");
     await exportHtmlPdf(html, name);
     return true;
-  } catch (e) {
-    try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
-    return false;
-  }
+  } catch (e) { /* moteur serveur absent → PDF navigateur */ }
+  // 2) PDF côté navigateur (portrait A4 avec marges), sans Docker.
+  try {
+    await clientPdf(html, name);
+    return true;
+  } catch (e) { /* échec rare → dernier recours */ }
+  // 3) Dernier recours : téléchargement HTML.
+  try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
+  return false;
 }
 
 // Ouvre une URL externe de façon fiable, en navigateur ET dans l'app desktop (Tauri).
