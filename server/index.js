@@ -12,6 +12,10 @@ import "dotenv/config";
 
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
+import { dataDirInfo } from "./paths.js";
+import { persistenceActive } from "./persist.js";
+import { initMemory } from "./connaissance.js";
+const isPersistent = () => dataDirInfo().persistent || persistenceActive();
 import { recordDay as recordPointDay, baselineFor as pointBaselineFor } from "./pointHistory.js";
 import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
@@ -472,7 +476,7 @@ app.get("/api/account/confirm", async (req, res) => {
 app.post("/api/ping", guard, (_req, res) => res.json({ ok: true }));
 
 // Rôle de la session courante : l'interface s'en sert pour adapter les onglets et masquer les outils CR.
-app.get("/api/session", guard, (req, res) => res.json({ role: req.role || "owner", me: req.userEmail || ME }));
+app.get("/api/session", guard, (req, res) => { res.json({ role: req.role || "owner", me: req.userEmail || ME, persistent: isPersistent() }); });
 
 // Déconnexion : retire la session stockée si présente (comptes invités). Le jeton owner
 // étant auto-vérifiable, sa révocation fine viendra avec l'audit ; le client efface le
@@ -560,7 +564,8 @@ app.post("/api/admin/users/confirm", guard, adminGuard, async (req, res) => {
 
 app.get("/api/health", (_req, res) =>
   res.json({ ok: true, app: "CPwire", authEnabled: AUTH_ENABLED, jiraConfigured: isConfigured(),
-    ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), allowDemo: ALLOW_DEMO }));
+    ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), allowDemo: ALLOW_DEMO,
+    persistent: isPersistent(), dataDir: dataDirInfo().dir }));
 
 app.get("/api/portfolio", guard, async (req, res) => {
   try {
@@ -1308,7 +1313,10 @@ if (fs.existsSync(WEB_DIST)) {
   console.log(`Interface servie depuis ${WEB_DIST}`);
 }
 
+try { const restored = await initMemory(); if (restored) console.log("[connaissance] mémoire restaurée depuis la base durable."); } catch (e) { console.error("initMemory:", e.message); }
 app.listen(PORT, () => {
   console.log(`CPwire API sur http://localhost:${PORT}`);
   console.log(`Auth: ${AUTH_ENABLED ? "oui" : "non"} | Jira: ${isConfigured() ? "oui" : (ALLOW_DEMO ? "démo" : "non configuré")} | IA: ${aiAvailable() ? "oui" : "gabarit"} | moi: ${ME}`);
+  const _d = dataDirInfo();
+  console.log(`Données: ${_d.dir} | persistance: ${isPersistent() ? (persistenceActive() ? "OUI (base Neon)" : "OUI (disque persistant)") : "NON (éphémère — définir DATABASE_URL ou DATA_DIR)"}`);
 });

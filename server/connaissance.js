@@ -11,6 +11,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { dataDir } from "./paths.js";
+import { saveBlob as dbSaveBlob, restoreBlob } from "./persist.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIR = dataDir();
@@ -227,7 +228,7 @@ export function saveConnaissance(data) {
     }
   }
   safe.pilote = current.pilote || { profil: [], consignes: [], maj: null };
-  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(safe, null, 2)); }
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(safe, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(safe, null, 2)); } catch {} }
   catch (e) { console.error("[connaissance] écriture impossible:", e.message); }
   return mergeSeed(safe);
 }
@@ -255,7 +256,7 @@ export function saveAuto(dossier, points) {
   const k = readConnaissance();
   if (!k.clients[dossier]) k.clients[dossier] = { contexte: "", attentes: [], glossaire: [], notes: [] };
   k.clients[dossier].auto = { points: (points || []).map(String).filter(Boolean).slice(0, 6), at: new Date().toISOString() };
-  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); }
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(k, null, 2)); } catch {} }
   catch (e) { console.error("[connaissance] saveAuto impossible:", e.message); }
   return k.clients[dossier].auto;
 }
@@ -320,7 +321,7 @@ export function updatePilote({ profilAdd = [], consignesAdd = [], remove = [] } 
   consignes = addInto(consignes, consignesAdd).slice(-40);
 
   k.pilote = { profil, consignes, maj: new Date().toISOString() };
-  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); }
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(k, null, 2)); } catch {} }
   catch (e) { console.error("[connaissance] updatePilote impossible:", e.message); }
   return k.pilote;
 }
@@ -338,4 +339,19 @@ export function piloteForPrompt() {
     out.push(p.profil.map((c) => `• ${c}`).join("\n"));
   }
   return out.length ? out.join("\n") : "";
+}
+
+
+// Restauration de la mémoire depuis la base durable (Neon) au démarrage, si DATABASE_URL.
+// Écrit le contenu de la base dans le fichier local (source de vérité à l'exécution).
+export async function initMemory() {
+  try {
+    const c = await restoreBlob("connaissance");
+    if (c && c.trim()) {
+      fs.mkdirSync(DIR, { recursive: true });
+      fs.writeFileSync(FILE, c);
+      return true;
+    }
+  } catch (e) { console.error("[connaissance] initMemory impossible:", e.message); }
+  return false;
 }

@@ -189,6 +189,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [greet, setGreet] = useState("");
   const [showGreetPop, setShowGreetPop] = useState(false);
+  const [persistent, setPersistent] = useState(null);
   const greetedRef = useRef(false);
   const [showTop, setShowTop] = useState(false);
   const [notifs, setNotifs] = useState([]);
@@ -355,6 +356,7 @@ export default function App() {
     };
     fetchSession().then((s) => {
       setRole(s.role); setReadOnly(s.role !== "owner");
+      setPersistent(typeof s.persistent === "boolean" ? s.persistent : null);
       fire(s.role, s.me);
     }).catch(() => fire(role, data?.me));
     const t = setTimeout(() => fire(role, data?.me), 2500); // filet desktop : si la session traîne/échoue, on salue quand même
@@ -613,6 +615,14 @@ export default function App() {
       {role === "owner" ? (
         <div className="owner-bar">
           {greet && <span className="greet-inline">{greet}</span>}
+          {persistent !== null && (
+            <span className={`mem-badge ${persistent ? "ok" : "warn"}`}
+              title={persistent
+                ? "La mémoire de Natacha et les données sont sauvegardées sur une base durable — conservées après chaque redéploiement."
+                : "Données éphémères : définissez DATABASE_URL (base Neon gratuite) pour conserver la mémoire de Natacha entre les sessions."}>
+              {persistent ? "● Mémoire persistante" : "○ Mémoire éphémère"}
+            </span>
+          )}
           {(() => { const d = new Date(); return d.getHours() > 16 || (d.getHours() === 16 && d.getMinutes() >= 45); })() && (
             <span className="greet-memo" role="note" title="Pense-bête de fin de journée">
               📌 Pense-bête : importer la <b>situation actuelle du SharePoint</b> + les <b>fichiers Excel des projets en cours</b>.
@@ -665,7 +675,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v261" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v262" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />

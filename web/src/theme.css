@@ -3244,6 +3244,11 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .greet-msg { font-family: "Poppins", Inter, sans-serif; font-weight: 700; font-size: 21px; color: #2E2A5D; margin: 10px 0 4px; }
 .greet-sub { font-size: 12.5px; color: #6E6A86; }
 
+/* Témoin de persistance de la mémoire (barre owner) */
+.mem-badge { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 99px; letter-spacing: .01em; white-space: nowrap; }
+.mem-badge.ok { color: #1f8a5f; background: rgba(31,138,95,.10); }
+.mem-badge.warn { color: #b5731a; background: rgba(194,105,26,.12); }
+
 /* ===== Trame « papier vergé » très subtile sur les surfaces blanches (bureau uniquement) ===== */
 @media (min-width: 769px) {
   .panel, .modal, .recap-card, .rana-panel, .cwa-panel, .mw-modal, .imp-card,
