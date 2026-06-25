@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
-  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers, importAnalyze, importApply } from "./api.js";
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Assistant from "./components/Assistant.jsx";
+import ImportSources from "./components/ImportSources.jsx";
 import Portfolio from "./components/Portfolio.jsx";
 import Home from "./components/Home.jsx";
 import MissionControl from "./components/MissionControl.jsx";
@@ -187,6 +188,7 @@ export default function App() {
   const [devFiche, setDevFiche] = useState(null);  // fiche développeur (nom)
   const [toast, setToast] = useState("");
   const [greet, setGreet] = useState("");
+  const [showGreetPop, setShowGreetPop] = useState(false);
   const greetedRef = useRef(false);
   const [showTop, setShowTop] = useState(false);
   const [notifs, setNotifs] = useState([]);
@@ -220,28 +222,9 @@ export default function App() {
   // Bouton « CR du jour » : visible uniquement en semaine (lundi→vendredi) à partir de 17h30.
   // Une minuterie réévalue chaque minute pour qu'il apparaisse tout seul, sans recharger.
   const [dailyCrOpen, setDailyCrOpen] = useState(false);
-  // Import OneNote (synchronisé du SharePoint) : cp|WIRE analyse les changements et met à jour
-  // ses données. Rien n'est appliqué sans confirmation explicite.
-  const oneNoteRef = useRef(null);
-  const [oneBusy, setOneBusy] = useState(false);
-  const onImportOneNote = async (ev) => {
-    const file = ev.target.files && ev.target.files[0];
-    if (ev.target) ev.target.value = "";
-    if (!file) return;
-    setOneBusy(true);
-    try {
-      const r = await importAnalyze(file);
-      if (!r || r.ok === false || r.error) { alert(r && r.error ? r.error : "Fichier OneNote non exploitable pour l'analyse."); setOneBusy(false); return; }
-      const resume = (r.proposal && (r.proposal.resume || r.proposal.cible)) || r.apercu || "Document analysé.";
-      const ok = window.confirm(`OneNote analysé — ${file.name}\n\n${resume}\n\nMettre à jour les chiffres et l'état d'avancement de cp|WIRE ?`);
-      if (!ok) { setOneBusy(false); return; }
-      await importApply({ filename: r.filename || file.name, proposal: r.proposal, apercu: r.apercu, dataset: r.dataset, diff: r.diff });
-      alert("cp|WIRE mis à jour à partir du OneNote ✓");
-    } catch (e) {
-      alert("Échec de l'import OneNote : " + (e && e.message ? e.message : "erreur"));
-    }
-    setOneBusy(false);
-  };
+  // Import sources : OneNote, Excel, fichier query/CSV… cp|WIRE lit la source,
+  // montre ce qui a changé + un récap, puis met à jour sur validation (modale dédiée).
+  const [importOpen, setImportOpen] = useState(false);
   const [nowTick, setNowTick] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
   const showDailyCr = useMemo(() => {
@@ -367,6 +350,8 @@ export default function App() {
       if (greetedRef.current) return;
       greetedRef.current = true;
       setGreet(greetMessage(r, m));
+      setShowGreetPop(true);
+      setTimeout(() => setShowGreetPop(false), 3800);
     };
     fetchSession().then((s) => {
       setRole(s.role); setReadOnly(s.role !== "owner");
@@ -634,10 +619,9 @@ export default function App() {
             </span>
           )}
           <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
-          <input ref={oneNoteRef} type="file" accept=".one" style={{ display: "none" }} onChange={onImportOneNote} />
-          <button className="btn-line" onClick={() => oneNoteRef.current && oneNoteRef.current.click()} disabled={oneBusy}
-            title="Importer le fichier OneNote synchronisé du SharePoint : cp|WIRE analyse les changements et met à jour ses chiffres et l'état d'avancement">
-            {oneBusy ? "Analyse…" : "🗒️ Importer OneNote"}
+          <button className="btn-line" onClick={() => setImportOpen(true)}
+            title="Importer une source (OneNote, Excel, fichier query/CSV…) : cp|WIRE la lit, montre ce qui a changé et met à jour ses chiffres après validation">
+            📥 Import sources
           </button>
           <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
@@ -681,7 +665,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v255" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v258" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
@@ -811,6 +795,23 @@ export default function App() {
         <div className="drawer-foot">cp|WIRE — Armonie Group</div>
       </aside>
 
+      {showGreetPop && greet && (
+        <div className="greet-veil" onClick={() => setShowGreetPop(false)}>
+          <div className="greet-card" onClick={(e) => e.stopPropagation()}>
+            <div className="greet-top" />
+            <div className="greet-hd">
+              <div className="greet-logo">armo<i>n</i>ie<small>notos <i>phl</i>soft</small></div>
+              <button className="greet-x" onClick={() => setShowGreetPop(false)} aria-label="Fermer">×</button>
+            </div>
+            <div className="greet-bd">
+              <div className="greet-wave">👋</div>
+              <div className="greet-msg">{greet}</div>
+              <div className="greet-sub">Bon pilotage sur cp|WIRE.</div>
+            </div>
+          </div>
+        </div>
+      )}
+      {importOpen && <ImportSources onClose={() => setImportOpen(false)} onApplied={() => load(true)} />}
       <Assistant />
     </div>
     </ReadOnlyContext.Provider>

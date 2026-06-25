@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
 import { askAssistant, analyzeForAssistant, importToCorpus } from "../api.js";
 import { PILOT_DATA_URI } from "../pilot.js";
+import { charterDoc, cover } from "../charter.js";
+import { printHtml } from "../utils.js";
 
 // Rendu lisible et structuré des réponses (markdown-léger, sans dépendance) :
 // titres, puces, citations/recommandations, gras et code en ligne.
@@ -55,6 +57,7 @@ function richToHtml(text) {
 // référentiel, corpus, méthodologie). Glisser-déposer un fichier => analyse + import au corpus.
 export default function Assistant() {
   const [open, setOpen] = useState(false);
+  const [maxed, setMaxed] = useState(false);
   const [msgs, setMsgs] = useState([]);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
@@ -156,49 +159,37 @@ export default function Assistant() {
 
   const exportConv = () => {
     if (!msgs.length) return;
-    const now = new Date();
-    const dt = now.toLocaleString("fr-FR");
     const body = msgs.filter((m) => m.text).map((m) =>
       m.role === "user"
-        ? `<div class="q"><span class="who">Vous</span><div class="qt">${inlineHtml(m.text).replace(/\n/g, "<br>")}</div></div>`
-        : `<div class="a"><span class="who cop">Copilote</span><div class="at">${richToHtml(m.text)}</div></div>`
+        ? `<div class="cv-q"><div class="cv-who">Vous</div><div class="cv-qt">${inlineHtml(m.text).replace(/\n/g, "<br>")}</div></div>`
+        : `<div class="cv-a"><div class="cv-who cop">Natacha</div><div class="cv-at">${richToHtml(m.text)}</div></div>`
     ).join("");
-    const html = `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>cp|WIRE — Copilote</title>
-<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;800&family=Inter:wght@400;600&display=swap" rel="stylesheet">
-<style>
-:root{--navy:#2E2A5D;--indigo:#4B3F8F;--gold:#A8884E;--soft:#F5F2FC;--ink:#1F1B33;--muted:#6E6A86;--line:#e7e5f1}
-*{box-sizing:border-box}body{font-family:Inter,system-ui,sans-serif;color:var(--ink);margin:0;font-size:13px;line-height:1.55}
-.hd{background:linear-gradient(135deg,var(--navy),var(--indigo));color:#fff;padding:22px 30px;display:flex;align-items:center;justify-content:space-between}
-.hd .br{font-family:Poppins,sans-serif;font-weight:800;font-size:20px;letter-spacing:.5px}.hd .br b{color:#ff7a45}
-.hd .sub{font-size:10px;color:rgba(255,255,255,.7);margin-top:3px;letter-spacing:2px;text-transform:uppercase}
-.hd .meta{text-align:right;font-size:11px;color:rgba(255,255,255,.85)}
-.wrap{padding:26px 30px;max-width:760px}
-.q{margin:0 0 6px}.a{margin:0 0 18px;padding-bottom:16px;border-bottom:1px solid var(--line)}
-.who{display:inline-block;font-family:Poppins,sans-serif;font-weight:700;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:5px}
-.who.cop{color:var(--indigo)}
-.qt{background:var(--soft);border-radius:8px;padding:9px 12px;font-weight:600}
-.at h4{font-family:Poppins,sans-serif;color:var(--navy);font-size:13px;margin:12px 0 4px}
-.at p{margin:5px 0}.at ul{margin:5px 0;padding-left:20px}.at li{margin:2px 0}
-.at blockquote{border-left:3px solid var(--gold);background:var(--soft);margin:8px 0;padding:8px 12px;border-radius:0 6px 6px 0}
-.at code{background:#f0eef7;border:1px solid #e1ddf0;border-radius:4px;padding:0 4px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:var(--indigo)}
-.ft{padding:14px 30px;border-top:1px solid var(--line);color:var(--muted);font-size:10px}
-@media print{.hd,.qt,.at blockquote{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>
-<div class="hd"><div><div class="br">cp<b>|</b>WIRE</div><div class="sub">Copilote de pilotage</div></div><div class="meta">Conversation<br>${dt}</div></div>
-<div class="wrap">${body}</div>
-<div class="ft">Document généré par cp|WIRE — usage interne Armonie Group · Confidentiel</div>
-</body></html>`;
-    const w = window.open("", "_blank");
-    if (w) {
-      w.document.open(); w.document.write(html); w.document.close(); w.focus();
-      setTimeout(() => { try { w.print(); } catch (e) { /* l'utilisateur imprimera manuellement */ } }, 450);
-    } else {
-      const blob = new Blob([html], { type: "text/html;charset=utf-8" });
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
-      a.download = `Copilote_${now.toISOString().slice(0, 10)}.html`;
-      document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
-    }
+    const extraCss = `
+      .cv-q { margin: 0 0 6px; } .cv-a { margin: 0 0 16px; padding-bottom: 14px; border-bottom: 1px solid #E7E5F1; }
+      .cv-who { font-family: Poppins, Inter, sans-serif; font-weight: 700; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; color: #A8884E; margin-bottom: 5px; }
+      .cv-who.cop { color: #4B3F8F; }
+      .cv-qt { background: #F5F2FC; border-radius: 8px; padding: 9px 12px; font-weight: 600; color: #1F1B33; }
+      .cv-at h4 { font-family: Poppins, Inter, sans-serif; color: #2E2A5D; font-size: 13px; margin: 12px 0 4px; }
+      .cv-at p { margin: 5px 0; } .cv-at ul { margin: 5px 0; padding-left: 20px; } .cv-at li { margin: 2px 0; }
+      .cv-at blockquote { border-left: 3px solid #A8884E; background: #F5F2FC; margin: 8px 0; padding: 8px 12px; border-radius: 0 6px 6px 0; }
+      .cv-at code { background: #f0eef7; border: 1px solid #e1ddf0; border-radius: 4px; padding: 0 4px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: #4B3F8F; }
+    `;
+    const html = charterDoc({
+      docTitle: "Natacha — cp|WIRE",
+      extraCss,
+      coverHtml: cover({
+        kicker: "Hôtesse de pilotage",
+        title: "Échange avec Natacha",
+        subtitle: "Restitution de conversation",
+        meta: new Date().toLocaleString("fr-FR"),
+        enBref: "Restitution de l'échange avec Natacha (cp|WIRE), ancré sur les données réelles du portefeuille (zéro invention).",
+        etabliPar: "Nicolas Durand",
+      }),
+      bodyHtml: body,
+      footerText: "cp|WIRE · Natacha",
+    });
+    // PDF à la charte, format PORTRAIT (A4), via le moteur d'impression standard (serveur → navigateur → repli).
+    printHtml(html, "Natacha.pdf");
   };
 
   const examples = ["Où en est Tafanel ?", "Qu'est-ce qui est en retard ?", "PTAF-69 est bloqué, t'en penses quoi ?"];
@@ -206,24 +197,25 @@ export default function Assistant() {
   return (
     <>
       {open && (
-        <div className="cwa-panel" role="dialog" aria-label="Copilote cp|WIRE"
+        <div className={`cwa-panel ${maxed ? "maxed" : ""}`} role="dialog" aria-label="Hôtesse Natacha — cp|WIRE"
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
           onDrop={onDrop}>
           <div className="cwa-hd">
             <img className="cwa-hd-av" src={PILOT_DATA_URI} alt="" />
             <div className="cwa-hd-tx">
-              <div className="cwa-hd-t">Votre copilote</div>
-              <div className="cwa-hd-s">Bent to Fly.</div>
+              <div className="cwa-hd-t">Votre hôtesse Natacha</div>
+              <div className="cwa-hd-s">Bent to Fly. Standin' by.</div>
             </div>
-            <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter en PDF (charte Armonie)" aria-label="Exporter">⤓</button>
+            <button className="cwa-hd-ic" onClick={() => setMaxed((m) => !m)} title={maxed ? "Réduire" : "Agrandir (plein écran)"} aria-label="Agrandir / réduire">{maxed ? "🗗" : "⤢"}</button>
+            <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter en PDF (charte Armonie, portrait)" aria-label="Exporter">⤓</button>
             <button className="cwa-hd-x" onClick={() => setOpen(false)} aria-label="Fermer">✕</button>
           </div>
 
           <div className="cwa-body">
             {msgs.length === 0 && (
               <div className="cwa-hint">
-                Pose une question sur ton périmètre, ou <b>glisse un fichier</b> ici (CSV, TXT, JSON, MD, XLSX, Word, PowerPoint, PDF) pour que je l'analyse et l'ajoute à la base.
+                Alors pilote ? on s'envole où cette fois… Pose ta question, ou <b>glisse un fichier</b> ici (CSV, TXT, JSON, MD, XLSX, Word, PowerPoint, PDF) et je l'analyse.
                 <div className="cwa-ex">
                   {examples.map((ex) => <button key={ex} className="cwa-ex-b" onClick={() => setQ(ex)}>{ex}</button>)}
                 </div>

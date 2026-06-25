@@ -4,7 +4,7 @@ import { buildRecapFiles } from "../recapDoc.js";
 import { buildBlockersDoc } from "../blockersDoc.js";
 import { computeBlockers } from "../blockers.js";
 import { blockerSince } from "../api.js";
-import { copyText, htmlToText, mailDraft } from "../utils.js";
+import { copyText, htmlToText, mailDraft, saveBlobAs } from "../utils.js";
 
 // Fenêtre « CR du jour » : le ZIP contient UN FICHIER PAR CLIENT (un CR détaillé chacun).
 // Aperçu fidèle (iframe), sélection du client à prévisualiser, et ouverture d'un mail Outlook vide.
@@ -39,12 +39,12 @@ export default function DailyCRModal({ issues = [], meName = "Nicolas Durand", o
       const zip = new JSZip();
       allFiles.forEach((f) => zip.file(f.name, f.html));
       const blob = await zip.generateAsync({ type: "blob" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a"); a.href = url; a.download = `${fileBase}.zip`;
-      document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 3000);
-      setMsg(`ZIP « ${fileBase}.zip » téléchargé — ${allFiles.length} fichier(s), dont « Points bloquants ».`);
-    } catch (e) { setMsg("Échec de la création du ZIP : " + (e.message || e)); }
+      await saveBlobAs(blob, `${fileBase}.zip`, { description: "Archive ZIP", mime: "application/zip", ext: ".zip" });
+      setMsg(`ZIP « ${fileBase}.zip » enregistré — ${allFiles.length} fichier(s), dont « Points bloquants ».`);
+    } catch (e) {
+      if (e && e.name === "AbortError") { setBusy(false); return; }  // annulation volontaire du sélecteur
+      setMsg("Échec de la création du ZIP : " + (e.message || e));
+    }
     finally { setBusy(false); }
   };
 

@@ -27,25 +27,32 @@ function ensureVeilCss() {
   s.textContent = `
   @keyframes cpwVeilIn{from{opacity:0}to{opacity:1}}
   @keyframes cpwBar{0%{left:-42%}100%{left:100%}}
+  @keyframes cpwCir{to{stroke-dashoffset:0}}
+  @keyframes cpwChk{to{stroke-dashoffset:0}}
+  @keyframes cpwPop{0%{transform:scale(.6);opacity:0}60%{transform:scale(1.06)}100%{transform:scale(1);opacity:1}}
   .cpw-veil{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;
     background:rgba(31,27,51,.55);backdrop-filter:blur(3px);animation:cpwVeilIn .18s ease}
-  .cpw-veil-card{width:min(420px,86vw);background:#fff;border-radius:16px;overflow:hidden;position:relative;
+  .cpw-veil-card{width:min(430px,88vw);background:#fff;border-radius:16px;overflow:hidden;position:relative;
     box-shadow:0 24px 70px rgba(31,27,51,.42);font-family:Inter,system-ui,Arial,sans-serif;color:#1F1B33}
   .cpw-veil-top{height:5px;background:linear-gradient(90deg,#2E2A5D,#4B3F8F 55%,#A8884E)}
-  .cpw-veil-x{position:absolute;top:11px;right:11px;width:26px;height:26px;border:0;border-radius:8px;
-    background:#F5F2FC;color:#6E6A86;font-size:16px;line-height:1;cursor:pointer}
-  .cpw-veil-x:hover{background:#ece9f3;color:#2E2A5D}
-  .cpw-veil-bd{padding:26px 26px 24px;text-align:center}
-  .cpw-veil-logo{font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:17px;letter-spacing:.4px;color:#2E2A5D}
+  .cpw-veil-hd{display:flex;align-items:center;justify-content:space-between;padding:15px 18px 12px;border-bottom:1px solid #efedf6}
+  .cpw-veil-logo{font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:18px;letter-spacing:.4px;color:#2E2A5D;line-height:1}
   .cpw-veil-logo i{color:#A8884E;font-style:normal}
-  .cpw-veil-logo small{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6E6A86;font-weight:600;margin-left:6px}
-  .cpw-veil-t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:16px;color:#2E2A5D;margin:15px 0 4px}
-  .cpw-veil-s{font-size:12px;color:#6E6A86;margin:0 0 16px;min-height:16px}
+  .cpw-veil-logo small{display:block;font-size:8.5px;letter-spacing:.2em;text-transform:uppercase;color:#6E6A86;font-weight:700;margin-top:4px}
+  .cpw-veil-x{width:26px;height:26px;border:0;border-radius:8px;background:#F5F2FC;color:#6E6A86;font-size:16px;line-height:1;cursor:pointer;flex:none}
+  .cpw-veil-x:hover{background:#ece9f3;color:#2E2A5D}
+  .cpw-veil-bd{padding:20px 22px 22px}
+  .cpw-veil-check{width:56px;height:56px;margin:0 auto 12px;display:none}
+  .cpw-veil-card.done .cpw-veil-check{display:block;animation:cpwPop .4s ease}
+  .cpw-veil-check circle{fill:none;stroke:#1f8a5f;stroke-width:3;stroke-dasharray:151;stroke-dashoffset:151;animation:cpwCir .5s ease forwards}
+  .cpw-veil-check path{fill:none;stroke:#1f8a5f;stroke-width:3.6;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:40;stroke-dashoffset:40;animation:cpwChk .34s .44s ease forwards}
+  .cpw-veil-t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:16px;color:#2E2A5D;margin:0 0 4px;text-align:center}
+  .cpw-veil-s{font-size:12px;color:#6E6A86;margin:0 0 16px;min-height:16px;text-align:center}
   .cpw-veil-track{position:relative;height:7px;border-radius:99px;background:#ece9f3;overflow:hidden}
+  .cpw-veil-card.done .cpw-veil-track{display:none}
   .cpw-veil-track .ind{position:absolute;top:0;bottom:0;width:42%;border-radius:99px;
     background:linear-gradient(90deg,#4B3F8F,#A8884E);animation:cpwBar 1.1s ease-in-out infinite}
-  .cpw-veil-track.done .ind{animation:none;left:0;width:100%;transition:width .35s ease}
-  .cpw-veil-hint{font-size:10.5px;color:#9b97b3;margin:14px 0 0;word-break:break-all}
+  .cpw-veil-hint{font-size:10.5px;color:#9b97b3;margin:14px 0 0;word-break:break-all;text-align:center}
   `;
   document.head.appendChild(s);
 }
@@ -58,9 +65,12 @@ function pdfVeil(name) {
   el.className = "cpw-veil";
   el.innerHTML = `<div class="cpw-veil-card">
     <div class="cpw-veil-top"></div>
-    <button class="cpw-veil-x" title="Fermer" aria-label="Fermer">×</button>
-    <div class="cpw-veil-bd">
+    <div class="cpw-veil-hd">
       <div class="cpw-veil-logo">armo<i>n</i>ie<small>notos <i>phl</i>soft</small></div>
+      <button class="cpw-veil-x" title="Fermer" aria-label="Fermer">×</button>
+    </div>
+    <div class="cpw-veil-bd">
+      <div class="cpw-veil-check"><svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="24"/><path d="M17 29 l7 7 l15 -16"/></svg></div>
       <div class="cpw-veil-t">Génération du PDF…</div>
       <div class="cpw-veil-s">Mise en forme du document — un instant.</div>
       <div class="cpw-veil-track"><div class="ind"></div></div>
@@ -71,20 +81,27 @@ function pdfVeil(name) {
   el.querySelector(".cpw-veil-x").addEventListener("click", remove);
   document.body.appendChild(el);
   const status = (txt) => { const n = el.querySelector(".cpw-veil-s"); if (n) n.textContent = txt; };
-  const done = () => { const tr = el.querySelector(".cpw-veil-track"); if (tr) tr.classList.add("done"); status("Prêt — choisis l'emplacement d'enregistrement."); };
+  const done = () => {
+    const card = el.querySelector(".cpw-veil-card"); if (card) card.classList.add("done");
+    const t = el.querySelector(".cpw-veil-t"); if (t) t.textContent = "Document prêt";
+    status("Choisissez l'emplacement d'enregistrement.");
+  };
   return { remove, status, done };
 }
 
 // Enregistre un blob en laissant l'utilisateur CHOISIR l'emplacement (File System
-// Access API). Si l'API est absente (Firefox/Safari) → téléchargement classique.
-// Lève AbortError si l'utilisateur annule volontairement le sélecteur.
-async function saveBlob(blob, suggestedName) {
+// Access API), pour N'IMPORTE QUEL type. Si l'API est absente (Firefox/Safari) →
+// téléchargement classique. Lève AbortError si l'utilisateur annule le sélecteur.
+export async function saveBlobAs(blob, suggestedName, opts = {}) {
+  const description = opts.description || "Fichier";
+  const mime = opts.mime || blob.type || "application/octet-stream";
+  const ext = opts.ext || ("." + (suggestedName.split(".").pop() || "bin"));
   if (typeof window !== "undefined" && window.showSaveFilePicker) {
     let handle = null;
     try {
       handle = await window.showSaveFilePicker({
         suggestedName,
-        types: [{ description: "Document PDF", accept: { "application/pdf": [".pdf"] } }],
+        types: [{ description, accept: { [mime]: [ext] } }],
       });
     } catch (e) {
       if (e && e.name === "AbortError") throw e;   // annulation volontaire : ne pas re-télécharger
@@ -104,6 +121,11 @@ async function saveBlob(blob, suggestedName) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
   return true;
+}
+
+// Spécialisation PDF (conserve l'ancienne signature interne).
+async function saveBlob(blob, suggestedName) {
+  return saveBlobAs(blob, suggestedName, { description: "Document PDF", mime: "application/pdf", ext: ".pdf" });
 }
 
 // Génère le PDF côté navigateur et renvoie un Blob (sans télécharger).

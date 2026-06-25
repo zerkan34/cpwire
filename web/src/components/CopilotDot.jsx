@@ -4,7 +4,7 @@ import { PILOT_DATA_URI } from "../pilot.js";
 // Petit logo copilote à poser sur n'importe quel conteneur (en haut à droite).
 // Au clic : ouvre le copilote au premier plan et lance directement l'analyse
 // du contexte fourni (prompt). Réutilisable partout pour une UX cohérente.
-export default function CopilotDot({ prompt, title = "Analyser avec le copilote", label = "" }) {
+export default function CopilotDot({ prompt, title = "Demander à Natacha", label = "" }) {
   const ask = (e) => {
     e.stopPropagation();
     window.dispatchEvent(new CustomEvent("cpwire-pilot-ask", { detail: { prompt } }));

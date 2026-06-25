@@ -213,13 +213,13 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
         <span className="hdr-brand" data-tauri-drag-region>
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v255</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v258</span></span>
         </span>
         <div className="hdr-controls">
           <MasterWarning points={blockers} onOpenTicket={onOpenTicket} />
           <button className="hdr-pilot" type="button" onClick={() => window.dispatchEvent(new Event("cpwire-pilot"))}
-            title="Votre copilote cp|WIRE — poser une question" aria-label="Ouvrir le copilote cp|WIRE">
-            <span className="hdr-pilot-av"><img src={PILOT_DATA_URI} alt="Copilote cp|WIRE" /></span>
+            title="Votre hôtesse Natacha — poser une question" aria-label="Ouvrir l'hôtesse Natacha">
+            <span className="hdr-pilot-av"><img src={PILOT_DATA_URI} alt="Hôtesse Natacha" /></span>
             <span className="hdr-pilot-dot" aria-hidden="true" />
           </button>
           {search}
@@ -252,7 +252,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v255</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v258</span></div>
       </div>
 
       <div className="progress">

@@ -3204,6 +3204,56 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .imp-diff-d{ color:var(--muted); }
 .imp-diff-first{ font-size:13px; color:var(--muted); margin:8px 0 0; }
 
+/* Import sources — modale (pick → loading → result → done) */
+.imp-modal { max-width: 640px; }
+.imp-drop { border: 1.5px dashed var(--purple-line); border-radius: 14px; background: var(--purple-soft); padding: 30px 20px; text-align: center; cursor: pointer; transition: border-color .15s, background .15s; }
+.imp-drop.on, .imp-drop:hover { border-color: var(--purple); background: #efeafc; }
+.imp-drop-ic { font-size: 30px; }
+.imp-drop-t { font-weight: 700; color: var(--indigo-deep); margin-top: 8px; font-size: 14px; }
+.imp-drop-t u { color: var(--purple-strong); }
+.imp-formats { font-size: 11.5px; color: var(--muted); margin-top: 8px; line-height: 1.6; }
+.imp-hint2 { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin: 14px 0 0; }
+.imp-load { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 20px; }
+.imp-spin { width: 38px; height: 38px; border-radius: 50%; border: 4px solid var(--purple-soft); border-top-color: var(--purple); animation: refspin .9s linear infinite; }
+.imp-load-t { font-weight: 700; color: var(--indigo-deep); font-size: 14.5px; }
+.imp-load-s { font-size: 12.5px; color: var(--muted); }
+.imp-res-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 2px; }
+.imp-sec-h { font-family: "Poppins", sans-serif; font-weight: 800; font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--purple-strong); margin: 18px 0 9px; }
+.imp-final { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 10px; padding: 30px 20px; }
+.imp-final-ic { width: 54px; height: 54px; border-radius: 50%; display: grid; place-items: center; font-size: 26px; font-weight: 800; }
+.imp-final-ic.ok { background: var(--green-bg); color: var(--green); }
+.imp-final-ic.ko { background: var(--red-bg); color: var(--red); }
+.imp-final-t { font-family: "Poppins", sans-serif; font-weight: 700; font-size: 17px; color: var(--ink); }
+.imp-final-s { font-size: 13px; color: var(--muted); max-width: 420px; line-height: 1.55; }
+
+/* ===== Message de bienvenue — style « fenêtre de chargement » (entête Armonie à gauche sur blanc + barre dégradée) ===== */
+.greet-veil { position: fixed; inset: 0; z-index: 4200; display: flex; align-items: center; justify-content: center; background: rgba(31,27,51,.45); backdrop-filter: blur(3px); animation: greet-fade .2s ease; }
+@keyframes greet-fade { from { opacity: 0; } to { opacity: 1; } }
+.greet-card { width: min(380px, 88vw); background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 70px rgba(31,27,51,.42); animation: greet-rise .42s cubic-bezier(.2,.8,.2,1); }
+@keyframes greet-rise { from { opacity: 0; transform: translateY(14px) scale(.97); } to { opacity: 1; transform: none; } }
+.greet-top { height: 5px; background: linear-gradient(90deg, #2E2A5D, #4B3F8F 55%, #A8884E); }
+.greet-hd { display: flex; align-items: center; justify-content: space-between; padding: 14px 18px 12px; border-bottom: 1px solid #efedf6; }
+.greet-logo { font-family: "Poppins", Inter, sans-serif; font-weight: 800; font-size: 18px; letter-spacing: .4px; color: #2E2A5D; line-height: 1; }
+.greet-logo i { color: #A8884E; font-style: normal; }
+.greet-logo small { display: block; font-size: 8.5px; letter-spacing: .2em; text-transform: uppercase; color: #6E6A86; font-weight: 700; margin-top: 4px; }
+.greet-x { width: 26px; height: 26px; border: 0; border-radius: 8px; background: #F5F2FC; color: #6E6A86; font-size: 16px; line-height: 1; cursor: pointer; flex: none; }
+.greet-x:hover { background: #ece9f3; color: #2E2A5D; }
+.greet-bd { padding: 22px 22px 24px; text-align: center; }
+.greet-wave { font-size: 30px; line-height: 1; display: inline-block; transform-origin: 70% 70%; animation: greet-hand 1.5s ease-in-out 2; }
+@keyframes greet-hand { 0%,100% { transform: rotate(0); } 30% { transform: rotate(16deg); } 60% { transform: rotate(-8deg); } }
+.greet-msg { font-family: "Poppins", Inter, sans-serif; font-weight: 700; font-size: 21px; color: #2E2A5D; margin: 10px 0 4px; }
+.greet-sub { font-size: 12.5px; color: #6E6A86; }
+
+/* ===== Trame « papier vergé » très subtile sur les surfaces blanches (bureau uniquement) ===== */
+@media (min-width: 769px) {
+  .panel, .modal, .recap-card, .rana-panel, .cwa-panel, .mw-modal, .imp-card,
+  .cra-card, .meet-card, .enc-card, .hist, .dev-block, .pf-client, .pf-recap {
+    background-image:
+      repeating-linear-gradient(90deg, rgba(46,42,93,.014) 0, rgba(46,42,93,.014) .6px, transparent .6px, transparent 4px),
+      repeating-linear-gradient(0deg, rgba(46,42,93,.008) 0, rgba(46,42,93,.008) .6px, transparent .6px, transparent 26px);
+  }
+}
+
 /* ===== Assistant ancré (flottant) ===== */
 .cwa-fab{position:fixed;right:20px;bottom:20px;z-index:4000;width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;background:linear-gradient(135deg,#4B3F8F,#2E2A5D);color:#fff;font-size:22px;line-height:1;box-shadow:0 10px 28px rgba(46,42,93,.4);transition:filter .15s,transform .15s}
 .cwa-fab:hover{filter:brightness(1.1);transform:translateY(-1px)}
@@ -3279,6 +3329,14 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .cwa-code{background:#f0eef7;border:1px solid #e1ddf0;border-radius:4px;padding:0 4px;font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#4B3F8F}
 .cwa-copy{align-self:flex-start;margin-top:5px;border:1px solid #e1ddf0;background:#fff;color:#6b6488;border-radius:7px;padding:3px 9px;font-size:11px;font-weight:600;cursor:pointer;transition:all .12s}
 .cwa-copy:hover{border-color:#4B3F8F;color:#4B3F8F}
+
+/* Copilote en plein écran (bouton ⤢) — lecture confortable, contenu centré */
+.cwa-panel.maxed{right:0;left:0;top:0;bottom:0;width:100vw;height:100dvh;max-width:none;max-height:none;border-radius:0;border:0}
+.cwa-panel.maxed .cwa-body{padding:24px max(20px,calc(50vw - 470px))}
+.cwa-panel.maxed .cwa-input{padding:14px max(20px,calc(50vw - 470px))}
+.cwa-panel.maxed .cwa-bub{max-width:760px}
+.cwa-panel.maxed .cwa-hint{max-width:760px}
+.cwa-panel.maxed .cwa-drop{inset:78px 6% 84px}
 
 /* ===== Cartes dossier (historique des récaps) : lavande, lisibles ===== */
 .cli-h { background: #F5F2FC !important; color: var(--ink) !important; box-shadow: inset 0 -2px 0 rgba(168,136,78,.45); }

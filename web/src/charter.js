@@ -10,6 +10,10 @@
 
 export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A8884E", ink: "#1F1B33", muted: "#6E6A86", soft: "#F5F2FC", line: "#E7E5F1", red: "#C0392B", amber: "#C2691A" };
 
+// Trame « papier vergé » très subtile (fines vergeures verticales + chaînettes
+// horizontales espacées), mélangée au blanc. À poser sur toute surface blanche.
+export const VERGE = "repeating-linear-gradient(90deg, rgba(46,42,93,.020) 0, rgba(46,42,93,.020) .6px, transparent .6px, transparent 4px), repeating-linear-gradient(0deg, rgba(46,42,93,.011) 0, rgba(46,42,93,.011) .6px, transparent .6px, transparent 26px)";
+
 export function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
 // Lockup logo « armo·n·ie / notos phl·soft » (texte fidèle : le « n » et « phl » en or).
@@ -73,9 +77,9 @@ export function chapter({ over, title, lead = "" }) {
 export function charterCss() {
   return `
   @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-  @page { size: A4; margin: 15mm 14mm 18mm; }
+  @page { size: A4 portrait; margin: 16mm 15mm 18mm; }
   *{box-sizing:border-box} html,body{margin:0}
-  body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${C.ink};font-size:11.5px;line-height:1.5;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${C.ink};font-size:11.5px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact;background-color:#fff;background-image:${VERGE}}
   h1,h2,h3,.ch-cover-title,.ch-sec-name,.ch-chap-t,.ch-kpi-i b,.ch-callout b,.ch-logo-main{font-family:Poppins,Inter,sans-serif}
 
   /* Signature : sur-titre capitales espacées */
@@ -88,8 +92,8 @@ export function charterCss() {
 
   /* ---------- COUVERTURE (fond blanc, éléments centrés) ---------- */
   .ch-cover{position:relative;min-height:255mm;display:flex;flex-direction:column;
-    background:#fff;color:${C.ink};
-    margin:0;padding:14mm 10mm 12mm;page-break-after:always}
+    background:#fff;background-image:${VERGE};color:${C.ink};
+    margin:0;padding:16mm 12mm 14mm;page-break-after:always}
   .ch-cover::before{content:"";position:absolute;top:0;left:0;right:0;height:5mm;
     background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
@@ -117,9 +121,9 @@ export function charterCss() {
   .ch-cover-legal{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.muted}}
 
   /* ---------- CHAPITRE / SYNTHÈSE ---------- */
-  .ch-chap{margin:26px 0 12px}
+  .ch-chap{margin:34px 0 14px}
   .ch-chap-t{font-size:20px;color:${C.navy};margin:0;font-weight:700}
-  .ch-lead{color:${C.muted};font-size:11.5px;margin:6px 0 16px}
+  .ch-lead{color:${C.muted};font-size:11.5px;margin:8px 0 18px;line-height:1.6}
 
   /* Bandeau KPI */
   .ch-kpi{display:flex;flex-wrap:wrap;gap:30px;padding:16px 4px 16px;border-top:2px solid ${C.gold};border-bottom:1px solid ${C.line};margin:0 0 16px}
@@ -143,7 +147,7 @@ export function charterCss() {
   table{width:100%;border-collapse:separate;border-spacing:0}
   thead{display:table-header-group}
   th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:${C.muted};padding:6px 9px;border-bottom:1.5px solid ${C.gold}}
-  td{padding:9px;border-bottom:1px solid ${C.line};vertical-align:top}
+  td{padding:10px 9px;border-bottom:1px solid ${C.line};vertical-align:top}
   tr{break-inside:avoid}
 
   /* Pied de page courant (répété à chaque page imprimée) */
