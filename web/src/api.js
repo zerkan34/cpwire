@@ -28,6 +28,9 @@ async function req(path, opts = {}) {
 const post = (path, body) => req(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
 
+// État serveur : { ok, persistent, ... } — sert à afficher l'état de la mémoire (durable ou éphémère).
+export const fetchHealth = () => req("/api/health");
+
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
 export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });
 

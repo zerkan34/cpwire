@@ -1782,6 +1782,8 @@ button.kpi { appearance: none; -webkit-appearance: none; font: inherit; color: i
 /* ===== Mémoire d'équipe ===== */
 .cn-warn { background: var(--purple-soft); border: 1px solid var(--purple-line); border-radius: 12px; padding: 11px 14px; font-size: 12.5px; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
 .cn-warn code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+.cn-ok { background: rgba(31,138,95,.08); border: 1px solid rgba(31,138,95,.28); border-radius: 12px; padding: 11px 14px; font-size: 12.5px; color: #1f6f4f; margin-bottom: 16px; line-height: 1.5; }
+.cn-ok code { background: rgba(0,0,0,.06); padding: 1px 5px; border-radius: 4px; font-size: 12px; }
 .cn-block { padding: 18px; }
 .cn-block h3 { font-family: Poppins, sans-serif; font-size: 14px; color: var(--indigo); margin: 14px 0 6px; }
 .cn-block h3:first-child { margin-top: 0; }

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchConnaissance, saveConnaissance, learnConnaissance } from "../api.js";
+import { fetchConnaissance, saveConnaissance, learnConnaissance, fetchHealth } from "../api.js";
 import { RefState } from "./RefState.jsx";
 import { buildMemoireDoc } from "../refDoc.js";
 import { printHtml, downloadHtml } from "../utils.js";
@@ -18,6 +18,8 @@ export default function Connaissance() {
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
+  const [persistent, setPersistent] = useState(null);
+  useEffect(() => { fetchHealth().then((h) => setPersistent(!!h.persistent)).catch(() => {}); }, []);
   const [learning, setLearning] = useState(false);
   const [nonce, setNonce] = useState(0);
   const retry = () => { setErr(""); setLoading(true); setNonce((n) => n + 1); };
@@ -117,9 +119,15 @@ export default function Connaissance() {
       </div>
       <p className="hint">Astuce : une ligne par règle. Glossaire : « terme = définition » par ligne.</p>
 
-      <div className="cn-warn">
-        Pour rendre des ajouts <b>permanents</b> : cliquez <b>Exporter</b>, puis remplacez <code>server/data/connaissance.json</code> dans le dépôt — l'application le recharge automatiquement au déploiement suivant. Avec un disque persistant <code>DATA_DIR</code>, la sauvegarde est immédiate et rien n'est à faire.
-      </div>
+      {persistent === true ? (
+        <div className="cn-ok">
+          <b>✓ Mémoire persistante (base durable).</b> Vos ajouts sont enregistrés <b>automatiquement</b> et conservés après chaque redéploiement — rien à faire. Le bouton <b>Exporter</b> sert uniquement à garder une copie de sauvegarde.
+        </div>
+      ) : persistent === false ? (
+        <div className="cn-warn">
+          <b>Mémoire éphémère.</b> Pour conserver vos ajouts, définissez <code>DATABASE_URL</code> (base Neon gratuite) — la sauvegarde devient alors automatique. À défaut : cliquez <b>Exporter</b>, remplacez <code>server/data/connaissance.json</code> dans le dépôt, et redéployez.
+        </div>
+      ) : null}
 
       <div className="panel cn-block">
         <h3>Conventions générales</h3>
