@@ -45,9 +45,9 @@ export function cover({ kicker, title, subtitle = "", meta = "", pill = "", enBr
         ${enBref ? `<div class="ch-enbref"><div class="ch-enbref-l">En bref</div><p>${enBref}</p></div>` : ""}
         ${callout ? `<div class="ch-callout"><b>${esc(String(callout.value))}</b><span class="ch-callout-l">${esc(callout.label)}</span>${callout.hint ? `<span class="ch-callout-h">${esc(callout.hint)}</span>` : ""}</div>` : ""}
       </div>
+      <div class="ch-estab">${etabliPar ? `<span class="ch-estab-l">Établi par</span><span class="ch-estab-n">${esc(etabliPar)}</span><span class="ch-estab-r">Chef de projet (MOE) — Armonie Group</span>` : ""}</div>
     </div>
     <div class="ch-cover-foot">
-      <div class="ch-estab">${etabliPar ? `<span class="ch-estab-l">Établi par</span>${esc(etabliPar)}<br><span class="ch-estab-r">Chef de projet (MOE) — Armonie Group</span>` : ""}</div>
       <div class="ch-cover-legal"><span>${esc(confidential)}</span><span>${esc(web)}</span></div>
     </div>
   </section>`;
@@ -96,11 +96,11 @@ export function charterCss() {
   .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:60mm}
   .ch-cover-mid{margin:auto 0;text-align:center}
   .ch-cover-title{font-size:54px;font-weight:800;letter-spacing:.5px;margin:0;line-height:1.02;color:${C.navy}}
-  .ch-cover-sub{font-size:15px;color:${C.muted};margin-top:14px}
-  .ch-cover-meta{font-size:12.5px;color:${C.muted};margin-top:6px;text-transform:capitalize}
-  .ch-cover-rule{width:96px;height:4px;background:${C.gold};border-radius:3px;margin:24px auto}
+  .ch-cover-sub{font-size:15px;color:${C.muted};margin-top:26px;font-weight:500}
+  .ch-cover-meta{font-size:12.5px;color:${C.muted};margin-top:7px;text-transform:capitalize}
+  .ch-cover-rule{width:96px;height:4px;background:${C.gold};border-radius:3px;margin:26px auto}
   .ch-pill{display:inline-block;border:1px solid ${C.gold};color:${C.gold};font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;padding:6px 13px;border-radius:20px}
-  .ch-cover-cols{display:flex;gap:24px;margin:30px auto 0;align-items:stretch;justify-content:center;max-width:150mm;text-align:left}
+  .ch-cover-cols{display:flex;gap:24px;margin:28px auto 0;align-items:stretch;justify-content:center;max-width:150mm;text-align:left}
   .ch-enbref{flex:1;background:${C.soft};border-left:3px solid ${C.gold};border-radius:0 8px 8px 0;padding:16px 20px}
   .ch-enbref-l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:${C.indigo};font-weight:700}
   .ch-enbref p{margin:8px 0 0;font-size:12px;line-height:1.6;color:${C.ink}}
@@ -108,11 +108,13 @@ export function charterCss() {
   .ch-callout b{font-size:46px;font-weight:800;line-height:.95;color:#fff}
   .ch-callout-l{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-top:4px}
   .ch-callout-h{font-size:10px;color:rgba(255,255,255,.82);margin-top:6px;line-height:1.4}
-  .ch-cover-foot{margin-top:auto;padding-top:26px;text-align:center}
-  .ch-estab{font-size:11px;color:${C.ink}}
-  .ch-estab-l{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:3px}
-  .ch-estab-r{color:${C.muted}}
-  .ch-cover-legal{display:flex;justify-content:space-between;margin-top:18px;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.muted}}
+  /* « Établi par » remonté dans le bloc central (plus collé au bas de page) */
+  .ch-estab{margin-top:34px;text-align:center}
+  .ch-estab-l{display:block;font-size:9px;letter-spacing:.22em;text-transform:uppercase;color:${C.gold};font-weight:700;margin-bottom:5px}
+  .ch-estab-n{display:block;font-size:13px;font-weight:600;color:${C.navy}}
+  .ch-estab-r{display:block;font-size:10.5px;color:${C.muted};margin-top:2px}
+  .ch-cover-foot{margin-top:auto;padding-top:18px}
+  .ch-cover-legal{display:flex;justify-content:space-between;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.muted}}
 
   /* ---------- CHAPITRE / SYNTHÈSE ---------- */
   .ch-chap{margin:26px 0 12px}

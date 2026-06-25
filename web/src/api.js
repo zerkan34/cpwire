@@ -35,6 +35,11 @@ export const askAssistant = (question, history = []) => post("/api/assistant", {
 // Renvoie { since: { [cle]: { enteredStatusAt, flaggedAt, statut } } }.
 export const blockerSince = (tickets = []) => post("/api/blockers/since", { tickets });
 
+// Point du soir — baseline serveur (dernier relevé d'un jour antérieur) pour (dossier, scope).
+// scope = "" (tout le dossier) ou "::PREFIXE" (un projet). Renvoie { baseline:{date,cats}|null }.
+export const pointBaseline = (dossier, scope = "") =>
+  req(`/api/point/baseline?dossier=${encodeURIComponent(dossier)}&scope=${encodeURIComponent(scope)}`);
+
 // Copilote — analyse d'un fichier déposé (multipart). Renvoie { ok, answer, note, guess, dossiers, filename } ou { error }.
 export async function analyzeForAssistant(file, question = "") {
   const form = new FormData();
@@ -134,6 +139,18 @@ export const learnConnaissance = () => post(`/api/connaissance/learn`, {});
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 // Rendu PDF d'un HTML autonome côté serveur → fichier téléchargeable (pas de boîte d'impression).
+// Rendu PDF serveur (WeasyPrint) — renvoie le BLOB sans télécharger
+// (le téléchargement/choix d'emplacement est géré par printHtml → saveBlob).
+export async function renderHtmlPdfBlob(html, filename = "Document.pdf") {
+  const res = await fetch(`${BASE}/api/pdf/render`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ html, filename }),
+  });
+  if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch {} throw new Error(m || `HTTP ${res.status}`); }
+  return await res.blob();
+}
+
 export async function exportHtmlPdf(html, filename = "Document.pdf") {
   const res = await fetch(`${BASE}/api/pdf/render`, {
     method: "POST",

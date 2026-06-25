@@ -112,7 +112,7 @@ export default function Connaissance() {
 
       <div className="section-title" style={{ marginTop: 24 }}>Par client</div>
       <p className="hint" style={{ marginTop: -6 }}>
-        En plus de ce que vous écrivez, l'IA <b>apprend toute seule</b> : elle observe l'activité Jira de chaque client et met à jour un « contexte observé » (bloc 🤖 plus bas), automatiquement et en tâche de fond. Vous n'avez rien à faire.
+        En plus de ce que vous écrivez, cp|WIRE <b>apprend tout seul</b> : il observe l'activité Jira de chaque client et met à jour un « contexte observé » (bloc 🤖 plus bas), automatiquement et en tâche de fond — <b>avec l'IA</b> si une clé est configurée, <b>sinon par extraction directe de Jira</b> (chiffres et intervenants réels). Vous n'avez rien à faire.
       </p>
       <div className="enc-toggle cn-clients" role="tablist">
         {clientKeys.map((key) => (

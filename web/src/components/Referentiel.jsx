@@ -82,6 +82,8 @@ export default function Referentiel({ issues = [], onTicket }) {
   const [loading, setLoading] = useState(true);
   const [nonce, setNonce] = useState(0);
   const [open, setOpen] = useState({}); // code option → déplié ?
+  const [q, setQ] = useState("");
+  const [etat, setEtat] = useState("tous"); // tous | retour | recette | noncouvert
   const retry = () => { setErr(""); setData(null); setLoading(true); setNonce((n) => n + 1); };
 
   // Pour ouvrir la fiche ticket complète au clic, on retrouve l'issue par sa clé.
@@ -111,6 +113,28 @@ export default function Referentiel({ issues = [], onTicket }) {
 
   const openTicket = (cle) => { const full = byCle[cle]; if (full && onTicket) onTicket(full); };
 
+  // Filtrage : recherche (option / programme / ticket) + état. Une option passe si elle
+  // matche la recherche ET satisfait le filtre d'état. La recherche déplie tout pour
+  // qu'on voie la chaîne (programmes + tickets) sans clic — utile à un dev qui cherche.
+  const needle = q.trim().toLowerCase();
+  const forceOpen = needle.length > 0;
+  const filteredDomaines = useMemo(() => {
+    if (!data || !Array.isArray(data.domaines)) return [];
+    const hasRetour = (o) => o.programmes.some((p) => p.lie && (p.etat === "retourTest" || p.etat === "retourProd"));
+    const hasRecette = (o) => o.programmes.some((p) => p.lie && (p.etat === "recetteArmonie" || p.etat === "recetteClient" || p.etat === "attenteClient"));
+    const hasNonCouvert = (o) => o.programmes.some((p) => !p.lie) || o.total === 0;
+    const matchEtat = (o) => etat === "tous" || (etat === "retour" && hasRetour(o)) || (etat === "recette" && hasRecette(o)) || (etat === "noncouvert" && hasNonCouvert(o));
+    const matchText = (o, dom) => {
+      if (!needle) return true;
+      const hay = [o.code, o.libelle, dom.domaine, ...o.programmes.flatMap((p) => [p.nom, ...((p.tickets || []).map((t) => t.cle))])].join(" ").toLowerCase();
+      return hay.includes(needle);
+    };
+    return data.domaines
+      .map((dom) => ({ ...dom, options: dom.options.filter((o) => matchEtat(o) && matchText(o, dom)) }))
+      .filter((dom) => dom.options.length);
+  }, [data, needle, etat]);
+  const nbMatch = useMemo(() => filteredDomaines.reduce((s, d) => s + d.options.length, 0), [filteredDomaines]);
+
   if (loading) return <RefState kind="load" title="Chargement de l'annuaire…" message="Rapprochement des programmes et de leurs tickets Jira." />;
   if (err) return <RefState kind="err" title="L'annuaire n'a pas pu se charger" message="La récupération du référentiel a échoué. Vérifiez la connexion à Jira, puis réessayez." detail={err} onRetry={retry} />;
   if (!clients.length || !data) return <RefState kind="empty" title="Aucun référentiel pour l'instant" message="Aucune option ni programme n'est encore rattaché. L'annuaire se remplira dès que des programmes seront renseignés et liés à des tickets." />;
@@ -121,20 +145,36 @@ export default function Referentiel({ issues = [], onTicket }) {
         <b>Référentiel recette</b> — {data.nbOptions} option{data.nbOptions > 1 ? "s" : ""} · {data.nbProgrammes} programme{data.nbProgrammes > 1 ? "s" : ""} · chaque programme est rapproché de son ticket Jira (« non lié » sinon).{data.majSource ? <> <i>{data.majSource}.</i></> : null}
       </p>
 
-      {clients.length > 1 && (
-        <div className="filters" style={{ marginBottom: 12 }}>
-          {clients.map((c) => (
-            <button key={c} className={`btn-line sm ${c === client ? "on" : ""}`} onClick={() => setClient(c)}>{c}</button>
+      <div className="ref-tools">
+        {clients.length > 1 && (
+          <label className="ref-tool">
+            <span>Client</span>
+            <select value={client} onChange={(e) => setClient(e.target.value)}>
+              {clients.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </label>
+        )}
+        <div className="ref-search">
+          <span className="ref-search-i" aria-hidden="true">🔎</span>
+          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher une option, un programme, un ticket…" />
+          {q ? <button className="ref-search-x" onClick={() => setQ("")} aria-label="Effacer">×</button> : null}
+        </div>
+        <div className="ref-seg" role="group" aria-label="Filtrer par état">
+          {[["tous", "Tous"], ["retour", "En retour"], ["recette", "En recette"], ["noncouvert", "Non couvert"]].map(([v, l]) => (
+            <button key={v} type="button" className={etat === v ? "on" : ""} onClick={() => setEtat(v)}>{l}</button>
           ))}
         </div>
-      )}
+        <span className="ref-tool-count">{nbMatch} option{nbMatch > 1 ? "s" : ""}</span>
+      </div>
 
-      {data.domaines.map((dom) => (
+      {filteredDomaines.length === 0 ? (
+        <p className="rana-empty">Aucune option ne correspond à cette recherche / ce filtre.</p>
+      ) : filteredDomaines.map((dom) => (
         <div key={dom.domaine} style={{ marginBottom: 18 }}>
           <div className="ref-dom">{dom.domaine.replace(/_/g, " ")}</div>
           <div className="recap-grid">
             {dom.options.map((o) => {
-              const isOpen = !!open[o.code];
+              const isOpen = forceOpen || !!open[o.code];
               const shown = isOpen ? o.programmes : o.programmes.slice(0, 6);
               return (
                 <div className="recap-card" key={o.code}>

@@ -265,163 +265,118 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
         )}
       </button>
 
-      {/* ---- MODALE CENTRÉE ---- */}
+      {/* ---- MODALE POINTS BLOQUANTS (charte app, aérée) ---- */}
       {open && (
         <div role="dialog" aria-modal="true" aria-label="Points bloquants"
-          onMouseDown={close}
-          style={{ position: "fixed", inset: 0, zIndex: 3000, background: "rgba(20,16,40,.55)",
-            display: "flex", alignItems: "center", justifyContent: "center", padding: maxed ? 0 : 16,
-            animation: "mwh-fade .15s ease-out",
-            fontFamily: "ui-sans-serif,system-ui,'Segoe UI',Roboto,sans-serif" }}>
-          <div onMouseDown={(e) => e.stopPropagation()}
-            style={{ width: maxed ? "100%" : "min(760px, 100%)", height: maxed ? "100%" : "auto",
-              maxHeight: maxed ? "100%" : "88vh", display: "flex", flexDirection: "column",
-              background: "#fff", borderRadius: maxed ? 0 : 16, overflow: "hidden",
-              boxShadow: "0 24px 70px rgba(20,16,40,.45)", animation: "mwh-pop .18s ease-out" }}>
+          className={`mw-ov ${maxed ? "maxed" : ""}`} onMouseDown={close}>
+          <div className={`mw-modal ${maxed ? "maxed" : ""}`} onMouseDown={(e) => e.stopPropagation()}>
 
-            {/* HEADER — toujours visible, charte app (dégradé + filet doré) */}
-            <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "15px 18px",
-              background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`, color: "#fff",
-              boxShadow: `inset 0 -3px 0 ${GOLD}`, flex: "none" }}>
-              <span style={{ width: 11, height: 11, borderRadius: "50%", background: armed ? REDV : "#3a7d54",
-                boxShadow: armed ? "0 0 10px rgba(229,57,43,.9)" : "none", flexShrink: 0 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: "Poppins,Inter,sans-serif", fontWeight: 700, letterSpacing: 1.5, fontSize: 14 }}>POINTS BLOQUANTS</div>
-                <div style={{ fontSize: 11.5, color: "rgba(255,255,255,.72)", marginTop: 1 }}>
-                  {view.length} affiché{view.length > 1 ? "s" : ""}{!showDormant && dormantCount ? ` · ${dormantCount} dormant${dormantCount > 1 ? "s" : ""} masqué${dormantCount > 1 ? "s" : ""}` : ""}
+            {/* HEADER */}
+            <div className="mw-hd">
+              <span className={`mw-hd-dot ${armed ? "on" : ""}`} />
+              <div className="mw-hd-t">
+                <div className="mw-hd-k">Points bloquants</div>
+                <div className="mw-hd-s">
+                  {view.length} affiché{view.length > 1 ? "s" : ""}
+                  {!showDormant && dormantCount ? ` · ${dormantCount} dormant${dormantCount > 1 ? "s" : ""} masqué${dormantCount > 1 ? "s" : ""}` : ""}
                 </div>
               </div>
-              <button onClick={() => setMaxed((m) => !m)} title={maxed ? "Réduire" : "Agrandir (plein écran)"} aria-label="Agrandir / réduire"
-                style={{ border: "none", background: "rgba(255,255,255,.14)", color: "#fff", width: 32, height: 32, borderRadius: 9, cursor: "pointer", fontSize: 14, lineHeight: 1, flex: "none" }}>{maxed ? "🗗" : "⤢"}</button>
-              <button className="mwh-x" onClick={close} aria-label="Fermer"
-                style={{ border: "none", background: "rgba(255,255,255,.14)", color: "#fff", width: 32, height: 32, borderRadius: 9, cursor: "pointer", fontSize: 17, lineHeight: 1, flex: "none" }}>×</button>
+              <button className="mw-hd-btn" onClick={() => setMaxed((m) => !m)} title={maxed ? "Réduire" : "Agrandir (plein écran)"} aria-label="Agrandir / réduire">{maxed ? "🗗" : "⤢"}</button>
+              <button className="mw-hd-btn mwh-x" onClick={close} aria-label="Fermer">×</button>
             </div>
 
-            {/* STATS — sous le header ; se replient quand on défile vers le bas, reviennent en remontant */}
-            <div style={{ overflow: "hidden", flex: "none",
-              transition: "max-height .22s ease, opacity .18s ease, padding .22s ease",
-              maxHeight: statsHidden ? 0 : 130, opacity: statsHidden ? 0 : 1,
-              padding: statsHidden ? "0 14px" : "12px 14px", background: "#faf9fd", borderBottom: statsHidden ? "none" : `1px solid ${LINE}` }}>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                {[
-                  { lbl: "Points", val: stats.total, col: NAVY },
-                  { lbl: "Critiques", val: stats.crit, col: RED },
-                  { lbl: "À surveiller", val: stats.maj, col: AMBER },
-                  { lbl: "Clients", val: stats.nbClients, col: INDIGO },
-                  { lbl: "Développeurs", val: stats.nbDevs, col: INDIGO },
-                ].map((s) => (
-                  <div key={s.lbl} style={{ flex: "1 1 96px", background: "#fff", border: `1px solid ${LINE}`, borderRadius: 10, padding: "7px 11px", borderLeft: `3px solid ${s.col}` }}>
-                    <div style={{ fontSize: 19, fontWeight: 800, color: s.col, fontFamily: "Poppins,Inter,sans-serif", lineHeight: 1 }}>{s.val}</div>
-                    <div style={{ fontSize: 10, color: MUTED, textTransform: "uppercase", letterSpacing: ".04em", marginTop: 2 }}>{s.lbl}</div>
-                  </div>
-                ))}
+            {/* STATS (se replient au défilement) */}
+            <div className={`mw-stats ${statsHidden ? "hidden" : ""}`}>
+              {[
+                { lbl: "Points", val: stats.total, cls: "navy" },
+                { lbl: "Critiques", val: stats.crit, cls: "red" },
+                { lbl: "À surveiller", val: stats.maj, cls: "amber" },
+                { lbl: "Clients", val: stats.nbClients, cls: "idg" },
+                { lbl: "Développeurs", val: stats.nbDevs, cls: "idg" },
+              ].map((s) => (
+                <div className={`mw-stat ${s.cls}`} key={s.lbl}>
+                  <b>{s.val}</b><span>{s.lbl}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* FILTRES — recherche pleine largeur, puis contrôles */}
+            <div className="mw-filt">
+              <div className="mw-search">
+                <span className="mw-search-i" aria-hidden="true">🔎</span>
+                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un texte…" />
+              </div>
+              <div className="mw-controls">
+                <select value={client} onChange={(e) => setClient(e.target.value)} title="Filtrer par client">
+                  <option value="">Tous les clients</option>
+                  {clients.map((c) => <option key={c} value={c}>{c}</option>)}
+                </select>
+                <select value={dev} onChange={(e) => setDev(e.target.value)} title="Filtrer par développeur">
+                  <option value="">Tous les développeurs</option>
+                  {devs.map((d) => <option key={d} value={d}>{d}</option>)}
+                </select>
+                <select value={sort} onChange={(e) => setSort(e.target.value)} title="Trier">
+                  {SORTS.map((s) => <option key={s.v} value={s.v}>Tri : {s.l}</option>)}
+                </select>
+                {dormantCount > 0 && (
+                  <button className={`mw-toggle ${showDormant ? "on" : ""}`} onClick={() => setShowDormant((v) => !v)}
+                    title={`Tickets sans mouvement depuis plus de ${OBSOLETE_DAYS} jours (probablement obsolètes)`}>
+                    {showDormant ? "Masquer dormants" : `Dormants (${dormantCount})`}
+                  </button>
+                )}
+                {(client || dev || q || sort !== "move") && (
+                  <button className="mw-reset" onClick={() => { setQ(""); setClient(""); setDev(""); setSort("move"); }}>Réinitialiser</button>
+                )}
+                <button className="mw-export" onClick={exportPdf} disabled={!view.length || exporting} title="Exporter le relevé filtré en PDF (charte Armonie)">
+                  {exporting ? "Génération…" : "⤓ Exporter PDF"}
+                </button>
               </div>
             </div>
 
-            {/* FILTRES — toujours visibles */}
-            <div className="mwh-filt" style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center",
-              padding: "10px 14px", borderBottom: `1px solid ${LINE}`, background: "#fff", flex: "none" }}>
-              <span style={{ position: "relative", flex: "1 1 200px", minWidth: 150 }}>
-                <span style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", fontSize: 12, opacity: .5 }}>🔎</span>
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Rechercher un ticket, un texte…"
-                  style={{ ...fldStyle, width: "100%", paddingLeft: 30 }} />
-              </span>
-              <select value={client} onChange={(e) => setClient(e.target.value)} style={selStyle} title="Filtrer par client">
-                <option value="">Tous les clients</option>
-                {clients.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
-              <select value={dev} onChange={(e) => setDev(e.target.value)} style={selStyle} title="Filtrer par développeur">
-                <option value="">Tous les développeurs</option>
-                {devs.map((d) => <option key={d} value={d}>{d}</option>)}
-              </select>
-              <select value={sort} onChange={(e) => setSort(e.target.value)} style={selStyle} title="Trier">
-                {SORTS.map((s) => <option key={s.v} value={s.v}>Tri : {s.l}</option>)}
-              </select>
-              {dormantCount > 0 && (
-                <button onClick={() => setShowDormant((v) => !v)} title={`Tickets sans mouvement depuis plus de ${OBSOLETE_DAYS} jours (probablement obsolètes)`}
-                  style={{ border: `1px solid ${showDormant ? INDIGO : LINE}`, background: showDormant ? INDIGO : "#fff", color: showDormant ? "#fff" : MUTED, borderRadius: 10, padding: "8px 11px", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-                  {showDormant ? "Masquer les dormants" : `Afficher les dormants (${dormantCount})`}
-                </button>
-              )}
-              {(client || dev || q || sort !== "move") && (
-                <button onClick={() => { setQ(""); setClient(""); setDev(""); setSort("move"); }}
-                  style={{ border: "none", background: "transparent", color: INDIGO, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}>
-                  Réinitialiser
-                </button>
-              )}
-              <button onClick={exportPdf} disabled={!view.length || exporting} title="Exporter le relevé filtré en PDF (charte Armonie)"
-                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6, border: "none", borderRadius: 10,
-                  background: view.length ? `linear-gradient(135deg, ${NAVY}, ${INDIGO})` : "#cdc9dd", color: "#fff",
-                  fontSize: 12.5, fontWeight: 700, padding: "8px 14px", cursor: view.length && !exporting ? "pointer" : "default",
-                  boxShadow: view.length ? `inset 0 -2px 0 rgba(168,136,78,.7)` : "none" }}>
-                {exporting ? "Génération…" : "⤓ Exporter PDF"}
-              </button>
-            </div>
-
-            <div onScroll={onScroll} style={{ overflowY: "auto", padding: 12, flex: 1 }}>
+            {/* LISTE */}
+            <div className="mw-list" onScroll={onScroll}>
               {view.length === 0 ? (
-                <div style={{ padding: "34px 18px", textAlign: "center", color: MUTED }}>
-                  <div style={{ fontSize: 26, marginBottom: 6 }}>✓</div>
-                  {points.length === 0 ? "Aucun point bloquant. Tous les voyants au vert."
-                    : "Aucun point ne correspond à ces filtres."}
+                <div className="mw-empty">
+                  <div className="mw-empty-i">✓</div>
+                  {points.length === 0 ? "Aucun point bloquant. Tous les voyants au vert." : "Aucun point ne correspond à ces filtres."}
                 </div>
-              ) : (
-                <div style={{ display: "grid", gap: 8 }}>
-                  {view.map((p) => {
-                    const crit = p.severity === "critique";
-                    const col = crit ? RED : AMBER;
-                    return (
-                      <div key={p.id} className="mwh-row" role="button" tabIndex={0}
-                        onClick={() => openTicket(p)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTicket(p); } }}
-                        style={{ textAlign: "left", cursor: "pointer", width: "100%", background: "#fff",
-                          borderRadius: 10, border: `1px solid ${LINE}`, borderLeft: `4px solid ${col}`,
-                          padding: "11px 13px", display: "flex", gap: 12, alignItems: "flex-start", color: INK,
-                          transition: "background .1s" }}>
-                        {engStyle(p.engagement) && (
-                          <span aria-hidden="true" title={p.engagement === "Projet" ? "Mode Projet" : "Mode TMA"}
-                            style={{ alignSelf: "stretch", flex: "0 0 auto", width: 5, borderRadius: 4, background: engStyle(p.engagement).fg }} />
-                        )}
-                        <span style={{ background: col, color: "#fff", fontSize: 9, fontWeight: 800, letterSpacing: 1,
-                          padding: "3px 7px", borderRadius: 5, whiteSpace: "nowrap", marginTop: 1 }}>{crit ? "CRITIQUE" : "MAJEUR"}</span>
-                        <span style={{ flex: 1, minWidth: 0 }}>
-                          <span style={{ display: "flex", alignItems: "baseline", gap: 7, flexWrap: "wrap" }}>
-                            <span style={{ fontFamily: "ui-monospace,Menlo,monospace", fontWeight: 700, color: GOLD, fontSize: 12.5 }}>{p.id}</span>
-                            <span style={{ fontWeight: 700, fontSize: 13.5, color: NAVY }}>{p.title}</span>
-                          </span>
-                          <span style={{ display: "block", color: col, fontSize: 12, marginTop: 3, fontWeight: 600 }}>{p.reason}</span>
-                          <span style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 6, marginTop: 6 }}>
-                            {p.engagement && engStyle(p.engagement) && (
-                              <span style={{ background: engStyle(p.engagement).bg, border: `1px solid ${engStyle(p.engagement).ln}`, color: engStyle(p.engagement).fg, fontSize: 10, fontWeight: 800, letterSpacing: ".04em", padding: "2px 8px", borderRadius: 999 }}>
-                                {p.engagement === "Projet" ? "PROJET" : "TMA"}
-                              </span>
-                            )}
-                            {p._obsolete && (
-                              <span style={{ background: "#eceaf1", border: `1px solid ${LINE}`, color: MUTED, fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }} title={`Sans mouvement depuis ${p._moveDays} j`}>DORMANT</span>
-                            )}
-                            <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INDIGO, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>{p.project || "—"}</span>
-                            <span style={{ background: SOFT, border: `1px solid ${LINE}`, color: INK, fontSize: 11, fontWeight: 600, padding: "2px 8px", borderRadius: 999 }}>👤 {p.assignee || "Non assigné"}</span>
-                            {p._since && (
-                              <span style={{ background: crit ? "rgba(192,57,43,.08)" : "rgba(194,105,26,.10)", border: `1px solid ${col}`, color: col, fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999 }}>
-                                {sinceLabel(p.kind)} {fmtD(p._since)}{p._days ? ` · ${p._days} j` : ""}
-                              </span>
-                            )}
-                          </span>
-                        </span>
-                        <span style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, alignSelf: "center" }}>
-                          <button onClick={(e) => { e.stopPropagation(); askPilot(p); }}
-                            title="Analyser ce point bloquant avec le copilote" aria-label="Analyser ce point bloquant avec le copilote"
-                            style={{ border: `1px solid ${GOLD}`, background: `linear-gradient(135deg, ${NAVY}, ${INDIGO})`,
-                              padding: 0, width: 30, height: 30, borderRadius: "50%", cursor: "pointer", overflow: "hidden", flexShrink: 0 }}>
-                            <img src={PILOT_DATA_URI} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-                          </button>
-                          <span style={{ color: MUTED, fontSize: 14 }}>›</span>
-                        </span>
+              ) : view.map((p) => {
+                const crit = p.severity === "critique";
+                return (
+                  <div key={p.id} className={`mw-pt ${crit ? "crit" : "maj"} mwh-row`} role="button" tabIndex={0}
+                    onClick={() => openTicket(p)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openTicket(p); } }}>
+                    <span className={`mw-pt-spine ${p.engagement === "Projet" ? "projet" : p.engagement === "TMA" ? "tma" : ""}`}
+                      title={p.engagement === "Projet" ? "Mode Projet" : p.engagement === "TMA" ? "Mode TMA" : ""} aria-hidden="true" />
+                    <span className="mw-pt-sev">{crit ? "CRITIQUE" : "MAJEUR"}</span>
+                    <div className="mw-pt-main">
+                      <div className="mw-pt-top">
+                        <span className="mw-pt-id">{p.id}</span>
+                        <span className="mw-pt-title">{p.title}</span>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
+                      <div className="mw-pt-reason">{p.reason}</div>
+                      <div className="mw-pt-meta">
+                        {p.engagement && engStyle(p.engagement) && (
+                          <span className={`mw-eng ${p.engagement === "Projet" ? "projet" : "tma"}`}>{p.engagement === "Projet" ? "PROJET" : "TMA"}</span>
+                        )}
+                        {p._obsolete && <span className="mw-chip dormant" title={`Sans mouvement depuis ${p._moveDays} j`}>DORMANT</span>}
+                        <span className="mw-chip">{p.project || "—"}</span>
+                        <span className="mw-chip">👤 {p.assignee || "Non assigné"}</span>
+                        {p._since && (
+                          <span className="mw-since">{sinceLabel(p.kind)} {fmtD(p._since)}{p._days ? ` · ${p._days} j` : ""}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mw-pt-act">
+                      <button className="mw-pilot" onClick={(e) => { e.stopPropagation(); askPilot(p); }}
+                        title="Analyser ce point bloquant avec le copilote" aria-label="Analyser ce point bloquant avec le copilote">
+                        <img src={PILOT_DATA_URI} alt="" />
+                      </button>
+                      <span className="mw-chev" aria-hidden="true">›</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>

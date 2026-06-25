@@ -10,11 +10,106 @@ export function downloadHtml(html, filename) {
   URL.revokeObjectURL(url);
 }
 
-// Impression via une iframe cachée : pas de nouvelle fenêtre/onglet « about:blank »,
-// et l'app ne se fige plus (l'aperçu d'impression est isolé dans l'iframe).
-// Génère un VRAI PDF côté navigateur (portrait A4, marges) — sans dépendre de Docker.
-// Le holder doit être en flux normal pour html2canvas ; un overlay masque le rendu.
-async function clientPdf(html, filename) {
+// ---------------------------------------------------------------------------
+//  Export PDF cp|WIRE :
+//   - VOILE de progression à la charte Armonie (barre animée, fermable) ;
+//   - CHOIX du dossier de téléchargement (File System Access API) si dispo,
+//     sinon téléchargement classique ;
+//   - VRAI PDF : serveur WeasyPrint (texte sélectionnable) sinon navigateur
+//     html2pdf (portrait A4, marges). Plus jamais d'onglet HTML « paysage ».
+// ---------------------------------------------------------------------------
+
+let _veilCssInjected = false;
+function ensureVeilCss() {
+  if (_veilCssInjected) return;
+  _veilCssInjected = true;
+  const s = document.createElement("style");
+  s.textContent = `
+  @keyframes cpwVeilIn{from{opacity:0}to{opacity:1}}
+  @keyframes cpwBar{0%{left:-42%}100%{left:100%}}
+  .cpw-veil{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;
+    background:rgba(31,27,51,.55);backdrop-filter:blur(3px);animation:cpwVeilIn .18s ease}
+  .cpw-veil-card{width:min(420px,86vw);background:#fff;border-radius:16px;overflow:hidden;position:relative;
+    box-shadow:0 24px 70px rgba(31,27,51,.42);font-family:Inter,system-ui,Arial,sans-serif;color:#1F1B33}
+  .cpw-veil-top{height:5px;background:linear-gradient(90deg,#2E2A5D,#4B3F8F 55%,#A8884E)}
+  .cpw-veil-x{position:absolute;top:11px;right:11px;width:26px;height:26px;border:0;border-radius:8px;
+    background:#F5F2FC;color:#6E6A86;font-size:16px;line-height:1;cursor:pointer}
+  .cpw-veil-x:hover{background:#ece9f3;color:#2E2A5D}
+  .cpw-veil-bd{padding:26px 26px 24px;text-align:center}
+  .cpw-veil-logo{font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:17px;letter-spacing:.4px;color:#2E2A5D}
+  .cpw-veil-logo i{color:#A8884E;font-style:normal}
+  .cpw-veil-logo small{font-size:9px;letter-spacing:.18em;text-transform:uppercase;color:#6E6A86;font-weight:600;margin-left:6px}
+  .cpw-veil-t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:16px;color:#2E2A5D;margin:15px 0 4px}
+  .cpw-veil-s{font-size:12px;color:#6E6A86;margin:0 0 16px;min-height:16px}
+  .cpw-veil-track{position:relative;height:7px;border-radius:99px;background:#ece9f3;overflow:hidden}
+  .cpw-veil-track .ind{position:absolute;top:0;bottom:0;width:42%;border-radius:99px;
+    background:linear-gradient(90deg,#4B3F8F,#A8884E);animation:cpwBar 1.1s ease-in-out infinite}
+  .cpw-veil-track.done .ind{animation:none;left:0;width:100%;transition:width .35s ease}
+  .cpw-veil-hint{font-size:10.5px;color:#9b97b3;margin:14px 0 0;word-break:break-all}
+  `;
+  document.head.appendChild(s);
+}
+
+// Voile de progression. Renvoie { remove, status, done }. La croix masque le voile
+// sans annuler la génération (le sélecteur d'emplacement s'ouvrira quand même).
+function pdfVeil(name) {
+  ensureVeilCss();
+  const el = document.createElement("div");
+  el.className = "cpw-veil";
+  el.innerHTML = `<div class="cpw-veil-card">
+    <div class="cpw-veil-top"></div>
+    <button class="cpw-veil-x" title="Fermer" aria-label="Fermer">×</button>
+    <div class="cpw-veil-bd">
+      <div class="cpw-veil-logo">armo<i>n</i>ie<small>notos <i>phl</i>soft</small></div>
+      <div class="cpw-veil-t">Génération du PDF…</div>
+      <div class="cpw-veil-s">Mise en forme du document — un instant.</div>
+      <div class="cpw-veil-track"><div class="ind"></div></div>
+      <div class="cpw-veil-hint">${esc(name)}</div>
+    </div>
+  </div>`;
+  const remove = () => { try { el.remove(); } catch { /* déjà retiré */ } };
+  el.querySelector(".cpw-veil-x").addEventListener("click", remove);
+  document.body.appendChild(el);
+  const status = (txt) => { const n = el.querySelector(".cpw-veil-s"); if (n) n.textContent = txt; };
+  const done = () => { const tr = el.querySelector(".cpw-veil-track"); if (tr) tr.classList.add("done"); status("Prêt — choisis l'emplacement d'enregistrement."); };
+  return { remove, status, done };
+}
+
+// Enregistre un blob en laissant l'utilisateur CHOISIR l'emplacement (File System
+// Access API). Si l'API est absente (Firefox/Safari) → téléchargement classique.
+// Lève AbortError si l'utilisateur annule volontairement le sélecteur.
+async function saveBlob(blob, suggestedName) {
+  if (typeof window !== "undefined" && window.showSaveFilePicker) {
+    let handle = null;
+    try {
+      handle = await window.showSaveFilePicker({
+        suggestedName,
+        types: [{ description: "Document PDF", accept: { "application/pdf": [".pdf"] } }],
+      });
+    } catch (e) {
+      if (e && e.name === "AbortError") throw e;   // annulation volontaire : ne pas re-télécharger
+      handle = null;                                // API refusée (iframe, permission) → repli
+    }
+    if (handle) {
+      const w = await handle.createWritable();
+      await w.write(blob);
+      await w.close();
+      return true;
+    }
+  }
+  // Repli : téléchargement classique (dossier par défaut du navigateur).
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = suggestedName;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+  return true;
+}
+
+// Génère le PDF côté navigateur et renvoie un Blob (sans télécharger).
+// html2canvas exige un élément en FLUX NORMAL (static) : le holder est en flux,
+// masqué par le voile (z-index max) le temps du rendu.
+async function clientPdfBlob(html) {
   const html2pdf = (await import("html2pdf.js")).default;
   const inner = html.replace(/^[\s\S]*?<body[^>]*>/i, "").replace(/<\/body>[\s\S]*$/i, "");
   const sm = html.match(/<style>[\s\S]*?<\/style>/i);
@@ -23,47 +118,53 @@ async function clientPdf(html, filename) {
   css = css.replace(/@page[^}]*}/gi, "")
            .replace(/(^|})\s*body\s*\{/gi, "$1 .cpw-pdf-root{")
            .replace(/(^|})\s*\*\s*\{/gi, "$1 .cpw-pdf-root *{");
-  const ov = document.createElement("div");
-  ov.style.cssText = "position:fixed;inset:0;z-index:2147483647;background:rgba(31,27,51,.55);display:flex;align-items:center;justify-content:center;color:#fff;font:600 15px/1.4 Inter,system-ui,sans-serif;";
-  ov.textContent = "Génération du PDF…";
   const holder = document.createElement("div");
   holder.className = "cpw-pdf-root";
   holder.style.cssText = "width:794px;background:#fff;";
   holder.innerHTML = css + inner;
   holder.querySelectorAll(".ch-runfoot").forEach((n) => n.remove());
-  document.body.appendChild(ov);
   document.body.appendChild(holder);
   try {
-    await html2pdf().set({
+    return await html2pdf().set({
       margin: [10, 10, 12, 10],
-      filename,
       image: { type: "jpeg", quality: 0.95 },
       html2canvas: { scale: 2, backgroundColor: "#ffffff", windowWidth: 794, width: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 },
       jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
       pagebreak: { mode: ["css", "legacy"] },
-    }).from(holder).save();
+    }).from(holder).outputPdf("blob");
   } finally {
     holder.remove();
-    ov.remove();
   }
 }
 
 export async function printHtml(html, filename = "Document.pdf") {
-  const name = /\.pdf$/i.test(filename) ? filename : `${filename}.pdf`;
-  // 1) PDF serveur (WeasyPrint, qualité maximale) si le moteur est disponible.
+  const name = /\.pdf$/i.test(filename) ? filename : `${String(filename).replace(/\.html?$/i, "")}.pdf`;
+  const veil = pdfVeil(name);
   try {
-    const { exportHtmlPdf } = await import("./api.js");
-    await exportHtmlPdf(html, name);
-    return true;
-  } catch (e) { /* moteur serveur absent → PDF navigateur */ }
-  // 2) PDF côté navigateur (portrait A4 avec marges), sans Docker.
-  try {
-    await clientPdf(html, name);
-    return true;
-  } catch (e) { /* échec rare → dernier recours */ }
-  // 3) Dernier recours : téléchargement HTML.
-  try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
-  return false;
+    let blob = null;
+    // 1) PDF serveur (WeasyPrint) — qualité max, texte sélectionnable.
+    try {
+      veil.status("Rendu haute qualité (serveur)…");
+      const { renderHtmlPdfBlob } = await import("./api.js");
+      blob = await renderHtmlPdfBlob(html, name);
+    } catch (e) { /* moteur serveur absent → PDF navigateur */ }
+    // 2) PDF côté navigateur (portrait A4 avec marges), sans Docker.
+    if (!blob) {
+      try { veil.status("Génération du PDF (navigateur)…"); blob = await clientPdfBlob(html); }
+      catch (e) { /* échec rare → dernier recours */ }
+    }
+    if (blob) {
+      veil.done();
+      try { await saveBlob(blob, name); return true; }
+      catch (e) { if (e && e.name === "AbortError") return false; /* sinon repli HTML */ }
+    }
+    // 3) Dernier recours : téléchargement HTML.
+    veil.status("Format PDF indisponible — téléchargement HTML.");
+    try { downloadHtml(html, name.replace(/\.pdf$/i, ".html")); } catch { /* */ }
+    return false;
+  } finally {
+    veil.remove();
+  }
 }
 
 // Ouvre une URL externe de façon fiable, en navigateur ET dans l'app desktop (Tauri).

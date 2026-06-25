@@ -1,11 +1,15 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { progResume } from "../ticket.js";
+import { pointBaseline } from "../api.js";
 
 // « Le point du soir » — reproduit le relevé quotidien par statut (mêmes libellés
 // que le mail de la direction), avec les écarts vs le dernier relevé d'un jour
 // antérieur. Les chiffres viennent de computeFacts (cats atomiques) → toujours vrais.
-// L'historique jour-à-jour est mémorisé localement (par navigateur) : les écarts
-// apparaissent dès le 2e jour de consultation.
+// L'historique jour-à-jour est désormais mémorisé CÔTÉ SERVEUR (partagé entre
+// navigateurs, persistant, insensible au « Clear PWA cache ») : les écarts
+// apparaissent dès qu'au moins deux jours distincts ont été relevés. Le localStorage
+// reste en repli si l'endpoint serveur est indisponible (hors-ligne, version
+// serveur antérieure).
 const ROWS = [
   ["miseEnProd", "Mise en production"],
   ["termine", "Terminé"],
@@ -21,7 +25,8 @@ const CAT_FR = { afaire: "À faire", encours: "En cours", retourTest: "Retour de
 
 export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
   const cats0 = cats || {};
-  const [baseline, setBaseline] = useState(null);
+  const [localBaseline, setLocalBaseline] = useState(null); // repli : historique localStorage (par navigateur)
+  const [serverBaseline, setServerBaseline] = useState(null); // source primaire : historique serveur (partagé)
   const [copied, setCopied] = useState(false);
   const [openK, setOpenK] = useState(null);
   const [period, setPeriod] = useState("tout");
@@ -41,7 +46,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
     try { store = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { store = {}; }
     const today = todayStr();
     const past = Object.keys(store).filter((d) => d < today).sort();
-    setBaseline(past.length ? { date: past[past.length - 1], cats: store[past[past.length - 1]] } : null);
+    setLocalBaseline(past.length ? { date: past[past.length - 1], cats: store[past[past.length - 1]] } : null);
     const curKeys = {}; ROWS.forEach(([k]) => { curKeys[k] = []; });
     (srcItems || []).forEach((i) => { if (curKeys[i.categorie]) curKeys[i.categorie].push(i.cle); });
     store[today] = curKeys;
@@ -50,6 +55,22 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
     try { localStorage.setItem(key, JSON.stringify(trimmed)); } catch (e) { /* quota / privé : on ignore */ }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dossier, scope]);
+
+  // Baseline SERVEUR (partagée, persistante) — source primaire des écarts.
+  // En cas d'indisponibilité (hors-ligne, serveur antérieur), on retombe sur le localStorage.
+  useEffect(() => {
+    if (!dossier) { setServerBaseline(null); return; }
+    let on = true;
+    setServerBaseline(null);
+    pointBaseline(dossier, scopeKey)
+      .then((r) => { if (on) setServerBaseline(r && r.baseline ? r.baseline : null); })
+      .catch(() => { if (on) setServerBaseline(null); });
+    return () => { on = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dossier, scope]);
+
+  // Effective : le serveur prime ; le localStorage ne sert que de repli.
+  const baseline = serverBaseline || localBaseline;
 
   const WIN = { jour: 1, semaine: 7, mois: 30, annee: 365, tout: null };
   const cutoff = WIN[period] ? Date.now() - WIN[period] * 86400000 : null;
@@ -158,7 +179,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
       <p className="pds-foot">
         {cutoff
           ? `${total} ticket${total > 1 ? "s" : ""} avec activité sur la période sélectionnée`
-          : <>{total} tickets suivis{horsPoint ? ` · ${horsPoint} hors point (à faire / annulés / retour prod)` : ""}{baseline ? ` · écarts vs le ${baseline.date}` : " · premier relevé enregistré — les écarts apparaîtront au prochain jour"}</>}
+          : <>{total} tickets suivis{horsPoint ? ` · ${horsPoint} hors point (à faire / annulés / retour prod)` : ""}{baseline ? ` · écarts vs le ${baseline.date}` : " · pas encore de jour antérieur relevé — les écarts apparaîtront ensuite"}</>}
       </p>
     </div>
   );

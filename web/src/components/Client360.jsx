@@ -7,6 +7,7 @@ import EdlMax from "./EdlMax.jsx";
 import { RECETTE, RETOUR } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
 import PointDuSoir from "./PointDuSoir.jsx";
+import { printHtml } from "../utils.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -118,8 +119,11 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
       } else {
         ({ html } = await genWrittenCR(c.client));
       }
-      const w = window.open("", "_blank");
-      if (w) { w.document.open(); w.document.write(html); w.document.close(); }
+      const iso = new Date().toISOString().slice(0, 10);
+      const base = kind === "daily" ? "Recap" : "CR_ecrit";
+      const fname = `${base}_${String(c.client).replace(/[^\w-]+/g, "_")}_${iso}.pdf`;
+      // Vrai PDF (serveur WeasyPrint sinon navigateur), voile de progression + choix du dossier.
+      await printHtml(html, fname);
     } catch (e) { alert("Génération indisponible : " + (e.message || e)); }
     finally { setBusy(""); }
   };

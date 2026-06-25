@@ -1240,8 +1240,36 @@ function summarizeForLearn(list) {
   return `Client : ${scope[0].dossier}\nTickets analyses : ${scope.length}\nPerimetres : ${top(eng, 4) || "-"}\nIntervenants : ${top(dev, 5) || "-"}\nRepartition par statut : ${top(cat, 6) || "-"}\nTickets recents :\n${samples}`;
 }
 
+// Apprentissage DÉTERMINISTE (sans IA) : on dérive un « contexte observé » factuel
+// directement des champs Jira. Zéro invention — uniquement des chiffres et des noms réels.
+// Sert de repli quand aucune clé IA n'est configurée, ou quand l'appel IA échoue, pour que
+// la mémoire apprenne TOUJOURS (« à 1000 % »), pas seulement quand une IA est branchée.
+function deterministicLearn(list) {
+  const n = list.length;
+  if (!n) return [];
+  const OPEN = (c) => c !== "termine" && c !== "miseEnProd" && c !== "annule";
+  const cat = {}; list.forEach((i) => { cat[i.categorie] = (cat[i.categorie] || 0) + 1; });
+  const open = list.filter((i) => OPEN(i.categorie));
+  const devCount = {};
+  list.forEach((i) => { const d = i.dev || (i.assigne && i.assigne !== "Non assigné" ? i.assigne : ""); if (d) devCount[d] = (devCount[d] || 0) + 1; });
+  const topDevs = Object.entries(devCount).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([d, c]) => `${d} (${c})`);
+  const prefixes = [...new Set(list.map((i) => i.projet).filter(Boolean))];
+  const retard = list.filter((i) => i.enRetard).length;
+  const reprises = (cat.retourTest || 0) + (cat.retourProd || 0);
+  const recette = (cat.recetteClient || 0) + (cat.recetteArmonie || 0) + (cat.attenteClient || 0);
+  let oldest = null;
+  open.forEach((i) => { const t = i.statutDepuis || i.maj; if (t && (!oldest || new Date(t) < new Date(oldest.t))) oldest = { cle: i.cle, t }; });
+  const pts = [];
+  pts.push(`Périmètre : ${n} ticket(s)${prefixes.length ? ` sur ${prefixes.join(", ")}` : ""} ; ${open.length} ouvert(s).`);
+  if (topDevs.length) pts.push(`Intervenants principaux : ${topDevs.join(", ")}.`);
+  pts.push(`Charge : ${cat.encours || 0} en cours · ${recette} en recette/attente · ${reprises} reprise(s)${retard ? ` · ${retard} en retard` : ""}.`);
+  if (oldest) { const days = Math.floor((Date.now() - new Date(oldest.t).getTime()) / 86400000); pts.push(`Plus ancien ouvert : ${oldest.cle} (${days} j dans l'état actuel).`); }
+  return pts.slice(0, 6);
+}
+
 export async function runAutoLearn(issues = [], { force = false } = {}) {
-  if (!aiAvailable() || learnRunning) return { ran: false, learned: [] };
+  if (learnRunning) return { ran: false, learned: [] };
+  const useAI = aiAvailable();
   learnRunning = true;
   const learned = [];
   try {
@@ -1249,17 +1277,23 @@ export async function runAutoLearn(issues = [], { force = false } = {}) {
     for (const i of issues) { const d = i.dossier; if (d) (byDossier[d] ||= []).push(i); }
     for (const [dossier, list] of Object.entries(byDossier)) {
       if (!force && autoAgeMs(dossier) < LEARN_TTL_MS) continue;
-      const summary = summarizeForLearn(list);
-      if (!summary) continue;
-      try {
-        const raw = await callClaude(
-          "Tu es analyste PMO. A partir de l'activite Jira d'un client, degage le CONTEXTE OBSERVE : perimetres actifs, themes recurrents, intervenants principaux, tendances. Strictement factuel, aucune invention. Reponds par 3 a 5 puces courtes, une par ligne, chacune commencant par tiret, sans titre ni phrase d'introduction.",
-          summary, [], 400, 0.2
-        );
-        const points = String(raw || "").split("\n").map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter((l) => l.length > 3).slice(0, 6);
-        if (points.length) { saveAuto(dossier, points); learned.push(dossier); }
-      } catch { /* un client echoue, on continue */ }
+      let points = [];
+      if (useAI) {
+        const summary = summarizeForLearn(list);
+        if (summary) {
+          try {
+            const raw = await callClaude(
+              "Tu es analyste PMO. A partir de l'activite Jira d'un client, degage le CONTEXTE OBSERVE : perimetres actifs, themes recurrents, intervenants principaux, tendances. Strictement factuel, aucune invention. Reponds par 3 a 5 puces courtes, une par ligne, chacune commencant par tiret, sans titre ni phrase d'introduction.",
+              summary, [], 400, 0.2
+            );
+            points = String(raw || "").split("\n").map((l) => l.replace(/^[-•*]\s*/, "").trim()).filter((l) => l.length > 3).slice(0, 6);
+          } catch { /* l'IA a échoué → repli déterministe ci-dessous */ }
+        }
+      }
+      // Repli (ou mode sans IA) : extraction déterministe — la mémoire apprend toujours.
+      if (!points.length) points = deterministicLearn(list);
+      if (points.length) { saveAuto(dossier, points); learned.push(dossier); }
     }
   } finally { learnRunning = false; }
-  return { ran: true, learned };
+  return { ran: true, learned, mode: useAI ? "ia" : "deterministe" };
 }

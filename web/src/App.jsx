@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
-  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
+  getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers, importAnalyze, importApply } from "./api.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -220,6 +220,28 @@ export default function App() {
   // Bouton « CR du jour » : visible uniquement en semaine (lundi→vendredi) à partir de 17h30.
   // Une minuterie réévalue chaque minute pour qu'il apparaisse tout seul, sans recharger.
   const [dailyCrOpen, setDailyCrOpen] = useState(false);
+  // Import OneNote (synchronisé du SharePoint) : cp|WIRE analyse les changements et met à jour
+  // ses données. Rien n'est appliqué sans confirmation explicite.
+  const oneNoteRef = useRef(null);
+  const [oneBusy, setOneBusy] = useState(false);
+  const onImportOneNote = async (ev) => {
+    const file = ev.target.files && ev.target.files[0];
+    if (ev.target) ev.target.value = "";
+    if (!file) return;
+    setOneBusy(true);
+    try {
+      const r = await importAnalyze(file);
+      if (!r || r.ok === false || r.error) { alert(r && r.error ? r.error : "Fichier OneNote non exploitable pour l'analyse."); setOneBusy(false); return; }
+      const resume = (r.proposal && (r.proposal.resume || r.proposal.cible)) || r.apercu || "Document analysé.";
+      const ok = window.confirm(`OneNote analysé — ${file.name}\n\n${resume}\n\nMettre à jour les chiffres et l'état d'avancement de cp|WIRE ?`);
+      if (!ok) { setOneBusy(false); return; }
+      await importApply({ filename: r.filename || file.name, proposal: r.proposal, apercu: r.apercu, dataset: r.dataset, diff: r.diff });
+      alert("cp|WIRE mis à jour à partir du OneNote ✓");
+    } catch (e) {
+      alert("Échec de l'import OneNote : " + (e && e.message ? e.message : "erreur"));
+    }
+    setOneBusy(false);
+  };
   const [nowTick, setNowTick] = useState(Date.now());
   useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
   const showDailyCr = useMemo(() => {
@@ -612,6 +634,11 @@ export default function App() {
             </span>
           )}
           <button className="btn-line cr-day-btn" onClick={() => setDailyCrOpen(true)} title="Générer le compte rendu du jour (ZIP) à transférer à votre direction">📦 CR du jour</button>
+          <input ref={oneNoteRef} type="file" accept=".one" style={{ display: "none" }} onChange={onImportOneNote} />
+          <button className="btn-line" onClick={() => oneNoteRef.current && oneNoteRef.current.click()} disabled={oneBusy}
+            title="Importer le fichier OneNote synchronisé du SharePoint : cp|WIRE analyse les changements et met à jour ses chiffres et l'état d'avancement">
+            {oneBusy ? "Analyse…" : "🗒️ Importer OneNote"}
+          </button>
           <button className="btn-line invite-btn" onClick={() => setTab("admin")} title="Gérer les accès et inviter quelqu'un">👥 Admin & accès</button>
         </div>
       ) : role === "guest" ? (
@@ -654,7 +681,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v249" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v254" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />

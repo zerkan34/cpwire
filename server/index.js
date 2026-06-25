@@ -12,6 +12,7 @@ import "dotenv/config";
 
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
+import { recordDay as recordPointDay, baselineFor as pointBaselineFor } from "./pointHistory.js";
 import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
@@ -271,6 +272,10 @@ app.use((req, res, next) => {
 // Photo persistante du portefeuille (chargée au démarrage si elle existe).
 let snap = loadSnapshot();                                   // { syncedAt, issues }
 let snapMap = new Map((snap.issues || []).map((i) => [i.cle, i]));
+// Démarrage à chaud : si une photo du portefeuille existe déjà sur disque, on amorce
+// l'historique du jour pour le « point du soir » (la baseline se constitue même si
+// aucune actualisation n'a lieu aujourd'hui).
+if (snap.issues && snap.issues.length) { try { recordPointDay(snap.issues); } catch { /* best-effort */ } }
 let importing = false;       // un import complet tourne-t-il en arrière-plan ?
 let importError = null;      // dernière erreur d'import (affichée à l'utilisateur)
 
@@ -286,6 +291,7 @@ async function runFullImport() {
     snapMap = new Map(issues.map((i) => [i.cle, i]));
     snap = { syncedAt: new Date().toISOString(), issues };
     saveSnapshot(snap);
+    recordPointDay(snap.issues); // instantané daté du « point du soir » (écarts partagés/persistants)
     console.log(`[import] arrière-plan : PRÊT — ${issues.length} tickets en ${Date.now() - t0} ms`);
   } catch (e) {
     importError = String(e.message || e);
@@ -395,6 +401,7 @@ async function getIssues(arg, jqlArg) {
     }
     snap = { syncedAt: new Date().toISOString(), issues: Array.from(snapMap.values()) };
     saveSnapshot(snap);
+    recordPointDay(snap.issues); // instantané daté du « point du soir »
     return {
       issues: withLate(snap.issues),
       source: `Jira (incrémental · ${updated.length} vérifié${updated.length > 1 ? "s" : ""})`,
@@ -567,8 +574,9 @@ app.get("/api/portfolio", guard, async (req, res) => {
     payload.importing = Boolean(got.importing);
     payload.importError = got.importError || null;
     res.json(payload);
-    // Mémoire auto-apprenante : en tâche de fond, throttlé, sans bloquer la réponse (ne fait rien sans clé IA).
-    if (aiAvailable() && !got.importing) { runAutoLearn(got.issues).catch(() => {}); }
+    // Mémoire auto-apprenante : en tâche de fond, throttlé, sans bloquer la réponse.
+    // Tourne TOUJOURS — avec IA si une clé est configurée, sinon en extraction déterministe.
+    if (!got.importing) { runAutoLearn(got.issues).catch(() => {}); }
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
@@ -660,6 +668,18 @@ app.get("/api/recap/chiffres", guard, async (_req, res) => {
     const html = buildRecapChiffres(issues, tr.items, { dateISO: startISO, capped: tr.capped });
     logEvent("recap_chiffres", "Récap du jour — mouvements (tous dossiers)", { mouvements: (tr.items || []).filter((x) => (x.transitions || []).length).length, scanned: tr.scanned, capped: tr.capped });
     res.json({ generatedAt: new Date().toISOString(), html });
+  } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Baseline du « point du soir » : dernier relevé d'un jour ANTÉRIEUR pour (dossier, scope),
+// servie depuis l'historique serveur (partagé/persistant). Renvoie { baseline:{date,cats}|null }.
+// Aucun calcul Jira ici : lecture pure de l'historique déjà enregistré au fil des synchros.
+app.get("/api/point/baseline", guard, (req, res) => {
+  try {
+    const dossier = String(req.query.dossier || "").trim();
+    const scope = String(req.query.scope || "").trim(); // "" = tout ; "::PREFIXE" = un projet
+    if (!dossier) return res.status(400).json({ error: "Paramètre 'dossier' manquant." });
+    res.json({ baseline: pointBaselineFor(dossier, scope) });
   } catch (err) { res.status(502).json({ error: String(err.message || err) }); }
 });
 
@@ -1190,11 +1210,11 @@ app.get("/api/connaissance", guard, (_req, res) => res.json(readConnaissance()))
 // Déclenchement manuel de l'apprentissage IA (owner). Force l'analyse de tous les clients.
 app.post("/api/connaissance/learn", guard, writeGuard, async (_req, res) => {
   try {
-    if (!aiAvailable()) return res.status(409).json({ error: "Aucune clé IA configurée : l'apprentissage automatique nécessite une IA (Qwen, Mistral ou Anthropic)." });
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    // Tourne avec IA si disponible, sinon en extraction déterministe (zéro invention).
     const r = await runAutoLearn(got.issues, { force: true });
-    res.json({ ok: true, learned: r.learned, connaissance: readConnaissance() });
+    res.json({ ok: true, learned: r.learned, mode: r.mode, connaissance: readConnaissance() });
   } catch (e) { res.status(502).json({ error: String(e.message || e) }); }
 });
 app.put("/api/connaissance", guard, writeGuard, (req, res) => {

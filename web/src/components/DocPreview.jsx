@@ -80,7 +80,7 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
           <iframe className="doc-frame" srcDoc={html} title="aperçu" />
           <div className="row-actions">
             <button className="btn-solid gold" onClick={() => downloadHtml(html, filename)}>Télécharger</button>
-            <button className="btn-line" onClick={() => printHtml(html)}>Imprimer / PDF</button>
+            <button className="btn-line" onClick={() => printHtml(html, filename)}>Imprimer / PDF</button>
             <button className="btn-line" onClick={copyText}>Copier le texte</button>
             <button className="btn-line" onClick={outlookWebShare}>Outlook (web)</button>
             <button className="btn-line" onClick={mailtoShare}>Outlook (appli)</button>
