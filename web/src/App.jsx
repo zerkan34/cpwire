@@ -33,6 +33,8 @@ import Developers from "./components/Developers.jsx";
 import EnCours from "./components/EnCours.jsx";
 import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
+import MobileHome from "./components/MobileHome.jsx";
+import { isStandalone } from "./pwa.js";
 import Meetings from "./components/Meetings.jsx";
 import CRA from "./components/CRA.jsx";
 
@@ -594,6 +596,13 @@ export default function App() {
   }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
   const diag = data?.diagnostic;
+  // Mode PWA installé : on bascule l'accueil sur l'écran natif MobileHome.
+  const pwaHome = useMemo(() => { try { return isStandalone(); } catch { return false; } }, []);
+  const pwaAccueil = pwaHome && tab === "cockpit" && sub === "accueil";
+  const mhWarning = (diag && diag.projetsSansTicket?.length > 0)
+    ? `Import : ${diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé : ${diag.projetsSansTicket.join(", ")} — vérifie la clé du projet et tes droits d'accès dans Jira.`
+    : "";
+  const mhDate = useMemo(() => new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }), []);
 
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
@@ -618,7 +627,7 @@ export default function App() {
 
   return (
     <ReadOnlyContext.Provider value={readOnly}>
-    <div className={`wrap tab-${tab}`}>
+    <div className={`wrap tab-${tab}${pwaAccueil ? " pwahome" : ""}`}>
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
         loading={loading} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
@@ -691,9 +700,30 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        isMobile ? (
+        pwaHome ? (
+          <MobileHome
+            build="stable-v273"
+            source={data?.source || "Jira"}
+            whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
+            pct={data?.kpis?.avancement || 0}
+            valides={data?.kpis?.valides ?? data?.kpis?.["Terminé"] ?? Math.round((data?.kpis?.total || 0) * (data?.kpis?.avancement || 0) / 100)}
+            total={data?.kpis?.total || 0}
+            dateLabel={mhDate}
+            notif={notifs?.length || 0}
+            alertCount={notifs?.length || 0}
+            warningText={mhWarning}
+            onSearch={() => setQuickOpen(true)}
+            onRefresh={() => load(true)}
+            onSync={() => load(true, true)}
+            onCR={() => setDailyCrOpen(true)}
+            onImport={() => setImportOpen(true)}
+            onMemo={() => setImportOpen(true)}
+            onAdmin={() => setTab("admin")}
+            onTeam={() => setTab("outils")}
+          />
+        ) : isMobile ? (
           <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v271" />
+            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v273" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
