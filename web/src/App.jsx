@@ -35,6 +35,7 @@ import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import MobileHome from "./components/MobileHome.jsx";
 import { isStandalone } from "./pwa.js";
+import { PILOT_DATA_URI } from "./pilot.js";
 import Meetings from "./components/Meetings.jsx";
 import CRA from "./components/CRA.jsx";
 
@@ -598,7 +599,7 @@ export default function App() {
   const diag = data?.diagnostic;
   // Mode PWA installé : on bascule l'accueil sur l'écran natif MobileHome.
   const pwaHome = useMemo(() => { try { return isStandalone(); } catch { return false; } }, []);
-  const pwaAccueil = pwaHome && tab === "cockpit" && sub === "accueil";
+  const pwaAccueil = (pwaHome || isMobile) && tab === "cockpit" && sub === "accueil";
   const mhWarning = (diag && diag.projetsSansTicket?.length > 0)
     ? `Import : ${diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé : ${diag.projetsSansTicket.join(", ")} — vérifie la clé du projet et tes droits d'accès dans Jira.`
     : "";
@@ -700,9 +701,9 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        pwaHome ? (
+        (pwaHome || isMobile) ? (
           <MobileHome
-            build="stable-v273"
+            build="stable-v274"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -712,18 +713,20 @@ export default function App() {
             notif={notifs?.length || 0}
             alertCount={notifs?.length || 0}
             warningText={mhWarning}
+            avatarUri={PILOT_DATA_URI}
             onSearch={() => setQuickOpen(true)}
+            onAvatar={() => window.dispatchEvent(new CustomEvent("cpwire-pilot"))}
+            onBell={() => window.dispatchEvent(new CustomEvent("cpwire-pilot"))}
+            onRadar={() => window.dispatchEvent(new CustomEvent("cpwire-pilot-ask", { detail: { prompt: "Qu'est-ce qui est bloqué en ce moment sur le portefeuille ?" } }))}
+            onAlerts={() => window.dispatchEvent(new CustomEvent("cpwire-pilot-ask", { detail: { prompt: "Quelles sont les alertes du jour : tickets en retard ou en attente ?" } }))}
+            onTeam={() => { setTab("outils"); setTimeout(() => setSub("devs"), 0); }}
             onRefresh={() => load(true)}
             onSync={() => load(true, true)}
             onCR={() => setDailyCrOpen(true)}
             onImport={() => setImportOpen(true)}
             onMemo={() => setImportOpen(true)}
             onAdmin={() => setTab("admin")}
-            onTeam={() => setTab("outils")}
           />
-        ) : isMobile ? (
-          <MissionControl facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={open360} onOpen360={open360} can360={can360}
-            onTicket={setTicket} importedTotal={data?.kpis?.total} build="stable-v273" />
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
