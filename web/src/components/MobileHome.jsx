@@ -48,7 +48,7 @@ export default function MobileHome({
         <button className="search" onClick={onSearch} aria-label="Rechercher" style={{ width: "100%", textAlign: "left", cursor: "pointer" }}>
           <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="m21 21-4.3-4.3" /></svg>
           <span style={{ flex: 1, color: "#737e96", fontSize: 15 }}>Rechercher un ticket, une personne, un projet…</span>
-          <svg className="sliders" viewBox="0 0 24 24" fill="none" stroke="#8a93a8" strokeWidth="1.8"><path d="M4 6h16M4 12h16M4 18h16" /><circle cx="9" cy="6" r="2" fill="#0e1428" /><circle cx="15" cy="12" r="2" fill="#0e1428" /><circle cx="8" cy="18" r="2" fill="#0e1428" /></svg>
+          <span className="mh-kbd">⌘K</span>
         </button>
 
         {/* QUICK ACTIONS */}
@@ -91,8 +91,8 @@ export default function MobileHome({
           </div>
           <div className="ring-wrap">
             <div className="particles" />
-            <div className="ring" style={{ background: `conic-gradient(from 220deg, var(--green), #22d3ee ${Math.round(p * 0.3)}%, var(--violet) ${Math.round(p * 0.8)}%, rgba(255,255,255,.06) ${p}% 100%)` }} />
-            <div className="ring-ctr"><div className="ring-n">{p}%</div><div className="ring-l">Complet</div></div>
+            <div className="ring" style={{ background: `conic-gradient(from 130deg, var(--green), #22d3ee ${Math.round(p * 0.55)}%, var(--green) ${p}%, rgba(255,255,255,.06) ${p}% 100%)` }} />
+            <div className="ring-ctr"><svg className="ring-chk" viewBox="0 0 24 24" fill="none" stroke="#2bd97f" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg></div>
           </div>
           <div className="adv">
             <div className="adv-l">Avancement</div>
@@ -106,7 +106,7 @@ export default function MobileHome({
 
         {/* PENSE-BÊTE */}
         <button className="card memo" onClick={onMemo} style={{ width: "100%", textAlign: "left", cursor: onMemo ? "pointer" : "default" }}>
-          <span className="memo-ic"><svg viewBox="0 0 24 24" fill="none" stroke="#2bd97f" strokeWidth="1.6"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-4 10c1 1 1 2 1 3h6c0-1 0-2 1-3a6 6 0 0 0-4-10z" /></svg></span>
+          <span className="memo-ic pin"><svg viewBox="0 0 24 24" fill="#ff5c6a"><path d="M9 2h6l-1 2v5l3 3v2h-5v6l-1 2-1-2v-6H4v-2l3-3V4z" /></svg></span>
           <span className="memo-tx"><b>Pense-bête :</b> importer la situation actuelle du SharePoint</span>
           <span className="memo-plus">+</span>
           <span className="memo-tx">les fichiers Excel des projets en cours</span>
@@ -116,12 +116,12 @@ export default function MobileHome({
         {/* DUO */}
         <div className="duo">
           <button className="card act" onClick={onCR} style={{ textAlign: "left", cursor: "pointer" }}>
-            <span className="act-ic violet"><svg viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" strokeWidth="1.8"><rect x="6" y="4" width="12" height="17" rx="2" /><path d="M9 4V3h6v1M9 10h6M9 14h4" /></svg></span>
+            <span className="act-ic box"><svg viewBox="0 0 24 24" fill="none" stroke="#d9943f" strokeWidth="1.7" strokeLinejoin="round"><path d="M3 7l9-4 9 4-9 4-9-4zM3 7v10l9 4 9-4V7M12 11v10" /></svg></span>
             <span className="act-tx"><span className="act-t">CR du jour</span><span className="act-s">Voir les comptes rendus</span></span>
             <span className="act-arrow">→</span>
           </button>
           <button className="card act" onClick={onImport} style={{ textAlign: "left", cursor: "pointer" }}>
-            <span className="act-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="#4a90e2" strokeWidth="1.8"><path d="M7 18a4 4 0 0 1 0-8 6 6 0 0 1 11-2 4 4 0 0 1 1 8M12 12v7M9 15l3-3 3 3" /></svg></span>
+            <span className="act-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="#4a90e2" strokeWidth="1.7" strokeLinejoin="round"><path d="M3 9l9 6 9-6M3 9v9a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9l-2-4H5z" /><path d="M12 2v5M9.5 5l2.5 2.5L14.5 5" stroke="#ff5c6a" /></svg></span>
             <span className="act-tx"><span className="act-t">Import sources</span><span className="act-s">Intégrer de nouvelles données</span></span>
             <span className="act-arrow">→</span>
           </button>
@@ -129,7 +129,7 @@ export default function MobileHome({
 
         {/* ADMIN */}
         <button className="card full" onClick={onAdmin} style={{ width: "100%", textAlign: "left", cursor: "pointer" }}>
-          <span className="act-ic teal"><svg viewBox="0 0 24 24" fill="none" stroke="#2bd97f" strokeWidth="1.8"><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.4" /><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 18c0-2 2-3.5 4-3.5s2.5 1 2.5 3.5" /></svg></span>
+          <span className="act-ic blue"><svg viewBox="0 0 24 24" fill="none" stroke="#4a90e2" strokeWidth="1.8"><circle cx="9" cy="8" r="3" /><circle cx="17" cy="9" r="2.4" /><path d="M3 19c0-3 3-5 6-5s6 2 6 5M15 18c0-2 2-3.5 4-3.5s2.5 1 2.5 3.5" /></svg></span>
           <span className="act-tx"><span className="act-t">Admin &amp; accès</span><span className="act-s">Gérer les utilisateurs et les droits</span></span>
           <span className="act-arrow">→</span>
         </button>

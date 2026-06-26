@@ -34,8 +34,10 @@ import EnCours from "./components/EnCours.jsx";
 import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import MobileHome from "./components/MobileHome.jsx";
+import MobileRecap from "./components/MobileRecap.jsx";
 import { isStandalone } from "./pwa.js";
 import { PILOT_DATA_URI } from "./pilot.js";
+import { computeBlockers } from "./blockers.js";
 import Meetings from "./components/Meetings.jsx";
 import CRA from "./components/CRA.jsx";
 
@@ -604,6 +606,12 @@ export default function App() {
     ? `Import : ${diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé : ${diag.projetsSansTicket.join(", ")} — vérifie la clé du projet et tes droits d'accès dans Jira.`
     : "";
   const mhDate = useMemo(() => new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" }), []);
+  // Badge Radar = points bloquants graves issus de Jira (même calcul que le voyant MASTER WARNING).
+  const mhBlockers = useMemo(() => { try { return computeBlockers(issues); } catch { return []; } }, [issues]);
+  const mhRadar = useMemo(() => {
+    const crit = mhBlockers.filter((b) => b && b.severity === "critique").length;
+    return crit || mhBlockers.length;
+  }, [mhBlockers]);
 
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
@@ -703,7 +711,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         (pwaHome || isMobile) ? (
           <MobileHome
-            build="stable-v274"
+            build="stable-v278"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -712,6 +720,7 @@ export default function App() {
             dateLabel={mhDate}
             notif={notifs?.length || 0}
             alertCount={notifs?.length || 0}
+            radarCount={mhRadar}
             warningText={mhWarning}
             avatarUri={PILOT_DATA_URI}
             onSearch={() => setQuickOpen(true)}
@@ -769,7 +778,10 @@ export default function App() {
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         </>
       )}
-      {tab === "outils" && sub === "morning" && <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
+      {tab === "outils" && sub === "morning" && (isMobile
+        ? <MobileRecap issues={issues} syncedAt={data?.syncedAt || data?.generatedAt} onTicket={setTicket} onBack={() => { setTab("cockpit"); setSub("accueil"); }} />
+        : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
+      )}
       {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
