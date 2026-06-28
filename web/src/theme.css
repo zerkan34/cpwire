@@ -3665,6 +3665,58 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .mh .memo-ic.pin{border:0;background:none;width:46px;height:46px}
 .mh .memo-ic.pin svg{width:34px;height:34px}
 
+/* ===================== MOBILE HOME — passe « ultra pro » (v282) =====================
+   100% scopé .mh (n'existe que sur mobile/PWA → desktop strictement intouché).
+   Apports : échelle d'élévation (profondeur), correction libellés titre/sous-titre
+   (stop texte collé + stop débordement .duo), feedback tactile :active, focus a11y. */
+.mh{
+  --elev-1:0 2px 6px -2px rgba(0,0,0,.45);
+  --elev-2:0 10px 24px -12px rgba(0,0,0,.6);
+  --elev-3:0 18px 40px -18px rgba(0,0,0,.65);
+  --hair:inset 0 1px 0 rgba(255,255,255,.05);
+}
+
+/* 1) CORRECTION CRITIQUE — titre + sous-titre empilés et tronqués proprement.
+   Avant : act-t/act-s en <span> inline → texte collé (« CR du jourVoir… ») et
+   cartes .duo qui débordaient (439px). */
+.mh .act-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mh .act-t{display:block;min-width:0;line-height:1.2}
+.mh .act-s{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.mh .duo .act{flex:1 1 0;min-width:0;gap:11px;padding:15px 14px;align-items:center}
+.mh .duo .act .act-ic{width:42px;height:42px}
+.mh .duo .act .act-arrow{display:none}   /* tuile compacte : carte entièrement tappable, flèche superflue */
+.mh .full .act-tx{min-width:0}
+
+/* 2) PROFONDEUR — cartes décollées du fond #080a16 (dimensional layering, 4 niveaux) */
+.mh .card,.mh .memo,.mh .duo .act,.mh .full{box-shadow:var(--elev-2),var(--hair)}
+.mh .qa-t{box-shadow:var(--elev-1),var(--hair)}
+.mh .warn{box-shadow:var(--elev-2)}
+.mh .jungle{box-shadow:var(--elev-3)}
+.mh .mem{box-shadow:var(--elev-1)}
+
+/* 3) FEEDBACK TACTILE — pressed state + suppression du délai de tap 300ms */
+.mh button,.mh .card,.mh .search,.mh .qa-t{touch-action:manipulation;cursor:pointer;
+  transition:transform .12s ease,box-shadow .12s ease,background .12s ease,border-color .12s ease}
+.mh .card:active,.mh .qa-t:active,.mh .search:active,.mh .warn:active{transform:scale(.985)}
+.mh .ava:active,.mh .bell:active{transform:scale(.92)}
+.mh .build{transition:transform .12s ease}
+
+/* 4) ACCESSIBILITÉ — anneau de focus visible (ne jamais supprimer le focus clavier) */
+.mh button:focus-visible,.mh .search:focus-visible{outline:2px solid var(--orange);outline-offset:3px;border-radius:16px}
+
+/* 5) RYTHME VERTICAL homogène entre les blocs */
+.mh .prog{margin-bottom:16px}
+.mh .mem{margin:2px 0 14px}
+.mh .warn{margin:2px 0 14px}
+.mh .duo{margin-bottom:14px}
+
+/* 6) MICRO-ALIGNEMENTS — chevrons/flèches centrés verticalement, build pill net */
+.mh .act-arrow{align-self:center}
+.mh .warn-ch{align-self:center}
+.mh .build{box-shadow:0 6px 16px -6px rgba(255,140,26,.6)}
+/* contraste placeholder recherche légèrement relevé */
+.mh .search input::placeholder{color:#7d879e}
+
 
 /* ===================== MOBILE RECAP (v277) — page Récap mobile, scopé .mr ===================== */
 .mr{--bg:#080a16;--card:#0e1428;--card2:#121a33;--line:rgba(255,255,255,.07);--orange:#ff8c1a;--violet:#6d5df6;--violet2:#8b5cf6;--green:#2bd97f;--blue:#4a90e2;--red:#ff5c6a;--t1:#fff;--t2:#9aa6c0;--t3:#6b748f;
