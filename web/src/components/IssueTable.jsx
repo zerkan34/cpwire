@@ -35,6 +35,9 @@ const COLS = [
 export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys }) {
   const [sortKey, setSortKey] = useState(null);   // null = tri "intelligent" par défaut
   const [sortDir, setSortDir] = useState("asc");
+  // Pagination : en PWA/mobile on plafonne le rendu (sinon ~4759 cartes figent l'app) ; desktop inchangé.
+  const isMobile = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width:768px)").matches;
+  const [visible, setVisible] = useState(isMobile ? 40 : 100000);
 
   if (loading && !rows.length) return <div className="empty">Chargement des tickets…</div>;
   if (!rows.length) return <div className="empty">Aucun ticket pour ce filtre. Rien à traiter ici.</div>;
@@ -72,6 +75,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
   };
 
   return (
+    <>
     <table>
       <thead>
         <tr>
@@ -83,7 +87,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
         </tr>
       </thead>
       <tbody>
-        {sorted.map((r) => {
+        {sorted.slice(0, visible).map((r) => {
           const cls = [r.mine ? "mine" : "", r.flagged ? "has-flag" : "", changedKeys && changedKeys.has(r.cle) ? "row-changed" : ""].filter(Boolean).join(" ");
           return (
             <tr key={r.cle} className={cls} onClick={() => onTicket && onTicket(r)} style={{ cursor: "pointer" }}>
@@ -108,5 +112,14 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
         })}
       </tbody>
     </table>
+    {sorted.length > visible && (
+      <div className="tbl-more">
+        <button className="btn-line tbl-more-btn" onClick={() => setVisible((v) => v + 60)}>
+          Afficher plus de tickets
+          <span className="tbl-more-cnt">{Math.min(visible, sorted.length)} / {sorted.length}</span>
+        </button>
+      </div>
+    )}
+    </>
   );
 }

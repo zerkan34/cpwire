@@ -4189,3 +4189,147 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .page-anim input:focus, .page-anim select:focus, .page-anim textarea:focus, .page-anim .fselect:focus{
     border-color: rgba(255,140,26,.55) !important; outline:none; }
 }
+
+/* ===================== PASSE v293 — Tickets PWA : pagination (anti-freeze) + anti-débordement des cartes — mobile only =====================
+   1) La table rendait ~4759 lignes = autant de cartes en mobile → l'app gelait. Pagination ajoutée (JSX) + bouton ci-dessous.
+   2) Longs résumés / prog-chips / contributeurs pouvaient sortir de la carte → on borne et on coupe proprement. */
+@media (max-width:768px){
+  /* bouton « afficher plus » */
+  .tbl-more{ display:flex; justify-content:center; padding:14px 0 4px; }
+  .tbl-more-btn{ display:inline-flex; align-items:center; gap:10px; padding:11px 18px; border-radius:14px;
+    background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink); font-weight:700; font-size:13.5px; }
+  .tbl-more-cnt{ font-size:11.5px; font-weight:600; color:#8b93ad; background:rgba(255,255,255,.06); border-radius:99px; padding:2px 9px; }
+
+  /* anti-débordement des cartes de la liste tickets */
+  .cockpit-bd > table > tbody > tr{ overflow:hidden; max-width:100%; }
+  .cockpit-bd > table > tbody > tr > td{ min-width:0; max-width:100%; }
+  .cockpit-bd td[data-label="Résumé"]{ overflow-wrap:anywhere; word-break:break-word; }
+  .cockpit-bd td[data-label="Sur le ticket"]{ overflow-wrap:anywhere; word-break:break-word; }
+  .cockpit-bd .prog-chip{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:bottom; }
+  .cockpit-bd .k, .cockpit-bd .tag, .cockpit-bd .pill{ max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+}
+
+/* ===================== PASSE v294 — élévation PWA : en-têtes de sections unifiés (fini dégradé violet + liseré doré) — mobile only =====================
+   recap-hd / filter-box-hd / meet-hd / cra-card-h / cli-h / enc-hd gardaient l'ancien style (dégradé + doré). On les passe en
+   bandeau sombre subtil + texte clair + fine ligne neutre → langage cohérent avec le header aplati sur TOUTE l'app. */
+@media (max-width:768px){
+  .recap-hd, .filter-box-hd, .meet-hd, .cra-card-h, .cli-h, .enc-hd{
+    background: rgba(255,255,255,.05) !important;
+    color: #eef1f8 !important;
+    box-shadow: inset 0 -1px 0 rgba(255,255,255,.08) !important;   /* fine ligne neutre, plus de doré */
+  }
+  /* enfants lisibles sur le nouveau fond sombre */
+  .recap-hd .recap-hd-name{ color:#fff; }
+  .recap-hd .recap-hd-meta{ color:#9aa6c0; }
+  .filter-box-hd .filter-reset{ color:#cfd6e6; }
+}
+
+/* v294b — .prep-edit-h (Réunions) était resté en thème clair (lavande + texte indigo) → illisible sur sombre */
+@media (max-width:768px){
+  .prep-edit-h{ background:rgba(255,255,255,.05) !important; border:1px solid var(--line) !important; color:#eef1f8 !important; border-radius:14px; }
+  .prep-edit-h::before{ color:var(--orange) !important; }
+}
+
+/* ===================== PASSE v295 — REFONTE carte ticket (premium) — mobile only =====================
+   La carte était fade (résumé centré, méta en étiquette/valeur, zéro profondeur). On la refait : hiérarchie claire
+   (clé+statut / titre / badges / bandeau méta fluide / contributeurs), profondeur subtile, accent orange maîtrisé. */
+@media (max-width:768px){
+  .cockpit-bd > table > tbody > tr{
+    background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.02)) , var(--card) !important;
+    border: 1px solid rgba(255,255,255,.09) !important;
+    border-radius: 18px !important;
+    padding: 14px 16px !important;
+    margin: 0 0 12px !important;
+    box-shadow: 0 6px 20px -10px rgba(0,0,0,.55) !important;
+    column-gap: 8px !important; row-gap: 7px !important;
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+  }
+  .cockpit-bd > table > tbody > tr:active{ transform: translateY(1px); box-shadow: 0 3px 12px -8px rgba(0,0,0,.5) !important; }
+  .cockpit-bd > table > tbody > tr.mine,
+  .cockpit-bd > table > tbody > tr.has-flag{ box-shadow: inset 3px 0 0 var(--orange), 0 6px 20px -10px rgba(0,0,0,.55) !important; border-color: rgba(251,122,40,.35) !important; }
+
+  /* on masque tous les libellés ::before : la carte se lit d'elle-même */
+  .cockpit-bd > table > tbody > tr > td::before{ display:none !important; }
+
+  /* Ligne 1 — Clé (mono orange) + Statut (pill, droite) */
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"]{ order:1; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"] .k{
+    font-family:"JetBrains Mono",monospace; font-size:12px; font-weight:700; letter-spacing:.02em; color:var(--orange) !important; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Statut"]{ order:2; margin-left:auto; }
+
+  /* Ligne 2 — Titre : pleine largeur, ALIGNÉ À GAUCHE, lisible */
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]{
+    order:3; flex:1 1 100% !important; display:block !important; text-align:left !important;
+    font-size:14.5px; font-weight:600; line-height:1.42; color:#eef1f8 !important; margin:4px 0 2px !important; }
+  .cockpit-bd .me-badge, .cockpit-bd .chg-badge{
+    display:inline-block; font-size:9px; font-weight:800; letter-spacing:.04em; text-transform:uppercase;
+    padding:2px 6px; border-radius:6px; margin:0 0 0 6px; vertical-align:middle; }
+  .cockpit-bd .me-badge{ background:rgba(251,122,40,.16); color:#ffb27a; }
+  .cockpit-bd .chg-badge{ background:rgba(109,93,246,.18); color:#b9aeffff; }
+  .cockpit-bd .prog-chip{
+    display:inline-flex; align-items:center; margin-top:7px; max-width:100%;
+    font-family:"JetBrains Mono",monospace; font-size:10.5px; color:#9aa6c0;
+    background:rgba(255,255,255,.05); border:1px solid var(--line); border-radius:8px; padding:3px 8px;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+  /* Ligne 3 — bandeau méta fluide : Dossier · Priorité · Échéance (muet, séparé par des points) */
+  .cockpit-bd > table > tbody > tr > td[data-label="Dossier"]{ order:4; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Priorité"]{ order:5; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Échéance"]{ order:6; margin-left:auto; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Priorité"] .prio-cell{ font-size:12px; color:#9aa6c0; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Échéance"]{ font-size:12px; color:#9aa6c0; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Échéance"] .late{ color:#ff6b6b; font-weight:700; }
+
+  /* Ligne 4 — contributeurs : pleine largeur, discret */
+  .cockpit-bd > table > tbody > tr > td[data-label="Sur le ticket"]{
+    order:7; flex:1 1 100% !important; flex-wrap:wrap; justify-content:flex-start; text-align:left; font-size:12px; color:#8b93ad;
+    margin-top:2px; padding-top:8px !important; border-top:1px solid rgba(255,255,255,.06) !important; }
+  .cockpit-bd .assignee-link{ color:#aab3c9; }
+}
+
+/* v295b — carte ticket : placement GRID déterministe (l'order flex était trop fragile) */
+@media (max-width:768px){
+  .cockpit-bd > table > tbody > tr{
+    display:grid !important; grid-template-columns:auto auto 1fr auto !important;
+    align-items:center; column-gap:8px !important; row-gap:7px !important; }
+  .cockpit-bd > table > tbody > tr > td{ width:auto !important; margin:0 !important; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Clé"]{ grid-row:1; grid-column:1; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Statut"]{ grid-row:1; grid-column:4; justify-self:end; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Résumé"]{ grid-row:2; grid-column:1 / -1; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Dossier"]{ grid-row:3; grid-column:1; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Priorité"]{ grid-row:3; grid-column:2 / 4; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Échéance"]{ grid-row:3; grid-column:4; justify-self:end; }
+  .cockpit-bd > table > tbody > tr > td[data-label="Sur le ticket"]{ grid-row:4; grid-column:1 / -1; }
+}
+
+/* ===================== PASSE v296 — pills de statut sémantiques sombres (app-wide PWA) — mobile only =====================
+   Les pills tournaient avec les fonds pastel du thème jour (délavés sur sombre). Jeu sombre + point coloré sémantique :
+   vert=terminé, bleu=en cours, ambre=recette/à faire, rouge=bloqué. Présent partout (Tickets, Récap, recherche, modales). */
+@media (max-width:768px){
+  .pill{ background:rgba(255,255,255,.07); color:#cfd6e6; border:1px solid transparent; font-weight:700; }
+  .pill::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:.95; flex:0 0 auto; }
+  .pill.done { background:rgba(43,217,127,.14); color:#54e0a0; }
+  .pill.prog { background:rgba(74,144,226,.16); color:#7cb7ff; }
+  .pill.todo { background:rgba(245,166,35,.16); color:#ffc06a; }
+  .pill.rec  { background:rgba(245,166,35,.16); color:#ffc06a; }
+  .pill.block{ background:rgba(255,92,106,.16); color:#ff8a93; }
+}
+
+/* v296b — tags dossier neutres : on réserve la couleur au SENS (statut/priorité/retard), les tags restent sobres */
+@media (max-width:768px){
+  .cockpit-bd .tag{ background:rgba(255,255,255,.06); border:1px solid var(--line); color:#aab3c9; font-weight:700;
+    font-size:10.5px; letter-spacing:.03em; padding:3px 9px; border-radius:7px; }
+}
+
+/* ===================== PASSE v297 — audit toutes pages : corrections Hygiène + Développeurs — mobile only ===================== */
+@media (max-width:768px){
+  /* Hygiène — PageHero avec recherche : empiler (eyebrow / titre / recherche) au lieu de côte à côte */
+  .page-hero.hero-with-search{ display:block !important; }
+  .page-hero.hero-with-search .page-hero-k{ display:block; }
+  .page-hero.hero-with-search .ph-main{ flex:none !important; min-width:0; }
+  .page-search.on-hero{ max-width:none; margin-top:10px; }
+  /* Hygiène — titre de section lisible (était indigo foncé sur sombre) */
+  .sla-h{ color:#eef1f8 !important; }
+  /* Développeurs — pills de comptage (nombres) : pas de point, la couleur suffit */
+  .dev-counts .pill::before{ display:none !important; }
+}
