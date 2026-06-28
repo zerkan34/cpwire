@@ -36,7 +36,6 @@ import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import MobileHome from "./components/MobileHome.jsx";
 import MobileRecap from "./components/MobileRecap.jsx";
-import { isStandalone } from "./pwa.js";
 import { PILOT_DATA_URI } from "./pilot.js";
 import { computeBlockers } from "./blockers.js";
 import Meetings from "./components/Meetings.jsx";
@@ -603,9 +602,9 @@ export default function App() {
   }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
 
   const diag = data?.diagnostic;
-  // Mode PWA installé : on bascule l'accueil sur l'écran natif MobileHome.
-  const pwaHome = useMemo(() => { try { return isStandalone(); } catch { return false; } }, []);
-  const pwaAccueil = (pwaHome || isMobile) && tab === "cockpit" && sub === "accueil";
+  // L'accueil bascule sur l'écran natif MobileHome UNIQUEMENT sur petit écran (largeur),
+  // jamais à cause du mode PWA installé : sur ordinateur (plein écran), Pilotage = dashboard desktop comme les autres pages.
+  const pwaAccueil = isMobile && tab === "cockpit" && sub === "accueil";
   const mhWarning = (diag && diag.projetsSansTicket?.length > 0)
     ? `Import : ${diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé : ${diag.projetsSansTicket.join(", ")} — vérifie la clé du projet et tes droits d'accès dans Jira.`
     : "";
@@ -713,9 +712,9 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       {tab === "cockpit" && sub === "accueil" && (
-        (pwaHome || isMobile) ? (
+        isMobile ? (
           <MobileHome
-            build="stable-v302"
+            build="stable-v303"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
