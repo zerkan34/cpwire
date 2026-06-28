@@ -39,7 +39,18 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
   const isMobile = typeof window !== "undefined" && window.matchMedia && window.matchMedia("(max-width:768px)").matches;
   const [visible, setVisible] = useState(isMobile ? 40 : 100000);
 
-  if (loading && !rows.length) return <div className="empty">Chargement des tickets…</div>;
+  if (loading && !rows.length) return isMobile ? (
+    <div className="skel-wrap" aria-busy="true" aria-label="Chargement des tickets">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div className="skel-card" key={i}>
+          <div className="skel-row"><span className="skel skel-line sm" style={{ width: 66 }} /><span className="skel skel-line sm skel-spacer" style={{ width: 72 }} /></div>
+          <div className="skel skel-line lg" style={{ width: "94%", margin: "11px 0 6px" }} />
+          <div className="skel skel-line lg" style={{ width: "68%", marginBottom: 12 }} />
+          <div className="skel-row"><span className="skel skel-line" style={{ width: 46 }} /><span className="skel skel-line" style={{ width: 72 }} /><span className="skel skel-line skel-spacer" style={{ width: 88 }} /></div>
+        </div>
+      ))}
+    </div>
+  ) : <div className="empty">Chargement des tickets…</div>;
   if (!rows.length) return <div className="empty">Aucun ticket pour ce filtre. Rien à traiter ici.</div>;
 
   const clickHeader = (key) => {

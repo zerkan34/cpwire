@@ -4323,13 +4323,98 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===================== PASSE v297 — audit toutes pages : corrections Hygiène + Développeurs — mobile only ===================== */
 @media (max-width:768px){
-  /* Hygiène — PageHero avec recherche : empiler (eyebrow / titre / recherche) au lieu de côte à côte */
-  .page-hero.hero-with-search{ display:block !important; }
-  .page-hero.hero-with-search .page-hero-k{ display:block; }
-  .page-hero.hero-with-search .ph-main{ flex:none !important; min-width:0; }
+  /* PageHero/Recette/Réunions « avec recherche » : empiler (eyebrow / titre / recherche) — TOUTES variantes */
+  .hero-with-search{ display:block !important; }
+  .hero-with-search .page-hero-k, .hero-with-search .rec-hero-k, .hero-with-search .meet-hero-k, .hero-with-search .pf-hero-k{ display:block; }
+  .hero-with-search .ph-main{ flex:none !important; min-width:0; }
   .page-search.on-hero{ max-width:none; margin-top:10px; }
   /* Hygiène — titre de section lisible (était indigo foncé sur sombre) */
   .sla-h{ color:#eef1f8 !important; }
   /* Développeurs — pills de comptage (nombres) : pas de point, la couleur suffit */
   .dev-counts .pill::before{ display:none !important; }
+}
+
+/* ===================== PASSE v298 — derniers *-hero alignés + recherche sur hero + segment Documents — mobile only =====================
+   .rec-hero / .meet-hero / .pf-hero gardaient l'ancien style (dégradé + pointillés + liseré doré) : v291 ne couvrait que .page-hero.
+   On les met à plat comme .page-hero, on rend la recherche sur hero sombre, et on harmonise le segment Aperçu/Édition de Documents. */
+@media (max-width:768px){
+  .rec-hero, .meet-hero, .pf-hero{
+    background:none !important; box-shadow:none !important; border:0 !important;
+    padding:4px 2px 2px !important; margin-bottom:16px !important; border-radius:0 !important; }
+  .rec-hero::before, .rec-hero::after, .meet-hero::before, .meet-hero::after, .pf-hero::before, .pf-hero::after{ display:none !important; }
+  .rec-hero-k, .meet-hero-k, .pf-hero-k{ color:var(--orange) !important; }
+  .rec-hero h2, .meet-hero h2, .pf-hero h2{ font-size:22px !important; color:#fff; }
+
+  /* recherche posée sur un hero : carte sombre cohérente */
+  .page-search{ background:rgba(255,255,255,.05) !important; border:1px solid var(--line) !important; border-radius:14px; }
+  .page-search input{ color:var(--ink) !important; }
+  .page-search input::placeholder{ color:#8b93ad !important; }
+  .page-search .ps-ic{ color:#8b93ad; }
+  .page-search .ps-x{ background:rgba(255,255,255,.08); color:#cfd6e6; }
+
+  /* Documents — segment Aperçu / Édition (plus de bouton blanc) */
+  .sp-seg .fbtn{ background:rgba(255,255,255,.06) !important; border:1px solid var(--line) !important; color:#cfd6e6 !important; }
+  .sp-seg .fbtn.active{ background:rgba(255,140,26,.16) !important; border-color:rgba(255,140,26,.4) !important; color:#ffb27a !important; }
+}
+
+/* ===================== PASSE v299 — micro-interactions cohérentes (retour au tap + focus accessible) — mobile only =====================
+   Chaque surface tactile réagit au doigt (transition douce + léger enfoncement), et un anneau de focus orange assure l'accessibilité
+   clavier. Tout est neutralisé sous prefers-reduced-motion. */
+@media (max-width:768px){
+  .subtab, .fbtn, .dev-row, .hyg-head, .tbl-more-btn, .btn-line, .btn-solid,
+  .sp-crumb, .sp-seg .fbtn, .filter-reset, .rec-drill-x, .hdr-ic, .hdr-pilot{
+    transition: transform .12s ease, filter .12s ease, background .14s ease, border-color .14s ease; }
+  /* chips & petits boutons : léger rétrécissement */
+  .subtab:active, .fbtn:active, .sp-crumb:active, .filter-reset:active, .rec-drill-x:active, .hdr-ic:active, .hdr-pilot:active{ transform: scale(.95); }
+  /* lignes & gros boutons : enfoncement + lueur */
+  .dev-row:active, .hyg-head:active{ transform: translateY(1px); filter: brightness(1.07); }
+  .btn-solid:active, .btn-line:active, .tbl-more-btn:active{ transform: translateY(1px); filter: brightness(.94); }
+  /* focus clavier visible (accessibilité) */
+  .subtab:focus-visible, .fbtn:focus-visible, .btn-line:focus-visible, .btn-solid:focus-visible,
+  .tbl-more-btn:focus-visible, .dev-row:focus-visible, .hyg-head:focus-visible, .sp-crumb:focus-visible,
+  .hdr-ic:focus-visible, .hdr-pilot:focus-visible{ outline:2px solid rgba(255,140,26,.65); outline-offset:2px; }
+}
+@media (prefers-reduced-motion: reduce) and (max-width:768px){
+  .subtab, .fbtn, .dev-row, .hyg-head, .tbl-more-btn, .btn-line, .btn-solid, .sp-crumb, .sp-seg .fbtn, .filter-reset, .rec-drill-x, .hdr-ic, .hdr-pilot{ transition:none; }
+  .subtab:active, .fbtn:active, .sp-crumb:active, .filter-reset:active, .rec-drill-x:active, .hdr-ic:active, .hdr-pilot:active,
+  .dev-row:active, .hyg-head:active, .btn-solid:active, .btn-line:active, .tbl-more-btn:active{ transform:none; filter:none; }
+}
+
+/* ===================== PASSE v300 — durcissement QA : petites tables qui TIENNENT à 360px + momentum scroll garanti ===================== */
+@media (max-width:380px){
+  /* tables de page peu larges : padding/typo serrés pour tenir sans scroll sur petits écrans */
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > tbody > tr > td,
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > thead > tr > th{ padding:8px 8px !important; font-size:12px; }
+}
+@media (max-width:768px){
+  /* tout conteneur volontairement défilant : défilement fluide iOS + pas de barre disgracieuse */
+  .pf-tablewrap, .subtabs, .mr .pds-row .seg, .page-anim .fiche-tbl:not(:has(td[data-label])){
+    -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+  .pf-tablewrap::-webkit-scrollbar, .page-anim .fiche-tbl::-webkit-scrollbar{ display:none; }
+}
+
+/* ===================== PASSE v301 — skeletons de chargement (qualité perçue) — mobile only =====================
+   Pendant le fetch Jira, on affiche des squelettes animés qui préfigurent la vraie carte, au lieu d'un texte « Chargement… ». */
+@media (max-width:768px){
+  .skel{ position:relative; overflow:hidden; background:rgba(255,255,255,.06); border-radius:7px; display:inline-block; }
+  .skel::after{ content:""; position:absolute; inset:0; transform:translateX(-100%);
+    background:linear-gradient(90deg, transparent, rgba(255,255,255,.10), transparent); animation:skel-sh 1.3s infinite; }
+  @keyframes skel-sh{ 100%{ transform:translateX(100%); } }
+  .skel-wrap{ padding:2px 0; }
+  .skel-card{ background:linear-gradient(180deg,rgba(255,255,255,.05),rgba(255,255,255,.02)),var(--card);
+    border:1px solid rgba(255,255,255,.09); border-radius:18px; padding:14px 16px; margin:0 0 12px; }
+  .skel-row{ display:flex; align-items:center; gap:8px; }
+  .skel-line{ height:12px; } .skel-line.sm{ height:10px; } .skel-line.lg{ height:15px; }
+  .skel-spacer{ margin-left:auto; }
+}
+@media (prefers-reduced-motion:reduce) and (max-width:768px){ .skel::after{ animation:none; } }
+
+/* ===================== PASSE v302 — anneau de complétion sur l'en-tête Tickets (inspiré de l'accueil) — mobile only ===================== */
+@media (max-width:768px){
+  .recap-hd.recap-hd-ring{ position:relative; padding-right:78px; min-height:64px; }
+  .tk-ring{ position:absolute; right:14px; top:50%; transform:translateY(-50%); width:54px; height:54px; border-radius:50%;
+    display:grid; place-items:center; filter:drop-shadow(0 0 9px rgba(43,217,127,.40)); }
+  .tk-ring::before{ content:""; position:absolute; inset:5px; border-radius:50%; background:#0c1326; }
+  .tk-ring-c{ position:relative; z-index:1; font-family:Poppins,Inter,sans-serif; font-weight:800; font-size:14px; color:#eafff4; line-height:1; }
+  .tk-ring-c small{ font-size:9px; font-weight:700; color:#9aa6c0; margin-left:1px; }
 }

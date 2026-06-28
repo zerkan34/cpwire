@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
   getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
+import { saveSnapshot, loadSnapshot } from "./snapshot.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
@@ -297,6 +298,7 @@ export default function App() {
       }
       setBootMsg("");
       setData(p); setDossiers(d.dossiers || {});
+      if (p && Array.isArray(p.issues) && p.issues.length) saveSnapshot(p); // cache hors-ligne (fail-safe)
       fetchProjets().then(setProjetsData).catch(() => {});
       if (p && p.importError && !(p.issues && p.issues.length)) setError(`Import impossible : ${p.importError}`);
       if (refresh || full) {
@@ -343,10 +345,12 @@ export default function App() {
           showToast(`✓ Actualisé — aucun changement depuis la dernière synchro.`);
         }
       }
-    } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true); }
+    } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true);
+      try { const snap = await loadSnapshot(); if (snap) setData((cur) => cur || snap); } catch { /* pas de cache */ } }
     finally { setLoading(false); inFlight.current = false; }
   }, [showToast]);
 
+  useEffect(() => { if (authed) loadSnapshot().then((snap) => { if (snap) setData((cur) => cur || snap); }).catch(() => {}); }, [authed]);
   useEffect(() => { if (authed) load(false).then(() => load(true, false, true)).catch(() => {}); }, [authed, load]);
   useEffect(() => { if (authed) fetchDeletedDevs().then((r) => setDeletedDevs(r.deleted || [])).catch(() => {}); }, [authed]);
 
@@ -711,7 +715,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         (pwaHome || isMobile) ? (
           <MobileHome
-            build="stable-v297"
+            build="stable-v302"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -754,9 +758,19 @@ export default function App() {
             <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
           </div>
           <div className="panel cockpit-panel">
-            <div className="recap-hd">
+            <div className="recap-hd recap-hd-ring">
               <span className="recap-hd-name">{cockpitFilterLabel}</span>
               <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
+              {filtered.length > 0 && (() => {
+                const dn = filtered.filter((i) => i.statut === "Terminé").length;
+                const pct = Math.round((dn / filtered.length) * 100);
+                return (
+                  <span className="tk-ring" role="img" aria-label={`${pct}% terminés`}
+                    style={{ background: `conic-gradient(from 130deg, #2bd97f, #22d3ee ${Math.round(pct * 0.55)}%, #2bd97f ${pct}%, rgba(255,255,255,.10) ${pct}% 100%)` }}>
+                    <span className="tk-ring-c">{pct}<small>%</small></span>
+                  </span>
+                );
+              })()}
             </div>
             <div className="cockpit-bd">
             <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
