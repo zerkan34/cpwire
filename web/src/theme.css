@@ -4023,3 +4023,20 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .cra-tbl tr.cra-total{ background:rgba(110,92,196,.12); }
   .cra-tbl .cra-bar{ display:inline-block; }
 }
+
+/* ===================== PASSE v287 — accessibilité : prefers-reduced-motion (PWA mobile) =====================
+   Exigé par la checklist UI (severity High). Neutralise transitions/animations ajoutées (cnav, indicateur d'onglet,
+   états :active) et animations décoratives de l'accueil quand l'OS demande « réduire les animations ».
+   Motif standard : durée ~0 (et non « none ») pour conserver les états finaux sans casser les écouteurs transitionend. */
+@media (prefers-reduced-motion: reduce) and (max-width: 768px){
+  .mh, .mh *, .mr, .mr *,
+  .cockpit-nav, .cockpit-nav *,
+  .qa-back, .qa-sheet, .qa-sheet *{
+    animation-duration: .001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .001ms !important;
+    scroll-behavior: auto !important;
+  }
+  /* l'indicateur de l'onglet actif reste visible, sans apparition animée */
+  .cnav-tab.active::before{ opacity: 1 !important; transform: translateX(-50%) scaleX(1) !important; }
+}
