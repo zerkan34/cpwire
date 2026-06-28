@@ -39,7 +39,7 @@ export default function MobileHome({
             </button>
             <button className="bell" onClick={onBell} aria-label="Notifications">
               <svg viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" /></svg>
-              {notif > 0 ? <span className="badge violet">{notif}</span> : null}
+              {notif > 0 ? <span className="bell-dot" /> : null}
             </button>
           </div>
         </div>
@@ -55,7 +55,7 @@ export default function MobileHome({
         <div className="qa">
           <button className="qa-t radar" onClick={onRadar}>
             {radarCount > 0 ? <span className="qa-b v">{radarCount}</span> : null}
-            <span className="qa-ic"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" fill="none" stroke="#2bd97f" strokeWidth="1.2" opacity=".5" /><circle cx="20" cy="20" r="10" fill="none" stroke="#2bd97f" strokeWidth="1" opacity=".4" /><path d="M20 20 L33 14 A14 14 0 0 1 20 34 Z" fill="#2bd97f" opacity=".18" /><circle cx="26" cy="16" r="1.6" fill="#ff8c1a" /><circle cx="16" cy="25" r="1.4" fill="#ff5c6a" /><circle cx="20" cy="20" r="2" fill="#2bd97f" /></svg></span>
+            <span className="qa-ic"><svg viewBox="0 0 40 40"><defs><radialGradient id="mhrad" cx="50%" cy="50%" r="50%"><stop offset="0" stopColor="#2bd97f" stopOpacity=".4" /><stop offset="1" stopColor="#2bd97f" stopOpacity="0" /></radialGradient></defs><circle cx="20" cy="20" r="17" fill="#07150d" /><circle cx="20" cy="20" r="17" fill="none" stroke="#2bd97f" strokeWidth="1" opacity=".55" /><circle cx="20" cy="20" r="11" fill="none" stroke="#2bd97f" strokeWidth=".8" opacity=".4" /><circle cx="20" cy="20" r="5.5" fill="none" stroke="#2bd97f" strokeWidth=".8" opacity=".4" /><path d="M20 20 L37 13 A18 18 0 0 1 33 31 Z" fill="url(#mhrad)" /><line x1="20" y1="20" x2="37" y2="13" stroke="#2bd97f" strokeWidth="1" /><circle cx="27" cy="15" r="1.8" fill="#ff8c1a" /><circle cx="15" cy="26" r="1.5" fill="#ff5c6a" /><circle cx="24" cy="25" r="1.3" fill="#2bd97f" /><circle cx="20" cy="20" r="2" fill="#2bd97f" /></svg></span>
             <span className="qa-l">Radar</span>
           </button>
           <button className="qa-t" onClick={onTeam}>

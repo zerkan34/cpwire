@@ -3788,3 +3788,53 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   /* — Autres tableaux (Devs, Admin, CRA, Historique…) : défilement horizontal au lieu du rognage — */
   table:not(:has(td[data-label])) { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 }
+
+/* MobileHome — fidélité couleurs maquette PWA (v280) */
+.mh{background:radial-gradient(125% 55% at 50% 0%, rgba(109,93,246,.13), transparent 58%), #070a16}
+.mh .prog{background:linear-gradient(150deg, rgba(123,97,255,.22), rgba(64,50,128,.12) 52%, #14112e 100%);border:1px solid rgba(139,124,246,.28);box-shadow:0 24px 50px -28px rgba(80,60,180,.45), inset 0 1px 0 rgba(255,255,255,.06)}
+.mh .particles{background:
+  radial-gradient(1.6px 1.6px at 20% 30%,rgba(139,124,246,.95),transparent),
+  radial-gradient(1.5px 1.5px at 82% 20%,rgba(34,211,238,.75),transparent),
+  radial-gradient(1px 1px at 60% 82%,rgba(255,255,255,.7),transparent),
+  radial-gradient(1.6px 1.6px at 92% 60%,rgba(139,124,246,.85),transparent),
+  radial-gradient(1px 1px at 14% 76%,rgba(43,217,127,.6),transparent)}
+.mh .jungle{background:transparent;border:0;padding:22px 2px 8px}
+.mh .jungle .leaf{right:-6px;bottom:-8px;opacity:.85}
+.mh .bell-dot{position:absolute;top:9px;right:9px;width:11px;height:11px;border-radius:50%;background:var(--orange);border:2px solid #0e1428}
+.mh .qa-t.radar{background:radial-gradient(circle at 50% 45%, rgba(43,217,127,.16), var(--card) 72%);border-color:rgba(43,217,127,.22)}
+
+/* ============ REFONTE MOBILE PWA (v281) — cohérence "vraie app", anti-débordement ============ */
+/* Cartes duo accueil : libellés sur UNE ligne */
+.mh .duo .act{padding:14px 12px;gap:10px}
+.mh .duo .act-ic{width:40px;height:40px;border-radius:12px}
+.mh .duo .act-ic svg{width:21px;height:21px}
+.mh .duo .act-t{font-size:13px;white-space:nowrap}
+.mh .duo .act-s{font-size:11.5px}
+.mh .duo .act-arrow{font-size:17px}
+
+@media (max-width: 768px) {
+  /* 0) Médias & conteneurs bornés — rien ne dépasse des bords */
+  .panel, .card, .pcard, .cad-kpi, .enc-card, .rec-card, .crash-card { max-width: 100%; }
+  img, canvas, video, iframe { max-width: 100%; height: auto; }
+
+  /* 1) Graphiques bornés à leur carte (jamais coupés par les bords) */
+  .cad-chart { gap: 3px; max-width: 100%; overflow: hidden; padding: 10px 2px 4px; height: 210px; }
+  .cad-bar-wrap { min-width: 0; }
+  .cad-bar-v { font-size: 9px; margin-bottom: 2px; }
+  .cad-bar-x { font-size: 8.5px; writing-mode: vertical-rl; white-space: nowrap; margin-top: 5px; max-height: 46px; }
+  .dev-bar, .dev-bar-fill { min-width: 0; }
+
+  /* 2) Titres dimensionnés — pas de débordement sur 2 lignes */
+  .section-title { font-size: 15.5px; margin: 20px 0 11px; }
+  .crash-card h2 { font-size: 17px; }
+  .recap-hd-name, .dev-hero-name { font-size: 18px; line-height: 1.15; }
+  .recap-hd-meta { font-size: 11px; }
+
+  /* 3) Filtres / contrôles : retour à la ligne propre, jamais coupés */
+  .filters, .toolbar, .controls, .recap-hd, .enc-toolbar, .pf-toolbar { flex-wrap: wrap; gap: 8px; }
+  .recap-hd { align-items: flex-start; }
+
+  /* 4) Champs pleine largeur (pas de minWidth qui dépasse) */
+  input, select, textarea { max-width: 100%; }
+  input[style*="min-width"] { min-width: 0 !important; }
+}
