@@ -244,14 +244,14 @@ export default function CRA({ onTicket }) {
                       return (
                         <tr key={pr.dossier}>
                           <td><b>{pr.dossier}</b></td>
-                          <td className="num">{pr.time}</td>
-                          <td className="num"><span className="cra-bar"><span style={{ width: `${pct}%` }} /></span>{pct}%</td>
-                          <td className="num">{(pr.tickets || []).length}</td>
-                          <td className="num">{done}</td>
+                          <td className="num" data-label="Temps">{pr.time}</td>
+                          <td className="num" data-label="Part"><span className="cra-bar"><span style={{ width: `${pct}%` }} /></span>{pct}%</td>
+                          <td className="num" data-label="Tickets">{(pr.tickets || []).length}</td>
+                          <td className="num" data-label="Terminés">{done}</td>
                         </tr>
                       );
                     })}
-                    <tr className="cra-total"><td><b>Total</b></td><td className="num"><b>{fmtH(totalSec)}</b></td><td className="num">100%</td><td className="num">{realisations.length}</td><td className="num">{nbDone}</td></tr>
+                    <tr className="cra-total"><td><b>Total</b></td><td className="num" data-label="Temps"><b>{fmtH(totalSec)}</b></td><td className="num" data-label="Part">100%</td><td className="num" data-label="Tickets">{realisations.length}</td><td className="num" data-label="Terminés">{nbDone}</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -267,9 +267,9 @@ export default function CRA({ onTicket }) {
                         return (
                           <tr key={p.who}>
                             <td>{p.who}</td>
-                            <td className="num">{p.time}</td>
-                            <td className="num">{pct}%</td>
-                            <td className="cra-proj">{p.projects.map((pr) => <span key={pr.dossier} className="tag">{pr.dossier} · {pr.time}</span>)}</td>
+                            <td className="num" data-label="Temps">{p.time}</td>
+                            <td className="num" data-label="Part">{pct}%</td>
+                            <td className="cra-proj c-res-full" data-label="Projets">{p.projects.map((pr) => <span key={pr.dossier} className="tag">{pr.dossier} · {pr.time}</span>)}</td>
                           </tr>
                         );
                       })}
@@ -286,10 +286,10 @@ export default function CRA({ onTicket }) {
                     {realisations.map((r) => (
                       <tr key={r.cle} className="clk" onClick={() => onTicket && onTicket({ cle: r.cle, resume: r.resume, statut: r.statut, statutJira: r.statutJira, dossier: r.dossier })}>
                         <td><span className="k">{r.cle}</span></td>
-                        <td><span className="tag">{r.dossier}</span></td>
-                        <td>{r.resume}</td>
-                        <td className="num">{fmtH(r.seconds)}</td>
-                        <td><span className={`pill ${pillCls(r.statut)}`}>{r.statutJira || r.statut}</span></td>
+                        <td data-label="Projet"><span className="tag">{r.dossier}</span></td>
+                        <td className="c-res-full">{r.resume}</td>
+                        <td className="num" data-label="Temps">{fmtH(r.seconds)}</td>
+                        <td data-label="Statut"><span className={`pill ${pillCls(r.statut)}`}>{r.statutJira || r.statut}</span></td>
                       </tr>
                     ))}
                   </tbody>

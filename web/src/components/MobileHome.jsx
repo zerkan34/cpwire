@@ -107,9 +107,7 @@ export default function MobileHome({
         {/* PENSE-BÊTE */}
         <button className="card memo" onClick={onMemo} style={{ width: "100%", textAlign: "left", cursor: onMemo ? "pointer" : "default" }}>
           <span className="memo-ic pin"><svg viewBox="0 0 24 24" fill="#ff5c6a"><path d="M9 2h6l-1 2v5l3 3v2h-5v6l-1 2-1-2v-6H4v-2l3-3V4z" /></svg></span>
-          <span className="memo-tx"><b>Pense-bête :</b> importer la situation actuelle du SharePoint</span>
-          <span className="memo-plus">+</span>
-          <span className="memo-tx">les fichiers Excel des projets en cours</span>
+          <span className="memo-tx"><b>Pense-bête :</b> importer la situation actuelle du SharePoint <b>+</b> les fichiers Excel des projets en cours</span>
           <svg className="memo-xls" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" fill="#1d3d2f" /><path d="M14 2v6h6" fill="#2bd97f" opacity=".5" /><text x="12" y="17" fontSize="7" fill="#2bd97f" textAnchor="middle" fontFamily="Arial" fontWeight="bold">X</text></svg>
         </button>
 

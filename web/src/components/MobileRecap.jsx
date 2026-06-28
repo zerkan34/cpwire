@@ -64,7 +64,9 @@ export default function MobileRecap({ issues = [], onTicket, onBack, syncedAt, h
   const updTxt = useMemo(() => (syncedAt ? new Date(syncedAt).toLocaleTimeString("fr-FR") : ""), [syncedAt]);
 
   const scopeSegs = multi ? ["all", ...prefixes] : [];
-  const segLabel = (s) => (s === "all" ? prefixes.join(" + ") : s);
+  // Libellé du bouton « tout le périmètre » : le join reste lisible à 2 préfixes (ex. « PTAF + TMT »),
+  // mais devient un pavé qui déborde dès qu'on est sur « Tous dossiers » → on bascule sur « Tous ».
+  const segLabel = (s) => (s === "all" ? (prefixes.length <= 2 ? prefixes.join(" + ") : "Tous") : s);
 
   const KPI = [
     { cls: "k-v", l: "Tickets suivis", n: total, ic: <svg viewBox="0 0 24 24"><rect x="5" y="3" width="14" height="18" rx="2" /><path d="M9 8h6M9 12h6M9 16h4" /></svg>, sp: "0,18 12,14 25,16 38,9 50,13 62,7 75,11 88,6 100,10", col: "#8b5cf6" },
@@ -119,7 +121,7 @@ export default function MobileRecap({ issues = [], onTicket, onBack, syncedAt, h
               ) : null}
             </div>
           </div>
-          <div className="lab">Le point du soir</div>
+          <div className="lab">Périmètre</div>
           <div className="pds-row">
             <div className="seg">
               {multi ? scopeSegs.map((s) => (

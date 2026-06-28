@@ -3890,3 +3890,136 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   input, select, textarea { max-width: 100%; }
   input[style*="min-width"] { min-width: 0 !important; }
 }
+
+/* ===================== PASSE v283 — corrections « problèmes sérieux » (mobile only) =====================
+   Constat captures iPhone : (Récap) scope qui déborde + chiffres KPI cassés + libellés st collés ;
+   (Outils/Suivi projets) pense-bête crème + recherche blanche + vide violet du hero.
+   Tout scopé .mr ou sous @media max-width:768px → desktop strictement intouché. */
+
+/* ---- RÉCAP (.mr) ---- */
+/* a) Libellés statut empilés (titre/sous-titre étaient inline → « Mise en productionDéployé… » + collision avec le nombre) */
+.mr .st-tx{display:flex;flex-direction:column;gap:2px;min-width:0}
+.mr .st-t{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-width:0;line-height:1.2}
+.mr .st-s{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.mr .st-n{flex:none}
+
+/* b) Chiffres KPI : ne cassent plus en deux (« 4 759 » → une ligne, taille auto-ajustée à la carte ~80px) */
+.mr .kpi-n{white-space:nowrap;font-size:clamp(17px,5.1vw,23px);letter-spacing:-.02em}
+
+/* c) Segment périmètre : défile horizontalement, chips à largeur naturelle, plus d'overlap ni de débordement */
+.mr .pds-row{align-items:stretch}
+.mr .pds-row .seg{flex:1;min-width:0;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.mr .pds-row .seg::-webkit-scrollbar{display:none}
+.mr .pds-row .seg-b{flex:0 0 auto;padding:10px 12px}
+.mr .allbtn{flex:none}
+
+/* ---- OUTILS / SUIVI PROJETS (Projets.jsx, composants desktop affichés en mobile) ---- */
+@media (max-width:768px){
+  /* d) Pense-bête : était crème codé en dur + cassé en colonnes (inline-flex). On repeint sombre + texte fluide. */
+  .greet-memo{display:block;max-width:none;width:100%;
+    color:#f1cf94;background:linear-gradient(180deg,rgba(168,136,75,.16),rgba(168,136,75,.06));
+    border-color:rgba(168,136,75,.34);box-shadow:none;line-height:1.45}
+  .greet-memo b{color:#fff}
+
+  /* e) Recherche du hero : fond blanc codé en dur → sombre, texte saisi lisible */
+  .hero-with-search .page-search.on-hero,
+  .pf-hero-aside .page-search.on-hero{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16)}
+  .page-search input{color:#fff}
+  .page-search input::placeholder{color:#8b93ad}
+  .page-search .ps-ic{opacity:.85}
+  .page-search .ps-x{background:rgba(255,255,255,.12);color:#cfd6e6}
+
+  /* f) Hero « Suivi de projets » : le grand vide venait de .ph-main{flex:1 1 320px} qui devient
+     une HAUTEUR de 320px en colonne. On neutralise → le bloc colle au titre. */
+  .pf-hero.hero-with-search{flex-direction:column;align-items:stretch;justify-content:flex-start;gap:14px}
+  .hero-with-search .ph-main{flex:0 0 auto}
+  .pf-hero-aside{flex-direction:column;align-items:stretch;gap:10px}
+}
+
+/* ===================== PASSE v284 — carte progression + pense-bête (mobile only) =====================
+   Constat capture iPhone : .prog-h HÉRITE text-transform:uppercase + letter-spacing de la règle GLOBALE
+   .prog-h (charte desktop, l.1287) qui fuit dans .mh → « SOURCE : JIRA (INCRÉMENTAL · 0 VÉRIFIÉ) » en
+   MAJUSCULES sur 3 lignes, et le pill BUILD venait se poser dessus. Tout scopé .mh → desktop intact. */
+.mh .prog-h{text-transform:none;letter-spacing:0;font-size:15px;font-weight:700;line-height:1.3;color:var(--t1);overflow-wrap:break-word}
+.mh .prog-top{display:block}                          /* le pill sort du flux : ne se bat plus avec le titre */
+.mh .prog-src{max-width:185px;display:flex;gap:10px}  /* texte cantonné à gauche, anneau à droite */
+.mh .prog-src > div{min-width:0;flex:1}               /* le titre wrappe au lieu de filer sous le pill */
+.mh .build{position:absolute;top:16px;right:18px;font-size:11px;font-weight:800;letter-spacing:.01em;
+  padding:6px 11px;box-shadow:0 6px 16px -6px rgba(255,140,26,.6)}   /* au-dessus de l'anneau (top<74) */
+
+/* Pense-bête : un seul bloc fluide (le « + » + 2 spans créaient 3 colonnes illisibles) */
+.mh .memo{align-items:center}
+.mh .memo-tx{font-size:12.5px;line-height:1.45}
+.mh .memo-tx b{color:#fff}
+
+/* ===================== PASSE v285 — barre de navigation flottante (specs : Linear/Arc/Superhuman) — mobile only =====================
+   Réécrit entièrement .cockpit-nav / .cnav-* en dernier (gagne sur les 3 blocs @media précédents). Desktop : .cockpit-nav reste display:none. */
+@media (max-width: 768px){
+  /* conteneur : barre FLOTTANTE à 24px des bords latéraux ; bas = float au-dessus de la safe-area home */
+  .cockpit-nav{ display:block; position:fixed; left:0; right:0; bottom:0; z-index:60; pointer-events:none;
+    padding: 0 24px calc(18px + env(safe-area-inset-bottom)); }
+
+  /* coque : rayon 34px, fond #121528 @90% + blur, ombre douce, sans liseré technique */
+  .cnav-shell{ position:relative; pointer-events:auto; display:flex; align-items:stretch; justify-content:space-between;
+    max-width:520px; margin:0 auto; height:64px; padding:0 8px; box-sizing:border-box;
+    border-radius:34px; border:1px solid rgba(255,255,255,.07);
+    background: rgba(18,21,40,.90);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3); backdrop-filter: blur(16px) saturate(1.3);
+    box-shadow: 0 14px 40px -12px rgba(0,0,0,.6), 0 4px 14px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06); }
+  .cnav-shell::before{ display:none; }
+
+  /* onglets : transition de 200ms au changement */
+  .cnav-tab{ flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    border:0; background:none; color:rgba(255,255,255,.55); font-size:11px; font-weight:700;
+    cursor:pointer; position:relative; -webkit-tap-highlight-color:transparent; touch-action:manipulation;
+    transition: color .2s ease; }
+  .cnav-ic{ width:23px; height:23px; transition: transform .2s ease, filter .2s ease; }
+  .cnav-ic svg{ width:100%; height:100%; }
+  .cnav-tab.active{ color:#ff9a3c; }
+  .cnav-tab.active .cnav-ic{ transform: translateY(-1px); filter: drop-shadow(0 0 7px rgba(255,140,26,.6)); }
+  .cnav-tab.active::after{ display:none; }
+
+  /* petit indicateur lumineux AU-DESSUS de l'onglet actif (animé 200ms) */
+  .cnav-tab::before{ content:""; position:absolute; top:6px; left:50%;
+    width:20px; height:3px; border-radius:99px; background:#ffa033;
+    box-shadow:0 0 12px rgba(255,140,26,1), 0 0 5px rgba(255,180,80,1);
+    opacity:0; transform: translateX(-50%) scaleX(.4);
+    transition: opacity .2s ease, transform .2s ease; }
+  .cnav-tab.active::before{ opacity:1; transform: translateX(-50%) scaleX(1); }
+
+  /* bouton central « + » : 70px, surélevé ~12px, ombre douce + anneau couleur-barre (effet « notch ») */
+  .cnav-plus{ flex:0 0 76px; position:relative; background:none; border:0; cursor:pointer; touch-action:manipulation; }
+  .cnav-plus-in{ position:absolute; left:50%; bottom:6px; transform: translateX(-50%);
+    width:70px; height:70px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+    background: radial-gradient(circle at 50% 34%, #ffb347, #ff7a00 72%);
+    border:2px solid rgba(255,255,255,.18);
+    box-shadow: 0 0 0 6px rgba(18,21,40,.92), 0 12px 26px -6px rgba(255,122,0,.55), 0 10px 22px -4px rgba(0,0,0,.5);
+    transition: transform .2s ease, box-shadow .2s ease; }
+  .cnav-plus-in::before{ display:none; }
+  .cnav-plus-ic{ color:#1a1205; font-size:34px; font-weight:700; line-height:1; margin-top:-2px; }
+  .cnav-plus:active .cnav-plus-in{ transform: translateX(-50%) scale(.93); }
+
+  /* dégagement bas pour ne pas passer sous la barre flottante */
+  .wrap{ padding-bottom: calc(118px + env(safe-area-inset-bottom)); }
+  .mh, .mr{ padding-bottom: calc(124px + env(safe-area-inset-bottom)); }
+  .to-top, .install-fab{ bottom: calc(132px + env(safe-area-inset-bottom)); }
+  .toast{ bottom: calc(140px + env(safe-area-inset-bottom)); }
+}
+
+/* ===================== PASSE v286 — CRA : table de données → carte lisible AVEC libellés (mobile only) =====================
+   .cra-tbl porte aussi .fiche-tbl, dont la conversion mobile (table dense de modale) empilait les cellules SANS entête
+   → « 52h / 37% / 31 / 18 » sans signification. On rétablit des cartes par ligne, chaque valeur préfixée de son libellé. */
+@media (max-width:768px){
+  .cra-tbl > thead{ display:none; }
+  .cra-tbl > tbody > tr{ display:block; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:4px 14px; margin:0 0 10px; box-shadow:var(--shadow); }
+  .cra-tbl > tbody > tr > td{ display:flex !important; justify-content:space-between; align-items:center; gap:14px;
+    padding:9px 0 !important; border:0 !important; border-top:1px solid var(--line-soft) !important; width:auto !important;
+    text-align:right; white-space:normal; }
+  .cra-tbl > tbody > tr > td:first-child{ border-top:0 !important; font-size:15px; font-weight:700; color:var(--ink); justify-content:flex-start; text-align:left; }
+  .cra-tbl > tbody > tr > td[data-label]::before{ content:attr(data-label); font-weight:600; font-size:12px; color:var(--muted); text-align:left; flex:none; }
+  .cra-tbl > tbody > tr > td.c-res-full{ display:block !important; text-align:left; font-weight:600; color:var(--ink); }
+  .cra-tbl > tbody > tr > td.c-res-full::before{ display:block; margin-bottom:4px; }
+  .cra-tbl > tbody > tr > td.cra-proj{ flex-wrap:wrap; }
+  .cra-tbl tr.cra-total{ background:rgba(110,92,196,.12); }
+  .cra-tbl .cra-bar{ display:inline-block; }
+}
