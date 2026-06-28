@@ -4040,3 +4040,46 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   /* l'indicateur de l'onglet actif reste visible, sans apparition animée */
   .cnav-tab.active::before{ opacity: 1 !important; transform: translateX(-50%) scaleX(1) !important; }
 }
+
+/* ===================== PASSE v288 — REFONTE PROPRE accueil PWA : design system cohérent (skill ui-ux-pro-max) — mobile only =====================
+   L'accueil était déjà soigné ; cette passe impose un SYSTÈME : échelle typo modulaire, rythme 4/8, rayons/élévation/motion unifiés,
+   easing ease-out (150-300ms). Aucune modif de logique ni de données. Tout scopé .mh. */
+.mh{
+  /* échelle d'espacement 4/8 */
+  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px; --s6:32px;
+  /* échelle typographique modulaire */
+  --fs-xs:12px; --fs-sm:13px; --fs-base:14px; --fs-md:16px; --fs-lg:18px; --fs-xl:24px;
+  /* rayons */
+  --r-sm:12px; --r-md:16px; --r-lg:20px;
+  /* motion : ease-out, dans la plage 150-300ms */
+  --ease:cubic-bezier(.22,.61,.36,1); --dur:.2s;
+}
+@media (max-width:768px){
+  /* — rythme de sections (tiers 16/24) — */
+  .mh .qa{ margin:0 0 var(--s5); gap:var(--s2); }
+  .mh .prog{ margin-bottom:var(--s5); border-radius:var(--r-lg); }
+  .mh .mem{ margin:0 0 var(--s4); }
+  .mh .memo{ margin-bottom:var(--s3); padding:var(--s4); border-radius:var(--r-lg); }
+  .mh .duo{ margin-bottom:var(--s4); gap:var(--s3); }
+  .mh .full{ margin-bottom:var(--s4); padding:var(--s4); border-radius:var(--r-lg); }
+
+  /* — rayons & cartes unifiés — */
+  .mh .card{ border-radius:var(--r-lg); }
+  .mh .qa-t{ border-radius:var(--r-md); }
+  .mh .act-ic{ border-radius:var(--r-sm); }
+
+  /* — typo calée sur l'échelle (fin des 15.5 / 12.5 / 13.5 arbitraires) — */
+  .mh .prog-h{ font-size:var(--fs-md); }
+  .mh .prog-sub{ font-size:var(--fs-sm); }
+  .mh .act-t{ font-size:var(--fs-md); line-height:1.25; }
+  .mh .act-s{ font-size:var(--fs-sm); }
+  .mh .memo-tx{ font-size:var(--fs-sm); line-height:1.45; }
+  .mh .duo .act-t{ font-size:var(--fs-base); }
+  .mh .duo .act-s{ font-size:var(--fs-xs); }
+
+  /* — motion cohérent ease-out (respecte déjà prefers-reduced-motion v287) — */
+  .mh .card, .mh .qa-t, .mh .search, .mh .warn{
+    transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease); }
+  .mh .act-arrow{ transition: transform var(--dur) var(--ease); }
+  .mh .full:active .act-arrow, .mh .memo:active .act-arrow{ transform: translateX(3px); }
+}
