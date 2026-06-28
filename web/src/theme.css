@@ -4106,3 +4106,69 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .mr .frow{ flex-direction:column; gap:10px; }
   .mr .fcol.period, .mr .fcol.cli{ flex:1 1 auto; width:100%; }
 }
+
+/* ===================== PASSE v290 — header PWA affiné : arrondi, désencombré, contrôles unifiés — mobile only =====================
+   Retour : headers « cafouillis ». On unifie les contrôles (fini orange/jaune/vert disparates), on arrondit, on retire
+   le superflu (BUILD, barre d'avancement, reloadAll redondant, présence), emojis → SVG (faits en JSX). */
+@media (max-width:768px){
+  /* header arrondi en bas + compact */
+  .hdr{ border-radius:0 0 24px 24px; padding: calc(env(safe-area-inset-top) + 12px) 16px 16px; }
+  .hdr::after{ display:none; }                /* liseré doré 3px : accent de l'ancien header, parasite ici */
+  .hdr .hdr-build{ display:none; }            /* pill BUILD : dev clutter */
+  .hdr .progress{ display:none; }             /* barre d'avancement : déjà sur l'accueil */
+  .hdr .eyebrow{ font-size:10px; letter-spacing:.26em; }
+
+  /* doublons / secondaire masqués sur mobile (restent dispo desktop ; actions joignables via accueil) */
+  .hdr-ic.reload-all, .hdr-ic.pres{ display:none; }
+
+  /* disposition : logo + icônes sur la 1re ligne, recherche pleine largeur en dessous */
+  .hdr-top{ display:flex; flex-wrap:wrap; align-items:center; gap:10px 8px; }
+  .hdr-brand{ flex:1 1 auto; min-width:0; order:1; }
+  .hdr-controls{ display:contents; }
+  .hdr-controls > *{ order:2; }
+  .hdr-controls > .hdr-search{ order:3; flex:1 1 100%; }
+
+  /* contrôles UNIFIÉS : même gabarit, même rondeur, même style ghost sombre */
+  .hdr-ic, .hdr .bell-wrap > .btn.bell{
+    width:44px; height:44px; min-width:44px; border-radius:14px;
+    background:rgba(255,255,255,.06); border:1px solid var(--line); color:#d4dbec;
+    display:flex; align-items:center; justify-content:center; padding:0; }
+  .hdr-ic.refresh{ background:rgba(255,255,255,.06); border:1px solid var(--line); }  /* plus d'orange plein */
+  .hdr-ic.refresh svg{ stroke:var(--orange); }                                        /* accent discret */
+  .hdr .bell-wrap > .btn.bell{ font-size:0; }                                          /* (sécurité si glyphe résiduel) */
+  .hdr .bell-wrap > .btn.bell svg{ stroke:#d4dbec; }
+  .hdr-pilot{ width:44px; height:44px; border-radius:50%; }                            /* hôtesse ronde, taille alignée */
+
+  /* badges cohérents (orange = alertes, violet = présence) */
+  .hdr-ic .ic-badge, .hdr .bell-badge{ background:var(--orange); color:#1a1205; border:2px solid var(--bg); }
+
+  /* recherche arrondie et douce */
+  .hdr-search{ border-radius:14px; }
+  .hdr-search input{ border-radius:14px; background:rgba(255,255,255,.05); border:1px solid var(--line); color:var(--ink); height:44px; }
+  .hdr-search .hs-ic{ color:#8b93ad; display:flex; align-items:center; }
+
+  /* titre de page net et lisible */
+  .hdr .hdr-page{ font-size:22px; line-height:1.1; font-weight:800; color:#fff; letter-spacing:0; margin-top:8px; }
+}
+
+/* ===================== PASSE v291 — cohérence PWA sur TOUTE l'app : PageHero + tables de page — mobile only =====================
+   PageHero (CRA, Tickets, Activité, Référence) gardait l'ancien style (pointillés + liseré doré). Tables de page en .fiche-tbl
+   s'empilaient sans libellés (chiffres sans signification). On nettoie le PageHero et on rend les tables de DONNÉES de page
+   lisibles (table compacte défilante, entêtes préservées). Les tables denses de MODALES gardent leur empilement (hors .page-anim). */
+@media (max-width:768px){
+  /* PageHero nettoyé, raccord avec le header aplati */
+  .page-hero::before, .page-hero::after{ display:none; }   /* pointillés + liseré doré */
+  .page-hero-k{ color:var(--orange); }
+  .page-hero h2{ font-size:22px; line-height:1.15; }
+
+  /* Tables de DONNÉES de page (sans data-label) : table compacte défilante avec entêtes,
+     au lieu de l'empilement sans libellés (réservé aux tables denses de modales). */
+  .page-anim .fiche-tbl:not(:has(td[data-label])){ display:block; overflow-x:auto; -webkit-overflow-scrolling:touch; width:100%; }
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > thead{ display:table-header-group; }
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > thead > tr > th{ display:table-cell; white-space:nowrap; padding:9px 12px; }
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > tbody{ display:table-row-group; }
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > tbody > tr{ display:table-row; border:0 !important; padding:0 !important; margin:0 !important; border-radius:0 !important; }
+  .page-anim .fiche-tbl:not(:has(td[data-label])) > tbody > tr > td{
+    display:table-cell; width:auto !important; white-space:nowrap;
+    padding:9px 12px !important; border:0 !important; border-bottom:1px solid var(--line-soft) !important; }
+}
