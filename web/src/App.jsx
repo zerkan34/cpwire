@@ -711,7 +711,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         (pwaHome || isMobile) ? (
           <MobileHome
-            build="stable-v291"
+            build="stable-v292"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}

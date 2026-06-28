@@ -4172,3 +4172,20 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
     display:table-cell; width:auto !important; white-space:nowrap;
     padding:9px 12px !important; border:0 !important; border-bottom:1px solid var(--line-soft) !important; }
 }
+
+/* ===================== PASSE v292 — contrôles de formulaire sombres sur TOUTE l'app PWA — mobile only =====================
+   Réunions/Hygiène/Admin… avaient des selects/inputs/textareas en #fff (rupture du thème sombre). On les passe en sombre,
+   scopé .page-anim (contenu de page) → les formulaires de MODALES gardent leur style. */
+@media (max-width:768px){
+  .page-anim input[type=text], .page-anim input[type=date], .page-anim input[type=email],
+  .page-anim input[type=number], .page-anim input[type=search], .page-anim input:not([type]),
+  .page-anim textarea, .page-anim select, .page-anim .fselect, .page-anim .ta, .page-anim .field input{
+    background: rgba(255,255,255,.05) !important;
+    border: 1px solid var(--line) !important;
+    color: var(--ink) !important;
+  }
+  .page-anim input::placeholder, .page-anim textarea::placeholder{ color:#8b93ad !important; }
+  .page-anim select option{ background:#192036; color:#eef1f8; }
+  .page-anim input:focus, .page-anim select:focus, .page-anim textarea:focus, .page-anim .fselect:focus{
+    border-color: rgba(255,140,26,.55) !important; outline:none; }
+}
