@@ -3766,3 +3766,25 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .mr .mr-tk-res{flex:1;min-width:0;font-size:12.5px;color:#cfd6e6;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .mr .mr-tk-asg{flex:none;font-size:11px;color:var(--t3)}
 .mr .mr-tk-empty{font-size:12.5px;color:var(--t3);padding:8px 6px}
+
+/* ============ PASSE MOBILE PWA (v279) — optimisations layout, scopées mobile (desktop intact) ============ */
+@media (max-width: 768px) {
+  /* — Modales en plein écran, corps défilant, fermeture tactile confortable — */
+  .overlay { padding: 0; }
+  .modal { width: 100%; max-width: 100%; height: 100vh; height: 100dvh; max-height: 100dvh; border-radius: 0; }
+  .modal-bd { flex: 1 1 auto; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+  .modal-hd .x, .modal-hd .modal-back { min-width: 44px; min-height: 44px; display: inline-flex; align-items: center; justify-content: center; }
+
+  /* — Portefeuille (IssueTable) : 1 ligne = 1 carte lisible au pouce — */
+  table:has(td[data-label]) { display: block; border: 0; background: none; }
+  table:has(td[data-label]) thead { display: none; }
+  table:has(td[data-label]) tbody { display: block; }
+  table:has(td[data-label]) tr { display: block; background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 4px 13px; margin-bottom: 10px; }
+  table:has(td[data-label]) td { display: flex; justify-content: space-between; align-items: center; gap: 14px; padding: 9px 0; border: 0; border-top: 1px solid var(--line-soft, var(--line)); text-align: right; white-space: normal; }
+  table:has(td[data-label]) tr td:first-child { border-top: 0; }
+  table:has(td[data-label]) td::before { content: attr(data-label); font-weight: 600; font-size: 12px; color: var(--muted); text-align: left; flex: none; }
+  table:has(td[data-label]) td .k { white-space: normal; word-break: break-word; }
+
+  /* — Autres tableaux (Devs, Admin, CRA, Historique…) : défilement horizontal au lieu du rognage — */
+  table:not(:has(td[data-label])) { display: block; max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+}
