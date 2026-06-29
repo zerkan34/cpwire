@@ -12,7 +12,7 @@ export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A8884E", ink: "#1
 
 // Trame « papier vergé » très subtile (fines vergeures verticales + chaînettes
 // horizontales espacées), mélangée au blanc. À poser sur toute surface blanche.
-export const VERGE = "repeating-linear-gradient(90deg, rgba(46,42,93,.020) 0, rgba(46,42,93,.020) .6px, transparent .6px, transparent 4px), repeating-linear-gradient(0deg, rgba(46,42,93,.011) 0, rgba(46,42,93,.011) .6px, transparent .6px, transparent 26px)";
+export const VERGE = "none"; // fond blanc net (le quadrillage ressortait en lignes mauves à l'impression)
 
 export function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 
@@ -150,11 +150,19 @@ export function charterCss() {
   .ch-sec-name{font-size:22px;color:${C.gold};margin:0;font-weight:700;letter-spacing:.2px}
   .ch-sec-intro{margin:9px 0 14px;color:${C.muted};font-size:11px}
 
-  /* Tableaux */
-  table{width:100%;border-collapse:separate;border-spacing:0}
+  /* Tableaux — carte arrondie à en-tête navy (charte CR Go/No-Go) ; arrondi par cellules => sûr en multi-pages */
+  table{width:100%;border-collapse:separate;border-spacing:0;margin:12px 0 16px}
   thead{display:table-header-group}
-  th{text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.06em;color:${C.muted};padding:6px 9px;border-bottom:1.5px solid ${C.gold}}
-  td{padding:10px 9px;border-bottom:1px solid ${C.line};vertical-align:top}
+  th{background:${C.navy};color:#fff;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.05em;font-weight:700;padding:9px 11px;border-top:1px solid ${C.navy};border-bottom:1px solid ${C.navy}}
+  th:first-child{border-left:1px solid ${C.navy};border-top-left-radius:13px}
+  th:last-child{border-right:1px solid ${C.navy};border-top-right-radius:13px}
+  td{padding:10px 11px;border-bottom:1px solid ${C.line};vertical-align:top}
+  td:first-child{border-left:1px solid ${C.line}}
+  td:last-child{border-right:1px solid ${C.line}}
+  tr:first-child td{border-top:1px solid ${C.line}}
+  tr:last-child td:first-child{border-bottom-left-radius:13px}
+  tr:last-child td:last-child{border-bottom-right-radius:13px}
+  th.num{color:#fff;text-align:right}
   tr{break-inside:avoid}
 
   /* Pied de page courant (répété à chaque page imprimée) */

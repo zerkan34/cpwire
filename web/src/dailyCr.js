@@ -44,11 +44,11 @@ const CW_WORD = `<span class="cw-cp">cp</span><span class="cw-bar">|</span><span
 
 const STYLE = `
 @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
-:root{ --navy:#2E2A5D; --indigo:#4B3F8F; --gold:#A8884E; --lavande:#F5F2FC; --ink:#2B2620; --body:#4a4763; --muted:#6b6488; --line:#ece9f3; --serif:'Poppins','Segoe UI',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --warn:#a9531f; --warnbg:#faf2ea; --ok:#2f7d4f; --okbg:#e7f3ec; }
+:root{ --navy:#2E2A5D; --indigo:#4B3F8F; --gold:#A8884E; --lavande:#F5F2FC; --ink:#1F1B33; --body:#1F1B33; --muted:#6E6A86; --line:#E7E5F1; --serif:'Poppins','Segoe UI',system-ui,sans-serif; --sans:'Inter',system-ui,-apple-system,'Segoe UI',sans-serif; --warn:#a9531f; --warnbg:#faf2ea; --ok:#2f7d4f; --okbg:#e7f3ec; }
 *{ box-sizing:border-box; }
 html,body{ margin:0; padding:0; }
-body{ background:#e9e7ef; font-family:var(--sans); color:var(--body); line-height:1.6; padding:34px 16px; -webkit-font-smoothing:antialiased; }
-.page{ max-width:900px; margin:0 auto; background:#fff; border-radius:6px; box-shadow:0 18px 50px rgba(46,42,93,.14); overflow:hidden; }
+body{ background:#e9eaf0; font-family:var(--sans); color:var(--body); line-height:1.6; padding:34px 16px; -webkit-font-smoothing:antialiased; }
+.page{ max-width:900px; margin:0 auto; background:#fff; border-radius:6px; box-shadow:0 10px 40px rgba(31,27,51,.14); overflow:hidden; }
 .bar{ height:8px; background:linear-gradient(90deg,var(--navy) 0%,var(--indigo) 52%,var(--gold) 100%); }
 .inner{ padding:50px 60px 38px; }
 .brand{ display:flex; align-items:center; gap:13px; margin-bottom:34px; }

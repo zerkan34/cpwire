@@ -23,7 +23,7 @@ export default function ExportBar({ buildHtml, filename = "document.html", subje
   return (
     <div className="export-bar">
       <span className="eb-lbl">Exporter / partager</span>
-      <button className="btn-line sm" onClick={onPdf} title="Aperçu d'impression — choisis « Enregistrer en PDF »">PDF</button>
+      <button className="btn-line sm" onClick={onPdf} title="Génère le PDF (charte Armonie) puis choix de l'emplacement">PDF</button>
       <button className="btn-line sm" onClick={onDl} title="Télécharger le document">Télécharger</button>
       <button className="btn-line sm" onClick={onCopy} title="Copier le texte">{copied ? "✓ Copié" : "Copier"}</button>
       <button className="btn-line sm" onClick={onMail} title="Préparer un e-mail">E-mail</button>

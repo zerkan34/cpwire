@@ -97,6 +97,7 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
   const [client, setClient] = useState("Tous");
   const [eng, setEng] = useState("Tous");
   const [weeks, setWeeks] = useState(10);
+  const [bougeClient, setBougeClient] = useState("Tous");
 
   const byCle = useMemo(() => { const m = {}; issues.forEach((i) => { m[i.cle] = i; }); return m; }, [issues]);
   const clients = useMemo(() => [...new Set(issues.map((i) => i.dossier).filter((d) => d && d !== "—"))].sort(), [issues]);
@@ -214,6 +215,15 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
     const t = new Date().toDateString();
     return F.filter((i) => i.maj && new Date(i.maj).toDateString() === t).sort((a, b) => new Date(b.maj) - new Date(a.maj));
   }, [F]);
+
+  // Clients ayant bougé aujourd'hui (pour le filtre du panneau) + liste filtrée.
+  const bougeClients = useMemo(() => {
+    const m = {};
+    bouge.forEach((i) => { const c = i.dossier || "—"; m[c] = (m[c] || 0) + 1; });
+    return Object.entries(m).map(([client, n]) => ({ client, n })).sort((a, b) => b.n - a.n || a.client.localeCompare(b.client));
+  }, [bouge]);
+  const bougeF = useMemo(() => (bougeClient === "Tous" ? bouge : bouge.filter((i) => (i.dossier || "—") === bougeClient)), [bouge, bougeClient]);
+  const frHeure = (d) => { try { return new Date(d).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }); } catch { return ""; } };
 
   const open = (cle) => { const f = byCle[cle]; if (f && onTicket) onTicket(f); };
   const KPI = ({ v, l, tone }) => <div className={`rana-kpi ${tone || ""}`}><b>{v}</b><span>{l}</span></div>;
@@ -376,19 +386,29 @@ export default function RefAnalyse({ issues = [], onTicket, onDev }) {
         </Panel>
 
         {/* Mouvements du jour — pleine largeur */}
-        <Panel title="Ce qui a bougé aujourd'hui" badge={bouge.length} sub="Tickets mis à jour dans Jira aujourd'hui sur le périmètre."
+        <Panel title="Ce qui a bougé aujourd'hui" badge={bouge.length} sub="Tickets mis à jour dans Jira aujourd'hui sur le périmètre. Filtrez par client ci-dessous."
           prompt="Synthèse de ce qui a bougé aujourd'hui dans Jira sur le périmètre : mouvements notables, ce qui mérite attention. Uniquement les données réelles.">
           {bouge.length ? (
-            <ul className="rana-today">
-              {bouge.slice(0, 30).map((i) => (
-                <li key={i.cle}>
-                  <button className="rana-link" onClick={() => open(i.cle)} title={i.resume}>{i.cle}</button>
-                  <span className="rana-li-t">{i.resume}</span>
-                  <span className="rana-li-meta">{i.dossier}{i.dev ? ` · ${i.dev}` : ""}{i.statutJira ? ` · ${i.statutJira}` : ""}</span>
-                </li>
-              ))}
-              {bouge.length > 30 ? <li className="rana-more">+ {bouge.length - 30} autre(s) aujourd'hui</li> : null}
-            </ul>
+            <>
+              <div className="rana-today-filters">
+                <button type="button" className={`rana-chip ${bougeClient === "Tous" ? "on" : ""}`} onClick={() => setBougeClient("Tous")}>Tous <b>{bouge.length}</b></button>
+                {bougeClients.map((c) => (
+                  <button type="button" key={c.client} className={`rana-chip ${bougeClient === c.client ? "on" : ""}`} onClick={() => setBougeClient(c.client)}>{c.client} <b>{c.n}</b></button>
+                ))}
+              </div>
+              <ul className="rana-today">
+                {bougeF.slice(0, 40).map((i) => (
+                  <li key={i.cle}>
+                    <span className="rana-today-h">{frHeure(i.maj)}</span>
+                    <span className="rana-today-cli" title={i.dossier}>{i.dossier || "—"}</span>
+                    <button className="rana-link" onClick={() => open(i.cle)} title={i.resume}>{i.cle}</button>
+                    <span className="rana-li-t">{i.resume}</span>
+                    {(i.dev || i.statutJira) ? <span className="rana-li-meta">{[i.dev, i.statutJira].filter(Boolean).join(" · ")}</span> : null}
+                  </li>
+                ))}
+                {bougeF.length > 40 ? <li className="rana-more">+ {bougeF.length - 40} autre(s)</li> : null}
+              </ul>
+            </>
           ) : <p className="rana-empty">Rien n'a bougé dans Jira aujourd'hui pour ce périmètre.</p>}
         </Panel>
       </div>

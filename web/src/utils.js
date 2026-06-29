@@ -1,4 +1,5 @@
 // utils.js — helpers partagés.
+import { charterDoc, logoLockup, eyebrow, kpiBand, C } from "./charter.js";
 
 export async function downloadHtml(html, filename = "Document.html") {
   const name = /\.html?$/i.test(filename) ? filename : `${String(filename).replace(/\.[a-z0-9]+$/i, "")}.html`;
@@ -256,81 +257,47 @@ const CW_LOGO = `<span class="cpwire-logo"><svg class="cw-mark" viewBox="0 0 24 
 // Champs : kicker (eyebrow), title, subtitle, cartouche [[clé,val]…], bodyHtml, etabliPar.
 export function frDateFromIso(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso || ""); }
 
-export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand" }) {
-  const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
-  const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
-  const sign = esc(String(etabliPar || "").replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()));
-  const css = `*{box-sizing:border-box}
-    :root{--navy:#2E2A5D;--indigo:#4B3F8F;--gold:#A8884E;--lavande:#F5F2FC;--body:#4a4763;--muted:#6b6488;--line:#ece9f3;--serif:'Poppins','Segoe UI',system-ui,sans-serif;--sans:'Inter',system-ui,Arial,sans-serif}
-    body{margin:0;font-family:var(--sans);color:var(--body);background:#e9e7ef;line-height:1.6;font-size:13.5px}
-    .page{max-width:880px;margin:0 auto;background:#fff;border-radius:6px;box-shadow:0 18px 50px rgba(46,42,93,.14);overflow:hidden}
-    .bar{height:8px;background:linear-gradient(90deg,var(--navy) 0%,var(--indigo) 52%,var(--gold) 100%)}
-    .inner{padding:46px 56px 36px}
-    .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px}
-    .brand{display:flex;align-items:center;gap:12px}
-    .cpwire-logo{font-family:var(--serif);font-weight:800;font-size:22px;letter-spacing:-.01em;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
-    .cpwire-logo .cw-cp{color:var(--indigo)}.cpwire-logo .cw-bar{color:var(--gold);margin:0 1px}.cpwire-logo .cw-wire{color:var(--navy);letter-spacing:.05em}
-    .cw-mark{width:26px;height:26px;flex:none}
-    .brand-logo{height:42px;width:auto;display:block}
-    .lede{font-size:15px;line-height:1.6;color:#3f3d57;margin:0 0 18px}.lede b{color:var(--navy)}
-    .tagline{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
-    .conf{font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);text-align:right;line-height:1.5}
-    .eyebrow{font-weight:700;font-size:12px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold)}
-    h1{font-family:var(--serif);font-weight:800;font-size:34px;color:var(--navy);margin:10px 0 4px;line-height:1.06;letter-spacing:-.015em}
-    .sub{font-family:var(--serif);color:var(--indigo);font-weight:700;font-size:18px;margin-bottom:4px}
-    .rule{width:120px;height:5px;border-radius:3px;background:linear-gradient(90deg,var(--gold),var(--indigo));margin:18px 0 22px}
-    .meta{background:var(--lavande);border-left:4px solid var(--gold);border-radius:14px;padding:18px 22px;margin:0 0 22px;display:grid;grid-template-columns:165px 1fr;row-gap:10px;column-gap:16px}
-    .meta dt{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);align-self:center}
-    .meta dd{margin:0;font-size:13.5px;color:#3f3d57;font-weight:500}
-    .body h2{font-family:var(--serif);font-weight:700;font-size:18px;color:var(--navy);margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--lavande)}
-    .body h3{font-family:var(--serif);font-size:14px;color:var(--indigo);margin:16px 0 6px}
-    .body p{margin:8px 0}
-    .body ul,.body ol{margin:8px 0;padding-left:20px}.body li{margin:4px 0}
-    table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;margin:10px 0 16px}
-    table th{background:var(--navy);color:#fff;text-align:left;padding:10px 13px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:700}
-    table th:first-child{border-top-left-radius:12px}
-    table th:last-child{border-top-right-radius:12px}
-    table td{border-bottom:1px solid var(--line);padding:9px 13px;vertical-align:top}
-    table tr:last-child td:first-child{border-bottom-left-radius:12px}
-    table tr:last-child td:last-child{border-bottom-right-radius:12px}
-    table tr:nth-child(even) td{background:#faf9fd}
-    tr{break-inside:avoid}
-    .pill{display:inline-block;font-weight:700;font-size:11px;padding:2px 9px;border-radius:99px;background:var(--lavande);color:var(--indigo)}
-    .pill.done{background:#e7f3ec;color:#2f7d4f}.pill.prog{background:#eef0fb;color:#4B3F8F}
-    .pill.todo{background:#faf2ea;color:#a9531f}.pill.block{background:#fbe6e3;color:#c0392b}
-    .muted{color:var(--muted)}
-    details{border:1px solid var(--line);border-radius:10px;margin:8px 0;overflow:hidden}
-    details>summary{cursor:pointer;list-style:none;padding:9px 14px;font-weight:600;color:var(--navy);background:#faf9fd;display:flex;justify-content:space-between;align-items:center;font-size:12.5px}
-    details>summary::-webkit-details-marker{display:none}
-    details[open]>summary{background:var(--lavande);border-bottom:1px solid var(--line)}
-    summary .n{font-weight:700;color:var(--indigo);background:#fff;border:1px solid var(--line);border-radius:99px;padding:1px 9px;font-size:11px}
-    details table{margin:0}details table tr:first-child td{border-top:0}
-    .rk-k{font-weight:700;color:var(--indigo);white-space:nowrap;width:1%}
-    .rk-a{color:var(--muted);white-space:nowrap;width:1%;text-align:right}
-    .num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:var(--navy);width:1%;white-space:nowrap}
-    .hors{font-size:12px;color:var(--muted);margin:6px 0 4px}
-    .rsec{margin:0 0 30px}
-    .foot{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);letter-spacing:.04em}
-    .wordmark{font-family:var(--serif);font-weight:800;font-size:27px;color:var(--navy);letter-spacing:-.01em;line-height:1}
-    .wordmark .n{color:var(--gold)}
-    .wordmark .grp{display:block;font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:5px}
-    .conf b{color:var(--navy);font-weight:800;font-size:12.5px;letter-spacing:.02em}
-    @page{margin:13mm 12mm}
-    @media print{body{background:#fff}.page{box-shadow:none;border-radius:0;max-width:none}.inner{padding:14mm 16mm}}`;
-  const cart = (cartouche && cartouche.length)
-    ? `<dl class="meta">${cartouche.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`
+export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand", kpis = null }) {
+  const dateLong = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
+  const dateNum = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const sign = esc(String(etabliPar || "Nicolas Durand").replace(/\s+(\S+)$/, (m, p) => " " + p.toUpperCase()));
+  const cleanTitle = esc(String(title == null ? "" : title).replace(/\s+[\u2014\u2013-]\s+/g, " "));
+  const meta = (cartouche && cartouche.length)
+    ? `<dl class="sd-meta">${cartouche.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>`
     : "";
-  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
-  <body><div class="page"><div class="bar"></div><div class="inner">
-    <div class="top"><div class="brand"><div class="wordmark">armo<span class="n">n</span>ie<span class="grp">Groupe · NOTOS · PHL Soft</span></div></div><div class="conf">Établi par <b>${sign || "Nicolas DURAND"}</b><br>Armonie Group · Confidentiel<br>${esc(date)}</div></div>
-    ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
-    <h1>${esc(String(title).replace(/\s+[\u2014\u2013-]\s+/g, " "))}</h1>
-    ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
-    <div class="rule"></div>
-    ${cart}
-    <div class="body">${bodyHtml}</div>
-    <div class="foot"><span>${sign ? "Établi par " + sign : "Armonie Group"}</span><span>Armonie Group · Confidentiel</span></div>
-  </div></div></body></html>`;
+  const head = `<div class="sd-head">${logoLockup()}<div class="ch-kicker">${esc(kicker || "Armonie Group")} \u00b7 ${esc(dateNum)}</div></div>`;
+  const titleBlock = `<div class="sd-titleblock">${kicker ? eyebrow(kicker) : ""}<h1 class="sd-title">${cleanTitle}</h1>${subtitle ? `<p class="ch-lead">${esc(subtitle)}</p>` : ""}<div class="sd-rule"></div></div>`;
+  const kpiHtml = (kpis && kpis.length) ? kpiBand(kpis) : "";
+  const estab = `<div class="sd-estab"><span class="ch-estab-l">\u00c9tabli par</span> <b>${sign}</b> \u00b7 Chef de projet (MOE) \u2014 Armonie Group</div>`;
+  const extraCss = `
+    .sd-head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid ${C.line};padding-bottom:14px;margin-bottom:16px}
+    .sd-head .ch-kicker{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:62mm}
+    .sd-title{font-family:Poppins,Inter,sans-serif;font-size:30px;font-weight:800;color:${C.navy};margin:2px 0 0;line-height:1.05;letter-spacing:.2px}
+    .sd-rule{width:96px;height:4px;background:${C.gold};border-radius:3px;margin:14px 0 4px}
+    .sd-meta{background:${C.soft};border-left:3px solid ${C.gold};border-radius:0 8px 8px 0;padding:14px 18px;margin:18px 0;display:grid;grid-template-columns:155px 1fr;row-gap:8px;column-gap:14px}
+    .sd-meta dt{font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:${C.indigo};align-self:center}
+    .sd-meta dd{margin:0;font-size:12px;color:${C.ink};font-weight:500}
+    .ch-body table td{font-size:12px}
+    .ch-body .pill{display:inline-block;font-weight:700;font-size:11px;padding:2px 9px;border-radius:99px;background:${C.soft};color:${C.indigo}}
+    .ch-body .pill.done{background:#e7f3ec;color:#2f7d4f}
+    .ch-body .pill.prog{background:#eef0fb;color:${C.indigo}}
+    .ch-body .pill.todo,.ch-body .pill.rec{background:#faf2ea;color:#a9531f}
+    .ch-body .pill.block{background:#fbe6e3;color:${C.red}}
+    .ch-body td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:700;color:${C.navy};width:1%;white-space:nowrap}
+    .ch-body th.num{text-align:right;color:#fff}
+    .sd-content h2{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:16px;color:${C.navy};margin:22px 0 8px}
+    .sd-content h3{font-family:Poppins,Inter,sans-serif;font-size:13px;color:${C.indigo};margin:14px 0 6px}
+    .sd-estab{margin-top:26px;border-top:1px solid ${C.line};padding-top:12px;font-size:10.5px;color:${C.muted}}
+    .sd-estab .ch-estab-l{display:inline;font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:${C.gold};font-weight:700}
+    .sd-estab b{color:${C.navy};font-weight:800}
+  `;
+  const footerText = `${cleanTitle} \u00b7 ${esc(dateLong)} \u00b7 Confidentiel`;
+  return charterDoc({
+    docTitle: String(title || "Document"),
+    extraCss,
+    bodyHtml: head + titleBlock + kpiHtml + meta + `<div class="sd-content">${bodyHtml}</div>` + estab,
+    footerText,
+  });
 }
 
 // Extrait un texte lisible d'un fragment/Document HTML (pour copier / e-mail).
