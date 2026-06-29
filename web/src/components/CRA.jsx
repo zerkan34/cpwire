@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useRef } from "react";
 import { fetchCRA, importCRA } from "../api.js";
+import CraHours from "./CraHours.jsx";
 import { buildSimpleDoc, esc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 
@@ -164,6 +165,8 @@ export default function CRA({ onTicket }) {
 
   return (
     <>
+      <CraHours basis={basis} />
+
       <p className="hint" style={{ marginTop: -4 }}>
         Choisis une période et un périmètre, puis « Générer » : le CRA agrège le <b>temps réellement saisi dans Jira</b> par projet et par personne. Pas de temps dans Jira ? Clique <b>« Importer un Excel »</b> pour construire le CRA depuis un fichier (colonnes reconnues : <i>Projet/Dossier, Intervenant, Clé, Résumé, Temps (ou Heures/Durée/Jours), Statut</i> — l'ordre et les libellés exacts n'ont pas d'importance).
       </p>

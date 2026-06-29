@@ -4418,3 +4418,31 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .tk-ring-c{ position:relative; z-index:1; font-family:Poppins,Inter,sans-serif; font-weight:800; font-size:14px; color:#eafff4; line-height:1; }
   .tk-ring-c small{ font-size:9px; font-weight:700; color:#9aa6c0; margin-left:1px; }
 }
+
+/* ===================== PASSE v304 — CRA : saisie manuelle des heures par jour (clair desktop + sombre mobile) ===================== */
+.cra-hours .crh-nav{ display:flex; align-items:center; justify-content:center; gap:16px; margin:4px 0 12px; }
+.cra-hours .crh-arrow{ width:38px; height:38px; border-radius:10px; border:1px solid var(--line); background:transparent; color:inherit; font-size:20px; font-weight:700; cursor:pointer; line-height:1; }
+.cra-hours .crh-month{ font-weight:800; font-size:17px; min-width:150px; text-align:center; text-transform:capitalize; }
+.cra-hours .crh-actions{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+.cra-hours .crh-grid{ display:flex; flex-direction:column; gap:6px; }
+.cra-hours .crh-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7px 10px; border:1px solid var(--line); border-radius:10px; transition:border-color .14s ease, background .14s ease; }
+.cra-hours .crh-row.we{ opacity:.5; }
+.cra-hours .crh-row.filled{ border-color:rgba(255,140,26,.45); background:rgba(255,140,26,.06); opacity:1; }
+.cra-hours .crh-row.today{ box-shadow:0 0 0 1px rgba(255,140,26,.5) inset; }
+.cra-hours .crh-day{ font-size:13px; font-weight:600; text-transform:capitalize; min-width:88px; }
+.cra-hours .crh-stepper{ display:flex; align-items:center; gap:6px; }
+.cra-hours .crh-stepper button{ width:32px; height:32px; border-radius:8px; border:1px solid var(--line); background:transparent; color:inherit; font-size:18px; font-weight:700; cursor:pointer; line-height:1; flex:none; }
+.cra-hours .crh-stepper button:active{ transform:scale(.92); }
+.cra-hours .crh-stepper input{ width:54px; text-align:center; padding:7px 4px; border:1px solid var(--line); border-radius:8px; background:transparent; color:inherit; font-weight:800; font-variant-numeric:tabular-nums; -moz-appearance:textfield; }
+.cra-hours .crh-stepper input::-webkit-outer-spin-button,
+.cra-hours .crh-stepper input::-webkit-inner-spin-button{ -webkit-appearance:none; margin:0; }
+.cra-hours .crh-stepper .crh-h{ font-size:12px; opacity:.6; }
+.cra-hours .crh-total{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin:16px 0 12px; padding-top:13px; border-top:1px solid var(--line); }
+.cra-hours .crh-total-l{ font-size:14px; opacity:.8; }
+.cra-hours .crh-total-n{ font-family:Poppins,Inter,sans-serif; font-size:24px; font-weight:800; color:var(--orange); }
+.cra-hours .crh-total .crh-sub{ font-size:12px; opacity:.65; margin-left:auto; }
+/* mobile : pastille orange déjà gérée par variables ; on garde les inputs lisibles malgré la passe v292 */
+@media (max-width:768px){
+  .cra-hours .crh-stepper input{ background:rgba(255,255,255,.05) !important; color:var(--ink) !important; border:1px solid var(--line) !important; }
+  .cra-hours .crh-arrow, .cra-hours .crh-stepper button{ color:var(--ink); }
+}
