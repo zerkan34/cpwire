@@ -145,13 +145,24 @@ export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${en
 // Rendu PDF serveur (WeasyPrint) — renvoie le BLOB sans télécharger
 // (le téléchargement/choix d'emplacement est géré par printHtml → saveBlob).
 export async function renderHtmlPdfBlob(html, filename = "Document.pdf") {
-  const res = await fetch(`${BASE}/api/pdf/render`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", ...authHeaders() },
-    body: JSON.stringify({ html, filename }),
-  });
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 18000); // pas de blocage : 18 s max puis repli
+  let res;
+  try {
+    res = await fetch(`${BASE}/api/pdf/render`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ html, filename }),
+      signal: ctrl.signal,
+    });
+  } finally { clearTimeout(timer); }
   if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch {} throw new Error(m || `HTTP ${res.status}`); }
-  return await res.blob();
+  const ct = (res.headers.get("content-type") || "").toLowerCase();
+  const blob = await res.blob();
+  // Garde-fous : refuse une réponse non-PDF (ex : index.html renvoyé par erreur) ou vide → déclenche le repli html2pdf.
+  if ((!ct.includes("pdf")) && (!blob.type || !blob.type.includes("pdf"))) throw new Error("Réponse non-PDF (serveur indisponible)");
+  if (blob.size < 800) throw new Error("PDF vide ou invalide");
+  return blob;
 }
 
 export async function exportHtmlPdf(html, filename = "Document.pdf") {
