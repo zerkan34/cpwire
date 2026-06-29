@@ -1,4 +1,6 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { buildSimpleDoc } from "../utils.js";
+import ExportBar from "./ExportBar.jsx";
 
 const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
 const DOW = ["lun.", "mar.", "mer.", "jeu.", "ven.", "sam.", "dim."];
@@ -50,6 +52,20 @@ export default function CraHours({ basis = 7 }) {
   const fill8 = () => { const next = { ...hours }; days.forEach((d) => { if (!d.weekend && !next[d.iso]) next[d.iso] = 8; }); persist(next); };
   const fillAll = (h) => { const next = { ...hours }; days.forEach((d) => { if (!d.weekend) next[d.iso] = h; }); persist(next); };
   const clearAll = () => { if (window.confirm(`Effacer toutes les heures de ${MONTHS[m]} ${y} ?`)) persist({}); };
+
+  const buildHoursDoc = () => {
+    const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const rowsHtml = days.map((d) => `<tr><td>${esc(DOW[d.dow])} ${d.day}</td><td>${esc(d.iso)}</td><td style="text-align:right">${d.weekend && !hours[d.iso] ? "—" : (hours[d.iso] != null ? String(hours[d.iso]).replace(".", ",") + " h" : "—")}</td></tr>`).join("");
+    const body = `<p><b>Total du mois :</b> ${nf(total)} h · <b>${daysWorked} jour(s) saisi(s)</b> · \u2248 ${eqDays.toFixed(2)} j (base ${basis} h/j).</p>` +
+      `<table><tr><th>Jour</th><th>Date</th><th>Heures</th></tr>${rowsHtml}<tr><td colspan="2"><b>Total</b></td><td style="text-align:right"><b>${nf(total)} h</b></td></tr></table>`;
+    return buildSimpleDoc({
+      kicker: "Heures déclarées",
+      title: `Heures effectuées \u2014 ${MONTHS[m]} ${y}`,
+      subtitle: "Saisie personnelle",
+      cartouche: [["Personne", "Nicolas Durand"], ["Mois", `${MONTHS[m]} ${y}`], ["Total", `${nf(total)} h`], ["Base", `${basis} h/j`]],
+      bodyHtml: body,
+    });
+  };
 
   const exportCsv = () => {
     const rows = [["Date", "Jour", "Heures"]];
@@ -106,7 +122,8 @@ export default function CraHours({ basis = 7 }) {
           <span className="crh-sub">{daysWorked} jour(s) saisi(s) · ≈ {eqDays.toFixed(2)} j (base {basis} h/j)</span>
         </div>
 
-        <button type="button" className="btn-solid" onClick={exportCsv} style={{ width: "100%" }}>Exporter ces heures (CSV)</button>
+        <ExportBar buildHtml={buildHoursDoc} filename={`Heures_${y}-${String(m + 1).padStart(2, "0")}.html`} subject={`Heures effectuées — ${MONTHS[m]} ${y}`} />
+        <button type="button" className="btn-line" onClick={exportCsv} style={{ width: "100%", marginTop: 8 }}>Export CSV (pour Excel)</button>
       </div>
     </div>
   );

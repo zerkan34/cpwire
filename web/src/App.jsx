@@ -4,6 +4,7 @@ import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, 
 import { saveSnapshot, loadSnapshot } from "./snapshot.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
+import Planning from "./components/Planning.jsx";
 import Header from "./components/Header.jsx";
 import Assistant from "./components/Assistant.jsx";
 import ImportSources from "./components/ImportSources.jsx";
@@ -91,6 +92,7 @@ const SUBTABS = {
     { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
+    { id: "planning", label: "Planning" },
     { id: "reference", label: "Référence" },
   ],
 };
@@ -714,7 +716,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v304"
+            build="stable-v305"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -798,6 +800,7 @@ export default function App() {
       {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "outils" && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "outils" && sub === "reference" && (
         <>

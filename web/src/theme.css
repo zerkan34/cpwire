@@ -4446,3 +4446,43 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .cra-hours .crh-stepper input{ background:rgba(255,255,255,.05) !important; color:var(--ink) !important; border:1px solid var(--line) !important; }
   .cra-hours .crh-arrow, .cra-hours .crh-stepper button{ color:var(--ink); }
 }
+
+/* ===================== PASSE v305 — vue Planning (import + analyse à la charte) — clair desktop + sombre mobile ===================== */
+.pl-import .pl-file{ display:inline-block; margin-left:10px; font-size:13px; color:var(--orange); font-weight:700; }
+.pl-summary{ display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 8px; }
+.pl-kpi{ flex:1 1 90px; min-width:90px; background:var(--card); border:1px solid var(--line); border-radius:14px; padding:12px 14px; display:flex; flex-direction:column; gap:2px; }
+.pl-kpi-n{ font-family:Poppins,Inter,sans-serif; font-size:24px; font-weight:800; line-height:1; }
+.pl-kpi-l{ font-size:11.5px; opacity:.65; text-transform:uppercase; letter-spacing:.03em; }
+.pl-kpi.imp .pl-kpi-n{ color:#ffb27a; } .pl-kpi.slip .pl-kpi-n{ color:#7cb7ff; }
+.pl-kpi.done .pl-kpi-n{ color:#54e0a0; } .pl-kpi.block .pl-kpi-n{ color:#ff8a93; }
+.pl-kpi.block{ border-color:rgba(255,92,106,.4); }
+
+.pl-gate{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin:10px 0; padding:12px 16px; border-radius:14px; font-weight:800; }
+.pl-gate .pl-gate-k{ font-size:13px; letter-spacing:.02em; opacity:.9; }
+.pl-gate .pl-gate-v{ font-family:Poppins,Inter,sans-serif; font-size:18px; }
+.pl-gate.no{ background:rgba(255,92,106,.14); border:1px solid rgba(255,92,106,.4); color:#ff8a93; }
+.pl-gate.ok{ background:rgba(43,217,127,.14); border:1px solid rgba(43,217,127,.4); color:#54e0a0; }
+
+.pl-list{ display:flex; flex-direction:column; gap:8px; }
+.pl-item{ display:flex; align-items:flex-start; gap:12px; padding:12px 14px; background:var(--card); border:1px solid var(--line); border-radius:14px; position:relative; }
+.pl-item.imp{ border-color:rgba(255,140,26,.45); }
+.pl-item.imp::before{ content:""; position:absolute; left:0; top:10px; bottom:10px; width:3px; border-radius:3px; background:var(--orange); }
+.pl-item.block{ border-color:rgba(255,92,106,.4); }
+.pl-when{ flex:0 0 78px; display:flex; flex-direction:column; gap:3px; padding-left:4px; }
+.pl-date{ font-family:Poppins,Inter,sans-serif; font-weight:800; font-size:15px; }
+.pl-slip{ font-size:12px; font-weight:700; color:#7cb7ff; }
+.pl-eff{ font-size:11.5px; font-weight:700; color:#54e0a0; }
+.pl-body{ flex:1 1 auto; min-width:0; }
+.pl-titlerow{ display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+.pl-title{ font-weight:700; font-size:14px; }
+.pl-flag{ font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:.03em; padding:2px 7px; border-radius:6px; white-space:nowrap; }
+.pl-flag.imp{ background:rgba(255,140,26,.16); color:#ffb27a; }
+.pl-flag.gate{ background:rgba(124,183,255,.16); color:#7cb7ff; }
+.pl-detail{ font-size:13px; opacity:.8; margin-top:4px; line-height:1.45; }
+.pl-note{ font-size:12px; opacity:.62; margin-top:3px; line-height:1.4; }
+.pl-item .pill{ flex:0 0 auto; align-self:center; }
+@media (max-width:768px){
+  .pl-item{ flex-wrap:wrap; }
+  .pl-item .pill{ order:3; }
+  .pl-when{ flex-basis:64px; }
+}
