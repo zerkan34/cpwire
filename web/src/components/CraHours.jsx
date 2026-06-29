@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { buildSimpleDoc } from "../utils.js";
+import { buildSimpleDoc, frDateFromIso } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 
 const MONTHS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"];
@@ -55,7 +55,7 @@ export default function CraHours({ basis = 7 }) {
 
   const buildHoursDoc = () => {
     const esc = (x) => String(x == null ? "" : x).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    const rowsHtml = days.map((d) => `<tr><td>${esc(DOW[d.dow])} ${d.day}</td><td>${esc(d.iso)}</td><td style="text-align:right">${d.weekend && !hours[d.iso] ? "—" : (hours[d.iso] != null ? String(hours[d.iso]).replace(".", ",") + " h" : "—")}</td></tr>`).join("");
+    const rowsHtml = days.map((d) => `<tr><td>${esc(DOW[d.dow])} ${d.day}</td><td>${esc(frDateFromIso(d.iso))}</td><td style="text-align:right">${d.weekend && !hours[d.iso] ? "—" : (hours[d.iso] != null ? String(hours[d.iso]).replace(".", ",") + " h" : "—")}</td></tr>`).join("");
     const body = `<p><b>Total du mois :</b> ${nf(total)} h · <b>${daysWorked} jour(s) saisi(s)</b> · \u2248 ${eqDays.toFixed(2)} j (base ${basis} h/j).</p>` +
       `<table><tr><th>Jour</th><th>Date</th><th>Heures</th></tr>${rowsHtml}<tr><td colspan="2"><b>Total</b></td><td style="text-align:right"><b>${nf(total)} h</b></td></tr></table>`;
     return buildSimpleDoc({

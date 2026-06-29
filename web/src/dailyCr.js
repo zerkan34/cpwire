@@ -3,7 +3,6 @@
 // autonome dans la charte cp|WIRE (CSS en ligne + accordéons <details> natifs),
 // qui s'ouvre dans n'importe quel navigateur, hors de l'application.
 
-import { LOGO_DATA_URI } from "./logo.js";
 
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -55,6 +54,9 @@ body{ background:#e9e7ef; font-family:var(--sans); color:var(--body); line-heigh
 .brand{ display:flex; align-items:center; gap:13px; margin-bottom:34px; }
 .cpwire-logo{ font-family:var(--serif); font-weight:800; letter-spacing:-.01em; white-space:nowrap; display:inline-flex; align-items:center; gap:8px; }
 .brand-logo{ height:42px; width:auto; display:block; }
+.wordmark{ font-family:'Poppins','Segoe UI',sans-serif; font-weight:800; font-size:26px; color:var(--navy); letter-spacing:-.01em; line-height:1; }
+.wordmark .n{ color:var(--gold); }
+.wordmark .grp{ display:block; font-size:9px; font-weight:700; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); margin-top:5px; }
 .cpwire-logo .cw-cp{ color:var(--indigo); }
 .cpwire-logo .cw-bar{ color:var(--gold); margin:0 1px; }
 .cpwire-logo .cw-wire{ color:var(--navy); letter-spacing:.05em; }
@@ -86,8 +88,10 @@ summary::-webkit-details-marker{ display:none; }
 summary::before{ content:"\\25B8"; color:var(--gold); font-size:13px; transition:transform .15s; }
 details[open] summary::before{ transform:rotate(90deg); }
 summary .cnt{ margin-left:auto; background:var(--navy); color:#fff; font-size:12px; font-weight:700; padding:2px 10px; border-radius:999px; }
-table.tk{ width:100%; border-collapse:collapse; font-size:13px; }
-table.tk th{ text-align:left; padding:9px 16px; color:var(--muted); font-size:11px; text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--line); font-weight:600; }
+table.tk{ width:100%; border-collapse:separate; border-spacing:0; font-size:13px; }
+table.tk th{ text-align:left; padding:10px 16px; background:var(--navy); color:#fff; font-size:11px; text-transform:uppercase; letter-spacing:.04em; font-weight:700; }
+table.tk th:first-child{ border-top-left-radius:12px; }
+table.tk th:last-child{ border-top-right-radius:12px; }
 table.tk td{ padding:9px 16px; border-bottom:1px solid var(--line); vertical-align:top; color:var(--body); }
 table.tk tr:last-child td{ border-bottom:none; }
 table.tk tbody tr:nth-child(even) td{ background:#faf9fd; }
@@ -162,7 +166,7 @@ function clientDoc({ dossier, items, meName, human, heure }) {
 <html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Récap ${esc(dossier)} — ${esc(human)}</title><style>${STYLE}</style></head>
 <body><div class="page"><div class="bar"></div><div class="inner">
-  <div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div>
+  <div class="brand"><div class="wordmark">armo<span class="n">n</span>ie<span class="grp">Groupe · NOTOS · PHL Soft</span></div></div>
   <div class="eyebrow">Armonie Group · Récap journalier</div>
   <h1 class="title">Récap du jour</h1>
   <h2 class="subtitle">${esc(dossier)}${tag}</h2>

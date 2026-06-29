@@ -1,5 +1,4 @@
 // utils.js — helpers partagés.
-import { LOGO_DATA_URI } from "./logo.js";
 
 export async function downloadHtml(html, filename = "Document.html") {
   const name = /\.html?$/i.test(filename) ? filename : `${String(filename).replace(/\.[a-z0-9]+$/i, "")}.html`;
@@ -255,6 +254,8 @@ const CW_LOGO = `<span class="cpwire-logo"><svg class="cw-mark" viewBox="0 0 24 
 // panneau lavande, titres navy/indigo, tableaux à en-tête navy, pied signé).
 // Mêmes codes que le récap journalier -> tous les PDF de l'app sont homogènes.
 // Champs : kicker (eyebrow), title, subtitle, cartouche [[clé,val]…], bodyHtml, etabliPar.
+export function frDateFromIso(iso) { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || "")); return m ? `${m[3]}/${m[2]}/${m[1]}` : String(iso || ""); }
+
 export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = [], bodyHtml = "", etabliPar = "Nicolas Durand" }) {
   const date = new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" });
   const fonts = `<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">`;
@@ -285,9 +286,13 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     .body h3{font-family:var(--serif);font-size:14px;color:var(--indigo);margin:16px 0 6px}
     .body p{margin:8px 0}
     .body ul,.body ol{margin:8px 0;padding-left:20px}.body li{margin:4px 0}
-    table{width:100%;border-collapse:collapse;font-size:12.5px;margin:10px 0 14px}
-    table th{background:var(--navy);color:#fff;text-align:left;padding:9px 12px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:600}
-    table td{border-bottom:1px solid var(--line);padding:9px 12px;vertical-align:top}
+    table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px;margin:10px 0 16px}
+    table th{background:var(--navy);color:#fff;text-align:left;padding:10px 13px;font-size:11px;letter-spacing:.04em;text-transform:uppercase;font-weight:700}
+    table th:first-child{border-top-left-radius:12px}
+    table th:last-child{border-top-right-radius:12px}
+    table td{border-bottom:1px solid var(--line);padding:9px 13px;vertical-align:top}
+    table tr:last-child td:first-child{border-bottom-left-radius:12px}
+    table tr:last-child td:last-child{border-bottom-right-radius:12px}
     table tr:nth-child(even) td{background:#faf9fd}
     tr{break-inside:avoid}
     .pill{display:inline-block;font-weight:700;font-size:11px;padding:2px 9px;border-radius:99px;background:var(--lavande);color:var(--indigo)}
@@ -306,6 +311,10 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     .hors{font-size:12px;color:var(--muted);margin:6px 0 4px}
     .rsec{margin:0 0 30px}
     .foot{margin-top:36px;border-top:1px solid var(--line);padding-top:14px;display:flex;justify-content:space-between;font-size:10.5px;color:var(--muted);letter-spacing:.04em}
+    .wordmark{font-family:var(--serif);font-weight:800;font-size:27px;color:var(--navy);letter-spacing:-.01em;line-height:1}
+    .wordmark .n{color:var(--gold)}
+    .wordmark .grp{display:block;font-size:9px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-top:5px}
+    .conf b{color:var(--navy);font-weight:800;font-size:12.5px;letter-spacing:.02em}
     @page{margin:13mm 12mm}
     @media print{body{background:#fff}.page{box-shadow:none;border-radius:0;max-width:none}.inner{padding:14mm 16mm}}`;
   const cart = (cartouche && cartouche.length)
@@ -313,9 +322,9 @@ export function buildSimpleDoc({ kicker = "", title, subtitle = "", cartouche = 
     : "";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8">${fonts}<title> </title><style>${css}</style></head>
   <body><div class="page"><div class="bar"></div><div class="inner">
-    <div class="top"><div class="brand"><img class="brand-logo" src="${LOGO_DATA_URI}" alt="Armonie"></div><div class="conf">Armonie Group · Confidentiel<br>${esc(date)}</div></div>
+    <div class="top"><div class="brand"><div class="wordmark">armo<span class="n">n</span>ie<span class="grp">Groupe · NOTOS · PHL Soft</span></div></div><div class="conf">Établi par <b>${sign || "Nicolas DURAND"}</b><br>Armonie Group · Confidentiel<br>${esc(date)}</div></div>
     ${kicker ? `<div class="eyebrow">${esc(kicker)}</div>` : ""}
-    <h1>${esc(title)}</h1>
+    <h1>${esc(String(title).replace(/\s+[\u2014\u2013-]\s+/g, " "))}</h1>
     ${subtitle ? `<div class="sub">${esc(subtitle)}</div>` : ""}
     <div class="rule"></div>
     ${cart}
