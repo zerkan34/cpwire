@@ -13,7 +13,7 @@ const textToGloss = (s) => String(s || "").split("\n").map((l) => {
   return i < 0 ? { terme: l.trim(), sens: "" } : { terme: l.slice(0, i).trim(), sens: l.slice(i + 1).trim() };
 }).filter((g) => g.terme);
 
-export default function Connaissance({ issues = [] }) {
+export default function Connaissance({ issues = [], onTicket, onDev }) {
   const [k, setK] = useState(null);
   const [showHist, setShowHist] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -129,7 +129,7 @@ export default function Connaissance({ issues = [] }) {
       </div>
       {showHist ? (
         <div className="panel cn-block cn-hist-panel">
-          <LearningHistory issues={issues} k={k} />
+          <LearningHistory issues={issues} k={k} onTicket={onTicket} onDev={onDev} />
         </div>
       ) : null}
 

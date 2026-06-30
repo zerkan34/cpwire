@@ -39,14 +39,17 @@ function labelOf(d, gran) {
 }
 const fmtDT = (d) => { try { return new Date(d).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" }); } catch { return "—"; } };
 
-export default function LearningHistory({ issues = [], k = null }) {
+export default function LearningHistory({ issues = [], k = null, onTicket, onDev }) {
   const [client, setClient] = useState("Tous");
   const [gran, setGran] = useState("mois");
+  const [base, setBase] = useState("cree"); // "cree" = éléments créés (appris) · "maj" = mouvements (mises à jour)
   const [sortKey, setSortKey] = useState("cree");
   const [sortDir, setSortDir] = useState("desc");
   const [query, setQuery] = useState("");
   const [limit, setLimit] = useState(120);
   const [statut, setStatut] = useState("Tous");
+  const isMaj = base === "maj";
+  const baseLabel = isMaj ? "mouvements" : "éléments";
 
   const clients = useMemo(
     () => [...new Set(issues.map((i) => norm(i.dossier)).filter((d) => d && d !== "—"))].sort(),
@@ -54,9 +57,10 @@ export default function LearningHistory({ issues = [], k = null }) {
   );
   const F = useMemo(() => (client === "Tous" ? issues : issues.filter((i) => norm(i.dossier) === client)), [issues, client]);
 
-  // Série : éléments appris (cree) bucketisés, cumul depuis l'origine, fenêtre = derniers WIN buckets.
+  // Série : éléments bucketisés selon la base (cree = créés/appris · maj = mouvements),
+  // cumul depuis l'origine, fenêtre = derniers WIN buckets.
   const series = useMemo(() => {
-    const dated = F.map((i) => (i.cree ? new Date(i.cree) : null)).filter((d) => d && !isNaN(d)).sort((a, b) => a - b);
+    const dated = F.map((i) => (i[base] ? new Date(i[base]) : null)).filter((d) => d && !isNaN(d)).sort((a, b) => a - b);
     if (!dated.length) return { buckets: [], total: 0 };
     const counts = new Map();
     dated.forEach((d) => { const key = keyOf(d, gran); counts.set(key, (counts.get(key) || 0) + 1); });
@@ -70,7 +74,7 @@ export default function LearningHistory({ issues = [], k = null }) {
     }
     let cum = 0; all.forEach((b) => { cum += b.neuf; b.cumul = cum; });
     return { buckets: all.slice(-WIN[gran]), total: cum };
-  }, [F, gran]);
+  }, [F, gran, base]);
 
   // Aujourd'hui + dernière mise à jour réelle.
   const live = useMemo(() => {
@@ -91,12 +95,12 @@ export default function LearningHistory({ issues = [], k = null }) {
     return best ? best.toISOString() : null;
   }, [k, client]);
 
-  // Aujourd'hui — détail des éléments appris (création du jour) pour le périmètre.
+  // Aujourd'hui — détail selon la base : éléments créés (appris) OU mis à jour (mouvements) du jour.
   const apprisAuj = useMemo(() => {
     const t = new Date().toDateString();
-    return F.filter((i) => i.cree && new Date(i.cree).toDateString() === t)
-      .sort((a, b) => new Date(b.cree) - new Date(a.cree)).slice(0, 12);
-  }, [F]);
+    return F.filter((i) => i[base] && new Date(i[base]).toDateString() === t)
+      .sort((a, b) => new Date(b[base]) - new Date(a[base])).slice(0, 14);
+  }, [F, base]);
 
   // Détail trié + recherché de tout ce qui a été appris (périmètre courant).
   // Statuts présents (filtres rapides) + détail trié/recherché/filtré.
@@ -175,7 +179,7 @@ export default function LearningHistory({ issues = [], k = null }) {
   return (
     <div className="lh">
       <div className="lh-intro">
-        <b>Historique d'apprentissage.</b> La courbe montre ce que cp|WIRE <b>connaît</b> au fil du temps : chaque élément (ticket Jira) appris est compté à sa date de création, et la couche IA s'actualise en tâche de fond. Choisissez un client et une granularité.
+        <b>Historique d'apprentissage.</b> La courbe montre ce que cp|WIRE <b>connaît</b> au fil du temps. Vous choisissez ce qu'on compte : les <b>éléments créés</b> (nouvel élément appris, à sa date de création) ou les <b>mouvements</b> (mises à jour — c'est ce que montre le cockpit « ce qui a bougé »). Filtrez par client et par granularité.
       </div>
 
       {/* Filtres : client */}
@@ -186,27 +190,34 @@ export default function LearningHistory({ issues = [], k = null }) {
         ))}
       </div>
 
-      {/* Granularité */}
-      <div className="lh-grans" role="tablist" aria-label="Granularité">
-        {GRANS.map(([id, lbl]) => (
-          <button type="button" key={id} className={`lh-gran ${gran === id ? "on" : ""}`} onClick={() => setGran(id)}>{lbl}</button>
-        ))}
+      {/* Base : éléments créés vs mouvements (mises à jour) */}
+      <div className="lh-controls">
+        <div className="lh-base" role="tablist" aria-label="Base de comptage">
+          <button type="button" className={`lh-baseb ${!isMaj ? "on" : ""}`} onClick={() => setBase("cree")} title="Compter les nouveaux éléments à leur date de création">Éléments créés</button>
+          <button type="button" className={`lh-baseb ${isMaj ? "on" : ""}`} onClick={() => setBase("maj")} title="Compter les mises à jour (mouvements) — comme le cockpit « ce qui a bougé »">Mouvements (MAJ)</button>
+        </div>
+        {/* Granularité */}
+        <div className="lh-grans" role="tablist" aria-label="Granularité">
+          {GRANS.map(([id, lbl]) => (
+            <button type="button" key={id} className={`lh-gran ${gran === id ? "on" : ""}`} onClick={() => setGran(id)}>{lbl}</button>
+          ))}
+        </div>
       </div>
 
       {/* KPIs */}
       <div className="lh-kpis">
-        <div className="lh-kpi"><b>{series.total}</b><span>éléments connus{client === "Tous" ? "" : ` · ${client}`}</span></div>
-        <div className="lh-kpi"><b>{live.neufAuj}</b><span>appris aujourd'hui</span></div>
-        <div className="lh-kpi"><b>{live.majAuj}</b><span>mis à jour aujourd'hui</span></div>
-        <div className="lh-kpi lh-kpi-dt"><b>{live.last ? `${fmtDT(live.last)}` : "—"}</b><span>dernière mise à jour{heure ? " (donnée)" : ""}</span></div>
+        <div className="lh-kpi"><b>{series.total}</b><span>{isMaj ? "mouvements (total)" : "éléments connus"}{client === "Tous" ? "" : ` · ${client}`}</span></div>
+        <div className={`lh-kpi ${!isMaj ? "lh-kpi-on" : ""}`}><b>{live.neufAuj}</b><span>créés aujourd'hui</span></div>
+        <div className={`lh-kpi ${isMaj ? "lh-kpi-on" : ""}`}><b>{live.majAuj}</b><span>mis à jour aujourd'hui</span></div>
+        <div className="lh-kpi lh-kpi-dt"><b>{live.last ? `${fmtDT(live.last)}` : "—"}</b><span>dernière mise à jour</span></div>
       </div>
 
       {/* Graphique */}
       {bk.length ? (
         <div className="lh-chart">
           <div className="lh-chart-hd">
-            <span className="lh-legend"><i className="lh-lg-cum" /> Éléments connus (cumul)</span>
-            <span className="lh-legend"><i className="lh-lg-new" /> Nouveaux par {gran === "annee" ? "an" : gran}</span>
+            <span className="lh-legend"><i className="lh-lg-cum" /> {isMaj ? "Mouvements (cumul)" : "Éléments connus (cumul)"}</span>
+            <span className="lh-legend"><i className="lh-lg-new" /> {isMaj ? "Mouvements" : "Nouveaux"} par {gran === "annee" ? "an" : gran}</span>
             <span className="lh-chart-max">max {maxCum}</span>
           </div>
           <svg className="lh-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Courbe d'apprentissage">
@@ -242,21 +253,21 @@ export default function LearningHistory({ issues = [], k = null }) {
         <span>🤖 Dernier apprentissage IA{client === "Tous" ? "" : ` · ${client}`} : <b>{autoAt ? fmtDT(autoAt) : "—"}</b></span>
       </div>
 
-      {/* Ce que j'ai appris aujourd'hui */}
+      {/* Aujourd'hui : créés OU mouvements selon la base (le mode Mouvements = cockpit) */}
       <div className="lh-today">
-        <div className="lh-today-hd">Ce que j'ai appris aujourd'hui <b>{live.neufAuj}</b></div>
+        <div className="lh-today-hd">{isMaj ? "Ce qui a bougé aujourd'hui" : "Ce que j'ai appris aujourd'hui"} <b>{isMaj ? live.majAuj : live.neufAuj}</b></div>
         {apprisAuj.length ? (
           <ul className="lh-today-list">
             {apprisAuj.map((i) => (
               <li key={i.cle}>
-                <span className="lh-today-h">{i.cree ? new Date(i.cree).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+                <span className="lh-today-h">{i[base] ? new Date(i[base]).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
                 <span className="lh-today-cli">{norm(i.dossier) || "—"}</span>
-                <span className="lh-today-cle">{i.cle}</span>
+                <button type="button" className="lh-link lh-today-cle" onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
                 <span className="lh-today-t">{i.resume}</span>
               </li>
             ))}
           </ul>
-        ) : <p className="lh-empty">Rien de nouveau appris aujourd'hui sur ce périmètre.</p>}
+        ) : <p className="lh-empty">{isMaj ? "Rien n'a bougé aujourd'hui sur ce périmètre." : "Rien de nouveau appris aujourd'hui sur ce périmètre."}</p>}
       </div>
 
       {/* Détail de tout ce qui a été appris — triable + recherche */}
@@ -293,9 +304,13 @@ export default function LearningHistory({ issues = [], k = null }) {
                   <div className="lh-tr" role="row" key={i.cle}>
                     <span className="lh-td lh-td-d">{i.cree ? fmtD(i.cree) : "—"}</span>
                     <span className="lh-td"><span className="lh-cli">{norm(i.dossier) || "—"}</span></span>
-                    <span className="lh-td lh-td-cle">{i.cle}</span>
+                    <span className="lh-td lh-td-cle">
+                      <button type="button" className="lh-link" onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
+                    </span>
                     <span className="lh-td lh-td-t" title={i.resume}>{i.resume}</span>
-                    <span className="lh-td lh-td-dev">{i.dev || "—"}</span>
+                    <span className="lh-td lh-td-dev">
+                      {i.dev ? <button type="button" className="lh-link-dev" onClick={() => onDev && onDev(i.dev)} title="Voir le développeur">{i.dev}</button> : "—"}
+                    </span>
                     <span className="lh-td lh-td-st">{i.statutJira || "—"}</span>
                     <span className="lh-td lh-td-maj">{i.maj ? fmtD(i.maj) : "—"}</span>
                   </div>
