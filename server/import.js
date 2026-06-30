@@ -5,6 +5,7 @@ import fs from "fs";
 import path from "path";
 import { dataDir } from "./paths.js";
 import { classifyImport } from "./ai.js";
+import { learnFromImport } from "./connaissance.js";
 import { saveBlob as dbSaveBlob, restoreBlob, restoreManyBlobs } from "./persist.js";
 
 const DIR = dataDir();
@@ -360,6 +361,30 @@ export function applyImport({ filename, proposal, apercu, dataset, diff, by }) {
     // Type connu de petit volume : on déverse directement les lignes.
     saveDataset(dataset.name, dataset.rows, src);
   }
+
+  // APPRENTISSAGE AUTOMATIQUE — on nourrit DURABLEMENT la mémoire (connaissance) relue
+  // par l'IA. Upsert par source : la dernière version remplace la précédente (rien perdu,
+  // pas de doublon). Le dataset complet, lui, reste stocké côté serveur.
+  try {
+    const cli = proposal && proposal.client ? String(proposal.client).trim() : "";
+    const multi = /^tous\b/i.test(cli);
+    const parts = [];
+    parts.push(`Source « ${entry.filename} »${proposal.type ? ` — ${proposal.type}` : ""}.`);
+    if (proposal.cible) parts.push(proposal.cible);
+    if (proposal.resume) parts.push(proposal.resume);
+    if (Array.isArray(proposal.details) && proposal.details.length) parts.push(...proposal.details.map((d) => `• ${d}`));
+    if (entry.dataset && entry.dataset.name) parts.push(`Jeu de données rattaché : « ${entry.dataset.name} » (${entry.dataset.count} éléments).`);
+    if (apercu) parts.push(`Aperçu : ${String(apercu).slice(0, 500)}`);
+    const text = parts.filter(Boolean).join("\n");
+    const sourceKey = dataset && dataset.name ? `import:${dataset.name}` : `import:${entry.filename}`;
+    if (cli && !multi) {
+      const l = learnFromImport(cli, sourceKey, text);
+      entry.learned = { ok: !!l, dossier: cli, at: l ? l.at : null };
+    } else {
+      entry.learned = { ok: false, dossier: cli || null, reason: cli ? "Périmètre multi-sites — conservé en jeu de données (pas rattaché à un client unique)." : "Dossier non rattaché — conservé en jeu de données." };
+    }
+  } catch (e) { console.error("[import] apprentissage mémoire:", e.message); entry.learned = { ok: false, reason: String(e.message || e) }; }
+
   return entry;
 }
 

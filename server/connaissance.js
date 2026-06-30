@@ -226,6 +226,14 @@ export function saveConnaissance(data) {
     if (keptAuto && Array.isArray(keptAuto.points) && keptAuto.points.length) {
       safe.clients[k].auto = { points: keptAuto.points.map(String).filter(Boolean).slice(0, 6), at: String(keptAuto.at || "") };
     }
+    // Couche « apprise par import » (upsert par source) — préservée comme la couche auto.
+    const keptAppris = Array.isArray(c.appris) ? c.appris : (current.clients[k] && current.clients[k].appris);
+    if (Array.isArray(keptAppris) && keptAppris.length) {
+      safe.clients[k].appris = keptAppris
+        .filter((e) => e && (e.text || e.source))
+        .map((e) => ({ source: String(e.source || ""), at: String(e.at || ""), text: String(e.text || "").slice(0, 2000) }))
+        .slice(-200);
+    }
   }
   safe.pilote = current.pilote || { profil: [], consignes: [], maj: null };
   try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(safe, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(safe, null, 2)); } catch {} }
@@ -246,6 +254,7 @@ export function knowledgeForPrompt(dossier) {
     if (c.glossaire?.length) lines.push(`Vocabulaire ${dossier} : ` + c.glossaire.map((g) => `${g.terme} = ${g.sens}`).join(" ; "));
     if (c.notes?.length) lines.push(`Notes ${dossier} : ${c.notes.join(" ; ")}`);
     if (c.auto?.points?.length) lines.push(`Observé automatiquement sur ${dossier} (activité Jira récente, indicatif) : ${c.auto.points.join(" ; ")}`);
+    if (c.appris?.length) lines.push(`Sources apprises ${dossier} (imports intégrés, à mémoriser durablement) : ` + c.appris.slice(-10).map((e) => String(e.text || "").replace(/\s+/g, " ").slice(0, 360)).join("  ⟶  "));
   }
   return lines.length > 1 ? lines.join("\n") : "";
 }
@@ -276,6 +285,27 @@ export function addNote(dossier, note) {
   if (!Array.isArray(k.clients[dossier].notes)) k.clients[dossier].notes = [];
   k.clients[dossier].notes.push(txt.slice(0, 1200));
   return saveConnaissance(k);
+}
+
+// Mémorise/ACTUALISE ce qu'un IMPORT apprend, par source (upsert : on remplace l'entrée
+// de la même source au lieu d'empiler des doublons → on garde toujours la dernière
+// version, rien ne se perd, la mémoire ne gonfle pas). Écriture directe (comme saveAuto)
+// pour préserver la couche. Relue par l'IA via knowledgeForPrompt.
+export function learnFromImport(dossier, sourceKey, text) {
+  const d = String(dossier || "").trim();
+  const body = String(text || "").trim();
+  if (!d || !body) return null;
+  const k = readConnaissance();
+  if (!k.clients[d]) k.clients[d] = { contexte: "", attentes: [], glossaire: [], notes: [] };
+  if (!Array.isArray(k.clients[d].appris)) k.clients[d].appris = [];
+  const tag = String(sourceKey || "").trim() || body.slice(0, 32);
+  const entry = { source: tag, at: new Date().toISOString(), text: body.slice(0, 2000) };
+  const i = k.clients[d].appris.findIndex((e) => e && e.source === tag);
+  if (i >= 0) k.clients[d].appris[i] = entry; else k.clients[d].appris.push(entry);
+  if (k.clients[d].appris.length > 200) k.clients[d].appris = k.clients[d].appris.slice(-200);
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(k, null, 2)); } catch {} }
+  catch (e) { console.error("[connaissance] learnFromImport impossible:", e.message); }
+  return entry;
 }
 
 // ============================================================================

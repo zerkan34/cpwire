@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { buildSimpleDoc, printHtml, saveBlobAs } from "../utils.js";
 
 // Historique d'apprentissage — courbe de ce que cp|WIRE « connaît » dans le temps.
 // Source RÉELLE : dates Jira (cree = élément appris, maj = dernier mouvement) + couche IA (auto.at).
@@ -41,6 +42,11 @@ const fmtDT = (d) => { try { return new Date(d).toLocaleString("fr-FR", { dateSt
 export default function LearningHistory({ issues = [], k = null }) {
   const [client, setClient] = useState("Tous");
   const [gran, setGran] = useState("mois");
+  const [sortKey, setSortKey] = useState("cree");
+  const [sortDir, setSortDir] = useState("desc");
+  const [query, setQuery] = useState("");
+  const [limit, setLimit] = useState(120);
+  const [statut, setStatut] = useState("Tous");
 
   const clients = useMemo(
     () => [...new Set(issues.map((i) => norm(i.dossier)).filter((d) => d && d !== "—"))].sort(),
@@ -91,6 +97,63 @@ export default function LearningHistory({ issues = [], k = null }) {
     return F.filter((i) => i.cree && new Date(i.cree).toDateString() === t)
       .sort((a, b) => new Date(b.cree) - new Date(a.cree)).slice(0, 12);
   }, [F]);
+
+  // Détail trié + recherché de tout ce qui a été appris (périmètre courant).
+  // Statuts présents (filtres rapides) + détail trié/recherché/filtré.
+  const statuts = useMemo(() => {
+    const m = {};
+    F.forEach((i) => { const s = i.statutJira || "—"; m[s] = (m[s] || 0) + 1; });
+    return Object.entries(m).map(([s, n]) => ({ statut: s, n })).sort((a, b) => b.n - a.n);
+  }, [F]);
+
+  const sorted = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const base = F.filter((i) =>
+      (statut === "Tous" || (i.statutJira || "—") === statut) &&
+      (!q || [i.cle, i.resume, i.dossier, i.dev, i.statutJira].some((v) => String(v || "").toLowerCase().includes(q)))
+    );
+    const dir = sortDir === "asc" ? 1 : -1;
+    const val = (i) => {
+      if (sortKey === "cree" || sortKey === "maj") return i[sortKey] ? new Date(i[sortKey]).getTime() : 0;
+      return String(i[sortKey] || "").toLowerCase();
+    };
+    return [...base].sort((a, b) => { const va = val(a), vb = val(b); if (va < vb) return -1 * dir; if (va > vb) return 1 * dir; return 0; });
+  }, [F, sortKey, sortDir, query, statut]);
+
+  const sortBy = (key) => {
+    if (sortKey === key) setSortDir((d) => (d === "asc" ? "desc" : "asc"));
+    else { setSortKey(key); setSortDir(key === "cree" || key === "maj" ? "desc" : "asc"); }
+  };
+  const arrow = (key) => (sortKey === key ? (sortDir === "asc" ? " ▲" : " ▼") : "");
+  const fmtD = (d) => { try { const x = new Date(d); return `${PAD(x.getDate())}/${PAD(x.getMonth() + 1)}/${String(x.getFullYear()).slice(2)} ${PAD(x.getHours())}:${PAD(x.getMinutes())}`; } catch { return "—"; } };
+  const COLS = [["cree", "Appris le"], ["dossier", "Client"], ["cle", "Ticket"], ["resume", "Libellé"], ["dev", "Développeur"], ["statutJira", "Statut"], ["maj", "MAJ"]];
+
+  const escH = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const portee = () => (client === "Tous" ? "Tous clients" : client) + (statut !== "Tous" ? ` · statut : ${statut}` : "") + (query ? ` · recherche : « ${query} »` : "");
+  const exportCsv = async () => {
+    const head = ["Appris le", "Client", "Ticket", "Libellé", "Développeur", "Statut", "Dernière MAJ"];
+    const lines = [head, ...sorted.map((i) => [i.cree ? fmtD(i.cree) : "", i.dossier || "", i.cle || "", i.resume || "", i.dev || "", i.statutJira || "", i.maj ? fmtD(i.maj) : ""])];
+    const csv = "\uFEFF" + lines.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(";")).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    await saveBlobAs(blob, `Apprentissage${client !== "Tous" ? "_" + client : ""}.csv`, { description: "Fichier CSV (Excel)", mime: "text/csv", ext: ".csv" });
+  };
+  const exportPdf = async () => {
+    const cap = 800;
+    const rows = sorted.slice(0, cap);
+    const body =
+      `<p class="lede">Détail des éléments connus — ${portee()} · <b>${sorted.length}</b> élément(s).</p>`
+      + `<table><thead><tr><th>Appris le</th><th>Client</th><th>Ticket</th><th>Libellé</th><th>Développeur</th><th>Statut</th><th>MAJ</th></tr></thead><tbody>`
+      + rows.map((i) => `<tr><td>${i.cree ? fmtD(i.cree) : "—"}</td><td>${escH(i.dossier || "—")}</td><td>${escH(i.cle)}</td><td>${escH(i.resume || "")}</td><td>${escH(i.dev || "—")}</td><td>${escH(i.statutJira || "—")}</td><td>${i.maj ? fmtD(i.maj) : "—"}</td></tr>`).join("")
+      + `</tbody></table>`
+      + (sorted.length > cap ? `<p class="hint">Affiché : les ${cap} premiers (selon le tri courant). Liste complète via l'export Excel.</p>` : "");
+    const html = buildSimpleDoc({
+      kicker: "Mémoire", title: "Historique d'apprentissage",
+      subtitle: `Détail des éléments connus${client !== "Tous" ? " — " + client : ""}`,
+      cartouche: [["Périmètre", client === "Tous" ? "Tous clients" : client], ["Statut", statut === "Tous" ? "Tous" : statut], ["Éléments", String(sorted.length)]],
+      bodyHtml: body,
+    });
+    await printHtml(html, "Historique_apprentissage");
+  };
 
   // --- Géométrie du graphique ---
   const W = 760, H = 230, padL = 8, padR = 8, padT = 14, padB = 26;
@@ -194,6 +257,56 @@ export default function LearningHistory({ issues = [], k = null }) {
             ))}
           </ul>
         ) : <p className="lh-empty">Rien de nouveau appris aujourd'hui sur ce périmètre.</p>}
+      </div>
+
+      {/* Détail de tout ce qui a été appris — triable + recherche */}
+      <div className="lh-detail">
+        <div className="lh-detail-hd">
+          <div className="lh-detail-t">Détail — ce qui a été appris <b>{sorted.length}</b></div>
+          <div className="lh-detail-tools">
+            <div className="lh-search">
+              <input value={query} onChange={(e) => { setQuery(e.target.value); setLimit(120); }} placeholder="Rechercher (ticket, libellé, dev, statut)…" aria-label="Rechercher" />
+              {query ? <button type="button" className="lh-search-x" onClick={() => setQuery("")} title="Effacer">×</button> : null}
+            </div>
+            <div className="lh-detail-actions">
+              <button type="button" className="lh-exp" onClick={exportCsv} title="Exporter la vue en CSV (Excel)">⬇ Excel</button>
+              <button type="button" className="lh-exp lh-exp-pdf" onClick={exportPdf} title="Exporter la vue en PDF (charte Armonie)">📄 PDF</button>
+            </div>
+          </div>
+        </div>
+        <div className="lh-stfilters">
+          <button type="button" className={`lh-chip ${statut === "Tous" ? "on" : ""}`} onClick={() => { setStatut("Tous"); setLimit(120); }}>Tous statuts <b>{F.length}</b></button>
+          {statuts.map((s) => (
+            <button type="button" key={s.statut} className={`lh-chip ${statut === s.statut ? "on" : ""}`} onClick={() => { setStatut(s.statut); setLimit(120); }}>{s.statut} <b>{s.n}</b></button>
+          ))}
+        </div>
+        {sorted.length ? (
+          <>
+            <div className="lh-tbl-wrap">
+              <div className="lh-tbl" role="table">
+                <div className="lh-tbl-hd" role="row">
+                  {COLS.map(([key, lbl]) => (
+                    <button type="button" key={key} className={`lh-th ${sortKey === key ? "on" : ""}`} onClick={() => sortBy(key)} role="columnheader">{lbl}{arrow(key)}</button>
+                  ))}
+                </div>
+                {sorted.slice(0, limit).map((i) => (
+                  <div className="lh-tr" role="row" key={i.cle}>
+                    <span className="lh-td lh-td-d">{i.cree ? fmtD(i.cree) : "—"}</span>
+                    <span className="lh-td"><span className="lh-cli">{norm(i.dossier) || "—"}</span></span>
+                    <span className="lh-td lh-td-cle">{i.cle}</span>
+                    <span className="lh-td lh-td-t" title={i.resume}>{i.resume}</span>
+                    <span className="lh-td lh-td-dev">{i.dev || "—"}</span>
+                    <span className="lh-td lh-td-st">{i.statutJira || "—"}</span>
+                    <span className="lh-td lh-td-maj">{i.maj ? fmtD(i.maj) : "—"}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            {sorted.length > limit ? (
+              <button type="button" className="lh-more-btn" onClick={() => setLimit((l) => l + 200)}>Afficher plus ({sorted.length - limit} restant{sorted.length - limit > 1 ? "s" : ""})</button>
+            ) : <p className="lh-detail-foot">{sorted.length} élément(s) affiché(s).</p>}
+          </>
+        ) : <p className="lh-empty">Aucun élément ne correspond.</p>}
       </div>
     </div>
   );
