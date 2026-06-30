@@ -226,10 +226,19 @@ export default function Projets({ issues = [], facts, onTicket, onDev }) {
   }, []);
 
   const openAlerte = (a) => {
-    if (!d) return;
-    for (const c of d.clients) for (const p of c.projets) {
+    if (!d || !a) return;
+    const cls = d.clients || [];
+    // 1) correspondance exacte client + projet + périmètre
+    for (const c of cls) for (const p of (c.projets || [])) {
       if (c.client === a.client && p.nom === a.projet && (p.perimetre || "") === (a.perimetre || "")) { setSel(p); return; }
     }
+    // 2) repli : même client + même projet (périmètre ignoré)
+    for (const c of cls) for (const p of (c.projets || [])) {
+      if (c.client === a.client && p.nom === a.projet) { setSel(p); return; }
+    }
+    // 3) dernier repli : ouvrir la fiche client (jamais de clic « mort »)
+    const cli = cls.find((c) => c.client === a.client);
+    if (cli) setSel360(cli);
   };
   const exportXlsx = async () => { setDl(true); try { await downloadProjetsXlsx(); } catch (e) { alert("Export indisponible : " + (e.message || e)); } finally { setDl(false); } };
   const exportPdf = async () => { try { await openProjetsDoc(); } catch (e) { alert(e.message || String(e)); } };

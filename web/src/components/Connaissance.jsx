@@ -3,6 +3,7 @@ import { fetchConnaissance, saveConnaissance, learnConnaissance, fetchHealth } f
 import { RefState } from "./RefState.jsx";
 import { buildMemoireDoc } from "../refDoc.js";
 import { printHtml, downloadHtml } from "../utils.js";
+import LearningHistory from "./LearningHistory.jsx";
 
 const arrToText = (a) => (Array.isArray(a) ? a.join("\n") : "");
 const textToArr = (s) => String(s || "").split("\n").map((x) => x.trim()).filter(Boolean);
@@ -12,8 +13,9 @@ const textToGloss = (s) => String(s || "").split("\n").map((l) => {
   return i < 0 ? { terme: l.trim(), sens: "" } : { terme: l.slice(0, i).trim(), sens: l.slice(i + 1).trim() };
 }).filter((g) => g.terme);
 
-export default function Connaissance() {
+export default function Connaissance({ issues = [] }) {
   const [k, setK] = useState(null);
+  const [showHist, setShowHist] = useState(false);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [msg, setMsg] = useState("");
@@ -118,6 +120,18 @@ export default function Connaissance() {
         Concrètement : plus la mémoire est riche, plus les CR et analyses sortent <b>justes et personnalisés</b>, sans avoir à tout réexpliquer.
       </div>
       <p className="hint">Astuce : une ligne par règle. Glossaire : « terme = définition » par ligne.</p>
+
+      <div className="cn-hist-bar">
+        <button type="button" className={`cn-hist-btn ${showHist ? "on" : ""}`} onClick={() => setShowHist((v) => !v)}>
+          📈 Historique d'apprentissage{showHist ? " — masquer" : ""}
+        </button>
+        <span className="cn-hist-sub">Courbe de ce que cp|WIRE connaît dans le temps, par client (jour / semaine / mois / année).</span>
+      </div>
+      {showHist ? (
+        <div className="panel cn-block cn-hist-panel">
+          <LearningHistory issues={issues} k={k} />
+        </div>
+      ) : null}
 
       {persistent === true ? (
         <div className="cn-ok">

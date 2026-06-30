@@ -4506,3 +4506,62 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .rana-chip.on { color: #fff; }
   .rana-today-cli { background: rgba(120,110,180,.20); color: #c9c3ec; }
 }
+
+/* ===== PASSE v311 — Mémoire : Historique d'apprentissage (courbe + barres) ===== */
+.cn-hist-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin: 14px 0 4px; }
+.cn-hist-btn { background: var(--indigo); color: #fff; border: none; border-radius: 10px; padding: 9px 16px; font: inherit; font-weight: 700; font-size: 13px; cursor: pointer; transition: filter .12s; }
+.cn-hist-btn:hover { filter: brightness(1.08); }
+.cn-hist-btn.on { background: var(--gold); }
+.cn-hist-sub { color: var(--muted); font-size: 12px; }
+.cn-hist-panel { margin-top: 12px; }
+
+.lh-intro { color: var(--ink); font-size: 12.5px; line-height: 1.55; margin: 0 0 14px; }
+.lh-intro b { color: var(--indigo); }
+.lh-filters { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.lh-chip { background: #fff; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11px; font-weight: 600; padding: 4px 11px; border-radius: 20px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.lh-chip b { font-size: 10.5px; color: var(--indigo); font-weight: 800; }
+.lh-chip:hover { border-color: var(--indigo); color: var(--ink); }
+.lh-chip.on { background: var(--indigo); border-color: var(--indigo); color: #fff; }
+.lh-chip.on b { color: var(--gold); }
+.lh-grans { display: inline-flex; gap: 0; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin: 0 0 14px; }
+.lh-gran { background: #fff; border: none; border-right: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 600; padding: 6px 14px; cursor: pointer; }
+.lh-gran:last-child { border-right: none; }
+.lh-gran.on { background: var(--indigo); color: #fff; }
+.lh-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 0 16px; }
+.lh-kpi { background: #faf9fd; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.lh-kpi b { display: block; font-size: 19px; font-weight: 800; color: var(--indigo); line-height: 1.1; }
+.lh-kpi span { display: block; font-size: 10.5px; color: var(--muted); margin-top: 3px; }
+.lh-kpi-dt b { font-size: 12.5px; font-weight: 700; }
+.lh-chart { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px 6px; }
+.lh-chart-hd { display: flex; align-items: center; gap: 16px; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+.lh-legend { display: inline-flex; align-items: center; gap: 6px; }
+.lh-legend i { width: 12px; height: 8px; border-radius: 2px; display: inline-block; }
+.lh-lg-cum { background: var(--indigo); }
+.lh-lg-new { background: rgba(168,136,78,.45); }
+.lh-chart-max { margin-left: auto; font-weight: 700; color: var(--indigo); }
+.lh-svg { width: 100%; height: auto; display: block; }
+.lh-grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 3 4; }
+.lh-bar { fill: rgba(168,136,78,.32); }
+.lh-area { fill: rgba(58,54,88,.09); }
+.lh-line { fill: none; stroke: var(--indigo); stroke-width: 2.2; stroke-linejoin: round; stroke-linecap: round; }
+.lh-dot { fill: var(--indigo); }
+.lh-xlab { fill: var(--muted); font-size: 9px; font-family: inherit; }
+.lh-empty { color: var(--muted); font-size: 12px; font-style: italic; padding: 10px 2px; }
+.lh-foot { margin: 12px 0 0; font-size: 11.5px; color: var(--muted); }
+.lh-foot b { color: var(--ink); }
+.lh-today { margin-top: 16px; }
+.lh-today-hd { font-weight: 700; color: var(--indigo); font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; }
+.lh-today-hd b { background: var(--indigo); color: #fff; border-radius: 20px; font-size: 11px; padding: 1px 9px; }
+.lh-today-list { list-style: none; margin: 0; padding: 0; }
+.lh-today-list li { display: grid; grid-template-columns: 46px 118px 92px minmax(0,1fr); column-gap: 10px; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
+.lh-today-h { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--gold); font-size: 11.5px; }
+.lh-today-cli { background: #F1ECFB; color: var(--indigo); font-weight: 700; font-size: 10.5px; padding: 2px 9px; border-radius: 6px; white-space: nowrap; max-width: 118px; overflow: hidden; text-overflow: ellipsis; }
+.lh-today-cle { color: var(--indigo); font-weight: 700; white-space: nowrap; }
+.lh-today-t { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+@media (max-width: 760px) { .lh-kpis { grid-template-columns: repeat(2, 1fr); } }
+@media (prefers-color-scheme: dark) {
+  .lh-kpi { background: rgba(120,110,180,.10); }
+  .lh-chip, .lh-gran { background: transparent; }
+  .lh-today-cli { background: rgba(120,110,180,.20); color: #c9c3ec; }
+  .lh-area { fill: rgba(140,130,210,.14); }
+}

@@ -45,7 +45,7 @@ export default function Reference({ issues = [], role = "", onTicket, onDev }) {
         <RefBoundary>
           {cur.id === "annuaire" && <Referentiel issues={issues} onTicket={onTicket} />}
           {cur.id === "analyse" && <RefAnalyse issues={issues} onTicket={onTicket} onDev={onDev} />}
-          {cur.id === "memoire" && role === "owner" && <Connaissance />}
+          {cur.id === "memoire" && role === "owner" && <Connaissance issues={issues} />}
         </RefBoundary>
       </div>
     </div>
