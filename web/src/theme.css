@@ -4636,3 +4636,6 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .lh-link-dev { background: none; border: none; padding: 0; font: inherit; cursor: pointer; color: var(--muted); font-size: 11px; text-align: left; }
 .lh-link-dev:hover { color: var(--indigo); text-decoration: underline; }
 @media (prefers-color-scheme: dark) { .lh-baseb { background: transparent; } }
+
+/* ===== PASSE v316 — barre d'actions mémoire en tête de l'historique d'apprentissage ===== */
+.lh-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 16px; }

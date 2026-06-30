@@ -39,7 +39,7 @@ function labelOf(d, gran) {
 }
 const fmtDT = (d) => { try { return new Date(d).toLocaleString("fr-FR", { dateStyle: "medium", timeStyle: "short" }); } catch { return "—"; } };
 
-export default function LearningHistory({ issues = [], k = null, onTicket, onDev }) {
+export default function LearningHistory({ issues = [], k = null, onTicket, onDev, actions = null }) {
   const [client, setClient] = useState("Tous");
   const [gran, setGran] = useState("mois");
   const [base, setBase] = useState("cree"); // "cree" = éléments créés (appris) · "maj" = mouvements (mises à jour)
@@ -203,6 +203,17 @@ export default function LearningHistory({ issues = [], k = null, onTicket, onDev
           ))}
         </div>
       </div>
+
+      {/* Actions mémoire (mêmes que la mémoire d'équipe) */}
+      {actions ? (
+        <div className="lh-actions">
+          <button type="button" className="btn cn-save" onClick={actions.onSave} disabled={actions.saving}>{actions.saving ? "Enregistrement…" : "Enregistrer la mémoire"}</button>
+          <button type="button" className="btn cn-ghost" onClick={actions.onLearn} disabled={actions.learning} title="Forcer l'analyse IA de tous les clients maintenant">{actions.learning ? "Apprentissage…" : "🤖 Mettre à jour l'apprentissage"}</button>
+          <button type="button" className="btn cn-ghost" onClick={actions.onExport}>Exporter (connaissance.json)</button>
+          <button type="button" className="btn cn-ghost" onClick={actions.exportPdf} title="Télécharger la mémoire en PDF (charte Armonie)">⤓ PDF</button>
+          <button type="button" className="btn cn-ghost" onClick={actions.exportWeb} title="Télécharger la mémoire en page web cliquable">🌐 Web</button>
+        </div>
+      ) : null}
 
       {/* KPIs */}
       <div className="lh-kpis">

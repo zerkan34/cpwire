@@ -129,7 +129,8 @@ export default function Connaissance({ issues = [], onTicket, onDev }) {
       </div>
       {showHist ? (
         <div className="panel cn-block cn-hist-panel">
-          <LearningHistory issues={issues} k={k} onTicket={onTicket} onDev={onDev} />
+          <LearningHistory issues={issues} k={k} onTicket={onTicket} onDev={onDev}
+            actions={{ onSave, onLearn, onExport, exportPdf, exportWeb, saving, learning }} />
         </div>
       ) : null}
 
