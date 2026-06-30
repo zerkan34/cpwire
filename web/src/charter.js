@@ -1,14 +1,15 @@
 // ============================================================================
 //  charter.js — CHARTE GRAPHIQUE UNIQUE pour TOUS les exports PDF de cp|WIRE.
-//  Calquée sur le document de référence « Points bloquants » :
-//   couverture (lockup logo · sur-titre espacé · titre géant Poppins · pastille ·
-//   EN BREF · gros chiffre en exergue · ÉTABLI PAR · pied confidentiel),
-//   bandeaux capitales espacées, bandeau KPI, sections par dossier, tableau,
-//   pied de page courant. Navy / indigo / or.
+//  Alignée À L'IDENTIQUE sur le skill « armonie-design » (CR AUTOMSI) :
+//   polices Poppins/Inter EMBARQUÉES (woff2 base64, fidèles même en rendu serveur
+//   WeasyPrint sans réseau), palette exacte (navy/indigo/or #A88B4B/lavande/filet
+//   #E2DEF0), couverture à barre dégradée, kicker doré + titre navy, tableaux à
+//   coins arrondis en-tête navy + zébrage lavande + ligne Total, pied signataires.
 //  Tout export DOIT passer par charterDoc() pour rester identique partout.
 // ============================================================================
+import { CHARTER_FONTS } from "./charterFonts.js";
 
-export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A8884E", ink: "#1F1B33", muted: "#6E6A86", soft: "#F5F2FC", line: "#E7E5F1", red: "#C0392B", amber: "#C2691A" };
+export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A88B4B", gold2: "#BFA168", ink: "#1F1B33", muted: "#6E6A86", soft: "#F5F2FC", line: "#E2DEF0", red: "#C0392B", amber: "#C2691A", green: "#2F7D4F" };
 
 // Trame « papier vergé » très subtile (fines vergeures verticales + chaînettes
 // horizontales espacées), mélangée au blanc. À poser sur toute surface blanche.
@@ -78,7 +79,7 @@ export function chapter({ over, title, lead = "" }) {
 // (répété sur chaque page ; la numérotation n/total exige un rendu serveur).
 export function charterCss() {
   return `
-  @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@500;600;700;800&family=Inter:wght@400;500;600;700&display=swap');
+  ${CHARTER_FONTS}
   @page { size: A4 portrait; margin: 16mm 15mm 18mm; }
   *{box-sizing:border-box} html,body{margin:0}
   body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${C.ink};font-size:11.5px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact;background-color:#fff;background-image:${VERGE}}
@@ -147,7 +148,7 @@ export function charterCss() {
 
   /* ---------- SECTION DOSSIER ---------- */
   .ch-sec{margin:30px 0 24px;break-inside:avoid;page-break-inside:avoid}
-  .ch-sec-name{font-size:22px;color:${C.gold};margin:0;font-weight:700;letter-spacing:.2px}
+  .ch-sec-name{font-size:22px;color:${C.navy};margin:0;font-weight:700;letter-spacing:.2px}
   .ch-sec-intro{margin:9px 0 14px;color:${C.muted};font-size:11px}
 
   /* Tableaux — carte arrondie à en-tête navy (charte CR Go/No-Go) ; arrondi par cellules => sûr en multi-pages */
@@ -163,6 +164,10 @@ export function charterCss() {
   tr:last-child td:first-child{border-bottom-left-radius:13px}
   tr:last-child td:last-child{border-bottom-right-radius:13px}
   th.num{color:#fff;text-align:right}
+  td.num{text-align:right}
+  tbody tr:nth-child(even) td{background:#FAF9FD}
+  tbody tr.tot td{background:${C.soft};font-family:Poppins,Inter,sans-serif;font-weight:700;color:${C.navy};border-top:2px solid ${C.line}}
+  tbody tr.tot td.num{color:${C.gold}}
   tr{break-inside:avoid}
 
   /* Pied de page courant (répété à chaque page imprimée) */
