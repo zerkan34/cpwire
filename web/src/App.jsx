@@ -87,6 +87,7 @@ function greetMessage(role, me) {
 }
 const TABS = [
   { id: "cockpit", label: "Pilotage" },
+  { id: "tour", label: "Tour de contrôle" },
   { id: "outils", label: "Outils" },
 ];
 
@@ -94,6 +95,11 @@ const TABS = [
 const SUBTABS = {
   cockpit: [
     { id: "accueil", label: "Accueil" },
+  ],
+  tour: [
+    { id: "flux", label: "Flux d'activité" },
+    { id: "figes", label: "Tickets figés" },
+    { id: "sla", label: "SLA" },
   ],
   outils: [
     { id: "morning", label: "Récap" },
@@ -112,9 +118,9 @@ const SUBTABS = {
 const PRIMARY = ["cockpit", "outils"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "outils"];
+const CONSULT_TABS = ["cockpit", "tour", "outils"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Pilotage", outils: "Outils" };
+const TAB_SHORT = { cockpit: "Pilotage", tour: "Tour de contrôle", outils: "Outils" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
@@ -191,7 +197,6 @@ export default function App() {
   const [bootMsg, setBootMsg] = useState("");
   const [diagBannerOn, setDiagBannerOn] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [ptfView, setPtfView] = useState("table"); // onglet Tickets : "table" (liste) ou "flux" (activité du jour)
   const [dossier, setDossier] = useState("Tous");
   const [statut, setStatut] = useState("Tous");
   const [onlyLate, setOnlyLate] = useState(false);
@@ -733,7 +738,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v333"
+            build="stable-v334"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -778,10 +783,8 @@ export default function App() {
           <div className="panel cockpit-panel">
             <div className="recap-hd recap-hd-ring">
               <span className="recap-hd-name">{cockpitFilterLabel}</span>
-              {ptfView === "table" && (
-                <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
-              )}
-              {ptfView === "table" && filtered.length > 0 && (() => {
+              <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
+              {filtered.length > 0 && (() => {
                 const dn = filtered.filter((i) => i.statut === "Terminé").length;
                 const pct = Math.round((dn / filtered.length) * 100);
                 return (
@@ -791,34 +794,38 @@ export default function App() {
                   </span>
                 );
               })()}
-              <div className="ptf-switch" role="tablist" aria-label="Affichage des tickets">
-                <button type="button" className={`ptf-sw ${ptfView === "table" ? "on" : ""}`} onClick={() => setPtfView("table")} title="Liste filtrable et cherchable">Table</button>
-                <button type="button" className={`ptf-sw ${ptfView === "flux" ? "on" : ""}`} onClick={() => setPtfView("flux")} title="Ce qui bouge aujourd'hui, en direct">Flux d'activité</button>
-                <button type="button" className={`ptf-sw ${ptfView === "stale" ? "on" : ""}`} onClick={() => setPtfView("stale")} title="Ce qui ne bouge plus (stagnation)">Figés</button>
-                <button type="button" className={`ptf-sw ${ptfView === "sla" ? "on" : ""}`} onClick={() => setPtfView("sla")} title="Tickets qui dépassent / approchent la cible SLA">SLA</button>
-              </div>
             </div>
             <div className="cockpit-bd">
-            {ptfView === "table" ? (
-              <>
-                <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
-                  onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
-                  onDossier={setDossier} onStatut={setStatut}
-                  onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
-                  onToggleFlagged={() => setOnlyFlagged((v) => !v)}
-                  onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
-                <div className="sep" />
-                <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
-              </>
-            ) : ptfView === "flux" ? (
-              <ActivityFeed issues={issues} onTicket={setTicket} />
-            ) : ptfView === "stale" ? (
-              <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} />
-            ) : (
-              <SlaAlert issues={issues} onTicket={setTicket} />
-            )}
+              <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
+                onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
+                onDossier={setDossier} onStatut={setStatut}
+                onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
+                onToggleFlagged={() => setOnlyFlagged((v) => !v)}
+                onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
+              <div className="sep" />
+              <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
             </div>
           </div>
+        </>
+      )}
+
+      {/* ---- Tour de contrôle : tout ce qui est daté (mouvements, stagnation, échéances SLA) ---- */}
+      {tab === "tour" && sub === "flux" && (
+        <>
+          <PageHero k="Tour de contrôle" title="Flux d'activité" sub="Ce qui bouge, en direct." />
+          <ActivityFeed issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} />
+        </>
+      )}
+      {tab === "tour" && sub === "figes" && (
+        <>
+          <PageHero k="Tour de contrôle" title="Tickets figés" sub="Ce qui ne bouge plus." />
+          <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} />
+        </>
+      )}
+      {tab === "tour" && sub === "sla" && (
+        <>
+          <PageHero k="Tour de contrôle" title="SLA" sub="Les engagements de délai qui approchent ou dépassent la cible." />
+          <SlaAlert issues={issues} onTicket={setTicket} onClient={openClient} />
         </>
       )}
 

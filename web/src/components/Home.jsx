@@ -166,7 +166,11 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
         );
       })()}
 
-      {/* 2 — Avancement global */}
+      {/* 2 — Par dossier */}
+      <div className="section-title"><span>Par dossier</span></div>
+      <Portfolio facts={facts} engagement={engagement} attention={attnMap} onOpen={onOpen} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
+
+      {/* 3 — Avancement global (en bas, sous les dossiers) */}
       <div className="section-title"><span>Avancement global</span></div>
       <div className="panel avc">
         <div className="avc-top">
@@ -185,10 +189,6 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
         </div>
         <div className="avc-srcline">source : Jira — en temps réel (à l'import)</div>
       </div>
-
-      {/* 3 — Portefeuille */}
-      <div className="section-title"><span>Par dossier</span></div>
-      <Portfolio facts={facts} engagement={engagement} attention={attnMap} onOpen={onOpen} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
     </div>
   );
 }

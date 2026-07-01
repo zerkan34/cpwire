@@ -14,7 +14,7 @@ const ageCls = (n) => (n == null ? "" : n >= 30 ? "crit" : n >= 15 ? "warn" : n 
 
 const SEUILS = [["7", "≥ 7 j", 7], ["15", "≥ 15 j", 15], ["30", "≥ 30 j", 30], ["0", "Tous", 0]];
 
-export default function StaleTickets({ issues = [], onTicket, onDev }) {
+export default function StaleTickets({ issues = [], onTicket, onDev, onClient }) {
   const [client, setClient] = useState("Tous");
   const [seuil, setSeuil] = useState(7);
   const [slaOnly, setSlaOnly] = useState(false);
@@ -58,6 +58,7 @@ export default function StaleTickets({ issues = [], onTicket, onDev }) {
       <div className="af-intro">
         <b>Tickets figés.</b> Depuis combien de temps chaque ticket n'a pas changé d'état — d'après <b>statutDepuis</b> (entrée dans le statut courant, champ Jira ; ≈ = repli sur la dernière mise à jour). Ce qui <b>ne</b> bouge <b>pas</b> est souvent le vrai sujet d'un pilote. Terminés / mis en prod / annulés exclus.
       </div>
+      <p className="af-do">→ <b>Quoi en faire :</b> trie par âge. Au-delà de <b>30 j</b>, tranche : relancer, changer le statut, ou clôturer. Le badge <b>SLA</b> repère ceux qui sont aussi hors délai. Clique un ticket, un client ou un dev.</p>
 
       <div className="sf-kpis">
         <div className="af-kpi"><b>{shown.length}</b><span>tickets figés (≥ {seuil} j)</span></div>
@@ -84,7 +85,9 @@ export default function StaleTickets({ issues = [], onTicket, onDev }) {
           {shown.map((i) => (
             <li className="af-ev sf-ev" key={i.cle}>
               <span className={`sf-age ${ageCls(i._age)}`}>{i._age} j</span>
-              <span className="af-cli">{norm(i.dossier) || "—"}</span>
+              {onClient
+                ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(i.dossier)} title="Ouvrir la fiche client">{norm(i.dossier) || "—"}</button>
+                : <span className="af-cli">{norm(i.dossier) || "—"}</span>}
               <button type="button" className="af-cle" onClick={() => openTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
               <span className="sf-st">
                 <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span>

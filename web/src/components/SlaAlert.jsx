@@ -10,7 +10,7 @@ const nowHM = () => { const d = new Date(); const p = (n) => String(n).padStart(
 const fmtH = (h) => { if (h == null) return "—"; const x = Math.round(h); return x >= 48 ? `${Math.round(h / 24)} j` : `${x} h`; };
 const bkCls = (b) => ({ P1: "p1", P2: "p2", P3: "p3", P4: "p4" }[b] || "p3");
 
-export default function SlaAlert({ issues = [], onTicket }) {
+export default function SlaAlert({ issues = [], onTicket, onClient }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [payload, setPayload] = useState(null);
@@ -56,7 +56,9 @@ export default function SlaAlert({ issues = [], onTicket }) {
     return (
       <li className={`af-ev sla-ev sla-ev-${a.state}`}>
         <span className={`sla-bk sla-bk-${bkCls(a.bucket)}`} title={`Priorité ${a.priorite || a.bucket}`}>{a.bucket}</span>
-        <span className="af-cli">{norm(a.dossier) || "—"}</span>
+        {onClient
+          ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(a.dossier)} title="Ouvrir la fiche client">{norm(a.dossier) || "—"}</button>
+          : <span className="af-cli">{norm(a.dossier) || "—"}</span>}
         <button type="button" className="af-cle" onClick={() => openTicket(a.cle)} title="Ouvrir le ticket">{a.cle}</button>
         <span className={`pill ${a.statut === "Terminé" ? "done" : a.statut === "En cours" ? "prog" : a.statut === "Bloqué" ? "block" : "todo"}`}>{a.statut}</span>
         <span className="af-t" title={a.resume}>{a.resume || "—"}</span>
@@ -73,6 +75,7 @@ export default function SlaAlert({ issues = [], onTicket }) {
       <div className="af-intro">
         <b>Alerte SLA — en direct.</b> Tickets ouverts qui <b>dépassent</b> ou <b>approchent</b> (&gt; 80 %) la cible de résolution (GTR). Cibles réelles de <code>sla.json</code> croisées avec l'âge depuis création. Le compte à rebours avance tout seul — actualisation automatique.
       </div>
+      <p className="af-do">→ <b>Quoi en faire :</b> traite les <b>dépassés</b> (rouge) d'abord, puis les <b>P1/P2 à risque</b> — ce sont les engagements client en jeu. Clique un ticket pour l'ouvrir, un client pour sa fiche.</p>
 
       <div className="af-bar">
         <div className="af-live">

@@ -4764,6 +4764,10 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .af-ev:hover { background: #faf9fd; }
 .af-h { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--gold); font-size: 11.5px; }
 .af-cli { background: #F1ECFB; color: var(--indigo); font-weight: 700; font-size: 10.5px; padding: 2px 9px; border-radius: 6px; white-space: nowrap; max-width: 116px; overflow: hidden; text-overflow: ellipsis; }
+.af-cli-btn { border: none; cursor: pointer; font: inherit; font-weight: 700; line-height: inherit; text-align: left; }
+.af-cli-btn:hover { text-decoration: underline; filter: brightness(.97); }
+.af-do { margin: -6px 0 14px; padding: 9px 12px; background: rgba(168,139,75,.07); border-left: 3px solid var(--gold); border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.55; color: var(--ink); }
+.af-do b { color: var(--indigo); }
 .af-cle { background: none; border: none; padding: 0; font: inherit; cursor: pointer; color: var(--indigo); font-weight: 700; white-space: nowrap; text-align: left; }
 .af-cle:hover { text-decoration: underline; }
 .af-move { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex-wrap: wrap; }

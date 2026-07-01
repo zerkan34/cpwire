@@ -42,7 +42,7 @@ function Sparkline({ data = [], w = 108, h = 24 }) {
   );
 }
 
-export default function ActivityFeed({ issues = [], onTicket }) {
+export default function ActivityFeed({ issues = [], onTicket, onClient }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [payload, setPayload] = useState(null);
@@ -134,6 +134,10 @@ export default function ActivityFeed({ issues = [], onTicket }) {
 
   const openTicket = (cle) => { if (onTicket) onTicket(byKey[cle] || { cle }); };
 
+  const Cli = ({ d }) => (onClient
+    ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{norm(d) || "—"}</button>
+    : <span className="af-cli">{norm(d) || "—"}</span>);
+
   const StatusChips = ({ from, to, fromLabel, toLabel, statut, kind, regression }) => {
     if (kind === "creation") return (
       <span className="af-move"><span className="af-new">Nouveau</span>{statut ? <span className={`af-st af-st-${coarse(statut)}`}>{statut}</span> : null}</span>
@@ -154,6 +158,7 @@ export default function ActivityFeed({ issues = [], onTicket }) {
       <div className="af-intro">
         <b>Flux d'activité.</b> Aujourd'hui <b>à l'heure</b> (transitions du changelog Jira + apparitions), puis les jours précédents <b>au jour</b> (dérivés des relevés quotidiens). Retours en arrière signalés. Source réelle uniquement — si rien ne bouge, le flux reste vide.
       </div>
+      <p className="af-do">→ <b>Quoi en faire :</b> commence par les <b>régressions</b> — un ticket qui recule (ex. Recette → En cours) signale un aller-retour à comprendre. Tout est cliquable : ticket, client, sparkline.</p>
 
       <div className="af-bar">
         <div className="af-live">
@@ -249,7 +254,7 @@ export default function ActivityFeed({ issues = [], onTicket }) {
                 {shownToday.map((e, idx) => (
                   <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}`} key={`${e.cle}-${e.at}-${idx}`}>
                     <span className="af-h">{hhmm(e.at)}</span>
-                    <span className="af-cli">{norm(e.dossier) || "—"}</span>
+                    <Cli d={e.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(e.cle)} title="Ouvrir le ticket">{e.cle}</button>
                     <StatusChips from={e.from} to={e.to} statut={e.statut} kind={e.kind} regression={e.regression} />
                     <span className="af-t" title={e.resume}>{e.resume || "—"}</span>
@@ -272,7 +277,7 @@ export default function ActivityFeed({ issues = [], onTicket }) {
                 {d.movements.map((m, idx) => (
                   <li className={`af-ev af-ev-transition ${m.regression ? "af-ev-reg" : ""}`} key={`${m.cle}-${d.day}-${idx}`}>
                     <span className="af-h af-h-day">—</span>
-                    <span className="af-cli">{norm(m.dossier) || "—"}</span>
+                    <Cli d={m.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(m.cle)} title="Ouvrir le ticket">{m.cle}</button>
                     <StatusChips fromLabel={m.fromLabel} toLabel={m.toLabel} kind="transition" regression={m.regression} />
                     <span className="af-t" title={m.resume}>{m.resume || "—"}</span>
