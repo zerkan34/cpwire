@@ -22,6 +22,7 @@
 import fs from "fs";
 import path from "path";
 import { dataDir } from "./paths.js";
+import { CATEGORY_LABEL } from "./config.js";
 
 const FILE = path.join(dataDir(), "point-history.json");
 const KEEP_DAYS = 14;
@@ -127,4 +128,63 @@ export function baselineFor(dossier, scopeKey = "") {
   if (!past.length) return null;
   const date = past[past.length - 1];
   return { date, cats: s[date] };
+}
+
+// ---- Dérivation pour le FLUX D'ACTIVITÉ (traîne des jours précédents + pouls par client) ----
+// À partir des relevés quotidiens, on reconstruit les MOUVEMENTS de catégorie réellement
+// observés entre deux relevés consécutifs (granularité = jour, état de fin de journée).
+// Ne couvre que les catégories suivies (ROW_CATS : recette/prod/terminé/en cours/attente/retour test).
+// Règle sacrée : zéro invention — on ne dérive que des changements présents entre deux instantanés réels.
+
+// { clé -> catégorie } pour un instantané { cat:[clés] }.
+function catByKeyForDay(cats) {
+  const m = {};
+  for (const c of ROW_CATS) for (const k of (cats[c] || [])) m[k] = c;
+  return m;
+}
+
+// daysBack = nb de jours (hors aujourd'hui) à remonter. Renvoie :
+//   { days:[{ day, count, movements:[{cle,dossier,fromCat,toCat,fromLabel,toLabel}] }],  // le + récent d'abord
+//     pulse:{ [dossier]: [{ day, n }] } }                                                  // chronologique (pour sparkline)
+export function deriveFromPointHistory(daysBack = 14) {
+  const db = load();
+  const today = todayStr();
+  const byDay = {}; // day -> movements[]
+  for (const [dossier, node] of Object.entries(db)) {
+    if (dossier === ALL) continue;      // on garde les vrais dossiers (l'agrégat serait redondant)
+    const s = node[""];                  // scope = tout le dossier
+    if (!s) continue;
+    const days = Object.keys(s).sort();
+    for (let i = 1; i < days.length; i++) {
+      const dPrev = days[i - 1], d = days[i];
+      if (d >= today) continue;          // aujourd'hui est déjà couvert à l'heure par le flux
+      const prev = catByKeyForDay(s[dPrev]);
+      const cur = catByKeyForDay(s[d]);
+      for (const [cle, cat] of Object.entries(cur)) {
+        const was = prev[cle];
+        if (was && was !== cat) (byDay[d] ||= []).push({ cle, dossier, fromCat: was, toCat: cat });
+        else if (!was) (byDay[d] ||= []).push({ cle, dossier, fromCat: "", toCat: cat }); // entrée dans le suivi
+      }
+    }
+  }
+  const allDays = Object.keys(byDay).sort().slice(-daysBack); // chronologique
+  const days = allDays.slice().reverse().map((day) => ({
+    day,
+    count: (byDay[day] || []).length,
+    movements: (byDay[day] || []).map((m) => ({
+      ...m,
+      fromLabel: m.fromCat ? (CATEGORY_LABEL[m.fromCat] || m.fromCat) : "",
+      toLabel: CATEGORY_LABEL[m.toCat] || m.toCat,
+    })),
+  }));
+  // Pouls par client : mouvements/jour sur la fenêtre (0 comblé pour un axe continu).
+  const pulse = {};
+  for (const day of allDays) for (const m of (byDay[day] || [])) {
+    (pulse[m.dossier] ||= {}); pulse[m.dossier][day] = (pulse[m.dossier][day] || 0) + 1;
+  }
+  const pulseArr = {};
+  for (const [dossier, map] of Object.entries(pulse)) {
+    pulseArr[dossier] = allDays.map((day) => ({ day, n: map[day] || 0 }));
+  }
+  return { days, pulse: pulseArr };
 }

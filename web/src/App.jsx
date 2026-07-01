@@ -11,6 +11,8 @@ import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
 import ActivityFeed from "./components/ActivityFeed.jsx";
+import StaleTickets from "./components/StaleTickets.jsx";
+import SlaAlert from "./components/SlaAlert.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -731,7 +733,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v331"
+            build="stable-v333"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -792,6 +794,8 @@ export default function App() {
               <div className="ptf-switch" role="tablist" aria-label="Affichage des tickets">
                 <button type="button" className={`ptf-sw ${ptfView === "table" ? "on" : ""}`} onClick={() => setPtfView("table")} title="Liste filtrable et cherchable">Table</button>
                 <button type="button" className={`ptf-sw ${ptfView === "flux" ? "on" : ""}`} onClick={() => setPtfView("flux")} title="Ce qui bouge aujourd'hui, en direct">Flux d'activité</button>
+                <button type="button" className={`ptf-sw ${ptfView === "stale" ? "on" : ""}`} onClick={() => setPtfView("stale")} title="Ce qui ne bouge plus (stagnation)">Figés</button>
+                <button type="button" className={`ptf-sw ${ptfView === "sla" ? "on" : ""}`} onClick={() => setPtfView("sla")} title="Tickets qui dépassent / approchent la cible SLA">SLA</button>
               </div>
             </div>
             <div className="cockpit-bd">
@@ -806,8 +810,12 @@ export default function App() {
                 <div className="sep" />
                 <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
               </>
-            ) : (
+            ) : ptfView === "flux" ? (
               <ActivityFeed issues={issues} onTicket={setTicket} />
+            ) : ptfView === "stale" ? (
+              <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} />
+            ) : (
+              <SlaAlert issues={issues} onTicket={setTicket} />
             )}
             </div>
           </div>

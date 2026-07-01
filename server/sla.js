@@ -102,5 +102,12 @@ export function buildSlaReport(issues = []) {
   depassements.sort((a, b) => b.depassementH - a.depassementH);
   aRisque.sort((a, b) => (b.ageH / b.gtrH) - (a.ageH / a.gtrH));
 
-  return { configured: true, byDossier, global, depassements: depassements.slice(0, 50), aRisque: aRisque.slice(0, 30) };
+  // Liste d'alerte COMPLÈTE (non plafonnée) : dépassés puis à risque, avec un état explicite.
+  // Sert au mode « alerte SLA en direct » et au badge SLA de la vue Figés (mapping clé → état).
+  const alerts = [
+    ...depassements.map((x) => ({ ...x, state: "over" })),
+    ...aRisque.map((x) => ({ ...x, state: "risk" })),
+  ];
+
+  return { configured: true, byDossier, global, depassements: depassements.slice(0, 50), aRisque: aRisque.slice(0, 30), alerts };
 }

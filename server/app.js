@@ -15,8 +15,8 @@ import { dataDirInfo, dataDir } from "./paths.js";
 import { persistenceActive, saveBlob, restoreBlob } from "./persist.js";
 import { initMemory } from "./connaissance.js";
 const isPersistent = () => dataDirInfo().persistent || persistenceActive();
-import { recordDay as recordPointDay, baselineFor as pointBaselineFor } from "./pointHistory.js";
-import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL } from "./config.js";
+import { recordDay as recordPointDay, baselineFor as pointBaselineFor, deriveFromPointHistory } from "./pointHistory.js";
+import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL, categoryFromStatus } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
 import { buildSlaReport, slaStatus } from "./sla.js";
@@ -415,6 +415,14 @@ app.get("/api/activite", guard, async (_req, res) => {
     const byKey = {}; for (const i of issues) byKey[i.cle] = i;
     const devOf = (i) => (i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : ""));
 
+    // Rang de progression d'une catégorie (plus haut = plus avancé) → détection de régression (retour en arrière).
+    const CAT_RANK = { afaire: 0, encours: 1, retourTest: 1, retourProd: 1, attenteClient: 2, recetteArmonie: 2, recetteClient: 3, miseEnProd: 4, termine: 5, annule: 9 };
+    const isReg = (fc, tc) => {
+      if (!fc || !tc || fc === "annule" || tc === "annule") return false;
+      const a = CAT_RANK[fc], b = CAT_RANK[tc];
+      return (a != null && b != null && b < a);
+    };
+
     // 1) Transitions de statut réelles du jour (changelog), plafonnées (cap interne à fetchStatusTransitions).
     const movers = issues.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
     const tr = await fetchStatusTransitions(movers, startISO, endISO);
@@ -422,10 +430,12 @@ app.get("/api/activite", guard, async (_req, res) => {
     for (const it of (tr.items || [])) {
       const iss = byKey[it.cle] || {};
       for (const t of (it.transitions || [])) {
+        const fromCat = t.from ? categoryFromStatus(t.from) : "";
+        const toCat = t.to ? categoryFromStatus(t.to) : "";
         events.push({
           kind: "transition", cle: it.cle,
           dossier: iss.dossier || "Autre", resume: iss.resume || "", statut: iss.statut || "",
-          from: t.from || "", to: t.to || "",
+          from: t.from || "", to: t.to || "", fromCat, toCat, regression: isReg(fromCat, toCat),
           who: (t.who && t.who !== "—") ? t.who : "", dev: devOf(iss),
           at: t.date || null,
         });
@@ -437,17 +447,34 @@ app.get("/api/activite", guard, async (_req, res) => {
         events.push({
           kind: "creation", cle: i.cle,
           dossier: i.dossier || "Autre", resume: i.resume || "", statut: i.statut || "",
-          from: "", to: "", who: "", dev: devOf(i),
+          from: "", to: "", fromCat: "", toCat: "", regression: false, who: "", dev: devOf(i),
           at: i.cree || null,
         });
       }
     }
     // Tri chronologique décroissant (le plus récent en tête).
     events.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+
+    // 3) Traîne des jours précédents (au jour) + pouls par client, dérivés des relevés quotidiens (0 appel Jira).
+    let history = { days: [], pulse: {} };
+    try {
+      const der = deriveFromPointHistory(14);
+      der.days = (der.days || []).map((d) => ({
+        ...d,
+        movements: (d.movements || []).map((m) => ({
+          ...m,
+          resume: (byKey[m.cle] && byKey[m.cle].resume) || "",
+          regression: isReg(m.fromCat, m.toCat),
+        })),
+      }));
+      history = der;
+    } catch (e) { console.error("[activite] traîne pointHistory:", e && e.message); }
+
     res.json({
       generatedAt: new Date().toISOString(), dateISO: startISO,
       capped: !!tr.capped, scanned: tr.scanned || 0, total: tr.total || movers.length,
       count: events.length, events,
+      history: history.days, pulse: history.pulse,
     });
   } catch (err) {
     console.error("[GET /api/activite]", err && err.message ? err.message : err);
