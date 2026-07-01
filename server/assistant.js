@@ -12,6 +12,7 @@ import { callClaude, aiAvailable } from "./ai.js";
 import { findProgram } from "./programmes.js";
 import { METHODOLOGIE, METHODO_KEYWORDS } from "./knowledge.js";
 import { knowledgeForPrompt, readConnaissance, piloteForPrompt, updatePilote, readPilote } from "./connaissance.js";
+import { signalsSummary } from "./signals.js";
 import { DOSSIERS } from "./config.js";
 import { fetchIssueDescription, fetchIssueActivity } from "./jira.js";
 
@@ -197,6 +198,10 @@ function buildContext(question, issues) {
     mem = parts.join("\n\n");
   } catch { /* corpus indisponible */ }
   if (mem) ctx += `\n\nMÉMOIRE COMPLÈTE (capitalisée — tout ce que Natacha a appris) :\n${mem}`;
+
+  // BOUCLE D'APPRENTISSAGE : historique factuel des signaux (régressions/SLA/stagnation/
+  // divergences) archivé jour après jour. Permet de raisonner sur les TENDANCES, pas la photo.
+  try { const sig = signalsSummary(30); if (sig) ctx += `\n\n${sig}`; } catch { /* journal indisponible */ }
 
   return { ctx, det, usedTickets: tickets.map((i) => i.cle), usedDossiers: det.hitDossiers, methodo: true };
 }

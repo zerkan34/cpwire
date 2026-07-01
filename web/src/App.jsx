@@ -13,6 +13,9 @@ import IssueTable from "./components/IssueTable.jsx";
 import ActivityFeed from "./components/ActivityFeed.jsx";
 import StaleTickets from "./components/StaleTickets.jsx";
 import SlaAlert from "./components/SlaAlert.jsx";
+import DeadlineRadar from "./components/DeadlineRadar.jsx";
+import Sante from "./components/Sante.jsx";
+import Digest from "./components/Digest.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -86,8 +89,8 @@ function greetMessage(role, me) {
   return name ? `${w} ${name} !` : `${w} !`;
 }
 const TABS = [
-  { id: "cockpit", label: "Pilotage" },
   { id: "tour", label: "Tour de contrôle" },
+  { id: "cockpit", label: "Pilotage" },
   { id: "outils", label: "Outils" },
 ];
 
@@ -97,9 +100,12 @@ const SUBTABS = {
     { id: "accueil", label: "Accueil" },
   ],
   tour: [
+    { id: "echeances", label: "Échéances" },
     { id: "flux", label: "Flux d'activité" },
     { id: "figes", label: "Tickets figés" },
     { id: "sla", label: "SLA" },
+    { id: "sante", label: "Santé & signaux" },
+    { id: "digest", label: "Digest" },
   ],
   outils: [
     { id: "morning", label: "Récap" },
@@ -738,7 +744,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v335"
+            build="stable-v337"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -810,6 +816,12 @@ export default function App() {
       )}
 
       {/* ---- Tour de contrôle : tout ce qui est daté (mouvements, stagnation, échéances SLA) ---- */}
+      {tab === "tour" && sub === "echeances" && (
+        <>
+          <PageHero k="Tour de contrôle" title="Échéances" sub="Ce qui a une date, quelque part." />
+          <DeadlineRadar onOpen={openClient} />
+        </>
+      )}
       {tab === "tour" && sub === "flux" && (
         <>
           <PageHero k="Tour de contrôle" title="Flux d'activité" sub="Ce qui bouge, en direct." />
@@ -826,6 +838,18 @@ export default function App() {
         <>
           <PageHero k="Tour de contrôle" title="SLA" sub="Les engagements de délai qui approchent ou dépassent la cible." />
           <SlaAlert issues={issues} onTicket={setTicket} onClient={openClient} changedKeys={changedKeys} />
+        </>
+      )}
+      {tab === "tour" && sub === "sante" && (
+        <>
+          <PageHero k="Tour de contrôle" title="Santé & signaux" sub="Cohérence, projections et mémoire des faits." />
+          <Sante onTicket={setTicket} onClient={openClient} />
+        </>
+      )}
+      {tab === "tour" && sub === "digest" && (
+        <>
+          <PageHero k="Tour de contrôle" title="Digest" sub="Le point du soir, composé pour toi." />
+          <Digest onTicket={setTicket} onClient={openClient} />
         </>
       )}
 

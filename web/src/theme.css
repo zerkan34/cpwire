@@ -4955,3 +4955,62 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .sla-bk-p3 { background: rgba(120,110,180,.18); }
   .sla-bk-p4 { background: rgba(120,110,180,.10); }
 }
+
+/* ============================================================================
+   MONTÉE EN PUISSANCE — Santé & signaux + Digest (Tour de contrôle)
+   Utilise les tokens du thème (var) avec repli clair pour rouge/ambre.
+   ========================================================================== */
+.sante-panel { padding: 14px 16px; }
+.sante-check { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+.sante-check:last-of-type { border-bottom: 0; }
+.sante-check-hd { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.sante-check-lbl { font-weight: 600; color: var(--ink); font-size: 13.5px; }
+.sante-check-n { margin-left: auto; font-family: "Poppins"; font-weight: 700; color: var(--muted); }
+.sante-sev { font-size: 10.5px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; white-space: nowrap; }
+.sante-sev-alerte { color: var(--red, #c0392b); background: var(--red-bg, rgba(192,57,43,.10)); }
+.sante-sev-attention { color: var(--amber, #9a6b00); background: var(--amber-bg, rgba(154,107,0,.12)); }
+.sante-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.sante-item { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 6px 8px; border-radius: 9px; font-size: 13px; }
+.sante-item:hover { background: var(--line-soft); }
+.sante-item-d { color: var(--muted); flex: 1 1 auto; min-width: 120px; }
+.sante-item-day { color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.sante-more { color: var(--muted); font-size: 12px; padding: 4px 8px; font-style: italic; }
+.sante-ext { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); }
+.sante-ext-chip { font-size: 11.5px; color: var(--muted); background: var(--line-soft); border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; }
+.sante-ext-chip b { color: var(--gold-deep); }
+
+/* Projections */
+.proj-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.proj-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 9px 10px; border: 1px solid var(--line); border-radius: 11px; background: var(--card); font-size: 13px; }
+.proj-row:hover { border-color: var(--gold); }
+.proj-muted { color: var(--muted); font-style: italic; }
+.proj-trend { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 3px 9px; border-radius: 99px; background: var(--line-soft); color: var(--muted); }
+.proj-trend.proj-up { color: var(--green); background: var(--green-bg); }
+.proj-trend.proj-down { color: var(--red, #c0392b); background: var(--red-bg, rgba(192,57,43,.10)); }
+.proj-metric { font-family: "Poppins"; font-weight: 700; color: var(--ink); font-size: 13.5px; display: inline-flex; align-items: baseline; gap: 5px; }
+.proj-metric small { font-family: "Inter"; font-weight: 500; color: var(--muted); font-size: 11px; }
+.proj-note { margin: 12px 0 0; font-size: 11.5px; color: var(--muted); font-style: italic; }
+
+/* Signaux */
+.sante-recur { margin: 4px 0 12px; padding: 10px 12px; border-radius: 11px; background: var(--line-soft); }
+.sante-recur-hd { font-weight: 600; font-size: 12.5px; color: var(--ink); margin-bottom: 8px; }
+.sante-recur-list { display: flex; flex-wrap: wrap; gap: 7px; }
+.sante-recur-chip { font-size: 12px; color: var(--muted); background: var(--card); border: 1px solid var(--line); border-radius: 99px; padding: 4px 11px; display: inline-flex; align-items: center; gap: 5px; }
+.sante-recur-chip b { color: var(--gold-deep); }
+.sante-sig .sante-item { border-bottom: 1px solid var(--line-soft); border-radius: 0; }
+.sante-sig .sante-item:last-child { border-bottom: 0; }
+.sante-sigt { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; padding: 3px 8px; border-radius: 7px; white-space: nowrap; background: var(--line-soft); color: var(--muted); }
+.sante-sigt-regression { color: var(--red, #c0392b); background: var(--red-bg, rgba(192,57,43,.10)); }
+.sante-sigt-sla { color: var(--amber, #9a6b00); background: var(--amber-bg, rgba(154,107,0,.12)); }
+.sante-sigt-stagnation { color: var(--muted); background: var(--line-soft); }
+.sante-sigt-divergence { color: var(--gold-deep); background: rgba(168,136,78,.12); }
+
+/* Digest */
+.digest-sec { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line-soft); }
+.digest-sec:first-of-type { border-top: 0; padding-top: 4px; }
+.digest-sec-hd { font-family: "Poppins"; font-weight: 700; font-size: 13.5px; color: var(--ink); margin-bottom: 8px; }
+.af-err { color: var(--red, #c0392b); }
+
+@media (prefers-reduced-motion: reduce) {
+  .proj-row, .sante-item { transition: none; }
+}

@@ -188,3 +188,29 @@ export function deriveFromPointHistory(daysBack = 14) {
   }
   return { days, pulse: pulseArr };
 }
+
+// ---- Séries par dossier pour les PROJECTIONS -------------------------------
+// Renvoie, par dossier (scope global ""), la série chronologique des comptages
+// dérivés des instantanés RÉELS déjà relevés. Aucune donnée fabriquée : on ne
+// fait que compter des clés déjà enregistrées.
+//   done   = miseEnProd + termine
+//   reste  = recetteClient + recetteArmonie + encours + retourTest + attenteClient
+//   suivi  = done + reste (working set réellement suivi ; hors « à faire » / annulés)
+export function seriesByDossier() {
+  const db = load();
+  const out = {};
+  for (const [dossier, node] of Object.entries(db)) {
+    const s = node && node[""];
+    if (!s) continue;
+    const days = Object.keys(s).sort();
+    if (!days.length) continue;
+    out[dossier] = days.map((day) => {
+      const c = s[day] || {};
+      const n = (k) => Array.isArray(c[k]) ? c[k].length : 0;
+      const done = n("miseEnProd") + n("termine");
+      const reste = n("recetteClient") + n("recetteArmonie") + n("encours") + n("retourTest") + n("attenteClient");
+      return { day, done, reste, suivi: done + reste };
+    });
+  }
+  return out;
+}

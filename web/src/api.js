@@ -31,6 +31,10 @@ const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type"
 // État serveur : { ok, persistent, ... } — sert à afficher l'état de la mémoire (durable ou éphémère).
 export const fetchHealth = () => req("/api/health");
 export const fetchDeadlines = () => req("/api/deadlines");
+export const fetchSignals = (days = 30) => req(`/api/signals?days=${days}`);
+export const fetchProjections = () => req("/api/projections");
+export const fetchCoherence = () => req("/api/coherence");
+export const fetchDigest = (opts = {}) => req(`/api/digest${opts.send ? `?send=${opts.send}${opts.to ? `&to=${encodeURIComponent(opts.to)}` : ""}` : ""}`);
 
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
 export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });

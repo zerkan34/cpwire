@@ -60,15 +60,29 @@ export function slaStatus() { return { configured: configured(), dossiers: Objec
 
 // Construit le rapport SLA agrégé par dossier (+ global) à partir des tickets.
 export function buildSlaReport(issues = []) {
-  if (!configured()) return { configured: false, byDossier: [], global: null, depassements: [], aRisque: [] };
+  if (!configured()) return { configured: false, byDossier: [], global: null, depassements: [], aRisque: [], alerts: [], gtiAlerts: [] };
   const now = Date.now();
   const agg = {}; // dossier -> compteurs
   const depassements = []; // tickets ouverts déjà en dépassement (les plus en retard d'abord)
   const aRisque = [];
+  const gtiOver = []; // prise en charge dépassée (tickets encore « à faire »)
+  const gtiRisk = [];
 
   for (const i of issues) {
     const t = target(i.dossier, i.priorite);
-    const a = (agg[i.dossier] ||= { dossier: i.dossier, resolus: 0, gtrOk: 0, gtrKo: 0, ouverts: 0, ouvDepasse: 0, ouvRisque: 0, ouvOk: 0, sansCible: 0 });
+    const a = (agg[i.dossier] ||= { dossier: i.dossier, resolus: 0, gtrOk: 0, gtrKo: 0, ouverts: 0, ouvDepasse: 0, ouvRisque: 0, ouvOk: 0, sansCible: 0, gtiOuverts: 0, gtiDepasse: 0, gtiRisque: 0 });
+
+    // --- GTI (prise en charge) : un ticket encore « à faire » n'a pas été pris en charge ;
+    //     l'horloge court depuis la création. Aucun changelog requis — fait vérifiable. ---
+    if (t && t.gti && i.categorie === "afaire") {
+      const ageG = HRS(i.cree, now);
+      if (ageG != null) {
+        a.gtiOuverts += 1;
+        if (ageG > t.gti) { a.gtiDepasse += 1; gtiOver.push({ cle: i.cle, dossier: i.dossier, resume: i.resume, priorite: i.priorite, bucket: t.bucket, ageH: ageG, gtiH: t.gti, depassementH: ageG - t.gti, statut: i.statut, kind: "gti" }); }
+        else if (ageG > 0.8 * t.gti) { a.gtiRisque += 1; gtiRisk.push({ cle: i.cle, dossier: i.dossier, resume: i.resume, priorite: i.priorite, bucket: t.bucket, ageH: ageG, gtiH: t.gti, statut: i.statut, kind: "gti" }); }
+      }
+    }
+
     if (!t || !t.gtr) { a.sansCible += 1; continue; }
     const resolu = DONE.has(i.categorie) && i.resolu;
     if (resolu) {
@@ -97,10 +111,13 @@ export function buildSlaReport(issues = []) {
     resolus: gResolus, gtrOk: gOk, gtrKo: sum("gtrKo"),
     tauxGtr: gResolus > 0 ? Math.round((gOk / gResolus) * 100) : null,
     ouverts: sum("ouverts"), ouvDepasse: sum("ouvDepasse"), ouvRisque: sum("ouvRisque"), sansCible: sum("sansCible"),
+    gtiOuverts: sum("gtiOuverts"), gtiDepasse: sum("gtiDepasse"), gtiRisque: sum("gtiRisque"),
   };
 
   depassements.sort((a, b) => b.depassementH - a.depassementH);
   aRisque.sort((a, b) => (b.ageH / b.gtrH) - (a.ageH / a.gtrH));
+  gtiOver.sort((a, b) => b.depassementH - a.depassementH);
+  gtiRisk.sort((a, b) => (b.ageH / b.gtiH) - (a.ageH / a.gtiH));
 
   // Liste d'alerte COMPLÈTE (non plafonnée) : dépassés puis à risque, avec un état explicite.
   // Sert au mode « alerte SLA en direct » et au badge SLA de la vue Figés (mapping clé → état).
@@ -108,6 +125,11 @@ export function buildSlaReport(issues = []) {
     ...depassements.map((x) => ({ ...x, state: "over" })),
     ...aRisque.map((x) => ({ ...x, state: "risk" })),
   ];
+  // Alertes GTI (prise en charge) — séparées pour ne pas perturber l'affichage GTR existant.
+  const gtiAlerts = [
+    ...gtiOver.map((x) => ({ ...x, state: "over" })),
+    ...gtiRisk.map((x) => ({ ...x, state: "risk" })),
+  ];
 
-  return { configured: true, byDossier, global, depassements: depassements.slice(0, 50), aRisque: aRisque.slice(0, 30), alerts };
+  return { configured: true, byDossier, global, depassements: depassements.slice(0, 50), aRisque: aRisque.slice(0, 30), alerts, gtiAlerts };
 }

@@ -51,6 +51,8 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
   const alerts = payload?.alerts || [];
   const over = alerts.filter((a) => a.state === "over");
   const risk = alerts.filter((a) => a.state === "risk");
+  const gtiAll = payload?.gtiAlerts || [];
+  const gtiOver = gtiAll.filter((a) => a.state === "over");
   const global = payload?.global;
 
   const clients = useMemo(() => [...new Set(alerts.map((a) => norm(a.dossier)).filter((d) => d && d !== "—"))].sort(), [alerts]);
@@ -58,16 +60,19 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
   const okOld = (a) => !hideOld || !isDormant(a.cle);
   const shownOver = over.filter((a) => inClient(a.dossier) && okOld(a));
   const shownRisk = risk.filter((a) => inClient(a.dossier) && okOld(a));
+  const shownGtiOver = gtiOver.filter((a) => inClient(a.dossier) && okOld(a));
   // Nombre de dormants masqués dans le périmètre client courant (pour l'affichage de l'œil).
   const hiddenOld = hideOld ? [...over, ...risk].filter((a) => inClient(a.dossier) && isDormant(a.cle)).length : 0;
 
   const openTicket = (cle) => { if (onTicket) onTicket(byKey[cle] || { cle }); };
 
   const Row = ({ a }) => {
-    const pct = a.gtrH ? Math.round((a.ageH / a.gtrH) * 100) : null;
+    const cible = a.kind === "gti" ? a.gtiH : a.gtrH;
+    const pct = cible ? Math.round((a.ageH / cible) * 100) : null;
+    const quoi = a.kind === "gti" ? "prise en charge" : "";
     const mesure = a.state === "over"
-      ? `${fmtH(a.ageH)} / cible ${fmtH(a.gtrH)} · +${fmtH(a.depassementH)}`
-      : `${fmtH(a.ageH)} / cible ${fmtH(a.gtrH)} · ${pct}%`;
+      ? `${fmtH(a.ageH)} / cible ${fmtH(cible)} · +${fmtH(a.depassementH)}${quoi ? " · " + quoi : ""}`
+      : `${fmtH(a.ageH)} / cible ${fmtH(cible)} · ${pct}%${quoi ? " · " + quoi : ""}`;
     return (
       <li className={`af-ev sla-ev sla-ev-${a.state}${changedKeys && changedKeys.has && changedKeys.has(a.cle) ? " is-fresh is-fresh-down" : ""}`}>
         <span className={`sla-bk sla-bk-${bkCls(a.bucket)}`} title={`Priorité ${a.priorite || a.bucket}`}>{a.bucket}</span>
@@ -88,7 +93,7 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
   return (
     <div className="af sla">
       <div className="af-intro">
-        <b>Alerte SLA — en direct.</b> Tickets ouverts qui <b>dépassent</b> ou <b>approchent</b> (&gt; 80 %) la cible de résolution (GTR). Cibles réelles de <code>sla.json</code> croisées avec l'âge depuis création. Le compte à rebours avance tout seul — actualisation automatique.
+        <b>Alerte SLA — en direct.</b> Deux horloges : <b>résolution (GTR)</b> — tickets ouverts qui dépassent ou approchent (&gt; 80 %) la cible depuis la création — et <b>prise en charge (GTI)</b> — tickets encore « à faire » non pris en charge dans les temps. Cibles réelles de <code>sla.json</code>. Le compte à rebours avance tout seul.
       </div>
       <p className="af-do">→ <b>Quoi en faire :</b> traite les <b>dépassés</b> (rouge) d'abord, puis les <b>P1/P2 à risque</b> — ce sont les engagements client en jeu. Les tickets <b>dormants</b> (&gt; 3 mois sans utilisation) sont masqués par défaut : clique l'<b>œil</b> pour les revoir. Clique un ticket pour l'ouvrir, un client pour sa fiche.</p>
 
@@ -121,9 +126,9 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
       ) : (
         <>
           <div className="af-kpis">
-            <div className={`af-kpi ${over.length ? "af-kpi-reg" : ""}`}><b>{over.length}</b><span>en dépassement</span></div>
-            <div className="af-kpi sla-kpi-risk"><b>{risk.length}</b><span>à risque (&gt; 80 %)</span></div>
-            <div className="af-kpi"><b>{global?.ouverts ?? "—"}</b><span>ouverts suivis</span></div>
+            <div className={`af-kpi ${over.length ? "af-kpi-reg" : ""}`}><b>{over.length}</b><span>GTR en dépassement</span></div>
+            <div className="af-kpi sla-kpi-risk"><b>{risk.length}</b><span>GTR à risque (&gt; 80 %)</span></div>
+            <div className={`af-kpi ${gtiOver.length ? "af-kpi-reg" : ""}`}><b>{gtiOver.length}</b><span>prise en charge (GTI) dépassée</span></div>
             <div className="af-kpi af-kpi-d"><b>{global?.tauxGtr != null ? `${global.tauxGtr} %` : "—"}</b><span>taux GTR (résolus)</span></div>
           </div>
 
@@ -148,7 +153,14 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
             </div>
           ) : null}
 
-          {!shownOver.length && !shownRisk.length ? (
+          {shownGtiOver.length ? (
+            <div className="af-day">
+              <div className="af-day-hd sla-hd-over">⏱ Prise en charge (GTI) dépassée <b>{shownGtiOver.length}</b></div>
+              <ul className="af-list">{shownGtiOver.map((a) => <Row a={a} key={"gti-" + a.cle} />)}</ul>
+            </div>
+          ) : null}
+
+          {!shownOver.length && !shownRisk.length && !shownGtiOver.length ? (
             hiddenOld ? (
               <p className="af-empty">Aucune alerte active{client !== "Tous" ? ` sur ${client}` : ""} — mais <b>{hiddenOld}</b> ticket{hiddenOld > 1 ? "s" : ""} dormant{hiddenOld > 1 ? "s" : ""} (&gt; 3 mois sans utilisation) {hiddenOld > 1 ? "sont masqués" : "est masqué"}. Clique l'œil pour {hiddenOld > 1 ? "les" : "l'"}afficher.</p>
             ) : (
