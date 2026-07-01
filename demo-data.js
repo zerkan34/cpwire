@@ -1,7 +1,7 @@
 // jira.js — accès à l'API REST de Jira Cloud (recherche enrichie JQL).
 // Le jeton ne quitte JAMAIS le serveur : il est lu depuis les variables d'environnement.
 
-import { dossierFromKey, engagementFromKey, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
+import { dossierFromKey, engagementFromKey, resolveEngagement, bucketFromStatus, categoryFromStatus, devFromIssue, contributorsFromIssue, ME, DONE_CATS } from "./config.js";
 import { displayName } from "./personnes.js";
 import { findProgram } from "./programmes.js";
 
@@ -30,6 +30,7 @@ const FIELDS = [
   "updated",
   "created",
   "resolutiondate",
+  "statuscategorychangedate",
   "labels",
 ];
 
@@ -145,7 +146,13 @@ function normalize(it) {
   const due = f.duedate ? new Date(f.duedate) : null;
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  const enRetard = Boolean(due && due < today && statut !== "Terminé");
+  const cat = categoryFromStatus(statusName);
+  // « En retard » ne concerne que les tickets encore EN CHARGE DE PRODUCTION
+  // (à faire / en cours / retours test ou prod). Un ticket déjà livré et en attente
+  // de recette (Armonie ou client), de validation client, de mise en prod ou terminé
+  // n'est PAS « en retard de développement », même si sa date d'échéance d'origine est passée.
+  const LATE_CATS = new Set(["afaire", "encours", "retourTest", "retourProd"]);
+  const enRetard = Boolean(due && due < today && LATE_CATS.has(cat));
 
   const assigne = f.assignee?.displayName ? displayName(f.assignee.displayName) : "Non assigné";
   const summary = f.summary || "";
@@ -154,7 +161,7 @@ function normalize(it) {
     mine: assigne === ME,
     projet: f.project?.key || "",
     dossier: dossierFromKey(it.key),
-    engagement: engagementFromKey(it.key), // "TMA" (projet T…) ou "Projet" (projet P…)
+    engagement: resolveEngagement(it.key, summary, labels), // marqueur explicite du ticket sinon déduction par préfixe
     resume: summary,
     prog: findProgram(summary), // localisation IBM i du programme (référentiel Arcad), ou repère "à compléter"
     assigne,
@@ -165,13 +172,14 @@ function normalize(it) {
     priorite: f.priority?.name || "",
     statutJira: statusName,
     statut, // Bloqué / À faire / En cours / Terminé (grossier, pour le cockpit)
-    categorie: categoryFromStatus(statusName), // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
+    categorie: cat, // fin : afaire/encours/recetteArmonie/recetteClient/miseEnProd/termine…
     echeance: f.duedate || null,
     enRetard,
     flagged,
     descriptionText: "", // chargée à la demande (voir fetchIssueDescription) pour accélérer l'import
     maj: f.updated || null,
     cree: f.created || null,
+    statutDepuis: f.statuscategorychangedate || null, // depuis quand dans l'état de statut actuel
     resolu: f.resolutiondate || null,
     url: `${BASE_URL}/browse/${it.key}`,
   };
@@ -281,6 +289,56 @@ export async function fetchStatusTransitions(keys = [], startISO = null, endISO 
     items.push(...res);
   }
   return { configured: true, items, scanned: list.length, total: keys.length, capped };
+}
+
+// Pour les POINTS BLOQUANTS : date EXACTE d'entrée dans l'état bloquant actuel, via le changelog.
+// Renvoie par clé : { enteredStatusAt, flaggedAt, statut }.
+//   • enteredStatusAt = date de la DERNIÈRE transition VERS le statut courant ;
+//   • flaggedAt       = date de la dernière POSE du drapeau encore active (null si retiré).
+// Concurrence limitée (6) + cache par (clé + date de dernière MAJ) : un ticket inchangé n'est
+// pas relu, donc rouvrir le voyant est instantané et l'actualisation n'est pas ralentie.
+const _sinceCache = new Map(); // cle -> { maj, enteredStatusAt, flaggedAt, statut }
+export async function fetchBlockerSince(tickets = [], cap = 80) {
+  if (!isConfigured() || !tickets.length) return {};
+  const headers = { Authorization: authHeader(), Accept: "application/json" };
+  const list = tickets.slice(0, cap);
+  const out = {};
+  const toFetch = [];
+  for (const t of list) {
+    const c = _sinceCache.get(t.cle);
+    if (c && t.maj && c.maj === t.maj) out[t.cle] = c; // inchangé -> cache
+    else toFetch.push(t);
+  }
+  const fetchOne = async (t) => {
+    const enc = encodeURIComponent(t.cle);
+    try {
+      const r = await fetch(`${BASE_URL}/rest/api/3/issue/${enc}?expand=changelog&fields=status`, { headers });
+      if (!r.ok) return;
+      const data = await r.json();
+      const curStatus = data.fields?.status?.name || "";
+      // Histoire en ordre chronologique croissant -> la dernière correspondance gagne.
+      const histories = (data.changelog?.histories || [])
+        .slice()
+        .sort((a, b) => String(a.created || "").localeCompare(String(b.created || "")));
+      let enteredStatusAt = null, flaggedAt = null;
+      for (const h of histories) {
+        for (const it of (h.items || [])) {
+          if (it.field === "status" && (it.toString || "") === curStatus) enteredStatusAt = h.created;
+          if (it.field === "Flagged" || it.fieldId === "Flagged") {
+            flaggedAt = (it.toString && String(it.toString).trim()) ? h.created : null; // posé / retiré
+          }
+        }
+      }
+      const rec = { maj: t.maj || null, enteredStatusAt, flaggedAt, statut: curStatus };
+      _sinceCache.set(t.cle, rec);
+      out[t.cle] = rec;
+    } catch { /* ignore : on gardera la date approximative côté client */ }
+  };
+  const CONC = 6;
+  for (let i = 0; i < toFetch.length; i += CONC) {
+    await Promise.all(toFetch.slice(i, i + CONC).map(fetchOne));
+  }
+  return out;
 }
 
 // Récupère la description d'UN seul ticket, à la demande (ouverture d'un ticket).

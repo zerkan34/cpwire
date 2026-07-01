@@ -1,58 +1,406 @@
-// personnes.js — normalisation de l'affichage des noms dans les récaps/listes/tableaux.
-//
-// 1) Table de correction éditable (server/personnes.json) : nom Jira EXACT -> nom voulu "Prénom Nom".
-//    Sert à corriger l'ordre ET l'orthographe, et les cas que l'automatique ne sait pas trancher.
-// 2) À défaut, redressement AUTOMATIQUE prudent : si un nom de 2 mots est clairement "Nom Prénom"
-//    (2e mot = prénom connu, 1er mot = pas un prénom), on remet le prénom devant.
-//
-// La table gagne toujours sur l'automatique. Aucune invention : on ne touche qu'aux cas sûrs.
-
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const JSON_PATH = process.env.PERSONNES_JSON || path.join(__dirname, "personnes.json");
-
-const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-
-let ALIAS = {}; // norm(nom Jira) -> "Prénom Nom"
-try {
-  if (fs.existsSync(JSON_PATH)) {
-    const cfg = JSON.parse(fs.readFileSync(JSON_PATH, "utf8")) || {};
-    const src = cfg.alias || {};
-    for (const k of Object.keys(src)) if (k[0] !== "_") ALIAS[norm(k)] = src[k];
-    console.log(`[personnes] ${Object.keys(ALIAS).length} correction(s) de nom chargée(s) depuis ${JSON_PATH}`);
-  } else {
-    console.log(`[personnes] aucune table (${JSON_PATH} absent) — redressement automatique seul.`);
-  }
-} catch (e) { console.log(`[personnes] erreur de chargement : ${e.message}`); }
-
-// Prénoms (équipe + courants FR) pour détecter une inversion. Large mais prudent.
-const FIRST_NAMES = new Set([
-  "bastien", "ines", "quentin", "hamza", "enzo", "geoffrey", "ludovic", "mathieu", "matthieu", "steven",
-  "mohammed", "nicolas", "sylvain", "lionel", "laurent", "sandrine", "jaimie", "alice", "ismahen",
-  "alexandre", "alexis", "antoine", "arnaud", "arthur", "aurelien", "benjamin", "benoit", "bernard", "brice",
-  "camille", "cedric", "charles", "christophe", "clement", "corentin", "cyril", "damien", "david", "denis",
-  "didier", "dimitri", "dominique", "dylan", "edouard", "emilie", "emma", "eric", "fabien", "fabrice", "florent",
-  "florian", "francois", "frederic", "gabriel", "gael", "gauthier", "gilles", "gregory", "guillaume", "gwenael",
-  "hugo", "jacques", "jean", "jeremy", "jerome", "jonathan", "jordan", "julien", "julie", "kevin", "leo", "loic", "louis",
-  "lucas", "ludivine", "manon", "marc", "marie", "martin", "mathis", "maxime", "melanie", "michel", "morgan",
-  "nathan", "olivier", "pascal", "patrice", "patrick", "paul", "philippe", "pierre",
-  "raphael", "remi", "romain", "sebastien", "simon", "sophie", "stephane", "theo", "thibault", "thomas", "tom",
-  "valentin", "vincent", "william", "xavier", "yann", "yannick", "yoann", "aurore", "caroline", "celine", "claire",
-  "elodie", "laura", "laetitia", "margaux", "sarah", "virginie",
-]);
-
-const isFirst = (w) => FIRST_NAMES.has(norm(w));
-
-export function displayName(raw) {
-  const s = String(raw || "").trim().replace(/\s+/g, " ");
-  if (!s) return s;
-  const hit = ALIAS[norm(s)];
-  if (hit) return hit;
-  const parts = s.split(" ");
-  // 2 mots clairement à l'envers : "Nom Prénom" -> "Prénom Nom"
-  if (parts.length === 2 && isFirst(parts[1]) && !isFirst(parts[0])) return `${parts[1]} ${parts[0]}`;
-  return s;
+{
+  "_doc": "Suivi de projets — couche commerciale/portefeuille (éditable). Le serveur (projets.js) l'enrichit en temps réel avec Jira (activité, recette, retards) et, pour Tafanel, avec le référentiel de recette. États : AVV Pipe -> Propal envoyée -> Signé -> En cours -> Terminé. Météo : vert / orange / rouge / neutre.",
+  "majSource": "Reprise portefeuille + enrichissement Jira/Référentiel",
+  "projets": [
+    {
+      "client": "IMA",
+      "type": "Projet",
+      "nom": "Purge Higgins",
+      "perimetre": "Lot 1",
+      "etat": "Terminé",
+      "num": "PJ2411-0595",
+      "debut": "",
+      "fin": "",
+      "jh": 10,
+      "budgete": 8500,
+      "facture": 8500,
+      "avancement": 1.0,
+      "meteo": "vert",
+      "attention": [],
+      "raf": [],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "IMA",
+      "type": "Projet",
+      "nom": "Purge Higgins",
+      "perimetre": "Lot 2",
+      "etat": "Terminé",
+      "num": "PJ2411-0595",
+      "debut": "",
+      "fin": "",
+      "jh": 3,
+      "budgete": 2550,
+      "facture": 2550,
+      "avancement": 1.0,
+      "meteo": "vert",
+      "attention": [],
+      "raf": [],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "IMA",
+      "type": "TMA",
+      "nom": "Automatisation purge MCS",
+      "perimetre": "",
+      "etat": "AVV Pipe",
+      "num": "TMA",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "Prévu 2026",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "IMA",
+      "type": "Projet",
+      "nom": "Sesame Espagne",
+      "perimetre": "",
+      "etat": "Propal envoyée",
+      "num": "PJ2507-0651",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": 16100,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "Prévu 2026",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "IMA",
+      "type": "Projet",
+      "nom": "Décommissionnement UK",
+      "perimetre": "",
+      "etat": "En cours",
+      "num": "PJ2507-0650",
+      "debut": "2025-10-01",
+      "fin": "",
+      "jh": 5,
+      "budgete": 4950,
+      "facture": null,
+      "avancement": 0.4,
+      "meteo": "vert",
+      "attention": [],
+      "raf": [],
+      "comment": "Reprise à partir du 20/11",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "IMA",
+      "type": "Projet",
+      "nom": "Rétro documentation REF-BEN",
+      "perimetre": "",
+      "etat": "Propal envoyée",
+      "num": "PJ2406-0536",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": 12240,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "ARC",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "EDL",
+      "type": "Projet",
+      "nom": "MINIKILI+ — Offre enrichie MAX",
+      "perimetre": "Lot #01 — Offre enrichie & socle données",
+      "etat": "En cours",
+      "num": "PJ2509-0666",
+      "debut": "2026-02-02",
+      "fin": "2026-06-12",
+      "jh": 62,
+      "budgete": 43650,
+      "facture": null,
+      "avancement": 0.4,
+      "meteo": "vert",
+      "attention": [
+        "Disponibilité de Franck (LiteSoft) pour les ateliers webservice"
+      ],
+      "raf": [
+        "Mettre à jour et diffuser le document de conception (Lionel)",
+        "Confirmer le sort de l'écran COM500FM, peu utilisé (Lionel)",
+        "Associer Laetitia aux écrans lots & chaîne",
+        "Tests & recette EDL — cible de terminaison 15/05"
+      ],
+      "comment": "Clubs Minimax+ / Kilimax+ (11 livres). Commercial PR 25 09 218. MEP prévisionnelle 01/06, assistance post-MEP via TMA jusqu'au 12/06.",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "EDL",
+      "type": "Projet",
+      "nom": "MINIKILI+ — Offre enrichie MAX",
+      "perimetre": "Lot #02 — Modèle de données & webservice",
+      "etat": "Signé",
+      "num": "PJ2509-0666",
+      "debut": "2026-02-02",
+      "fin": "2026-06-12",
+      "jh": 34,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.2,
+      "meteo": "vert",
+      "attention": [
+        "Webservice LiteSoft : calendrier d'avril à confirmer côté LiteSoft",
+        "Impacts sur applicatifs externes (GECKO, INTRAMAX) consommant la base DB2"
+      ],
+      "raf": [
+        "Webservice structuré par abonnement (~5 J/H), positionné début avril",
+        "Suppression des tables tampons + bascule queries (réouverture / réenregistrement)"
+      ],
+      "comment": "Suppression edlmy, fusion MX_II, index ABO_ABO / ABO_ADR, extensions de longueurs. Commercial PR 26 02 196 (≈ 32–34 J/H).",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "TAFANEL",
+      "type": "Projet",
+      "nom": "Modernisation code et applicatif",
+      "perimetre": "Création nouvelle partition",
+      "etat": "Terminé",
+      "num": "PJ2412-0601",
+      "debut": "2025-04-01",
+      "fin": "2025-06-01",
+      "jh": 16,
+      "budgete": 10893,
+      "facture": 10000,
+      "avancement": 1.0,
+      "meteo": "vert",
+      "attention": [],
+      "raf": [],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "TAFANEL",
+      "type": "Projet",
+      "nom": "Refonte applicative RPG",
+      "perimetre": "Réécriture programmes & chaînes",
+      "etat": "En cours",
+      "num": "PJ2506-0643",
+      "debut": "2025-05-01",
+      "fin": "2026-02-28",
+      "jh": 308,
+      "budgete": 177100,
+      "facture": 205750,
+      "avancement": 0.85,
+      "meteo": "orange",
+      "attention": [
+        "Ressources si changement d'équipe",
+        "Figer le périmètre et le plan de travail",
+        "Risque de décalage : charge de recette trop importante côté client (effet tunnel)",
+        "Relais de Lionel non identifié"
+      ],
+      "raf": [
+        "Faire valider la liste des programmes et des chaînes",
+        "Finir l'écriture des programmes et les tests"
+      ],
+      "comment": "",
+      "refacette": "Tafanel",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "TAFANEL",
+      "type": "Projet",
+      "nom": "Refonte applicative RPG",
+      "perimetre": "POC Mobile",
+      "etat": "En cours",
+      "num": "PJ2506-0643",
+      "debut": "2025-07-01",
+      "fin": "2026-02-28",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.6,
+      "meteo": "vert",
+      "attention": [],
+      "raf": [
+        "Recette client sur tablettes et correction des bugs"
+      ],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "TAFANEL",
+      "type": "Projet",
+      "nom": "Refonte applicative RPG",
+      "perimetre": "Étude modules",
+      "etat": "Signé",
+      "num": "PJ2506-0643",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": 44650,
+      "facture": 0,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "Non démarré",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "SEGUREL",
+      "type": "Projet",
+      "nom": "Implémentation GLog sur AS/400",
+      "perimetre": "Phase #0 — Analyse & chiffrage Ph.1",
+      "etat": "En cours",
+      "num": "PJ2507-0652",
+      "debut": "2025-07-01",
+      "fin": "2025-10-24",
+      "jh": 9,
+      "budgete": 8400,
+      "facture": 8400,
+      "avancement": 0.9,
+      "meteo": "vert",
+      "attention": [
+        "Validation CDC"
+      ],
+      "raf": [
+        "Modifier le CDC",
+        "Réunion de transfert, validation planning et kick-off"
+      ],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "SEGUREL",
+      "type": "Projet",
+      "nom": "Implémentation GLog sur AS/400",
+      "perimetre": "Phase #1 — Paie, Primes, Gestion des Employés",
+      "etat": "Propal envoyée",
+      "num": "PJ2507-0652",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": 33350,
+      "facture": 0,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [
+        "Compléter l'estimation et faire valider la nouvelle proposition"
+      ],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "BELLION",
+      "type": "Projet",
+      "nom": "Modernisation SI",
+      "perimetre": "Phase #1",
+      "etat": "En cours",
+      "num": "PJ2503-0631",
+      "debut": "2025-04-01",
+      "fin": "2025-11-21",
+      "jh": 146,
+      "budgete": 96780,
+      "facture": 136641,
+      "avancement": 0.95,
+      "meteo": "vert",
+      "attention": [
+        "Finalisation du run à blanc par Belmet",
+        "Contrat jeton TMA et contrat traitements récurrents"
+      ],
+      "raf": [
+        "Bascule sur la nouvelle infra les 22-23/11"
+      ],
+      "comment": "",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "BELLION",
+      "type": "Projet",
+      "nom": "Modernisation SI",
+      "perimetre": "Phase #2 — GESCOM",
+      "etat": "AVV Pipe",
+      "num": "PJ2503-0631",
+      "debut": "2026-01-01",
+      "fin": "2026-12-31",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [
+        "Contrats phase #2",
+        "Cadrage phase #2"
+      ],
+      "raf": [],
+      "comment": "≈ 671 J/H (à confirmer)",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "DIAPAR",
+      "type": "TMA",
+      "nom": "Création nouvelle partition DEV",
+      "perimetre": "",
+      "etat": "AVV Pipe",
+      "num": "TMA",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "ARC",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "DIAPAR",
+      "type": "TMA",
+      "nom": "Formulaire papier vers page intranet",
+      "perimetre": "",
+      "etat": "AVV Pipe",
+      "num": "TMA",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "ARC",
+      "cdp": "Nicolas Durand"
+    },
+    {
+      "client": "DIAPAR",
+      "type": "TMA",
+      "nom": "Optimisation des tournées (« 986 »)",
+      "perimetre": "",
+      "etat": "AVV Pipe",
+      "num": "TMA",
+      "debut": "",
+      "fin": "",
+      "jh": null,
+      "budgete": null,
+      "facture": null,
+      "avancement": 0.0,
+      "meteo": "neutre",
+      "attention": [],
+      "raf": [],
+      "comment": "ARC",
+      "cdp": "Nicolas Durand"
+    }
+  ]
 }

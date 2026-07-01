@@ -9,28 +9,35 @@ import { fileURLToPath } from "url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 let cached = null;
+let chosenSource = null; // "disk" (DATA_DIR), "bundled" (éphémère), "tmp" (éphémère)
 
 export function dataDir() {
   if (cached) return cached;
   const candidates = [
-    process.env.DATA_DIR,                       // emplacement explicite (ex. disque persistant Render)
-    path.join(__dirname, "data"),               // emplacement par défaut, à côté du code
-    path.join(os.tmpdir(), "cpwire-data"),      // repli temporaire (toujours inscriptible)
-  ].filter(Boolean);
+    [process.env.DATA_DIR, "disk"],            // emplacement explicite (ex. disque persistant Render)
+    [path.join(__dirname, "data"), "bundled"], // à côté du code (éphémère sur Render)
+    [path.join(os.tmpdir(), "cpwire-data"), "tmp"], // repli temporaire (éphémère)
+  ].filter(([d]) => d);
 
-  for (const dir of candidates) {
+  for (const [dir, source] of candidates) {
     try {
-      // Si un FICHIER occupe ce chemin, impossible d'y créer des fichiers → on saute (cause de l'ENOTDIR).
       if (fs.existsSync(dir) && !fs.statSync(dir).isDirectory()) continue;
       fs.mkdirSync(dir, { recursive: true });
       const probe = path.join(dir, ".write-test");
-      fs.writeFileSync(probe, "ok"); fs.unlinkSync(probe); // test d'écriture réel
-      cached = dir;
+      fs.writeFileSync(probe, "ok"); fs.unlinkSync(probe);
+      cached = dir; chosenSource = source;
       return dir;
-    } catch { /* on essaie le candidat suivant */ }
+    } catch { /* candidat suivant */ }
   }
 
-  cached = path.join(os.tmpdir(), "cpwire-data");
+  cached = path.join(os.tmpdir(), "cpwire-data"); chosenSource = "tmp";
   try { fs.mkdirSync(cached, { recursive: true }); } catch { /* best-effort */ }
   return cached;
+}
+
+// État de persistance : `persistent` vrai UNIQUEMENT si les données vont sur un
+// disque persistant (DATA_DIR honoré). Sinon, elles repartent à zéro au redéploiement.
+export function dataDirInfo() {
+  const dir = dataDir();
+  return { dir, source: chosenSource, persistent: chosenSource === "disk" };
 }
