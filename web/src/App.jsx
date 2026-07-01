@@ -10,6 +10,7 @@ import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
+import ActivityFeed from "./components/ActivityFeed.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -188,6 +189,7 @@ export default function App() {
   const [bootMsg, setBootMsg] = useState("");
   const [diagBannerOn, setDiagBannerOn] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [ptfView, setPtfView] = useState("table"); // onglet Tickets : "table" (liste) ou "flux" (activité du jour)
   const [dossier, setDossier] = useState("Tous");
   const [statut, setStatut] = useState("Tous");
   const [onlyLate, setOnlyLate] = useState(false);
@@ -729,7 +731,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v330"
+            build="stable-v331"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -774,8 +776,10 @@ export default function App() {
           <div className="panel cockpit-panel">
             <div className="recap-hd recap-hd-ring">
               <span className="recap-hd-name">{cockpitFilterLabel}</span>
-              <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
-              {filtered.length > 0 && (() => {
+              {ptfView === "table" && (
+                <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
+              )}
+              {ptfView === "table" && filtered.length > 0 && (() => {
                 const dn = filtered.filter((i) => i.statut === "Terminé").length;
                 const pct = Math.round((dn / filtered.length) * 100);
                 return (
@@ -785,16 +789,26 @@ export default function App() {
                   </span>
                 );
               })()}
+              <div className="ptf-switch" role="tablist" aria-label="Affichage des tickets">
+                <button type="button" className={`ptf-sw ${ptfView === "table" ? "on" : ""}`} onClick={() => setPtfView("table")} title="Liste filtrable et cherchable">Table</button>
+                <button type="button" className={`ptf-sw ${ptfView === "flux" ? "on" : ""}`} onClick={() => setPtfView("flux")} title="Ce qui bouge aujourd'hui, en direct">Flux d'activité</button>
+              </div>
             </div>
             <div className="cockpit-bd">
-            <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
-              onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
-              onDossier={setDossier} onStatut={setStatut}
-              onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
-              onToggleFlagged={() => setOnlyFlagged((v) => !v)}
-              onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
-            <div className="sep" />
-            <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
+            {ptfView === "table" ? (
+              <>
+                <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
+                  onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
+                  onDossier={setDossier} onStatut={setStatut}
+                  onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
+                  onToggleFlagged={() => setOnlyFlagged((v) => !v)}
+                  onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
+                <div className="sep" />
+                <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
+              </>
+            ) : (
+              <ActivityFeed issues={issues} onTicket={setTicket} />
+            )}
             </div>
           </div>
         </>

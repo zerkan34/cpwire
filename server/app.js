@@ -397,6 +397,64 @@ app.get("/api/recap/chiffres", guard, async (_req, res) => {
     console.error("[GET /api/recap/chiffres]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
 });
 
+// Flux d'activité du jour — MOUVEMENTS RÉELS (transitions de statut Jira) + apparitions.
+// Même fenêtre (aujourd'hui 00:00→24:00) et même source (changelog) que le récap, mais renvoie
+// des ÉVÉNEMENTS horodatés BRUTS (pas d'HTML) pour un flux vivant côté client.
+// Règle sacrée : zéro invention. from/to/who/at viennent du changelog ; apparition = date de création réelle.
+app.get("/api/activite", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
+    const issues = withoutDeletedDevs(got.issues);
+    const now = new Date();
+    const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const end = new Date(start.getTime() + 24 * 3600 * 1000);
+    const startISO = start.toISOString(), endISO = end.toISOString();
+    const sT = start.getTime(), eT = end.getTime();
+    const inR = (iso) => { const t = iso ? new Date(iso).getTime() : NaN; return !isNaN(t) && t >= sT && t < eT; };
+    const byKey = {}; for (const i of issues) byKey[i.cle] = i;
+    const devOf = (i) => (i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : ""));
+
+    // 1) Transitions de statut réelles du jour (changelog), plafonnées (cap interne à fetchStatusTransitions).
+    const movers = issues.filter((i) => inR(i.maj) || inR(i.resolu)).map((i) => i.cle);
+    const tr = await fetchStatusTransitions(movers, startISO, endISO);
+    const events = [];
+    for (const it of (tr.items || [])) {
+      const iss = byKey[it.cle] || {};
+      for (const t of (it.transitions || [])) {
+        events.push({
+          kind: "transition", cle: it.cle,
+          dossier: iss.dossier || "Autre", resume: iss.resume || "", statut: iss.statut || "",
+          from: t.from || "", to: t.to || "",
+          who: (t.who && t.who !== "—") ? t.who : "", dev: devOf(iss),
+          at: t.date || null,
+        });
+      }
+    }
+    // 2) Apparitions : tickets créés aujourd'hui (donnée réelle : date de création).
+    for (const i of issues) {
+      if (inR(i.cree)) {
+        events.push({
+          kind: "creation", cle: i.cle,
+          dossier: i.dossier || "Autre", resume: i.resume || "", statut: i.statut || "",
+          from: "", to: "", who: "", dev: devOf(i),
+          at: i.cree || null,
+        });
+      }
+    }
+    // Tri chronologique décroissant (le plus récent en tête).
+    events.sort((a, b) => String(b.at || "").localeCompare(String(a.at || "")));
+    res.json({
+      generatedAt: new Date().toISOString(), dateISO: startISO,
+      capped: !!tr.capped, scanned: tr.scanned || 0, total: tr.total || movers.length,
+      count: events.length, events,
+    });
+  } catch (err) {
+    console.error("[GET /api/activite]", err && err.message ? err.message : err);
+    res.status(502).json({ error: String(err.message || err) });
+  }
+});
+
 // Baseline du « point du soir » : dernier relevé d'un jour ANTÉRIEUR pour (dossier, scope),
 // servie depuis l'historique serveur (partagé/persistant). Renvoie { baseline:{date,cats}|null }.
 // Aucun calcul Jira ici : lecture pure de l'historique déjà enregistré au fil des synchros.
