@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchCoherence, fetchProjections, fetchSignals, fetchRisk } from "../api.js";
+import QuickActions from "./QuickActions.jsx";
 
 // Vue « Santé & signaux » de la Tour de contrôle. Trois briques, toutes ancrées
 // sur des données réelles : audit de cohérence (contradictions), projections
@@ -75,6 +76,7 @@ export default function Sante({ onTicket, onClient }) {
                   <li key={i} className="sante-item">
                     {Cli(it.dossier)}{Cle(it.cle)}
                     <span className="sante-item-d">{it.detail}</span>
+                    {it.cle ? <QuickActions cle={it.cle} /> : null}
                   </li>
                 ))}
                 {c.items.length > 12 ? <li className="sante-more">+ {c.items.length - 12} autre(s)…</li> : null}

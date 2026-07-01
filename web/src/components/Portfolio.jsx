@@ -16,7 +16,7 @@ const GROUPS = [
   ["retourProd", "Retour prod"],
 ];
 
-function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
+function Card({ dossier, f, eng, att, risk, onClick, onOpen360, can360, onTicket }) {
   const [open, setOpen] = useState(false);
   const sev = att?.severity || ((f.enRetard || 0) > 0 || (f.retours || 0) > 2 ? "surveiller" : "controle");
   const cls = SEV_CLS[sev] || "green";
@@ -41,6 +41,7 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
           <span className={`pc-pastille ${cls}`} aria-hidden="true" />
           <h3>{dossier}</h3>
           {eng ? <span className={`eng-badge ${eng === "Projet" ? "is-projet" : eng === "TMA" ? "is-tma" : "is-mix"}`}>{eng}</span> : null}
+          {risk && risk.score > 0 ? <span className={`pc-risk risk-niv-${risk.niveau.replace(/é/g, "e")}`} title={risk.facteurs.slice(0, 4).map((x) => `${x.n} ${x.label}`).join(" · ")}>risque {risk.score}</span> : null}
         </div>
       </div>
       {sev !== "controle" && reason ? (
@@ -106,15 +107,16 @@ function Card({ dossier, f, eng, att, onClick, onOpen360, can360, onTicket }) {
   );
 }
 
-export default function Portfolio({ facts, engagement = {}, attention = {}, onOpen, onOpen360, can360, onTicket }) {
+export default function Portfolio({ facts, engagement = {}, attention = {}, risk = {}, onOpen, onOpen360, can360, onTicket }) {
   const localScore = (f) => (f.enRetard || 0) * 1000 + (f.retours || 0) * 50 + (f.reste || 0);
   const score = (d, f) => (attention[d]?.score ?? localScore(f));
   const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
+  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
   return (
     <div className="cards">
       {entries.map(([dossier, f]) => (
-        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} att={attention[dossier]}
+        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} att={attention[dossier]} risk={risk[norm(dossier)]}
           onClick={() => onOpen(dossier)} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
       ))}
     </div>

@@ -5077,3 +5077,80 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pf-tb-btn-gold { border-radius:0 8px 8px 0 !important; background:var(--gold,#A88B4B) !important; color:#fff !important; border-color:var(--gold,#A88B4B) !important; }
 .pf-tb-btn-gold:hover { background:var(--gold-deep,#8a6a2f) !important; }
 .c360-cr-msg { color:#b23b46; font-size:12px; margin:6px 0 0; text-align:right; }
+
+/* Pastille de risque sur les cartes du portefeuille (page d'accueil) */
+.pc-risk { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:2px 8px; border-radius:99px; margin-left:6px; vertical-align:middle; }
+
+/* ============================================================================
+   REFONTE ACCUEIL — direction éditoriale (charte Armonie, desktop)
+   ========================================================================== */
+.eh { }
+.eh-hero { display:flex; gap:34px; align-items:center; justify-content:space-between; background:linear-gradient(180deg,#F5F2FC,var(--bg,#F4F3F8)); border:1px solid var(--line); border-radius:18px; padding:28px 34px; margin-bottom:24px; }
+.eh-hero-l { flex:1 1 auto; min-width:0; }
+.eh-hero-r { flex:none; }
+.eh-kick { font-weight:700; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.eh-title { font-family:"Poppins"; font-weight:800; font-size:34px; color:#2E2A5D; margin:8px 0 0; line-height:1.1; }
+.eh-rule { width:96px; height:4px; background:var(--gold); border-radius:2px; margin:12px 0 0; }
+.eh-sub { color:var(--muted); font-size:14px; margin-top:12px; }
+.eh-stats { display:flex; gap:0; margin-top:20px; }
+.eh-stat { display:flex; flex-direction:column; padding-right:26px; }
+.eh-stat + .eh-stat { border-left:1px solid var(--line); padding-left:26px; }
+.eh-stat b { font-family:"Poppins"; font-weight:800; font-size:24px; color:#2E2A5D; }
+.eh-stat span { font-size:12px; color:var(--muted); margin-top:3px; }
+
+.eh-donut { text-align:center; }
+.eh-donut-cap { font-family:"Poppins"; font-weight:600; font-size:11px; color:var(--muted); margin-top:4px; }
+.eh-leg { margin:10px auto 0; border-collapse:collapse; font-size:12.5px; }
+.eh-leg td { padding:3px 0; }
+.eh-leg .lc { color:var(--ink); font-weight:600; padding-right:20px; white-space:nowrap; }
+.eh-leg .lp { color:#2E2A5D; font-family:"Poppins"; font-weight:700; text-align:right; }
+.eh-leg .sw { display:inline-block; width:11px; height:11px; border-radius:3px; margin-right:8px; vertical-align:-1px; }
+
+.eh-cols { display:grid; grid-template-columns: 1fr 360px; gap:28px; align-items:start; }
+.eh-sq { display:inline-block; width:10px; height:10px; background:var(--gold); border-radius:2px; margin-right:9px; vertical-align:middle; }
+.eh-hint { font-family:"Inter"; font-weight:500; font-size:12px; color:var(--muted); margin-left:8px; }
+
+.eh-list { padding:6px 10px; }
+.eh-row { display:flex; align-items:center; gap:18px; padding:14px 12px; border-radius:12px; cursor:pointer; }
+.eh-row + .eh-row { border-top:1px solid var(--line-soft,#f0eef7); }
+.eh-row:hover { background:var(--line-soft,#f5f3fb); }
+.eh-row-id { flex:1 1 auto; min-width:0; }
+.eh-row-name { font-family:"Poppins"; font-weight:700; font-size:15.5px; color:#2E2A5D; display:flex; align-items:center; gap:9px; }
+.eh-row-sub { display:flex; flex-wrap:wrap; gap:14px; margin-top:6px; }
+.eh-dot { font-size:11.5px; color:var(--muted); }
+.eh-dot.done { color:var(--green); } .eh-dot.block { color:#C2691A; } .eh-dot.ret { color:#b23b46; }
+.eh-row-prog { flex:none; width:210px; display:flex; align-items:center; gap:11px; }
+.eh-bar { flex:1 1 auto; height:7px; border-radius:4px; background:#EDE9F8; overflow:hidden; }
+.eh-bar span { display:block; height:100%; border-radius:4px; background:linear-gradient(90deg,#BFA168,#A88B4B); }
+.eh-pct { font-family:"Poppins"; font-weight:700; font-size:13px; color:#2E2A5D; width:40px; text-align:right; }
+.eh-row-end { flex:none; width:118px; text-align:right; display:flex; flex-direction:column; align-items:flex-end; gap:5px; }
+.eh-risk { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.03em; padding:3px 10px; border-radius:99px; white-space:nowrap; }
+.eh-risk-ok { color:var(--green); background:var(--green-bg,#e2f3ea); }
+.eh-mv { font-size:11px; color:var(--muted); }
+.eh-360 { flex:none; border:1px solid var(--line); background:var(--card); color:#4B3F8F; border-radius:8px; font-size:11px; font-weight:700; padding:6px 10px; cursor:pointer; }
+.eh-360:hover { border-color:var(--gold); }
+
+.eh-card { padding:16px 18px; }
+.eh-digest { list-style:none; margin:0; padding:0; }
+.eh-digest li { display:flex; align-items:center; gap:11px; padding:9px 0; font-size:13.5px; color:var(--ink); }
+.eh-digest li + li { border-top:1px solid var(--line-soft,#f0eef7); }
+.eh-digest b { font-family:"Poppins"; font-weight:800; color:#2E2A5D; }
+.eh-digest i { width:8px; height:8px; border-radius:50%; flex:none; display:inline-block; }
+.eh-digest i.d-navy{background:#2E2A5D;} .eh-digest i.d-orange{background:#C2691A;} .eh-digest i.d-gold{background:#A88B4B;}
+.eh-muted { color:var(--muted); font-size:13px; }
+
+.eh-frise { margin-top:2px; }
+.eh-fr-cn { height:14px; width:2px; background:#BFA168; margin:0 auto; position:relative; }
+.eh-fr-cn::after { content:""; position:absolute; left:-3px; bottom:0; border-left:4px solid transparent; border-right:4px solid transparent; border-top:5px solid #A88B4B; }
+.eh-fr-pill { background:#F5F2FC; border:1px solid var(--line); border-left:3px solid #A88B4B; border-radius:10px; padding:9px 13px; }
+.eh-fr-pill.key { background:#2E2A5D; border-color:#2E2A5D; border-left-color:#BFA168; }
+.eh-fr-l { font-family:"Poppins"; font-weight:600; font-size:13px; color:#2E2A5D; }
+.eh-fr-pill.key .eh-fr-l { color:#fff; }
+.eh-fr-w { font-size:11px; color:var(--muted); margin-top:2px; }
+.eh-fr-pill.key .eh-fr-w { color:#D9D2EC; }
+
+@media (max-width: 1100px){
+  .eh-cols{ grid-template-columns:1fr; }
+  .eh-hero{ flex-direction:column; align-items:flex-start; }
+  .eh-row-prog{ display:none; }
+}
