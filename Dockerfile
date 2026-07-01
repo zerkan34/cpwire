@@ -17,8 +17,11 @@ WORKDIR /app
 COPY . .
 
 # Polices Poppins de la charte → disponibles pour WeasyPrint.
+# Tolérant : si les .ttf sont absents du contexte, on n'échoue PAS le build (repli DejaVu déjà installé).
 RUN mkdir -p /usr/share/fonts/truetype/cpwire \
- && cp server/pdf/fonts/*.ttf /usr/share/fonts/truetype/cpwire/ \
+ && ( cp server/pdf/fonts/*.ttf /usr/share/fonts/truetype/cpwire/ 2>/dev/null \
+      && echo "[fonts] Poppins de la charte installées." \
+      || echo "[fonts] Poppins absentes de server/pdf/fonts/ — repli DejaVu (PDF hors charte exacte jusqu'à commit des polices)." ) \
  && fc-cache -f
 
 # Build du front puis dépendances serveur.
