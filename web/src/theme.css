@@ -5014,3 +5014,66 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 @media (prefers-reduced-motion: reduce) {
   .proj-row, .sante-item { transition: none; }
 }
+
+/* ============================================================================
+   AU TOP — Score de risque, Charge & capacité, Actions rapides, CR à la charte
+   ========================================================================== */
+/* --- Score de risque (vue Santé + fiche client) --- */
+.risk-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+.risk-row { display:flex; align-items:center; gap:14px; padding:10px 12px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.risk-badge { font-family:"Poppins"; font-weight:800; font-size:18px; color:#fff; border-radius:11px; min-width:52px; height:46px; display:flex; align-items:center; justify-content:center; flex:none; }
+.risk-main { flex:1 1 auto; min-width:0; }
+.risk-hd { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:5px; }
+.risk-tk { color:var(--muted); font-size:11.5px; }
+.risk-fac { display:flex; flex-wrap:wrap; gap:6px; }
+.risk-chip { font-size:11px; color:var(--muted); background:var(--line-soft); border:1px solid var(--line); border-radius:99px; padding:2px 9px; }
+.risk-niv { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:2px 9px; border-radius:99px; }
+.risk-critique, .risk-niv-critique { }
+.risk-critique { background:#b23b46; } .risk-niv-critique { color:#fff; background:#b23b46; }
+.risk-eleve { background:var(--gold-deep,#8a6a2f); } .risk-niv-eleve { color:#fff; background:var(--gold-deep,#8a6a2f); }
+.risk-modere { background:#C2691A; } .risk-niv-modere { color:#fff; background:#C2691A; }
+.risk-faible { background:var(--green,#2F7D4F); } .risk-niv-faible { color:#fff; background:var(--green,#2F7D4F); }
+.c360-risk { font-size:11px; font-weight:700; border-radius:99px; padding:3px 10px; }
+
+/* --- Charge & capacité --- */
+.chg-list { list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:12px; }
+.chg-row { padding:12px 14px; border:1px solid var(--line); border-radius:12px; background:var(--card); }
+.chg-hd { display:flex; align-items:center; gap:12px; margin-bottom:8px; }
+.chg-name { font-family:"Poppins"; font-weight:700; font-size:14.5px; color:var(--ink); background:none; border:0; padding:0; cursor:pointer; }
+.chg-name:hover { color:var(--gold-deep,#8a6a2f); text-decoration:underline; }
+.chg-name-na { color:var(--muted); font-style:italic; cursor:default; }
+.chg-wip { margin-left:auto; font-size:13px; color:var(--muted); }
+.chg-wip b { font-family:"Poppins"; font-weight:800; color:var(--ink); font-size:15px; }
+.chg-etat { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; padding:3px 10px; border-radius:99px; }
+.chg-red { color:#fff; background:#b23b46; } .chg-ok { color:#fff; background:var(--indigo,#4B3F8F); }
+.chg-green { color:#fff; background:var(--green,#2F7D4F); } .chg-grey { color:var(--muted); background:var(--line-soft); }
+.chg-bar { height:8px; border-radius:5px; background:var(--line-soft); overflow:hidden; }
+.chg-bar-f { display:block; height:100%; border-radius:5px; }
+.chg-bar-f.chg-red { background:#b23b46; } .chg-bar-f.chg-ok { background:var(--indigo,#4B3F8F); }
+.chg-bar-f.chg-green { background:var(--green,#2F7D4F); } .chg-bar-f.chg-grey { background:#b6b2c9; }
+.chg-meta { display:flex; flex-wrap:wrap; gap:7px; margin-top:9px; }
+.chg-chip { font-size:11.5px; color:var(--ink); background:var(--lav,#F5F2FC); border:1px solid var(--line); border-radius:99px; padding:3px 10px; }
+.chg-chip b { color:var(--navy,#2E2A5D); } .chg-chip-soft { color:var(--muted); background:var(--line-soft); }
+.chg-muted { color:var(--muted); font-style:italic; font-size:12px; }
+.chg-doss { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.chg-doss-i { font-size:10.5px; color:var(--muted); } .chg-doss-i i { font-style:normal; color:var(--gold-deep,#8a6a2f); font-weight:700; }
+
+/* --- Actions rapides (sur alerte) --- */
+.qa { position:relative; display:inline-block; }
+.qa-btn { font-size:11px; font-weight:600; color:var(--indigo,#4B3F8F); background:var(--lav,#F5F2FC); border:1px solid var(--line); border-radius:8px; padding:4px 10px; cursor:pointer; white-space:nowrap; }
+.qa-btn:hover { border-color:var(--gold); }
+.qa-panel { position:absolute; right:0; top:calc(100% + 6px); z-index:30; width:290px; background:var(--card); border:1px solid var(--line); border-radius:12px; box-shadow:var(--shadow,0 10px 30px rgba(31,27,51,.18)); padding:12px; text-align:left; }
+.qa-lbl { display:block; font-size:11px; font-weight:600; color:var(--muted); margin:2px 0 4px; }
+.qa-ta, .qa-sel { width:100%; border:1px solid var(--line); border-radius:8px; padding:7px 9px; font-size:12.5px; font-family:inherit; color:var(--ink); background:var(--bg,#fff); margin-bottom:9px; }
+.qa-ta { resize:vertical; }
+.qa-row { display:flex; align-items:center; gap:10px; }
+.qa-go { font-size:12px; font-weight:700; color:#fff; background:var(--indigo,#4B3F8F); border:0; border-radius:8px; padding:7px 14px; cursor:pointer; }
+.qa-go:disabled { opacity:.6; cursor:default; }
+.qa-msg { font-size:11px; color:var(--muted); flex:1 1 auto; }
+
+/* --- Boutons CR à la charte (fiche client) --- */
+.c360-cr-armonie { display:inline-flex; align-items:stretch; gap:0; }
+.c360-cr-type { border:1px solid var(--line); border-right:0; border-radius:8px 0 0 8px; background:var(--bg,#fff); color:var(--ink); font-size:12px; padding:0 8px; font-family:inherit; cursor:pointer; }
+.pf-tb-btn-gold { border-radius:0 8px 8px 0 !important; background:var(--gold,#A88B4B) !important; color:#fff !important; border-color:var(--gold,#A88B4B) !important; }
+.pf-tb-btn-gold:hover { background:var(--gold-deep,#8a6a2f) !important; }
+.c360-cr-msg { color:#b23b46; font-size:12px; margin:6px 0 0; text-align:right; }

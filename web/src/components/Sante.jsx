@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { fetchCoherence, fetchProjections, fetchSignals } from "../api.js";
+import { fetchCoherence, fetchProjections, fetchSignals, fetchRisk } from "../api.js";
 
 // Vue « Santé & signaux » de la Tour de contrôle. Trois briques, toutes ancrées
 // sur des données réelles : audit de cohérence (contradictions), projections
@@ -14,10 +14,12 @@ export default function Sante({ onTicket, onClient }) {
   const [coh, setCoh] = useState(null);
   const [proj, setProj] = useState(null);
   const [sig, setSig] = useState(null);
+  const [risk, setRisk] = useState(null);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     let on = true;
+    fetchRisk().then((r) => on && setRisk(r)).catch(() => { if (on) setRisk({ dossiers: [] }); });
     fetchCoherence().then((r) => on && setCoh(r)).catch((e) => on && setErr(e && e.message ? e.message : String(e)));
     fetchProjections().then((r) => on && setProj(r)).catch(() => { if (on) setProj({ dossiers: [] }); });
     fetchSignals(30).then((r) => on && setSig(r)).catch(() => { if (on) setSig({ rows: [], stats: { total: 0, byType: {}, recurrences: [] } }); });
@@ -31,7 +33,30 @@ export default function Sante({ onTicket, onClient }) {
 
   return (
     <div className="af sante">
+      {/* ---- 0. Score de risque par dossier ---- */}
+      <div className="af-intro"><b>Score de risque par dossier.</b> Un seul indicateur (0–100) qui condense régressions, SLA, GTI, tickets figés, divergences et incohérences. Chaque point est tracé à un fait réel — le « pourquoi » est déplié.</div>
+      {risk === null ? (
+        <div className="af-skel" aria-busy="true">{Array.from({ length: 3 }).map((_, i) => <div className="af-skel-row" key={i} />)}</div>
+      ) : !risk.dossiers || !risk.dossiers.length ? (
+        <p className="af-empty">Aucun dossier à risque : rien de notable à signaler.</p>
+      ) : (
+        <div className="panel sante-panel">
+          <ul className="risk-list">
+            {risk.dossiers.filter((d) => d.score > 0).slice(0, 10).map((d) => (
+              <li className="risk-row" key={d.dossier}>
+                <span className={`risk-badge risk-${d.niveau.replace(/é/g, "e")}`}>{d.score}</span>
+                <div className="risk-main">
+                  <div className="risk-hd">{Cli(d.dossier)}<span className={`risk-niv risk-niv-${d.niveau.replace(/é/g, "e")}`}>{d.niveau}</span><span className="risk-tk">{d.tickets} tickets</span></div>
+                  <div className="risk-fac">{d.facteurs.slice(0, 5).map((f, i) => <span className="risk-chip" key={i}>{f.n} {f.label}</span>)}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {/* ---- 1. Cohérence ---- */}
+      <div className="section-title" style={{ marginTop: 18 }}><span>Cohérence</span></div>
       <div className="af-intro"><b>Audit de cohérence.</b> Croisements qui repèrent les contradictions avant qu'elles ne surprennent — calculés à partir des tickets Jira réels.</div>
       <p className="af-do">→ <b>Quoi en faire :</b> les <b>alertes</b> (rouge) d'abord — échéance dépassée non clôturée, ticket actif sans personne. Les <b>attentions</b> sont surtout de l'hygiène de donnée (fiabilité des chiffres).</p>
       {err ? <p className="af-empty af-err">Audit indisponible : {err}</p> : coh === null ? (

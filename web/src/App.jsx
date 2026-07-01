@@ -16,6 +16,7 @@ import SlaAlert from "./components/SlaAlert.jsx";
 import DeadlineRadar from "./components/DeadlineRadar.jsx";
 import Sante from "./components/Sante.jsx";
 import Digest from "./components/Digest.jsx";
+import Charge from "./components/Charge.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -112,6 +113,7 @@ const SUBTABS = {
     { id: "portefeuille", label: "Tickets" },
     { id: "projets", label: "Suivi projets" },
     { id: "hygiene", label: "Qualité" },
+    { id: "charge", label: "Charge" },
     { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
@@ -744,7 +746,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v337"
+            build="stable-v340"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -864,6 +866,12 @@ export default function App() {
         : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
       )}
       {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
+      {tab === "outils" && sub === "charge" && (
+        <>
+          <PageHero k="Outils" title="Charge & capacité" sub="Qui porte quoi, qui est en surcharge, qui a de la marge." />
+          <Charge onDev={setDevFiche} />
+        </>
+      )}
       {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "outils" && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}

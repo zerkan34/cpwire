@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from "react";
 import { progResume } from "../ticket.js";
 import { ProjetModal } from "./Projets.jsx";
-import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel, importAnalyze, importApply } from "../api.js";
+import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel, importAnalyze, importApply, fetchDossierCr, exportHtmlPdf, fetchRisk } from "../api.js";
 import { buildRecapDoc } from "../recapDoc.js";
 import EdlMax from "./EdlMax.jsx";
 import { RECETTE, RETOUR } from "../groups.js";
@@ -55,6 +55,20 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [actSort, setActSort] = useState("date");
   const [openCheck, setOpenCheck] = useState(null);
   const [ref, setRef] = useState(null);
+  const [crBusy, setCrBusy] = useState(false);
+  const [crType, setCrType] = useState("COMOP");
+  const [crMsg, setCrMsg] = useState("");
+  const [risk, setRisk] = useState(null);
+  useEffect(() => { let on = true; fetchRisk().then((r) => { if (!on) return; const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); setRisk((r.dossiers || []).find((d) => norm(d.dossier) === norm(c.client)) || null); }).catch(() => on && setRisk(null)); return () => { on = false; }; }, [c.client]);
+
+  const genComiteCr = async () => {
+    setCrBusy(true); setCrMsg("");
+    try {
+      const r = await fetchDossierCr(c.client, crType);
+      await exportHtmlPdf(r.html, r.filename || `CR-${c.client}.pdf`);
+    } catch (e) { setCrMsg(e && e.message ? e.message : "Génération impossible."); }
+    finally { setCrBusy(false); }
+  };
   useEffect(() => {
     let on = true;
     setMails({ loading: true });
@@ -140,15 +154,26 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
               <span className={`pf-type ${c.type === "TMA" ? "tma" : ""}`}>{c.type}</span>
               {c.cdp ? <span className="pf-client-cdp">CDP {c.cdp}</span> : null}
               {j.present ? <span className="c360-src">{j.total} tickets Jira</span> : null}
+              {risk && risk.score > 0 ? <span className={`c360-risk risk-niv-${risk.niveau.replace(/é/g, "e")}`} title={risk.facteurs.map((f) => `${f.n} ${f.label}`).join(" · ")}>Risque {risk.score} · {risk.niveau}</span> : null}
             </div>
           </div>
           <div className="c360-hero-actions">
             {canCR && <button className="pf-tb-btn" onClick={() => doc("daily")} disabled={busy === "daily"}>{busy === "daily" ? "…" : "📄 CR du jour"}</button>}
             {canCR && <button className="pf-tb-btn" onClick={() => doc("written")} disabled={busy === "written"}>{busy === "written" ? "…" : "📝 CR écrit"}</button>}
+            <span className="c360-cr-armonie">
+              <select className="c360-cr-type" value={crType} onChange={(e) => setCrType(e.target.value)} title="Type de livrable" aria-label="Type de CR">
+                <option value="COMOP">COMOP</option>
+                <option value="COPIL">COPIL</option>
+                <option value="GONOGO">Go / No-Go</option>
+                <option value="RECAP">Récap</option>
+              </select>
+              <button className="pf-tb-btn pf-tb-btn-gold" onClick={genComiteCr} disabled={crBusy} title="Générer le CR comité en PDF, à la charte Armonie">{crBusy ? "…" : "📊 CR comité (PDF)"}</button>
+            </span>
             <button className="pf-tb-btn" onClick={() => fileRef.current && fileRef.current.click()} disabled={busy === "import"} title="Importer un fichier (CSV, PowerPoint, OneNote…) pour mettre à jour les données">{busy === "import" ? "…" : "📥 Importer"}</button>
             <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.json,.md,.log,.pptx,.one,.iqy,.pdf,.zip,.xlsx,.docx" style={{ display: "none" }} onChange={onImportFile} />
             <button className="c360-x" onClick={onClose} title="Fermer (Échap)">×</button>
           </div>
+          {crMsg ? <div className="c360-cr-msg">{crMsg}</div> : null}
         </div>
 
         <div className="c360-body">

@@ -59,3 +59,64 @@ export function digestText(d) {
   L.push("— Établi automatiquement par cp|WIRE, à partir des données Jira. Aucune valeur estimée.");
   return L.join("\n");
 }
+
+// Corps HTML du digest, à la charte Armonie (styles inline = compatibles mail).
+export function digestHtml(d) {
+  const NAVY = "#2E2A5D", INDIGO = "#4B3F8F", GOLD = "#A88B4B", LAV = "#F5F2FC", INK = "#1F1B33", GREY = "#6E6A86", LINE = "#E2DEF0", RED = "#b23b46";
+  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  const kpi = (n, lbl, warn) => `<td align="center" style="padding:10px 6px;border:1px solid ${LINE};border-radius:10px;background:${warn && n ? "#fbeef0" : LAV};">
+      <div style="font-family:'Poppins',Arial,sans-serif;font-weight:800;font-size:22px;color:${warn && n ? RED : NAVY};">${n}</div>
+      <div style="font-family:Arial,sans-serif;font-size:11px;color:${GREY};margin-top:2px;">${esc(lbl)}</div></td>`;
+  const li = (dossier, cle, detail, tag, tagColor) => `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid ${LINE};font-family:Arial,sans-serif;font-size:13px;color:${INK};">
+        ${tag ? `<span style="display:inline-block;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:${tagColor || GREY};background:${LAV};border-radius:6px;padding:2px 7px;margin-right:7px;">${esc(tag)}</span>` : ""}
+        <b style="color:${NAVY};">${esc(dossier)}</b>${cle ? ` <span style="color:${GOLD};font-weight:700;">${esc(cle)}</span>` : ""}
+        <span style="color:${GREY};"> — ${esc(detail)}</span></td></tr>`;
+  const section = (title, rowsHtml) => rowsHtml ? `
+    <tr><td style="padding:18px 0 6px;font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:14px;color:${NAVY};">${esc(title)}</td></tr>
+    <tr><td><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">${rowsHtml}</table></td></tr>` : "";
+
+  const echRows = [
+    ...d.echeances.retard.map((e) => li(e.dossier, "", e.label, "en retard", RED)),
+    ...d.echeances.semaine.map((e) => li(e.dossier, "", e.label, "cette semaine", GOLD)),
+  ].join("");
+  const regRows = d.regressions.map((r) => li(r.dossier, r.cle, r.detail)).join("");
+  const slaRows = d.sla.top.map((r) => li(r.dossier, r.cle, r.detail, "SLA", RED)).join("");
+  const recRows = d.recurrences.map((r) => li(r.dossier, "", `${r.type} ×${r.n}`)).join("");
+
+  return `<!doctype html><html><body style="margin:0;padding:0;background:#eceaf3;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#eceaf3;padding:24px 0;">
+   <tr><td align="center">
+    <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:600px;background:#ffffff;border-radius:14px;overflow:hidden;box-shadow:0 8px 30px rgba(31,27,51,.12);">
+     <tr><td style="height:4px;background:linear-gradient(90deg,${NAVY},${INDIGO} 55%,${GOLD});font-size:0;line-height:4px;">&nbsp;</td></tr>
+     <tr><td style="padding:22px 28px 6px;">
+       <div style="font-family:'Poppins',Arial,sans-serif;font-weight:800;font-size:18px;color:${NAVY};letter-spacing:.01em;">cp<span style="color:${GOLD};">|</span>WIRE</div>
+       <div style="font-family:Arial,sans-serif;font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:${GOLD};font-weight:700;margin-top:2px;">Point du soir</div>
+       <div style="font-family:'Poppins',Arial,sans-serif;font-weight:700;font-size:20px;color:${INK};margin-top:10px;">Ce qui a bougé aujourd'hui</div>
+       <div style="width:96px;height:3px;background:${GOLD};margin-top:8px;border-radius:2px;"></div>
+       <div style="font-family:Arial,sans-serif;font-size:12px;color:${GREY};margin-top:8px;">${esc(d.date)} · composé automatiquement à partir des données Jira. Aucune valeur estimée.</div>
+     </td></tr>
+     <tr><td style="padding:14px 28px 0;">
+       <table role="presentation" width="100%" cellpadding="0" cellspacing="6" style="border-collapse:separate;"><tr>
+         ${kpi(d.mouvements.total, "mouvements")}
+         ${kpi(d.regressions.length, "retours arrière", true)}
+         ${kpi(d.sla.depasses, "SLA dépassés", true)}
+         ${kpi(d.gti.depasses, "prise en charge", true)}
+       </tr></table>
+     </td></tr>
+     <tr><td style="padding:2px 28px 22px;">
+       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
+         ${section("Échéances", echRows)}
+         ${section("Retours en arrière", regRows)}
+         ${section("SLA dépassés", slaRows)}
+         ${section("Récurrences à surveiller", recRows)}
+         ${d.vide ? `<tr><td style="padding:16px 0;font-family:Arial,sans-serif;font-size:13px;color:${GREY};">Rien à signaler aujourd'hui : aucun mouvement, dépassement ni échéance imminente.</td></tr>` : ""}
+       </table>
+     </td></tr>
+     <tr><td style="padding:14px 28px;border-top:1px solid ${LINE};font-family:Arial,sans-serif;font-size:11px;color:${GREY};">
+       Armonie Group · cp|WIRE — cockpit de pilotage. Confidentiel.
+     </td></tr>
+    </table>
+   </td></tr>
+  </table></body></html>`;
+}

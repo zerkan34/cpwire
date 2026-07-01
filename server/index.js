@@ -2,7 +2,8 @@
 // vit dans app.js ; ce fichier ne fait que restaurer l'état au démarrage et écouter.
 // Volontairement minimal : c'est la partie qu'on ne teste pas (juste un appel à
 // app.listen), toute la logique testable est dans app.js et les modules métier.
-import { app, sessions, initSessions, PORT, ALLOW_DEMO, AUTH_ENABLED } from "./app.js";
+import { app, sessions, initSessions, PORT, ALLOW_DEMO, AUTH_ENABLED, runDigest } from "./app.js";
+import { startDigestScheduler } from "./scheduler.js";
 import { initMemory } from "./connaissance.js";
 import { initImports } from "./import.js";
 import { isConfigured } from "./jira.js";
@@ -22,4 +23,5 @@ app.listen(PORT, () => {
   console.log(`Auth: ${AUTH_ENABLED ? "oui" : "non"} | Jira: ${isConfigured() ? "oui" : (ALLOW_DEMO ? "démo" : "non configuré")} | IA: ${aiAvailable() ? "oui" : "gabarit"} | moi: ${ME}`);
   const _d = dataDirInfo();
   console.log(`Données: ${_d.dir} | persistance: ${isPersistent() ? (persistenceActive() ? "OUI (base Neon)" : "OUI (disque persistant)") : "NON (éphémère — définir DATABASE_URL ou DATA_DIR)"}`);
+  try { startDigestScheduler(runDigest); } catch (e) { console.error("[digest] planificateur non démarré :", e && e.message ? e.message : e); }
 });

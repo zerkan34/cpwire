@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchSla } from "../api.js";
+import QuickActions from "./QuickActions.jsx";
 
 // Alerte SLA en direct — tickets ouverts qui DÉPASSENT ou APPROCHENT (> 80 %) la cible GTR.
 // Donnée RÉELLE : cibles GTR de server/sla.json croisées avec l'âge depuis création (calcul serveur
@@ -86,6 +87,7 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
           <span className="sla-gauge"><span className={`sla-gauge-f ${a.state}`} style={{ width: `${Math.min(100, pct || 0)}%` }} /></span>
           <span className="sla-mesure-t">{mesure}</span>
         </span>
+        <QuickActions cle={a.cle} />
       </li>
     );
   };

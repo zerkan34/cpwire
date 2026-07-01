@@ -35,6 +35,11 @@ export const fetchSignals = (days = 30) => req(`/api/signals?days=${days}`);
 export const fetchProjections = () => req("/api/projections");
 export const fetchCoherence = () => req("/api/coherence");
 export const fetchDigest = (opts = {}) => req(`/api/digest${opts.send ? `?send=${opts.send}${opts.to ? `&to=${encodeURIComponent(opts.to)}` : ""}` : ""}`);
+export const fetchRisk = () => req("/api/risk");
+export const fetchCharge = () => req("/api/charge");
+export const fetchDossierCr = (nom, type = "COMOP") => req(`/api/cr/dossier?nom=${encodeURIComponent(nom)}&type=${encodeURIComponent(type)}`);
+export const fetchTicketTransitions = (cle) => req(`/api/ticket/transitions?cle=${encodeURIComponent(cle)}`);
+export const applyTicketTransition = (cle, to) => post(`/api/ticket/transition`, { cle, to });
 
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
 export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });

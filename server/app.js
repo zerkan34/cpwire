@@ -30,7 +30,7 @@ import { buildProjets, projetsWorkbookBuffer, projetsDocHtml, loadAcces } from "
 import { recentMailsFor, mailsConfigured } from "./mails.js";
 import { dailyReport, writtenDailyReport, writtenDateReport, morningReport, ticketReport, meetingReport, meetingPrep, globalReport, explainTicket, aiAvailable, runAutoLearn } from "./ai.js";
 import { assistantAnswer, analyzeFile } from "./assistant.js";
-import { addComment, transition } from "./jira-write.js";
+import { addComment, transition, listTransitions } from "./jira-write.js";
 import { transcribe, sttAvailable } from "./stt.js";
 import { logEvent, read as readHistory } from "./history.js";
 import { readDeleted, addDeleted, removeDeleted } from "./devmeta.js";
@@ -39,7 +39,10 @@ import { buildDeadlineRadar } from "./deadlines.js";
 import { buildProjections } from "./projections.js";
 import { buildCoherence } from "./coherence.js";
 import { computeSignals, recordSignals, readSignals, signalsStats, signalsSummary } from "./signals.js";
-import { buildDigest, digestText } from "./digest.js";
+import { buildDigest, digestText, digestHtml } from "./digest.js";
+import { buildRiskScores } from "./risk.js";
+import { buildCharge } from "./charge.js";
+import { buildDossierCrHtml } from "./crArmonie.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
@@ -1101,36 +1104,177 @@ app.get("/api/coherence", guard, async (_req, res) => {
     console.error("[GET /api/coherence]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
 });
 
-// Digest quotidien : composition à partir des données réelles. ?send=mail pour l'envoyer si
-// Microsoft 365 est configuré (sinon on renvoie le digest sans prétendre l'avoir envoyé).
-app.get("/api/digest", guard, async (req, res) => {
+// Score de risque par dossier — condensé de tous les signaux, tracé à des faits réels.
+app.get("/api/risk", guard, async (_req, res) => {
   try {
     const got = await getIssues(false);
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     const issues = withoutDeletedDevs(got.issues);
-    const pointDerived = deriveFromPointHistory();
     const slaReport = buildSlaReport(issues);
     const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
-    const recurrences = signalsStats(30).recurrences;
-    const digest = buildDigest({ pointDerived, slaReport, radar, recurrences });
+    const coherence = buildCoherence(issues);
+    const pointDerived = deriveFromPointHistory();
+    res.json(buildRiskScores({ issues, slaReport, radar, coherence, pointDerived }));
+  } catch (err) {
+    console.error("[GET /api/risk]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
 
-    let envoi = { demande: false };
-    if (req.query.send === "mail") {
-      envoi.demande = true;
-      if (!msConfigured || !msConfigured()) {
-        envoi.envoye = false; envoi.raison = "Microsoft 365 non configuré (envoi impossible).";
-      } else {
-        const to = req.query.to || (process.env.DIGEST_TO || "");
-        if (!to) { envoi.envoye = false; envoi.raison = "Destinataire manquant (paramètre ?to= ou variable DIGEST_TO)."; }
-        else {
-          try { await sendMail({ to, subject: `cp|WIRE — point du soir ${digest.date}`, text: digestText(digest) }); envoi.envoye = true; envoi.to = to; }
-          catch (e) { envoi.envoye = false; envoi.raison = String(e.message || e); }
-        }
+// Charge & capacité par développeur — tiré des assignations Jira réelles.
+app.get("/api/charge", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    res.json(buildCharge(withoutDeletedDevs(got.issues)));
+  } catch (err) {
+    console.error("[GET /api/charge]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// CR de dossier à la charte Armonie : compose le HTML autonome (à passer à /api/pdf/render).
+const CR_TYPES = {
+  COMOP: "Comité opérationnel", COPIL: "Comité de pilotage", GONOGO: "Bilan Go / No-Go",
+  RECAP: "Récapitulatif", CR: "Compte rendu", COMEX: "Comité exécutif",
+};
+app.get("/api/cr/dossier", guard, async (req, res) => {
+  try {
+    const nom = String(req.query.nom || "").trim();
+    if (!nom) return res.status(400).json({ error: "Paramètre 'nom' (dossier) manquant." });
+    const typeKey = String(req.query.type || "COMOP").toUpperCase().replace(/[^A-Z]/g, "");
+    const typeLabel = CR_TYPES[typeKey] || CR_TYPES.CR;
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const canon = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+    const all = withoutDeletedDevs(got.issues);
+    const sub = all.filter((i) => canon(i.dossier) === canon(nom));
+    if (!sub.length) return res.status(404).json({ error: `Aucun ticket pour le dossier « ${nom} ».` });
+
+    // KPIs + répartition par catégorie (ordre logique de flux).
+    const CAT_ORDER = ["afaire", "encours", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "termine", "miseEnProd"];
+    const catCount = {}; for (const i of sub) catCount[i.categorie] = (catCount[i.categorie] || 0) + 1;
+    const categories = CAT_ORDER.filter((c) => catCount[c]).map((c) => ({ label: CATEGORY_LABEL[c] || c, n: catCount[c] }));
+    const termines = (catCount.termine || 0) + (catCount.miseEnProd || 0);
+    const encours = (catCount.encours || 0) + (catCount.retourTest || 0) + (catCount.recetteArmonie || 0);
+    const suivi = sub.filter((i) => i.categorie !== "annule").length;
+    const kpis = { suivis: suivi, termines, encours, afaire: catCount.afaire || 0, tauxTermine: suivi ? Math.round((termines / suivi) * 100) : null };
+
+    // SLA / attention / échéances / risque — sur le sous-ensemble réel.
+    const slaReport = buildSlaReport(sub);
+    const over = (slaReport.alerts || []).filter((a) => a.state === "over");
+    const gtiOver = (slaReport.gtiAlerts || []).filter((a) => a.state === "over");
+    const CLOSED = new Set(["termine", "miseEnProd", "annule"]);
+    const ageJ = (d) => { const t = Date.parse(d || ""); return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000); };
+    const figes = sub.filter((i) => !CLOSED.has(i.categorie)).map((i) => ({ cle: i.cle, resume: i.resume, jours: ageJ(i.statutDepuis || i.maj) }))
+      .filter((f) => f.jours != null && f.jours >= 30).sort((a, b) => b.jours - a.jours);
+    const coherence = buildCoherence(sub);
+    const incoherences = (coherence.checks || []).filter((c) => c.severity === "alerte").map((c) => ({ label: c.label, items: c.items }));
+    const radarAll = buildDeadlineRadar(readDossiers(), readConnaissance());
+    const radar = radarAll.filter((r) => canon(r.dossier) === canon(nom));
+    const echeances = radar.map((r) => ({ label: r.label || "échéance", statut: r.statut, jours: r.joursRestants }));
+    const pointDerived = deriveFromPointHistory();
+    const risk = (buildRiskScores({ issues: sub, slaReport, radar, coherence, pointDerived }).dossiers[0]) || null;
+
+    // Frise du cycle : macro-étapes réelles (pivot = étape la plus chargée).
+    const macro = [
+      { label: "À faire", n: catCount.afaire || 0 },
+      { label: "En cours", n: (catCount.encours || 0) + (catCount.retourTest || 0) },
+      { label: "Recette", n: (catCount.recetteArmonie || 0) + (catCount.recetteClient || 0) + (catCount.attenteClient || 0) },
+      { label: "Terminé / mis en prod", n: (catCount.termine || 0) + (catCount.miseEnProd || 0) },
+    ].filter((s) => s.n > 0);
+    const maxN = Math.max(0, ...macro.map((s) => s.n));
+    const cycle = macro.map((s) => ({ label: `${s.label} — ${s.n}`, key: s.n === maxN }));
+
+    const data = {
+      client: nom, type: typeKey, typeLabel, date: new Date().toISOString().slice(0, 10),
+      titre: `${typeLabel} — ${nom}`,
+      kpis,
+      categories,
+      cycle,
+      sla: { over, gtiOver, risk: slaReport.global ? slaReport.global.ouvRisque : 0 },
+      attention: { figes, incoherences },
+      echeances,
+      risk,
+    };
+    const html = buildDossierCrHtml(data);
+    const filename = `ARMONIE-${nom.toUpperCase().replace(/[^A-Z0-9]/gi, "_")}-${typeKey}-${data.date}.pdf`;
+    res.json({ html, filename, resume: { tickets: sub.length, termines, over: over.length, figes: figes.length, risk: risk ? risk.score : null } });
+  } catch (err) {
+    console.error("[GET /api/cr/dossier]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Transitions Jira disponibles pour un ticket (pour agir depuis le cockpit).
+app.get("/api/ticket/transitions", guard, async (req, res) => {
+  try {
+    const cle = String(req.query.cle || "").trim();
+    if (!cle) return res.status(400).json({ error: "Paramètre 'cle' manquant." });
+    res.json({ transitions: await listTransitions(cle) });
+  } catch (err) {
+    console.error("[GET /api/ticket/transitions]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Appliquer une transition de statut (action rapide depuis une alerte).
+app.post("/api/ticket/transition", guard, writeGuard, async (req, res) => {
+  try {
+    const { cle, to } = req.body || {};
+    if (!cle || !to) return res.status(400).json({ error: "Paramètres 'cle' et 'to' requis." });
+    if (!isConfigured()) return res.status(409).json({ error: "Jira non configuré : impossible d'écrire dans le ticket." });
+    const result = await transition(cle, to);
+    logEvent("ticket_transition", `Transition Jira - ${cle} -> ${to}`, { cle, to });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    console.error("[POST /api/ticket/transition]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Digest quotidien : composition à partir des données réelles. ?send=mail pour l'envoyer si
+// Microsoft 365 est configuré (sinon on renvoie le digest sans prétendre l'avoir envoyé).
+// Compose le digest à partir des données réelles, et l'envoie si demandé + configuré.
+// Réutilisé par la route /api/digest, l'endpoint cron et le planificateur du soir.
+// Honnête de bout en bout : ne prétend jamais avoir envoyé ce qu'il n'a pas pu envoyer.
+export async function runDigest({ send = false, to = "" } = {}) {
+  const got = await getIssues(false);
+  if (!got) throw Object.assign(new Error("Jira non configuré."), { code: 409 });
+  const issues = withoutDeletedDevs(got.issues);
+  const pointDerived = deriveFromPointHistory();
+  const slaReport = buildSlaReport(issues);
+  const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
+  const recurrences = signalsStats(30).recurrences;
+  const digest = buildDigest({ pointDerived, slaReport, radar, recurrences });
+
+  const envoi = { demande: !!send };
+  if (send) {
+    if (!msConfigured || !msConfigured()) { envoi.envoye = false; envoi.raison = "Microsoft 365 non configuré (envoi impossible)."; }
+    else {
+      const dest = to || process.env.DIGEST_TO || "";
+      if (!dest) { envoi.envoye = false; envoi.raison = "Destinataire manquant (paramètre ?to= ou variable DIGEST_TO)."; }
+      else {
+        try { await sendMail({ to: dest, subject: `cp|WIRE — point du soir ${digest.date}`, html: digestHtml(digest) }); envoi.envoye = true; envoi.to = dest; }
+        catch (e) { envoi.envoye = false; envoi.raison = String(e.message || e); }
       }
     }
-    res.json({ digest, texte: digestText(digest), envoi });
+  }
+  return { digest, texte: digestText(digest), envoi };
+}
+
+app.get("/api/digest", guard, async (req, res) => {
+  try {
+    const out = await runDigest({ send: req.query.send === "mail", to: req.query.to || "" });
+    res.json(out);
   } catch (err) {
+    if (err && err.code === 409) return res.status(409).json({ error: err.message });
     console.error("[GET /api/digest]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// Endpoint pour un planificateur EXTERNE (Render Cron Job) : protégé par un secret
+// partagé (CRON_SECRET), indépendant de l'authentification de session. Envoie le digest.
+app.post("/api/cron/digest", async (req, res) => {
+  try {
+    const secret = process.env.CRON_SECRET || "";
+    const given = req.get("x-cron-secret") || req.query.secret || "";
+    if (!secret) return res.status(503).json({ error: "CRON_SECRET non défini côté serveur." });
+    if (given !== secret) return res.status(401).json({ error: "Secret cron invalide." });
+    const out = await runDigest({ send: true, to: req.query.to || "" });
+    res.json(out);
+  } catch (err) {
+    if (err && err.code === 409) return res.status(409).json({ error: err.message });
+    console.error("[POST /api/cron/digest]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
 });
 app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
   try {
