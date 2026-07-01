@@ -14,7 +14,7 @@ const ageCls = (n) => (n == null ? "" : n >= 30 ? "crit" : n >= 15 ? "warn" : n 
 
 const SEUILS = [["7", "≥ 7 j", 7], ["15", "≥ 15 j", 15], ["30", "≥ 30 j", 30], ["0", "Tous", 0]];
 
-export default function StaleTickets({ issues = [], onTicket, onDev, onClient }) {
+export default function StaleTickets({ issues = [], onTicket, onDev, onClient, changedKeys }) {
   const [client, setClient] = useState("Tous");
   const [seuil, setSeuil] = useState(7);
   const [slaOnly, setSlaOnly] = useState(false);
@@ -83,7 +83,7 @@ export default function StaleTickets({ issues = [], onTicket, onDev, onClient })
       {shown.length ? (
         <ul className="af-list sf-list">
           {shown.map((i) => (
-            <li className="af-ev sf-ev" key={i.cle}>
+            <li className={`af-ev sf-ev${changedKeys && changedKeys.has && changedKeys.has(i.cle) ? " is-fresh" : ""}`} key={i.cle}>
               <span className={`sf-age ${ageCls(i._age)}`}>{i._age} j</span>
               {onClient
                 ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(i.dossier)} title="Ouvrir la fiche client">{norm(i.dossier) || "—"}</button>

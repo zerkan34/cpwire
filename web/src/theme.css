@@ -197,7 +197,7 @@ tr.has-flag td:first-child { box-shadow: inset 3px 0 0 var(--orange); }
   85% { background: #fff8e6; }
   100% { background: transparent; }
 }
-tr.row-changed td { animation: chgFlash 30s ease-out forwards; }
+tr.row-changed td { animation: cpwFresh 1.5s ease-in-out 10; }
 tr.row-changed td:first-child { box-shadow: inset 3px 0 0 var(--gold-deep); }
 .chg-badge { display: inline-block; font-size: 10px; font-weight: 700; color: #fff; background: var(--gold-deep); border-radius: 5px; padding: 1px 6px; margin-left: 6px; vertical-align: middle; }
 .sep { height: 1px; background: var(--line); margin: 8px 0 4px; }
@@ -4733,6 +4733,12 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .af-refresh { background: #fff; border: 1px solid var(--line); color: var(--indigo); font: inherit; font-size: 11.5px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
 .af-refresh:hover:not(:disabled) { border-color: var(--indigo); }
 .af-refresh:disabled { opacity: .55; cursor: default; }
+.af-eye { display: inline-flex; align-items: center; gap: 6px; background: #fff; border: 1px solid var(--line); color: var(--muted); font: inherit; font-size: 11.5px; font-weight: 700; padding: 6px 10px; border-radius: 8px; cursor: pointer; transition: border-color .15s ease, color .15s ease, background .15s ease; }
+.af-eye:hover { border-color: var(--indigo); color: var(--indigo); }
+.af-eye.off { background: var(--amber-bg); border-color: transparent; color: var(--amber); }
+.af-eye.off:hover { border-color: var(--amber); }
+.af-eye svg { flex: none; }
+@media (max-width: 560px) { .af-eye-t { display: none; } }
 
 .af-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 0 14px; }
 .sf-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 0 0 14px; }
@@ -4758,10 +4764,10 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .af-day { margin-top: 4px; }
 .af-day-hd { font-weight: 700; color: var(--indigo); font-size: 13px; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; text-transform: capitalize; }
 .af-day-hd b { background: var(--indigo); color: #fff; border-radius: 20px; font-size: 11px; padding: 1px 9px; text-transform: none; }
-.af-list { list-style: none; margin: 0; padding: 0; }
-.af-ev { display: grid; grid-template-columns: 44px 116px 84px minmax(150px, 240px) minmax(0,1fr) minmax(120px, 200px); column-gap: 10px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 12px; }
-.af-ev:last-child { border-bottom: none; }
-.af-ev:hover { background: #faf9fd; }
+.af-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.af-ev { display: grid; grid-template-columns: 44px 116px 84px minmax(150px, 240px) minmax(0,1fr) minmax(120px, 200px); column-gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-radius: 11px; background: #fff; font-size: 12px; transition: border-color .15s ease, box-shadow .15s ease, transform .06s ease; }
+.af-ev:hover { border-color: var(--purple-line); box-shadow: 0 3px 12px rgba(58,54,88,.07); }
+.af-ev:active { transform: translateY(1px); }
 .af-h { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--gold); font-size: 11.5px; }
 .af-cli { background: #F1ECFB; color: var(--indigo); font-weight: 700; font-size: 10.5px; padding: 2px 9px; border-radius: 6px; white-space: nowrap; max-width: 116px; overflow: hidden; text-overflow: ellipsis; }
 .af-cli-btn { border: none; cursor: pointer; font: inherit; font-weight: 700; line-height: inherit; text-align: left; }
@@ -4805,7 +4811,25 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .af-cli { background: rgba(120,110,180,.20); color: #c9c3ec; }
   .af-st { background: rgba(120,110,180,.10); }
   .af-st-prog { background: rgba(120,110,180,.20); }
-  .af-ev:hover { background: rgba(120,110,180,.08); }
+  .af-ev { background: rgba(120,110,180,.06); border-color: rgba(120,110,180,.16); }
+  .af-ev:hover { background: rgba(120,110,180,.10); border-color: rgba(120,110,180,.28); box-shadow: none; }
+}
+
+/* ===== v335 — Pulse « nouveau mouvement » (façon bourse) ===== */
+/* Déclenché par changedKeys (diff serveur snapshot.js) : un ticket qui vient de bouger
+   pulse ~15 s (10 × 1,5 s) puis se calme. Vert = avancée, orange = retour arrière, doré = neutre. */
+@keyframes cpwFresh   { 0%,100% { background: rgba(58,54,88,.12);  } 50% { background: rgba(58,54,88,.015); } }
+@keyframes cpwFreshUp { 0%,100% { background: rgba(31,138,95,.16); } 50% { background: rgba(31,138,95,.02);  } }
+@keyframes cpwFreshDn { 0%,100% { background: rgba(224,96,15,.16); } 50% { background: rgba(224,96,15,.02);  } }
+@keyframes cpwBlink   { 0%,100% { opacity: 1; } 50% { opacity: .25; } }
+.af-ev.is-fresh        { animation: cpwFresh 1.5s ease-in-out 10; box-shadow: inset 3px 0 0 var(--gold-deep); }
+.af-ev.is-fresh-up     { animation-name: cpwFreshUp; box-shadow: inset 3px 0 0 var(--green); }
+.af-ev.is-fresh-down   { animation-name: cpwFreshDn; box-shadow: inset 3px 0 0 var(--orange-deep); }
+.af-fresh-dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--gold-deep); margin-left: 6px; vertical-align: middle; animation: cpwBlink 1.5s ease-in-out 10; }
+.af-fresh-dot.up { background: var(--green); }
+.af-fresh-dot.down { background: var(--orange-deep); }
+@media (prefers-reduced-motion: reduce) {
+  .af-ev.is-fresh, .af-ev.is-fresh-up, .af-ev.is-fresh-down, tr.row-changed td, .af-fresh-dot { animation: none !important; }
 }
 
 /* ===== PASSE v332 — Flux d'activité enrichi (traîne, régressions, pouls, classement, depuis dernière visite) + Tickets figés ===== */

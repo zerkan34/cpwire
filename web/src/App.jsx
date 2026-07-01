@@ -738,7 +738,7 @@ export default function App() {
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v334"
+            build="stable-v335"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -813,19 +813,19 @@ export default function App() {
       {tab === "tour" && sub === "flux" && (
         <>
           <PageHero k="Tour de contrôle" title="Flux d'activité" sub="Ce qui bouge, en direct." />
-          <ActivityFeed issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} />
+          <ActivityFeed issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
       {tab === "tour" && sub === "figes" && (
         <>
           <PageHero k="Tour de contrôle" title="Tickets figés" sub="Ce qui ne bouge plus." />
-          <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} />
+          <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
       {tab === "tour" && sub === "sla" && (
         <>
           <PageHero k="Tour de contrôle" title="SLA" sub="Les engagements de délai qui approchent ou dépassent la cible." />
-          <SlaAlert issues={issues} onTicket={setTicket} onClient={openClient} />
+          <SlaAlert issues={issues} onTicket={setTicket} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
 

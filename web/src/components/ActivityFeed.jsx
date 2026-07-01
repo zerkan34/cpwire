@@ -42,7 +42,7 @@ function Sparkline({ data = [], w = 108, h = 24 }) {
   );
 }
 
-export default function ActivityFeed({ issues = [], onTicket, onClient }) {
+export default function ActivityFeed({ issues = [], onTicket, onClient, changedKeys }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [payload, setPayload] = useState(null);
@@ -137,6 +137,10 @@ export default function ActivityFeed({ issues = [], onTicket, onClient }) {
   const Cli = ({ d }) => (onClient
     ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{norm(d) || "—"}</button>
     : <span className="af-cli">{norm(d) || "—"}</span>);
+
+  // Pulse « nouveau mouvement » : uniquement les tickets qui viennent de bouger (diff serveur changedKeys).
+  const isFresh = (cle) => changedKeys && changedKeys.has && changedKeys.has(cle);
+  const freshCls = (cle, regression) => isFresh(cle) ? (regression ? " is-fresh is-fresh-down" : " is-fresh is-fresh-up") : "";
 
   const StatusChips = ({ from, to, fromLabel, toLabel, statut, kind, regression }) => {
     if (kind === "creation") return (
@@ -252,7 +256,7 @@ export default function ActivityFeed({ issues = [], onTicket, onClient }) {
               <div className="af-day-hd">{dateFR ? `Aujourd'hui — ${dateFR}` : "Aujourd'hui"} <b>{shownToday.length}</b></div>
               <ul className="af-list">
                 {shownToday.map((e, idx) => (
-                  <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}`} key={`${e.cle}-${e.at}-${idx}`}>
+                  <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}${freshCls(e.cle, e.regression)}`} key={`${e.cle}-${e.at}-${idx}`}>
                     <span className="af-h">{hhmm(e.at)}</span>
                     <Cli d={e.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(e.cle)} title="Ouvrir le ticket">{e.cle}</button>
@@ -275,7 +279,7 @@ export default function ActivityFeed({ issues = [], onTicket, onClient }) {
               <div className="af-day-hd">{dayFR(d.day)} <b>{d.movements.length}</b> <span className="af-day-tag">au jour</span></div>
               <ul className="af-list">
                 {d.movements.map((m, idx) => (
-                  <li className={`af-ev af-ev-transition ${m.regression ? "af-ev-reg" : ""}`} key={`${m.cle}-${d.day}-${idx}`}>
+                  <li className={`af-ev af-ev-transition ${m.regression ? "af-ev-reg" : ""}${freshCls(m.cle, m.regression)}`} key={`${m.cle}-${d.day}-${idx}`}>
                     <span className="af-h af-h-day">—</span>
                     <Cli d={m.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(m.cle)} title="Ouvrir le ticket">{m.cle}</button>

@@ -10,16 +10,28 @@ const nowHM = () => { const d = new Date(); const p = (n) => String(n).padStart(
 const fmtH = (h) => { if (h == null) return "—"; const x = Math.round(h); return x >= 48 ? `${Math.round(h / 24)} j` : `${x} h`; };
 const bkCls = (b) => ({ P1: "p1", P2: "p2", P3: "p3", P4: "p4" }[b] || "p3");
 
-export default function SlaAlert({ issues = [], onTicket, onClient }) {
+export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
   const [payload, setPayload] = useState(null);
   const [client, setClient] = useState("Tous");
   const [auto, setAuto] = useState(true);
+  const [hideOld, setHideOld] = useState(true); // masquer les dormants > 3 mois (sans utilisation)
   const [lastAt, setLastAt] = useState("");
   const timer = useRef(null);
 
   const byKey = useMemo(() => { const m = {}; for (const i of issues) m[i.cle] = i; return m; }, [issues]);
+
+  // « Sans utilisation » = dernière modif Jira (maj) il y a plus de 90 j. Repli sur la date de création
+  // si maj absente. Donnée RÉELLE issue du ticket — pas de valeur fabriquée : si aucune date, non masqué.
+  const OLD_DAYS = 90;
+  const daysSinceUse = useCallback((cle) => {
+    const it = byKey[cle]; if (!it) return null;
+    const d = it.maj || it.cree; if (!d) return null;
+    const t = Date.parse(d); if (isNaN(t)) return null;
+    return Math.floor((Date.now() - t) / 86400000);
+  }, [byKey]);
+  const isDormant = useCallback((cle) => { const n = daysSinceUse(cle); return n != null && n >= OLD_DAYS; }, [daysSinceUse]);
 
   const load = useCallback(async () => {
     setErr("");
@@ -43,8 +55,11 @@ export default function SlaAlert({ issues = [], onTicket, onClient }) {
 
   const clients = useMemo(() => [...new Set(alerts.map((a) => norm(a.dossier)).filter((d) => d && d !== "—"))].sort(), [alerts]);
   const inClient = (d) => client === "Tous" || norm(d) === client;
-  const shownOver = over.filter((a) => inClient(a.dossier));
-  const shownRisk = risk.filter((a) => inClient(a.dossier));
+  const okOld = (a) => !hideOld || !isDormant(a.cle);
+  const shownOver = over.filter((a) => inClient(a.dossier) && okOld(a));
+  const shownRisk = risk.filter((a) => inClient(a.dossier) && okOld(a));
+  // Nombre de dormants masqués dans le périmètre client courant (pour l'affichage de l'œil).
+  const hiddenOld = hideOld ? [...over, ...risk].filter((a) => inClient(a.dossier) && isDormant(a.cle)).length : 0;
 
   const openTicket = (cle) => { if (onTicket) onTicket(byKey[cle] || { cle }); };
 
@@ -54,7 +69,7 @@ export default function SlaAlert({ issues = [], onTicket, onClient }) {
       ? `${fmtH(a.ageH)} / cible ${fmtH(a.gtrH)} · +${fmtH(a.depassementH)}`
       : `${fmtH(a.ageH)} / cible ${fmtH(a.gtrH)} · ${pct}%`;
     return (
-      <li className={`af-ev sla-ev sla-ev-${a.state}`}>
+      <li className={`af-ev sla-ev sla-ev-${a.state}${changedKeys && changedKeys.has && changedKeys.has(a.cle) ? " is-fresh is-fresh-down" : ""}`}>
         <span className={`sla-bk sla-bk-${bkCls(a.bucket)}`} title={`Priorité ${a.priorite || a.bucket}`}>{a.bucket}</span>
         {onClient
           ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(a.dossier)} title="Ouvrir la fiche client">{norm(a.dossier) || "—"}</button>
@@ -75,7 +90,7 @@ export default function SlaAlert({ issues = [], onTicket, onClient }) {
       <div className="af-intro">
         <b>Alerte SLA — en direct.</b> Tickets ouverts qui <b>dépassent</b> ou <b>approchent</b> (&gt; 80 %) la cible de résolution (GTR). Cibles réelles de <code>sla.json</code> croisées avec l'âge depuis création. Le compte à rebours avance tout seul — actualisation automatique.
       </div>
-      <p className="af-do">→ <b>Quoi en faire :</b> traite les <b>dépassés</b> (rouge) d'abord, puis les <b>P1/P2 à risque</b> — ce sont les engagements client en jeu. Clique un ticket pour l'ouvrir, un client pour sa fiche.</p>
+      <p className="af-do">→ <b>Quoi en faire :</b> traite les <b>dépassés</b> (rouge) d'abord, puis les <b>P1/P2 à risque</b> — ce sont les engagements client en jeu. Les tickets <b>dormants</b> (&gt; 3 mois sans utilisation) sont masqués par défaut : clique l'<b>œil</b> pour les revoir. Clique un ticket pour l'ouvrir, un client pour sa fiche.</p>
 
       <div className="af-bar">
         <div className="af-live">
@@ -84,6 +99,14 @@ export default function SlaAlert({ issues = [], onTicket, onClient }) {
           <span className="af-live-when">{lastAt ? `dernier calcul à ${lastAt}` : "…"}</span>
         </div>
         <div className="af-bar-r">
+          <button type="button" className={`af-eye ${hideOld ? "off" : "on"}`} onClick={() => setHideOld((v) => !v)}
+            aria-pressed={hideOld}
+            title={hideOld ? "Afficher les tickets dormants (plus de 3 mois sans utilisation)" : "Masquer les tickets dormants (plus de 3 mois sans utilisation)"}>
+            {hideOld
+              ? <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3l18 18" /><path d="M10.6 10.7a2 2 0 0 0 2.8 2.8" /><path d="M9.4 5.2A9.9 9.9 0 0 1 12 5c5 0 9 5 9 7a12 12 0 0 1-2.2 2.7" /><path d="M6.1 6.6C3.8 8 2 10.6 2 12c0 2 4 7 10 7a9.7 9.7 0 0 0 3.4-.6" /></svg>
+              : <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" /><circle cx="12" cy="12" r="3" /></svg>}
+            <span className="af-eye-t">{hideOld ? `Dormants masqués${hiddenOld ? ` · ${hiddenOld}` : ""}` : "Dormants affichés"}</span>
+          </button>
           <label className="af-auto"><input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> Auto (1 min)</label>
           <button type="button" className="af-refresh" onClick={load} disabled={loading} title="Recalculer maintenant">↻ Actualiser</button>
         </div>
@@ -126,7 +149,11 @@ export default function SlaAlert({ issues = [], onTicket, onClient }) {
           ) : null}
 
           {!shownOver.length && !shownRisk.length ? (
-            <p className="af-empty">Aucune alerte SLA{client !== "Tous" ? ` sur ${client}` : ""} — tout est dans les temps.</p>
+            hiddenOld ? (
+              <p className="af-empty">Aucune alerte active{client !== "Tous" ? ` sur ${client}` : ""} — mais <b>{hiddenOld}</b> ticket{hiddenOld > 1 ? "s" : ""} dormant{hiddenOld > 1 ? "s" : ""} (&gt; 3 mois sans utilisation) {hiddenOld > 1 ? "sont masqués" : "est masqué"}. Clique l'œil pour {hiddenOld > 1 ? "les" : "l'"}afficher.</p>
+            ) : (
+              <p className="af-empty">Aucune alerte SLA{client !== "Tous" ? ` sur ${client}` : ""} — tout est dans les temps.</p>
+            )
           ) : null}
         </>
       )}
