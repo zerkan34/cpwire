@@ -48,7 +48,8 @@ export default function CRA({ onTicket }) {
     try {
       const r = await importCRA(file, basis);
       setCra(r); setPerson("Tous");
-    } catch (er) { setErr(String(er.message || er)); }
+    } catch (er) {
+      console.error("[CRA]", er && er.message ? er.message : er); setErr(String(er.message || er)); }
     finally { setBusy(false); }
   };
 
@@ -75,7 +76,8 @@ export default function CRA({ onTicket }) {
       const r = await fetchCRA(start, end);
       if (r && r.configured === false) { setErr("Jira n'est pas connecté côté serveur — aucun temps à consolider."); }
       else { setCra(r); setPerson("Tous"); }
-    } catch (e) { setErr(String(e.message || e)); }
+    } catch (e) {
+      console.error("[CRA]", e && e.message ? e.message : e); setErr(String(e.message || e)); }
     finally { setBusy(false); }
   };
 

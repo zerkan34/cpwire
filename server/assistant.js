@@ -385,7 +385,7 @@ function dossierKeywordMap() {
       add(name, norm(name));
       for (const g of (c.glossaire || [])) for (const tok of norm(g.terme).split(/[^a-z0-9+]+/)) add(name, tok);
     }
-  } catch (e) { /* corpus indisponible : on retombe sur les préfixes + noms */ }
+  } catch (e) { console.warn("[assistant:dossierKeywordMap] corpus indisponible, repli préfixes+noms:", e.message || e); /* corpus indisponible : on retombe sur les préfixes + noms */ }
   for (const [prefix, name] of Object.entries(DOSSIERS || {})) { add(name, norm(name)); add(name, norm(prefix)); }
   return map;
 }
@@ -410,7 +410,7 @@ export async function analyzeFile({ filename = "fichier", text = "", question = 
   const body = String(text || "").trim();
   if (!body) throw new Error("Contenu vide ou non extractible.");
   let corpusDossiers = [];
-  try { corpusDossiers = Object.keys(readConnaissance().clients || {}); } catch (e) { corpusDossiers = []; }
+  try { corpusDossiers = Object.keys(readConnaissance().clients || {}); } catch (e) { console.warn("[assistant:analyzeFile] lecture connaissance impossible, dossiers corpus vides:", e.message || e); corpusDossiers = []; }
   const dossiers = [...new Set([...issues.map((i) => i.dossier).filter(Boolean), ...corpusDossiers])].sort((a, b) => a.localeCompare(b));
   const guess = guessDossier(filename, body, issues);
   const userText = `FICHIER : ${filename}\nCONTENU EXTRAIT (tronqué) :\n${body.slice(0, 15000)}\n\n`

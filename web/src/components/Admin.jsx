@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { adminInvite, fetchAdminUsers, removeAdminUser, adminConfirmUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply } from "../api.js";
+import { adminInvite, fetchAdminUsers, removeAdminUser, adminConfirmUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply, fetchHealth } from "../api.js";
 
 const sinceLabel = (ts) => {
   if (!ts) return "jamais connecté";
@@ -33,6 +33,7 @@ export default function Admin() {
   const [impProp, setImpProp] = useState(null);
   const [impErr, setImpErr] = useState("");
   const [impDone, setImpDone] = useState("");
+  const [health, setHealth] = useState(null); // { persistent, dataDir, authEnabled, jiraConfigured, ai }
 
   const load = useCallback(() => {
     fetchAdminUsers().then((r) => setUsers(r.users || [])).catch((e) => setErr(e.message || "Erreur")).finally(() => setLoading(false));
@@ -40,11 +41,13 @@ export default function Admin() {
   // Rafraîchit la présence régulièrement (sans rien afficher à l'invité).
   useEffect(() => { load(); const id = setInterval(load, 20000); return () => clearInterval(id); }, [load]);
   useEffect(() => { dolibarrStatus().then(setDol).catch(() => setDol({ configured: false })); }, []);
+  useEffect(() => { fetchHealth().then(setHealth).catch(() => setHealth(null)); }, []);
 
   const probeDolibarr = async () => {
     setDolBusy(true); setDolErr(""); setDolRes(null);
     try { setDolRes(await dolibarrProbe()); }
-    catch (e) { setDolErr(e.message || "Erreur"); }
+    catch (e) {
+      console.error("[Admin]", e && e.message ? e.message : e); setDolErr(e.message || "Erreur"); }
     finally { setDolBusy(false); }
   };
 
@@ -59,18 +62,21 @@ export default function Admin() {
       setLink(l);
       setLinkUntil(r.indefinite ? "indéfiniment" : new Date(r.expiresAt).toLocaleDateString("fr-FR", { dateStyle: "long" }));
       try { await navigator.clipboard.writeText(l); setCopied(true); } catch { /* copie manuelle */ }
-    } catch (e) { setErr(e.message || "Erreur"); }
+    } catch (e) {
+      console.error("[Admin]", e && e.message ? e.message : e); setErr(e.message || "Erreur"); }
     finally { setBusy(false); }
   };
   const copy = async () => { try { await navigator.clipboard.writeText(link); setCopied(true); } catch { /* */ } };
   const revoke = async (email) => {
     if (!window.confirm(`Révoquer l'accès de ${email} ? La personne sera déconnectée immédiatement.`)) return;
-    try { await removeAdminUser(email); load(); } catch (e) { setErr(e.message || "Erreur"); }
+    try { await removeAdminUser(email); load(); } catch (e) {
+      console.error("[Admin]", e && e.message ? e.message : e); setErr(e.message || "Erreur"); }
   };
 
   const confirmUser = async (email) => {
     if (!window.confirm(`Valider manuellement le compte ${email} ? La personne pourra se connecter sans confirmer son e-mail.`)) return;
-    try { await adminConfirmUser(email); load(); } catch (e) { setErr(e.message || "Erreur"); }
+    try { await adminConfirmUser(email); load(); } catch (e) {
+      console.error("[Admin]", e && e.message ? e.message : e); setErr(e.message || "Erreur"); }
   };
 
   const onPickImport = async (e) => {
@@ -79,7 +85,8 @@ export default function Admin() {
     if (!f) return;
     setImpFile(f); setImpProp(null); setImpErr(""); setImpDone(""); setImpBusy(true);
     try { setImpProp(await importAnalyze(f)); }
-    catch (e2) { setImpErr(e2.message || "Analyse impossible"); }
+    catch (e2) {
+      console.error("[Admin]", e2 && e2.message ? e2.message : e2); setImpErr(e2.message || "Analyse impossible"); }
     finally { setImpBusy(false); }
   };
   const applyImport = async () => {
@@ -88,7 +95,8 @@ export default function Admin() {
     try {
       await importApply({ filename: impProp.filename, proposal: impProp.proposal, apercu: impProp.apercu, dataset: impProp.dataset, diff: impProp.diff });
       setImpDone(impProp.dataset ? "Import validé — l'écran concerné est mis à jour ✓" : "Import validé et enregistré ✓"); setImpProp(null); setImpFile(null);
-    } catch (e2) { setImpErr(e2.message || "Validation impossible"); }
+    } catch (e2) {
+      console.error("[Admin]", e2 && e2.message ? e2.message : e2); setImpErr(e2.message || "Validation impossible"); }
     finally { setImpBusy(false); }
   };
   const cancelImport = () => { setImpProp(null); setImpFile(null); setImpErr(""); };
@@ -100,6 +108,34 @@ export default function Admin() {
         Invitez un collègue : il recevra un lien, créera lui-même son email et son mot de passe, et n'aura accès qu'en
         <b> consultation</b> — aucun récap, aucun compte rendu, aucune modification.
       </p>
+
+      {health && (
+        <div className="panel adm-status">
+          <h3>État du système</h3>
+          <div className="adm-status-grid">
+            <div className={`adm-status-i ${health.persistent ? "ok" : "warn"}`}>
+              <span className="adm-status-dot" />
+              <div>
+                <b>{health.persistent ? "Mémoire durable active" : "Mémoire éphémère"}</b>
+                <span>{health.persistent ? "Connaissance et sessions survivent aux redéploiements." : "Sans DATABASE_URL ni disque persistant : tout repart à zéro au prochain déploiement."}</span>
+              </div>
+            </div>
+            <div className={`adm-status-i ${health.jiraConfigured ? "ok" : "warn"}`}>
+              <span className="adm-status-dot" />
+              <div><b>Jira</b><span>{health.jiraConfigured ? "Connecté" : "Non configuré"}</span></div>
+            </div>
+            <div className={`adm-status-i ${health.ai ? "ok" : "neutral"}`}>
+              <span className="adm-status-dot" />
+              <div><b>IA</b><span>{health.ai ? "Clé configurée" : "Mode gabarit (aucune clé)"}</span></div>
+            </div>
+            <div className={`adm-status-i ${health.authEnabled ? "ok" : "neutral"}`}>
+              <span className="adm-status-dot" />
+              <div><b>Authentification</b><span>{health.authEnabled ? "Active" : "Désactivée (accès direct)"}</span></div>
+            </div>
+          </div>
+          {health.dataDir ? <p className="adm-status-dir">Données : <code>{health.dataDir}</code></p> : null}
+        </div>
+      )}
 
       <div className="panel adm-invite">
         <h3>Inviter quelqu'un</h3>
@@ -153,7 +189,7 @@ export default function Admin() {
               {users.length === 0 && <tr><td colSpan={5} className="adm-muted">Aucun compte invité pour l'instant.</td></tr>}
               {users.map((u) => (
                 <tr key={u.email}>
-                  <td><b>{u.email}</b>{u.confirmed === false && <span className="adm-pending" style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "#C2691A", background: "rgba(194,105,26,.12)", border: "1px solid #C2691A", borderRadius: 999, padding: "1px 8px" }}>En attente d'e-mail</span>}</td>
+                  <td><b>{u.email}</b>{u.confirmed === false && <span className="adm-pending" style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color: "var(--amber)", background: "rgba(176,116,35,.12)", border: "1px solid var(--amber)", borderRadius: 999, padding: "1px 8px" }}>En attente d'e-mail</span>}</td>
                   <td>{u.role === "admin" ? <span className="adm-role-admin">Administrateur</span> : "Consultation"}</td>
                   <td>{u.online ? <span className="adm-on">● En ligne</span> : <span className="adm-off">○ Hors ligne</span>}</td>
                   <td>{u.online ? "maintenant" : sinceLabel(u.lastSeen)}</td>

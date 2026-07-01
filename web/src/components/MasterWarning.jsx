@@ -12,9 +12,9 @@ import BlockerAnalysis from "./BlockerAnalysis.jsx";
    dev). Clic sur une ligne = ouverture du ticket (TicketModal = diagnostic).
    Points issus de computeBlockers(issues) — mêmes tickets que le point du soir. */
 
-const RED = "#C0392B", REDV = "#E5392B", AMBER = "#C2691A", GOLD = "#A8884E",
-      NAVY = "#2E2A5D", INDIGO = "#4B3F8F", INK = "#2a2937", MUTED = "#6b6488",
-      SOFT = "#F5F2FC", LINE = "#e7e5f1";
+const RED = "var(--red)", REDV = "#E5392B", AMBER = "var(--amber)", GOLD = "var(--gold)",
+      NAVY = "var(--indigo)", INDIGO = "var(--indigo)", INK = "var(--ink)", MUTED = "var(--muted)",
+      SOFT = "var(--purple-soft)", LINE = "var(--line)";
 
 // Code couleur engagement, unifié avec theme.css (.eng-badge) : TMA = vert, Projet = orange clair.
 const ENG = {
@@ -87,7 +87,7 @@ function sinceLabel(kind) {
   }
 }
 
-export default function MasterWarning({ points = [], onOpenTicket }) {
+export default function MasterWarning({ points = [], onOpenTicket, onOpen360, onDev }) {
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState("");
   const [client, setClient] = useState("");
@@ -222,7 +222,7 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
         .mwh-btn:focus-visible{ outline:3px solid ${GOLD}; outline-offset:3px }
         .mwh-row:focus-visible,.mwh-x:focus-visible{ outline:2px solid ${GOLD}; outline-offset:2px }
         .mwh-row:hover{ background:${SOFT} !important }
-        .mwh-filt input:focus,.mwh-filt select:focus{ border-color:${INDIGO} !important; box-shadow:0 0 0 3px rgba(75,63,143,.15) }
+        .mwh-filt input:focus,.mwh-filt select:focus{ border-color:${INDIGO} !important; box-shadow:0 0 0 3px rgba(58,54,88,.15) }
         .mwh-filt select:hover{ border-color:${INDIGO} !important }
         .mwh-btn:hover{ transform:translateY(-1px) scale(1.05) }
         @media (prefers-reduced-motion:reduce){ .mwh-sweep,.mwh-blip-d{ animation:none !important } }
@@ -360,8 +360,12 @@ export default function MasterWarning({ points = [], onOpenTicket }) {
                           <span className={`mw-eng ${p.engagement === "Projet" ? "projet" : "tma"}`}>{p.engagement === "Projet" ? "PROJET" : "TMA"}</span>
                         )}
                         {p._obsolete && <span className="mw-chip dormant" title={`Sans mouvement depuis ${p._moveDays} j`}>DORMANT</span>}
-                        <span className="mw-chip">{p.project || "—"}</span>
-                        <span className="mw-chip">👤 {p.assignee || "Non assigné"}</span>
+                        {p.project ? (
+                          <button type="button" className="mw-chip mw-chip-btn" onClick={(e) => { e.stopPropagation(); onOpen360 && onOpen360(p.project); }} title={`Ouvrir la fiche ${p.project}`}>{p.project}</button>
+                        ) : <span className="mw-chip">—</span>}
+                        {p.assignee ? (
+                          <button type="button" className="mw-chip mw-chip-btn" onClick={(e) => { e.stopPropagation(); onDev && onDev(p.assignee); }} title={`Voir la fiche de ${p.assignee}`}>👤 {p.assignee}</button>
+                        ) : <span className="mw-chip">👤 Non assigné</span>}
                         {p._since && (
                           <span className="mw-since">{sinceLabel(p.kind)} {fmtD(p._since)}{p._days ? ` · ${p._days} j` : ""}</span>
                         )}

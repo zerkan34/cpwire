@@ -78,6 +78,7 @@ export async function probe() {
         sampleFields: sample ? Object.keys(sample) : [],
       });
     } catch (e) {
+      console.warn(`[dolibarr] module ${m.id} indisponible:`, e.message || e);
       modules.push({ module: m.id, label: m.label, ok: false, error: String(e.message || e) });
     }
   }

@@ -19,7 +19,7 @@ function tsafe(aHex, bHex) {
 function validate(email, password) {
   const e = norm(email);
   if (!e || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error("Email invalide.");
-  if (!password || String(password).length < 6) throw new Error("Mot de passe trop court (6 caractères minimum).");
+  if (!password || String(password).length < 10) throw new Error("Mot de passe trop court (10 caractères minimum).");
   return e;
 }
 

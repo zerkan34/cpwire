@@ -231,7 +231,10 @@ export function saveConnaissance(data) {
     if (Array.isArray(keptAppris) && keptAppris.length) {
       safe.clients[k].appris = keptAppris
         .filter((e) => e && (e.text || e.source))
-        .map((e) => ({ source: String(e.source || ""), at: String(e.at || ""), text: String(e.text || "").slice(0, 2000) }))
+        .map((e) => ({
+          source: String(e.source || ""), at: String(e.at || ""), text: String(e.text || "").slice(0, 2000),
+          history: Array.isArray(e.history) ? e.history.slice(0, 5).map((h) => ({ at: String(h?.at || ""), text: String(h?.text || "").slice(0, 2000) })) : [],
+        }))
         .slice(-200);
     }
   }
@@ -289,8 +292,11 @@ export function addNote(dossier, note) {
 
 // Mémorise/ACTUALISE ce qu'un IMPORT apprend, par source (upsert : on remplace l'entrée
 // de la même source au lieu d'empiler des doublons → on garde toujours la dernière
-// version, rien ne se perd, la mémoire ne gonfle pas). Écriture directe (comme saveAuto)
-// pour préserver la couche. Relue par l'IA via knowledgeForPrompt.
+// version, la mémoire ne gonfle pas). IMPORTANT : contrairement à un upsert destructeur,
+// l'ancienne version n'est jamais perdue — elle bascule dans `history` (5 dernières,
+// plus récente en premier), consultable/vérifiable dans Mémoire → Sources apprises.
+// Écriture directe (comme saveAuto) pour préserver la couche. Relue par l'IA via
+// knowledgeForPrompt (seule la version courante, jamais l'historique, y est injectée).
 export function learnFromImport(dossier, sourceKey, text) {
   const d = String(dossier || "").trim();
   const body = String(text || "").trim();
@@ -299,13 +305,34 @@ export function learnFromImport(dossier, sourceKey, text) {
   if (!k.clients[d]) k.clients[d] = { contexte: "", attentes: [], glossaire: [], notes: [] };
   if (!Array.isArray(k.clients[d].appris)) k.clients[d].appris = [];
   const tag = String(sourceKey || "").trim() || body.slice(0, 32);
-  const entry = { source: tag, at: new Date().toISOString(), text: body.slice(0, 2000) };
   const i = k.clients[d].appris.findIndex((e) => e && e.source === tag);
+  const prev = i >= 0 ? k.clients[d].appris[i] : null;
+  const history = prev
+    ? [{ at: prev.at, text: prev.text }, ...(Array.isArray(prev.history) ? prev.history : [])].slice(0, 5)
+    : [];
+  const entry = { source: tag, at: new Date().toISOString(), text: body.slice(0, 2000), history };
   if (i >= 0) k.clients[d].appris[i] = entry; else k.clients[d].appris.push(entry);
   if (k.clients[d].appris.length > 200) k.clients[d].appris = k.clients[d].appris.slice(-200);
   try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(k, null, 2)); } catch {} }
   catch (e) { console.error("[connaissance] learnFromImport impossible:", e.message); }
   return entry;
+}
+
+// Oublie DÉFINITIVEMENT une source apprise (elle et son historique). Explicite et
+// irréversible — ne touche à rien d'autre (contexte, notes, glossaire, autres sources).
+export function forgetLearned(dossier, sourceKey) {
+  const d = String(dossier || "").trim();
+  const tag = String(sourceKey || "").trim();
+  if (!d || !tag) return false;
+  const k = readConnaissance();
+  const list = k.clients[d]?.appris;
+  if (!Array.isArray(list)) return false;
+  const before = list.length;
+  k.clients[d].appris = list.filter((e) => !e || e.source !== tag);
+  if (k.clients[d].appris.length === before) return false; // rien à oublier
+  try { fs.mkdirSync(DIR, { recursive: true }); fs.writeFileSync(FILE, JSON.stringify(k, null, 2)); try { dbSaveBlob("connaissance", JSON.stringify(k, null, 2)); } catch {} }
+  catch (e) { console.error("[connaissance] forgetLearned impossible:", e.message); }
+  return true;
 }
 
 // ============================================================================

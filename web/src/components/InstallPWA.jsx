@@ -21,13 +21,13 @@ function injectCss() {
   .pwa-update{position:fixed;left:50%;bottom:max(18px,env(safe-area-inset-bottom));transform:translateX(-50%);
     z-index:2147483600;display:flex;align-items:center;gap:14px;max-width:min(540px,94vw);
     padding:11px 12px 11px 18px;border-radius:14px;color:#fff;font-family:Inter,system-ui,Arial,sans-serif;
-    background:linear-gradient(110deg,#2E2A5D,#4B3F8F 72%,#5a4ea0);box-shadow:0 16px 44px rgba(31,27,51,.42);
+    background:var(--hd-logo);box-shadow:0 16px 44px rgba(31,27,51,.42);
     animation:cpwPwaUp .34s cubic-bezier(.2,.9,.3,1.2)}
   .pwa-update .dot{width:8px;height:8px;border-radius:50%;background:#E6B85C;flex:none;animation:cpwPwaPulse 1.6s ease-in-out infinite}
   .pwa-update .tx{font-size:13.5px;font-weight:600;line-height:1.25;flex:1}
   .pwa-update .tx small{display:block;font-weight:500;color:rgba(255,255,255,.72);font-size:11.5px;margin-top:1px}
   .pwa-update .go{flex:none;border:0;cursor:pointer;font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:13px;
-    color:#2E2A5D;background:linear-gradient(180deg,#E6B85C,#C99A3F);padding:9px 16px;border-radius:10px}
+    color:var(--indigo);background:linear-gradient(180deg,#E6B85C,#C99A3F);padding:9px 16px;border-radius:10px}
   .pwa-update .go:hover{filter:brightness(1.05)}
   .pwa-update .x{flex:none;width:30px;height:30px;border:0;border-radius:9px;cursor:pointer;font-size:17px;line-height:1;
     color:rgba(255,255,255,.8);background:rgba(255,255,255,.12)}
@@ -37,28 +37,28 @@ function injectCss() {
     z-index:2147483590;width:min(360px,calc(100vw - 28px));background:#fff;border:1px solid #E7E5F1;border-radius:16px;
     box-shadow:0 20px 56px rgba(31,27,51,.20);font-family:Inter,system-ui,Arial,sans-serif;color:#1F1B33;overflow:hidden;
     animation:cpwPwaCard .34s cubic-bezier(.2,.9,.3,1.2)}
-  .pwa-install .top{height:4px;background:linear-gradient(90deg,#2E2A5D,#4B3F8F 55%,#A8884E)}
+  .pwa-install .top{height:4px;background:var(--hd-logo)}
   .pwa-install .bd{padding:15px 17px 16px;display:flex;gap:13px}
   .pwa-install .mk{flex:none;width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;
-    background:linear-gradient(135deg,#2E2A5D,#4B3F8F);color:#fff;font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:13px;letter-spacing:.3px}
+    background:var(--hd-logo);color:#fff;font-family:Poppins,Inter,sans-serif;font-weight:800;font-size:13px;letter-spacing:.3px}
   .pwa-install .cn{flex:1;min-width:0}
-  .pwa-install .t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:15px;color:#2E2A5D;margin:1px 0 3px}
+  .pwa-install .t{font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:15px;color:var(--indigo);margin:1px 0 3px}
   .pwa-install .s{font-size:12.5px;color:#6E6A86;line-height:1.5;margin:0 0 12px}
   .pwa-install .row{display:flex;gap:9px}
   .pwa-install .pri{flex:none;border:0;cursor:pointer;font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:13px;
-    color:#2E2A5D;background:linear-gradient(180deg,#E6B85C,#C99A3F);padding:9px 16px;border-radius:10px}
+    color:var(--indigo);background:linear-gradient(180deg,#E6B85C,#C99A3F);padding:9px 16px;border-radius:10px}
   .pwa-install .pri:hover{filter:brightness(1.05)}
   .pwa-install .sec{flex:none;border:0;cursor:pointer;font-size:13px;font-weight:600;color:#6E6A86;background:transparent;padding:9px 10px;border-radius:10px}
-  .pwa-install .sec:hover{background:#F5F2FC;color:#2E2A5D}
+  .pwa-install .sec:hover{background:var(--purple-soft);color:var(--indigo)}
 
   .pwa-ios{position:fixed;inset:0;z-index:2147483610;display:flex;align-items:flex-end;justify-content:center;
     background:rgba(31,27,51,.5);backdrop-filter:blur(2px);padding:0 12px env(safe-area-inset-bottom)}
   .pwa-ios-box{background:#fff;border-radius:18px 18px 14px 14px;max-width:440px;width:100%;margin-bottom:14px;
     padding:20px 20px 18px;font-family:Inter,system-ui,Arial,sans-serif;color:#1F1B33;box-shadow:0 -10px 50px rgba(31,27,51,.3)}
-  .pwa-ios-box b.h{display:block;font-family:Poppins,Inter,sans-serif;font-size:16px;color:#2E2A5D;margin-bottom:10px}
+  .pwa-ios-box b.h{display:block;font-family:Poppins,Inter,sans-serif;font-size:16px;color:var(--indigo);margin-bottom:10px}
   .pwa-ios-box ol{margin:0 0 14px;padding-left:20px;font-size:13.5px;line-height:1.7;color:#3a3553}
   .pwa-ios-box .pri{border:0;cursor:pointer;width:100%;font-family:Poppins,Inter,sans-serif;font-weight:700;font-size:14px;
-    color:#fff;background:linear-gradient(135deg,#2E2A5D,#4B3F8F);padding:11px;border-radius:11px}
+    color:#fff;background:var(--hd-logo);padding:11px;border-radius:11px}
 
   .pwa-offline{position:fixed;left:max(14px,env(safe-area-inset-left));bottom:max(14px,env(safe-area-inset-bottom));
     z-index:2147483580;display:flex;align-items:center;gap:7px;background:#FBEFE0;color:#A85A1A;border:1px solid #F0D8BE;

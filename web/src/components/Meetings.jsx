@@ -74,7 +74,8 @@ function PrepReunion({ issues }) {
       setWhoChecked(all(d.who, "name"));
       setDelivChecked(all(d.deliverables, "cle"));
       setFricChecked(all(d.frictions, "cle"));
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[Meetings]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(false); }
   };
 
@@ -289,7 +290,8 @@ function CompteRendu({ issues = [] }) {
       const { html, transcript: tr } = await genMeetingReport(fd);
       if (tr && !transcript) setTranscript(tr);
       setDoc({ title: titre || "Compte rendu de réunion", html, filename: `CR_reunion_${(titre || "reunion").replace(/\s+/g, "_")}.html` });
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[Meetings]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(false); }
   };
 

@@ -43,6 +43,7 @@ export default function DailyCRModal({ issues = [], meName = "Nicolas Durand", o
       setMsg(`ZIP « ${fileBase}.zip » enregistré — ${allFiles.length} fichier(s), dont « Points bloquants ».`);
     } catch (e) {
       if (e && e.name === "AbortError") { setBusy(false); return; }  // annulation volontaire du sélecteur
+      console.error("[DailyCRModal]", e && e.message ? e.message : e);
       setMsg("Échec de la création du ZIP : " + (e.message || e));
     }
     finally { setBusy(false); }

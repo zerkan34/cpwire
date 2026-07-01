@@ -120,6 +120,7 @@ export default function Assistant() {
       const { answer, sources } = await askAssistant(text, history);
       push({ role: "ai", text: answer || "—", sources });
     } catch (e) {
+      console.error("[Assistant]", e && e.message ? e.message : e);
       push({ role: "ai", text: "Indisponible : " + (e.message || e), error: true });
     } finally { setBusy(false); }
   };
@@ -139,6 +140,7 @@ export default function Assistant() {
         importable: { note: data.note || "", filename: data.filename || file.name, dossiers, dossier: data.guess || dossiers[0] || "", imported: false },
       });
     } catch (e) {
+      console.error("[Assistant]", e && e.message ? e.message : e);
       push({ role: "ai", text: "Analyse impossible : " + (e.message || e), error: true });
     } finally { setBusy(false); }
   };
@@ -150,6 +152,7 @@ export default function Assistant() {
       await importToCorpus(m.importable.dossier, m.importable.note);
       patch(idx, (x) => ({ ...x, importable: { ...x.importable, imported: true } }));
     } catch (e) {
+      console.error("[Assistant]", e && e.message ? e.message : e);
       push({ role: "ai", text: "Import impossible : " + (e.message || e), error: true });
     }
   };

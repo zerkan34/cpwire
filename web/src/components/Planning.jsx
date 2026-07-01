@@ -22,7 +22,8 @@ export default function Planning() {
       const r = parsePlanning(text);
       if (!r.items.length) { setErr("Aucune ligne de planning reconnue. Vérifie qu'il s'agit bien d'un planning exporté en CSV."); setData(null); return; }
       setData(r);
-    } catch (ex) { setErr("Lecture impossible : " + ex.message); setData(null); }
+    } catch (ex) {
+      console.error("[Planning]", ex && ex.message ? ex.message : ex); setErr("Lecture impossible : " + ex.message); setData(null); }
   };
 
   const stats = useMemo(() => {

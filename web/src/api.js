@@ -30,6 +30,7 @@ const put = (path, body) => req(path, { method: "PUT", headers: { "Content-Type"
 
 // État serveur : { ok, persistent, ... } — sert à afficher l'état de la mémoire (durable ou éphémère).
 export const fetchHealth = () => req("/api/health");
+export const fetchDeadlines = () => req("/api/deadlines");
 
 // Assistant ancré : renvoie { answer, sources:{tickets,dossiers,methodologie} }.
 export const askAssistant = (question, history = []) => post("/api/assistant", { question, history });
@@ -139,6 +140,7 @@ export const fetchCadence = (weeks = 8) => req(`/api/cadence?weeks=${weeks}`);
 export const fetchConnaissance = () => req(`/api/connaissance`);
 export const saveConnaissance = (data) => put(`/api/connaissance`, data);
 export const learnConnaissance = () => post(`/api/connaissance/learn`, {});
+export const removeAppris = (dossier, source) => post(`/api/connaissance/appris/remove`, { dossier, source });
 export const fetchReferentielClients = () => req(`/api/referentiel/clients`);
 export const fetchClientMails = (dossier) => req(`/api/client/mails?dossier=${encodeURIComponent(dossier)}`);
 // Rendu PDF d'un HTML autonome côté serveur → fichier téléchargeable (pas de boîte d'impression).
@@ -215,7 +217,8 @@ export async function openProjetsDoc() {
   const w = window.open("", "_blank");
   if (!w) throw new Error("Autorise les fenêtres pop-up pour générer le PDF.");
   w.document.open(); w.document.write(html); w.document.close();
-  setTimeout(() => { try { w.focus(); w.print(); } catch (e) {} }, 600);
+  setTimeout(() => { try { w.focus(); w.print(); } catch (e) {
+    console.error("[api]", e && e.message ? e.message : e);} }, 600);
 }
 export const fetchReferentiel = (client) => req(`/api/referentiel${client ? `?client=${encodeURIComponent(client)}` : ""}`);
 export function importCRA(file, basis = 7) {

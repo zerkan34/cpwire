@@ -1,48 +1,56 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
   getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
 import { saveSnapshot, loadSnapshot } from "./snapshot.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
-import Planning from "./components/Planning.jsx";
 import Header from "./components/Header.jsx";
-import Assistant from "./components/Assistant.jsx";
-import ImportSources from "./components/ImportSources.jsx";
-import Portfolio from "./components/Portfolio.jsx";
 import Home from "./components/Home.jsx";
 import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
 import IssueTable from "./components/IssueTable.jsx";
-import Recette from "./components/Recette.jsx";
-import Referentiel from "./components/Referentiel.jsx";
-import Reference from "./components/Reference.jsx";
-import Projets from "./components/Projets.jsx";
-import SharePointFiles from "./components/SharePointFiles.jsx";
-import Hygiene from "./components/Hygiene.jsx";
-import Connaissance from "./components/Connaissance.jsx";
-import Admin from "./components/Admin.jsx";
 import ExportBar from "./components/ExportBar.jsx";
-import DailyCRModal from "./components/DailyCRModal.jsx";
+
+// ---- Découpage du bundle (code-splitting) ----------------------------------
+// Tout ce qui n'est PAS visible au premier écran (tab="cockpit" sub="accueil")
+// est chargé à la demande via lazy() : ces composants ne pèsent plus rien sur
+// le chargement initial, ils n'arrivent que quand l'onglet/la modale concernée
+// s'ouvre réellement. Chacun est rendu sous un <Suspense> (page ou modale).
+const Planning = lazy(() => import("./components/Planning.jsx"));
+const Assistant = lazy(() => import("./components/Assistant.jsx"));
+const ImportSources = lazy(() => import("./components/ImportSources.jsx"));
+const Recette = lazy(() => import("./components/Recette.jsx"));
+const Reference = lazy(() => import("./components/Reference.jsx"));
+const Projets = lazy(() => import("./components/Projets.jsx"));
+const SharePointFiles = lazy(() => import("./components/SharePointFiles.jsx"));
+const Hygiene = lazy(() => import("./components/Hygiene.jsx"));
+const Admin = lazy(() => import("./components/Admin.jsx"));
+const DailyCRModal = lazy(() => import("./components/DailyCRModal.jsx"));
+const TicketModal = lazy(() => import("./components/TicketModal.jsx"));
+const DossierModal = lazy(() => import("./components/DossierModal.jsx"));
+const Client360 = lazy(() => import("./components/Client360.jsx"));
+const DeveloperModal = lazy(() => import("./components/DeveloperModal.jsx"));
+const DailyRecap = lazy(() => import("./components/DailyRecap.jsx"));
+const Developers = lazy(() => import("./components/Developers.jsx"));
+const EnCours = lazy(() => import("./components/EnCours.jsx"));
+const Recap = lazy(() => import("./components/Recap.jsx"));
+const Meetings = lazy(() => import("./components/Meetings.jsx"));
+const CRA = lazy(() => import("./components/CRA.jsx"));
+const MobileRecap = lazy(() => import("./components/MobileRecap.jsx"));
 
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-import TicketModal from "./components/TicketModal.jsx";
-import DossierModal from "./components/DossierModal.jsx";
-import Client360 from "./components/Client360.jsx";
-import DeveloperModal from "./components/DeveloperModal.jsx";
-import DailyRecap from "./components/DailyRecap.jsx";
-import Developers from "./components/Developers.jsx";
-import EnCours from "./components/EnCours.jsx";
-import Recap from "./components/Recap.jsx";
 import InstallPWA from "./components/InstallPWA.jsx";
 import MobileHome from "./components/MobileHome.jsx";
-import MobileRecap from "./components/MobileRecap.jsx";
 import { PILOT_DATA_URI } from "./pilot.js";
 import { computeBlockers } from "./blockers.js";
-import Meetings from "./components/Meetings.jsx";
-import CRA from "./components/CRA.jsx";
 
 const STATUTS = ["Bloqué", "À faire", "En cours", "Terminé"];
+
+// Repli affiché pendant le chargement à la demande d'une page secondaire (code-splitting).
+function PageLoading() {
+  return <div className="page-loading" role="status" aria-live="polite"><span className="page-loading-spin" /> Chargement…</div>;
+}
 
 // En-tête de page brandé, partagé par toutes les pages (harmonisation visuelle).
 function PageHero({ k, title, sub }) {
@@ -262,7 +270,8 @@ export default function App() {
       } catch {
         window.prompt(`Copie automatique impossible. Copie ce lien (valable jusqu'au ${until}) :`, link);
       }
-    } catch (e) { showToast("Échec de création du lien : " + e.message); }
+    } catch (e) {
+      console.error("[App]", e && e.message ? e.message : e); showToast("Échec de création du lien : " + e.message); }
   }, [showToast]);
 
   useEffect(() => {
@@ -346,7 +355,8 @@ export default function App() {
           showToast(`✓ Actualisé — aucun changement depuis la dernière synchro.`);
         }
       }
-    } catch (e) { setError(e.message); if (e.needsConfig) setNeedsConfig(true);
+    } catch (e) {
+      console.error("[App]", e && e.message ? e.message : e); setError(e.message); if (e.needsConfig) setNeedsConfig(true);
       try { const snap = await loadSnapshot(); if (snap) setData((cur) => cur || snap); } catch { /* pas de cache */ } }
     finally { setLoading(false); inFlight.current = false; }
   }, [showToast]);
@@ -500,11 +510,13 @@ export default function App() {
 
   const removeDev = useCallback(async (name) => {
     try { const r = await deleteDevFiche(name); setDeletedDevs(r.deleted || []); showToast(`Fiche de ${name} masquée. Restaurable depuis la fiche.`); }
-    catch (e) { showToast("Échec : " + e.message); }
+    catch (e) {
+      console.error("[App]", e && e.message ? e.message : e); showToast("Échec : " + e.message); }
   }, [showToast]);
   const restoreDev = useCallback(async (name) => {
     try { const r = await restoreDevFiche(name); setDeletedDevs(r.deleted || []); showToast(`Fiche de ${name} restaurée.`); }
-    catch (e) { showToast("Échec : " + e.message); }
+    catch (e) {
+      console.error("[App]", e && e.message ? e.message : e); showToast("Échec : " + e.message); }
   }, [showToast]);
 
   const filtered = useMemo(() => {
@@ -649,7 +661,7 @@ export default function App() {
         query={query} onQuery={setQuery}
         notifOn={notifOn} onToggleNotifOn={notifToggle}
         notifs={notifs} onOpenNotif={openNotif} onMarkAllRead={markAllNotifRead}
-        issues={issues} onOpenTicket={setTicket} onBurger={() => setDrawer(true)}
+        issues={issues} onOpenTicket={setTicket} onOpen360={open360} onDev={setDevFiche} onBurger={() => setDrawer(true)}
         tab={tab} pageLabel={tabLabel(tab)}
         onKpi={applyKpi} activeKpi={tab === "outils" && sub === "portefeuille" ? (onlyLate ? "late" : (statut !== "Tous" ? statut : (dossier === "Tous" && !onlyMine && !onlyFlagged && person === "Tous" && priorite === "Tous" && !query.trim() ? "total" : null))) : null} />
 
@@ -713,10 +725,11 @@ export default function App() {
       {error && !needsConfig && <div className="banner">Erreur : {error}</div>}
 
       <div className="page-anim" key={tab + ":" + sub}>
+      <Suspense fallback={<PageLoading />}>
       {tab === "cockpit" && sub === "accueil" && (
         isMobile ? (
           <MobileHome
-            build="stable-v318"
+            build="stable-v330"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -813,21 +826,40 @@ export default function App() {
       {tab === "outils" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 
+      </Suspense>
       </div>
 
       <div className="foot">cp|WIRE · {data?.me ? `connecté en tant que ${data.me} · ` : ""}{data?.source || ""}</div>
 
       {devFiche && (
-        <DeveloperModal devName={devFiche} allIssues={issues}
-          deleted={deletedDevs.includes(devFiche)}
-          onDelete={() => removeDev(devFiche)} onRestore={() => restoreDev(devFiche)}
-          onClose={() => setDevFiche(null)} onTicket={setTicket} />
+        <Suspense fallback={null}>
+          <DeveloperModal devName={devFiche} allIssues={issues}
+            deleted={deletedDevs.includes(devFiche)}
+            onDelete={() => removeDev(devFiche)} onRestore={() => restoreDev(devFiche)}
+            onClose={() => setDevFiche(null)} onTicket={setTicket} />
+        </Suspense>
       )}
-      {fiche && <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
-        onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />}
-      {sel360 && <Client360 c={sel360} issues={issues} facts={facts} canCR={canCR} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />}
-      {ticket && <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />}
-      {dailyCrOpen && <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />}
+      {fiche && (
+        <Suspense fallback={null}>
+          <DossierModal nom={fiche.nom} fiche={dossiers[fiche.nom]} onClose={() => setFiche(null)}
+            onSaved={(nom, saved) => setDossiers((d) => ({ ...d, [nom]: saved }))} />
+        </Suspense>
+      )}
+      {sel360 && (
+        <Suspense fallback={null}>
+          <Client360 c={sel360} issues={issues} facts={facts} canCR={canCR} onClose={() => setSel360(null)} onTicket={setTicket} onDev={setDevFiche} />
+        </Suspense>
+      )}
+      {ticket && (
+        <Suspense fallback={null}>
+          <TicketModal ticket={ticket} onClose={() => setTicket(null)} onPushed={() => load(true)} />
+        </Suspense>
+      )}
+      {dailyCrOpen && (
+        <Suspense fallback={null}>
+          <DailyCRModal issues={issues} onClose={() => setDailyCrOpen(false)} />
+        </Suspense>
+      )}
 
       {showTop && <button className="to-top" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Remonter en haut">↑</button>}
       {toast && <div className="toast" role="status">{toast}</div>}
@@ -900,8 +932,12 @@ export default function App() {
           </div>
         </div>
       )}
-      {importOpen && <ImportSources onClose={() => setImportOpen(false)} onApplied={() => load(true)} />}
-      <Assistant />
+      {importOpen && (
+        <Suspense fallback={null}>
+          <ImportSources onClose={() => setImportOpen(false)} onApplied={() => load(true)} />
+        </Suspense>
+      )}
+      <Suspense fallback={null}><Assistant /></Suspense>
     </div>
     </ReadOnlyContext.Provider>
   );

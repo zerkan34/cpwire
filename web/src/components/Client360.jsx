@@ -43,6 +43,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
       await importApply({ filename: r.filename || file.name, proposal: r.proposal, apercu: r.apercu, dataset: r.dataset, diff: r.diff });
       alert("Données mises à jour ✓");
     } catch (e) {
+      console.error("[Client360]", e && e.message ? e.message : e);
       alert("Échec de l'import : " + (e && e.message ? e.message : "erreur"));
     }
     setBusy("");

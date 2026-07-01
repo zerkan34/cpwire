@@ -9,7 +9,8 @@ export default function ExportBar({ buildHtml, filename = "document.html", subje
 
   const safe = (fn) => () => {
     setErr("");
-    try { fn(); } catch (e) { setErr("Action impossible sur ce navigateur."); }
+    try { fn(); } catch (e) {
+      console.error("[ExportBar]", e && e.message ? e.message : e); setErr("Action impossible sur ce navigateur."); }
   };
   const onPdf = safe(() => printHtml(buildHtml()));
   const onDl = safe(() => downloadHtml(buildHtml(), filename));

@@ -8,6 +8,7 @@ import { fileURLToPath } from "node:url";
 import ExcelJS from "exceljs";
 import { crossReferentiel } from "./referentiel.js";
 import { buildDoc } from "./docgen.js";
+import { ARMONIE_PALETTE as P } from "../shared/armonie-palette.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const P_PATH = path.join(__dirname, "projets.json");
@@ -360,32 +361,32 @@ export function projetsDocHtml(issues) {
   const style = `<style>
     @page{size:A4 landscape;margin:11mm;}
     .page{max-width:none;}
-    .pp-kpis{display:flex;margin:14px 0 4px;border:1px solid #e7e5f1;border-radius:12px;overflow:hidden;border-bottom:2px solid #A88B4B;}
+    .pp-kpis{display:flex;margin:14px 0 4px;border:1px solid #e7e5f1;border-radius:12px;overflow:hidden;border-bottom:2px solid ${P.gold};}
     .pp-kpi{flex:1;padding:11px 14px;background:#f8f7fc;border-right:1px solid #ece9f6;}
     .pp-kpi:last-child{border-right:0;}
-    .pp-kpi .v{font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:#2E2A5D;white-space:nowrap;}
-    .pp-kpi .l{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:#6E6A86;margin-top:3px;}
+    .pp-kpi .v{font-family:'Poppins',sans-serif;font-weight:800;font-size:18px;color:${P.navy};white-space:nowrap;}
+    .pp-kpi .l{font-size:9px;text-transform:uppercase;letter-spacing:.05em;color:${P.muted};margin-top:3px;}
     .pp-main{width:100%;border-collapse:collapse;table-layout:fixed;font-size:10px;margin:4px 0 14px;}
-    .pp-main th{background:#2E2A5D;color:#fff;font-size:8.5px;text-transform:uppercase;letter-spacing:.02em;font-weight:700;padding:7px 7px;text-align:left;}
+    .pp-main th{background:${P.navy};color:#fff;font-size:8.5px;text-transform:uppercase;letter-spacing:.02em;font-weight:700;padding:7px 7px;text-align:left;}
     .pp-main th.r{text-align:right;}
     .pp-main td{padding:7px 7px;border-bottom:1px solid #eceaf4;vertical-align:top;line-height:1.3;word-break:normal;overflow-wrap:break-word;}
     .pp-main td.r{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums;}
     .pp-main td.ctr{text-align:center;white-space:nowrap;}
     .pp-main tbody tr:nth-child(even) td{background:#FAF9FD;}
     .pp-main tr.grp td{border-top:2px solid #d8d3ec;}
-    .pp-cli{font-family:'Poppins',sans-serif;font-weight:800;color:#2E2A5D;}
-    .pp-pj{font-weight:700;color:#2E2A5D;} .pp-pj .pm{display:block;color:#6E6A86;font-weight:400;font-size:9px;margin-top:1px;}
-    .pp-num{font-family:ui-monospace,monospace;color:#6E6A86;font-size:9px;white-space:nowrap;}
+    .pp-cli{font-family:'Poppins',sans-serif;font-weight:800;color:${P.navy};}
+    .pp-pj{font-weight:700;color:${P.navy};} .pp-pj .pm{display:block;color:${P.muted};font-weight:400;font-size:9px;margin-top:1px;}
+    .pp-num{font-family:ui-monospace,monospace;color:${P.muted};font-size:9px;white-space:nowrap;}
     .pp-neg{color:#c0392b;font-weight:700;}
     .pp-att{color:#555168;font-size:9.5px;}
     .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;vertical-align:middle;}
     .pill{vertical-align:middle;}
     .pp-tbl{width:100%;border-collapse:collapse;margin:4px 0 16px;font-size:11px;}
-    .pp-tbl th{background:#f6f5fb;color:#2E2A5D;text-align:left;font-weight:700;padding:6px 9px;border-bottom:2px solid #A88B4B;font-size:9.5px;text-transform:uppercase;}
+    .pp-tbl th{background:#f6f5fb;color:${P.navy};text-align:left;font-weight:700;padding:6px 9px;border-bottom:2px solid ${P.gold};font-size:9.5px;text-transform:uppercase;}
     .pp-tbl th.r{text-align:right;} .pp-tbl td{padding:6px 9px;border-bottom:1px solid #f0eef7;vertical-align:top;}
     .pp-tbl td.r{text-align:right;white-space:nowrap;} .pp-tbl .w-pill{width:130px;} .pp-tbl .w-cli{width:90px;}
-    .pp-pipe{max-width:360px;} .pp-det{color:#6E6A86;} .pp-ok{color:#1f8a5f;}
-    @media (max-width:480px){ body{background:#fff !important;color:#3d3b4d !important;} .page{padding:16px 12px !important;} h1{color:#2E2A5D !important;} h2{color:#2E2A5D !important;} h3{color:#2E2A5D !important;} .sub,.conf{color:#6E6A86 !important;} p,li,td{color:#3d3b4d !important;} .cartouche td:first-child{background:#f6f5fb !important;color:#2E2A5D !important;} .pp-main th{background:#2E2A5D !important;color:#fff !important;} }
+    .pp-pipe{max-width:360px;} .pp-det{color:${P.muted};} .pp-ok{color:#1f8a5f;}
+    @media (max-width:480px){ body{background:#fff !important;color:#3d3b4d !important;} .page{padding:16px 12px !important;} h1{color:${P.navy} !important;} h2{color:${P.navy} !important;} h3{color:${P.navy} !important;} .sub,.conf{color:${P.muted} !important;} p,li,td{color:#3d3b4d !important;} .cartouche td:first-child{background:#f6f5fb !important;color:${P.navy} !important;} .pp-main th{background:${P.navy} !important;color:#fff !important;} }
   </style>`;
 
   const body = `${style}${kpiBand}

@@ -107,6 +107,7 @@ N'invente rien : tire tout de l'extrait fourni. Si un champ est inconnu, mets un
     if (m) { try { return JSON.parse(m[0]); } catch { /* JSON malformé : on retombe plus bas */ } }
     return { type: "indéterminé", client: "", cible: "", resume: (raw || "").slice(0, 280), details: [], confiance: "faible" };
   } catch (e) {
+    console.error("[ai:classifyImport] appel IA échoué:", e.message || e);
     return { type: "erreur", client: "", cible: "", resume: "Analyse IA indisponible : " + String(e.message || e), details: [], confiance: "faible" };
   }
 }

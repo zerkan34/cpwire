@@ -68,7 +68,8 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     try {
       const { html } = await genDailyCR(dossier);
       setDoc({ title: `CR journalier — ${dossier}`, html, dossier, filename: `CR_journalier_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[DailyRecap]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(""); }
   };
 
@@ -77,7 +78,8 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     try {
       const { html } = await genWrittenCR(dossier);
       setDoc({ title: `Compte rendu écrit — ${dossier}`, html, dossier, filename: `CR_ecrit_${dossier}_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[DailyRecap]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(""); }
   };
 
@@ -87,7 +89,8 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
     try {
       const { html } = await fetchRecapChiffres();
       setDoc({ title: "Récap du jour — mouvements", html, filename: `Recap_du_jour_${new Date().toISOString().slice(0, 10)}.html` });
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[DailyRecap]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(""); }
   };
 
@@ -113,7 +116,8 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
           const folder = root.folder(`${safe(dossier).toUpperCase()}-RECAP-${date}`);
           folder.file(`CR-detaille-${safe(dossier)}-${date}.html`, det.html || "<p>(vide)</p>");
           folder.file(`CR-ecrit-${safe(dossier)}-${date}.html`, ecr.html || "<p>(vide)</p>");
-        } catch (e) { fails.push(`${dossier}`); }
+        } catch (e) {
+          console.error("[DailyRecap]", e && e.message ? e.message : e); fails.push(`${dossier}`); }
       }
 
       setProg("Compression du ZIP…");
@@ -126,7 +130,8 @@ export default function DailyRecap({ onTicket, onDev, deletedDevs = [] }) {
       setProg(fails.length
         ? `ZIP téléchargé. ${clients.length - fails.length}/${clients.length} clients OK — échec : ${fails.join(", ")}.`
         : `ZIP téléchargé — ${clients.length} clients, 2 fichiers chacun (détaillé + écrit).`);
-    } catch (e) { setErr(e.message || String(e)); }
+    } catch (e) {
+      console.error("[DailyRecap]", e && e.message ? e.message : e); setErr(e.message || String(e)); }
     finally { setBusy(""); }
   };
 

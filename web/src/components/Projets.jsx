@@ -240,8 +240,9 @@ export default function Projets({ issues = [], facts, onTicket, onDev }) {
     const cli = cls.find((c) => c.client === a.client);
     if (cli) setSel360(cli);
   };
-  const exportXlsx = async () => { setDl(true); try { await downloadProjetsXlsx(); } catch (e) { alert("Export indisponible : " + (e.message || e)); } finally { setDl(false); } };
-  const exportPdf = async () => { try { await openProjetsDoc(); } catch (e) { alert(e.message || String(e)); } };
+  const exportXlsx = async () => { setDl(true); try { await downloadProjetsXlsx(); } catch (e) { console.error("[Projets]", e && e.message ? e.message : e); alert("Export indisponible : " + (e.message || e)); } finally { setDl(false); } };
+  const exportPdf = async () => { try { await openProjetsDoc(); } catch (e) {
+    console.error("[Projets]", e && e.message ? e.message : e); alert(e.message || String(e)); } };
 
   if (loading) return <div className="empty">Chargement du portefeuille…</div>;
   if (err) return <div className="empty">Suivi de projets indisponible : {err}</div>;

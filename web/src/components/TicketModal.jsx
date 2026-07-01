@@ -74,7 +74,8 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
   const draft = async () => {
     setBusy("draft"); setMsg(null);
     try { const { text } = await genTicketReport(ticket.cle, note, ticket.resume); setReport(text); }
-    catch (e) { setMsg({ type: "warn", text: e.message }); }
+    catch (e) {
+      console.error("[TicketModal]", e && e.message ? e.message : e); setMsg({ type: "warn", text: e.message }); }
     finally { setBusy(""); }
   };
 
@@ -86,7 +87,8 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
       const r = await pushTicket(ticket.cle, report, markDone);
       setMsg({ type: "ok", text: r.simulated ? "Mode démo : envoi simulé et journalisé." : `Envoyé dans Jira${r.transition?.applied ? " · statut : " + r.transition.applied : ""}.` });
       onPushed && onPushed();
-    } catch (e) { setMsg({ type: "warn", text: e.message }); }
+    } catch (e) {
+      console.error("[TicketModal]", e && e.message ? e.message : e); setMsg({ type: "warn", text: e.message }); }
     finally { setBusy(""); }
   };
 

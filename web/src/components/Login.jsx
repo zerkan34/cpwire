@@ -12,7 +12,8 @@ export default function Login({ onSuccess, invite }) {
     e.preventDefault();
     setBusy(true); setErr("");
     try { const d = await login(email.trim(), password); onSuccess(d); }
-    catch (e2) { setErr(e2.message); }
+    catch (e2) {
+      console.error("[Login]", e2 && e2.message ? e2.message : e2); setErr(e2.message); }
     finally { setBusy(false); }
   };
 
@@ -20,7 +21,8 @@ export default function Login({ onSuccess, invite }) {
   const enterGuest = () => {
     setBusy(true); setErr("");
     try { loginGuest(invite); onSuccess({ role: "guest" }); }
-    catch (e2) { setErr(e2.message); setBusy(false); }
+    catch (e2) {
+      console.error("[Login]", e2 && e2.message ? e2.message : e2); setErr(e2.message); setBusy(false); }
   };
 
   // Activation d'un compte consultation (lien "i.") : la personne choisit son email + mot de passe.
@@ -32,7 +34,8 @@ export default function Login({ onSuccess, invite }) {
       if (d && d.pending) { setNotice(d.message || "Compte créé. Confirmez votre e-mail pour activer l'accès."); setBusy(false); }
       else onSuccess(d);
     }
-    catch (e2) { setErr(e2.message); setBusy(false); }
+    catch (e2) {
+      console.error("[Login]", e2 && e2.message ? e2.message : e2); setErr(e2.message); setBusy(false); }
   };
 
   const isAccountInvite = invite && invite.startsWith("i.");
@@ -71,7 +74,7 @@ export default function Login({ onSuccess, invite }) {
           </div>
           <div className="field">
             <label>Choisir un mot de passe</label>
-            <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="6 caractères minimum" required minLength={6} />
+            <input type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="10 caractères minimum" required minLength={10} />
           </div>
           <button className="btn-solid" style={{ width: "100%", padding: "12px" }} disabled={busy}>
             {busy ? "Activation…" : "Activer mon accès"}

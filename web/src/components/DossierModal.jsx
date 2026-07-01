@@ -27,7 +27,8 @@ export default function DossierModal({ nom, fiche, onClose, onSaved }) {
       const { fiche: saved } = await saveDossier(nom, payload);
       setMsg({ type: "ok", text: "Fiche enregistrée." });
       onSaved && onSaved(nom, saved);
-    } catch (e) { setMsg({ type: "warn", text: e.message }); }
+    } catch (e) {
+      console.error("[DossierModal]", e && e.message ? e.message : e); setMsg({ type: "warn", text: e.message }); }
     finally { setBusy(false); }
   };
 

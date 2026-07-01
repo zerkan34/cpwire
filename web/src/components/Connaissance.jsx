@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { fetchConnaissance, saveConnaissance, learnConnaissance, fetchHealth } from "../api.js";
+import { fetchConnaissance, saveConnaissance, learnConnaissance, fetchHealth, removeAppris } from "../api.js";
 import { RefState } from "./RefState.jsx";
 import { buildMemoireDoc } from "../refDoc.js";
 import { printHtml, downloadHtml } from "../utils.js";
@@ -33,6 +33,8 @@ export default function Connaissance({ issues = [], onTicket, onDev }) {
   const [att, setAtt] = useState({});
   const [notes, setNotes] = useState({});
   const [glossC, setGlossC] = useState({});
+  const [apprisOpen, setApprisOpen] = useState({}); // source -> historique déplié ?
+  const [forgetting, setForgetting] = useState(""); // source en cours de suppression
 
   useEffect(() => {
     let alive = true; setLoading(true); setErr("");
@@ -68,7 +70,8 @@ export default function Connaissance({ issues = [], onTicket, onDev }) {
   const onSave = async () => {
     setSaving(true); setMsg(""); setErr("");
     try { await saveConnaissance(buildPayload()); setMsg("Mémoire enregistrée. L'assistant en tient compte dès le prochain rapport."); }
-    catch (e) { setErr(e.message || "Échec de l'enregistrement"); }
+    catch (e) {
+      console.error("[Connaissance]", e && e.message ? e.message : e); setErr(e.message || "Échec de l'enregistrement"); }
     finally { setSaving(false); }
   };
 
@@ -96,11 +99,25 @@ export default function Connaissance({ issues = [], onTicket, onDev }) {
       if (r.connaissance) setK(r.connaissance);
       const n = (r.learned || []).length;
       setMsg(n ? `Mémoire enrichie automatiquement pour ${n} client${n > 1 ? "s" : ""}.` : "Apprentissage à jour (rien de neuf à analyser).");
-    } catch (e) { setErr(e.message || "Apprentissage impossible"); }
+    } catch (e) {
+      console.error("[Connaissance]", e && e.message ? e.message : e); setErr(e.message || "Apprentissage impossible"); }
     finally { setLearning(false); }
   };
 
   const fmtAt = (iso) => { try { return new Date(iso).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" }); } catch { return ""; } };
+
+  const onForget = async (source) => {
+    if (!sel || !source) return;
+    if (!window.confirm(`Oublier définitivement « ${source} » pour ${sel} ?\nL'IA n'en tiendra plus compte dans les comptes rendus.`)) return;
+    setForgetting(source); setErr("");
+    try {
+      await removeAppris(sel, source);
+      setNonce((n) => n + 1); // recharge tout depuis le serveur, y compris la liste à jour
+      setMsg(`Source « ${source} » oubliée pour ${sel}.`);
+    } catch (e) {
+      console.error("[Connaissance]", e && e.message ? e.message : e); setErr(e.message || "Suppression impossible");
+    } finally { setForgetting(""); }
+  };
 
   if (loading) return <RefState kind="load" title="Chargement de la mémoire d'équipe…" message="Récupération des conventions, du glossaire et du contexte appris par l'IA." />;
   if (err && !k) return <RefState kind="err" title="La mémoire n'a pas pu se charger" message="La base de connaissance est momentanément indisponible. Réessayez dans un instant." detail={err} onRetry={retry} />;
@@ -178,6 +195,43 @@ export default function Connaissance({ issues = [], onTicket, onDev }) {
                 {k.clients[sel].auto.points.map((p, idx) => <li key={idx}>{p}</li>)}
               </ul>
               <p className="cn-auto-note">Observé à partir de l'activité Jira — indicatif, non modifiable. L'IA le réactualise toute seule et en tient compte dans les comptes rendus.</p>
+            </div>
+          )}
+          {(k.clients[sel]?.appris || []).length > 0 && (
+            <div className="cn-auto cn-appris">
+              <h3>📥 Sources apprises (Import sources) <span className="cn-auto-meta">— {k.clients[sel].appris.length} source{k.clients[sel].appris.length > 1 ? "s" : ""}</span></h3>
+              <p className="cn-auto-note">Ce que les fichiers importés ont durablement appris à cp|WIRE pour {sel}. Relu par l'IA à chaque compte rendu — vérifiable et corrigeable ici, pas une boîte noire.</p>
+              <ul className="cn-appris-list">
+                {k.clients[sel].appris.slice().reverse().map((e) => {
+                  const hist = Array.isArray(e.history) ? e.history : [];
+                  const open = !!apprisOpen[e.source];
+                  return (
+                    <li key={e.source} className="cn-appris-item">
+                      <div className="cn-appris-hd">
+                        <span className="cn-appris-src">{e.source.replace(/^import:/, "")}</span>
+                        <span className="cn-appris-at">{fmtAt(e.at)}</span>
+                        {hist.length > 0 && (
+                          <button type="button" className="cn-appris-toggle" onClick={() => setApprisOpen((p) => ({ ...p, [e.source]: !p[e.source] }))}>
+                            {open ? "▾" : "▸"} historique ({hist.length})
+                          </button>
+                        )}
+                        <button type="button" className="cn-appris-forget" disabled={forgetting === e.source}
+                          onClick={() => onForget(e.source)} title="Oublier définitivement cette source">
+                          {forgetting === e.source ? "…" : "🗑 Oublier"}
+                        </button>
+                      </div>
+                      <p className="cn-appris-text">{e.text}</p>
+                      {open && hist.length > 0 && (
+                        <ul className="cn-appris-hist">
+                          {hist.map((h, i) => (
+                            <li key={i}><span className="cn-appris-at">{fmtAt(h.at)}</span><span className="cn-appris-histtext">{h.text}</span></li>
+                          ))}
+                        </ul>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
             </div>
           )}
         </div>

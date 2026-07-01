@@ -32,6 +32,7 @@ export default function ImportSources({ onClose, onApplied }) {
       if (!r || r.ok === false || r.error) { setErr((r && r.error) || "Source non exploitable pour l'analyse."); setPhase("error"); return; }
       setRes(r);
     } catch (e) {
+      console.error("[ImportSources]", e && e.message ? e.message : e);
       setErr(e && e.message ? e.message : "Erreur pendant la lecture."); setPhase("error"); return;
     }
     // Intégration + apprentissage immédiats — pas de clic intermédiaire.
@@ -42,6 +43,7 @@ export default function ImportSources({ onClose, onApplied }) {
       setPhase("done");
       if (onApplied) onApplied();
     } catch (e) {
+      console.error("[ImportSources]", e && e.message ? e.message : e);
       setErr(e && e.message ? e.message : "Échec de l'intégration."); setPhase("error");
     }
   };

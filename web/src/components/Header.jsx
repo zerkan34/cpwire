@@ -29,7 +29,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onBurger, tab, pageLabel, onKpi, activeKpi }) {
+export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onOpen360, onDev, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -213,10 +213,10 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
         <span className="hdr-brand" data-tauri-drag-region>
           <button className="hdr-burger" type="button" aria-label="Ouvrir le menu" onClick={onBurger}>☰</button>
           <img src="/cpwire-logo.png" alt="cp|WIRE" className="hdr-logo" />
-          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v318</span></span>
+          <span className="eyebrow">Cockpit de pilotage <span className="hdr-build" title="Version du code en ligne">BUILD stable-v330</span></span>
         </span>
         <div className="hdr-controls">
-          <MasterWarning points={blockers} onOpenTicket={onOpenTicket} />
+          <MasterWarning points={blockers} onOpenTicket={onOpenTicket} onOpen360={onOpen360} onDev={onDev} />
           <button className="hdr-pilot" type="button" onClick={() => window.dispatchEvent(new Event("cpwire-pilot"))}
             title="Votre hôtesse Natacha — poser une question" aria-label="Ouvrir l'hôtesse Natacha">
             <span className="hdr-pilot-av"><img src={PILOT_DATA_URI} alt="Hôtesse Natacha" /></span>
@@ -252,7 +252,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
           <h1 className="hdr-title">Welcome to the jungle, <span className="hdr-tagline">we take it day-by-day !</span></h1>
           <div className="hdr-page">{pageLabel || ""}</div>
         </div>
-        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v318</span></div>
+        <div className="src">{source ? `Source : ${source}` : "Chargement…"}<br />Données Jira au {when} <span className="hdr-build hdr-build-src" title="Version du code en ligne">BUILD stable-v330</span></div>
       </div>
 
       <div className="progress">

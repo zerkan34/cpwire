@@ -124,7 +124,8 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
         dossier: client === "Tous" ? "" : client,
         filename: `CR_${client === "Tous" ? "tous" : client}_${slug}.html`,
       });
-    } catch (e) { setCrErr(e.message || String(e)); }
+    } catch (e) {
+      console.error("[History]", e && e.message ? e.message : e); setCrErr(e.message || String(e)); }
     setCrBusy(false);
   };
 
@@ -146,7 +147,8 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
         dossier: client === "Tous" ? "" : client,
         filename: `CR_detaille_${client === "Tous" ? "tous" : client}_${slug}.html`,
       });
-    } catch (e) { setCrErr(e.message || String(e)); }
+    } catch (e) {
+      console.error("[History]", e && e.message ? e.message : e); setCrErr(e.message || String(e)); }
     setCrBusy2(false);
   };
 

@@ -65,6 +65,7 @@ export async function recentMailsFor(domaines = [], max = 8) {
     }));
     return { configured: true, mails };
   } catch (e) {
+    console.error("[mails] connexion Outlook échouée:", e.message || e);
     return { configured: true, mails: [], note: "Connexion Outlook indisponible : " + (e.message || e) };
   }
 }

@@ -7,9 +7,10 @@
 //   coins arrondis en-tête navy + zébrage lavande + ligne Total, pied signataires.
 //  Tout export DOIT passer par charterDoc() pour rester identique partout.
 // ============================================================================
-import { CHARTER_FONTS } from "./charterFonts.js";
+import { ARMONIE_FONTS_CSS } from "../../shared/armonie-fonts.js";
+import { ARMONIE_PALETTE } from "../../shared/armonie-palette.js";
 
-export const C = { navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A88B4B", gold2: "#BFA168", ink: "#1F1B33", muted: "#6E6A86", soft: "#F5F2FC", line: "#E2DEF0", red: "#C0392B", amber: "#C2691A", green: "#2F7D4F" };
+export const C = ARMONIE_PALETTE;
 
 // Trame « papier vergé » très subtile (fines vergeures verticales + chaînettes
 // horizontales espacées), mélangée au blanc. À poser sur toute surface blanche.
@@ -79,7 +80,7 @@ export function chapter({ over, title, lead = "" }) {
 // (répété sur chaque page ; la numérotation n/total exige un rendu serveur).
 export function charterCss() {
   return `
-  ${CHARTER_FONTS}
+  ${ARMONIE_FONTS_CSS}
   @page { size: A4 portrait; margin: 16mm 15mm 18mm; }
   *{box-sizing:border-box} html,body{margin:0}
   body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${C.ink};font-size:11.5px;line-height:1.55;-webkit-print-color-adjust:exact;print-color-adjust:exact;background-color:#fff;background-image:${VERGE}}

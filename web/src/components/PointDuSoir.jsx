@@ -45,7 +45,8 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
     if (!dossier) return;
     const key = `cpwire:point:${dossier}${scopeKey}`;
     let store = {};
-    try { store = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) { store = {}; }
+    try { store = JSON.parse(localStorage.getItem(key) || "{}"); } catch (e) {
+      console.error("[PointDuSoir]", e && e.message ? e.message : e); store = {}; }
     const today = todayStr();
     const past = Object.keys(store).filter((d) => d < today).sort();
     setLocalBaseline(past.length ? { date: past[past.length - 1], cats: store[past[past.length - 1]] } : null);

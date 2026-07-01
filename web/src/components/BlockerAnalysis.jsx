@@ -8,8 +8,8 @@ import { PILOT_DATA_URI } from "../pilot.js";
    discussion pour approfondir. Export PDF charté. Rendu PROPRE : aucun symbole brut (pas de
    **, #, ---), uniquement des intertitres et des phrases claires. */
 
-const NAVY = "#2E2A5D", INDIGO = "#4B3F8F", GOLD = "#A8884E", INK = "#1F1B33";
-const MUTED = "#6E6A86", SOFT = "#F5F2FC", LINE = "#ece9f3", RED = "#C0392B", AMBER = "#C2691A";
+const NAVY = "var(--indigo)", INDIGO = "var(--indigo)", GOLD = "var(--gold)", INK = "var(--ink)";
+const MUTED = "var(--muted)", SOFT = "var(--purple-soft)", LINE = "var(--line)", RED = "var(--red)", AMBER = "var(--amber)";
 
 // ---------- Rendu propre (on retire tout symbole de mise en forme résiduel) ----------
 function escapeHtml(s) { return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
@@ -107,6 +107,7 @@ export default function BlockerAnalysis({ ticket, point, onClose, onOpenTicket }
       hist.current = [...hist.current, { role: "user", content: userLabelForHistory || question }, { role: "assistant", content: answer }].slice(-8);
       setMsgs((m) => { const c = m.slice(); c[c.length - 1] = { role: "ai", text: answer }; return c; });
     } catch (e) {
+      console.error("[BlockerAnalysis]", e && e.message ? e.message : e);
       setMsgs((m) => { const c = m.slice(); c[c.length - 1] = { role: "ai", text: String(e.message || e), error: true }; return c; });
     } finally { setBusy(false); scrollDown(); }
   }
@@ -130,7 +131,7 @@ export default function BlockerAnalysis({ ticket, point, onClose, onOpenTicket }
       <style>
         @page { margin: 18mm 16mm; }
         *{box-sizing:border-box} body{font-family:Inter,Segoe UI,Arial,sans-serif;color:${INK};margin:0;line-height:1.5}
-        .hd{background:linear-gradient(135deg,${NAVY},${INDIGO});color:#fff;padding:22px 26px;border-bottom:3px solid ${GOLD}}
+        .hd{background:var(--hd-logo);color:#fff;padding:22px 26px;border-bottom:3px solid ${GOLD}}
         .hd h1{margin:0;font-family:Poppins,Inter,sans-serif;font-size:19px}
         .hd .sub{opacity:.85;font-size:12.5px;margin-top:4px}
         .meta{display:flex;flex-wrap:wrap;gap:8px;padding:14px 26px;background:${SOFT};font-size:12.5px;color:${INK};border-bottom:1px solid ${LINE}}
@@ -164,7 +165,7 @@ export default function BlockerAnalysis({ ticket, point, onClose, onOpenTicket }
         style={{ width: "min(720px,100%)", maxHeight: "calc(100vh - 32px)", background: "#fff", borderRadius: 16, overflow: "hidden", display: "flex", flexDirection: "column", boxShadow: "0 30px 70px rgba(46,42,93,.4)" }}>
 
         {/* En-tête charté */}
-        <div style={{ background: `linear-gradient(135deg,${NAVY},${INDIGO})`, color: "#fff", padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, boxShadow: `inset 0 -3px 0 ${GOLD}` }}>
+        <div style={{ background: `var(--hd-logo)`, color: "#fff", padding: "16px 18px", display: "flex", alignItems: "center", gap: 12, boxShadow: `inset 0 -3px 0 ${GOLD}` }}>
           <img src={PILOT_DATA_URI} alt="" style={{ width: 40, height: 40, borderRadius: "50%", objectFit: "cover", border: "2px solid rgba(168,136,78,.92)", flex: "none" }} />
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: "Poppins,Inter,sans-serif", fontWeight: 700, fontSize: 15, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>

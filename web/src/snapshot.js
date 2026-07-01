@@ -14,7 +14,8 @@ function openDb() {
       rq.onupgradeneeded = () => { try { rq.result.createObjectStore(STORE); } catch { /* déjà créé */ } };
       rq.onsuccess = () => resolve(rq.result);
       rq.onerror = () => reject(rq.error);
-    } catch (e) { reject(e); }
+    } catch (e) {
+      console.error("[snapshot]", e && e.message ? e.message : e); reject(e); }
   });
 }
 

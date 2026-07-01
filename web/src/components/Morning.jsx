@@ -47,7 +47,8 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
         const { html, filename, title } = buildRecapDoc({ issues, scope, engagement: eng });
         setDoc({ title, html, filename });
       }
-    } catch (e) { setErr(e.message); }
+    } catch (e) {
+      console.error("[Morning]", e && e.message ? e.message : e); setErr(e.message); }
     finally { setBusy(""); }
   };
 

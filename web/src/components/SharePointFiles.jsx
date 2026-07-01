@@ -31,7 +31,8 @@ export default function SharePointFiles() {
   const testList = async () => {
     setTBusy(true); setTErr(""); setTRes(null);
     try { const r = await spListItems(listId.trim(), 5); setTRes(r); }
-    catch (e) { setTErr(e.message || "Erreur"); }
+    catch (e) {
+      console.error("[SharePointFiles]", e && e.message ? e.message : e); setTErr(e.message || "Erreur"); }
     finally { setTBusy(false); }
   };
 
@@ -41,7 +42,8 @@ export default function SharePointFiles() {
   const load = async (p) => {
     setLoading(true); setErr("");
     try { const r = await spList(p); setItems(r.items || []); }
-    catch (e) { setErr(e.message || "Erreur"); setItems([]); }
+    catch (e) {
+      console.error("[SharePointFiles]", e && e.message ? e.message : e); setErr(e.message || "Erreur"); setItems([]); }
     finally { setLoading(false); }
   };
 

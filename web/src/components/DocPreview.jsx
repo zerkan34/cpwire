@@ -51,7 +51,8 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
     if (!to) return;
     setBusy("mail"); setMsg(null);
     try { await shareMail(to.split(",").map((s) => s.trim()), title, html); setMsg({ t: "ok", m: "E-mail envoyé via Outlook." }); }
-    catch (e) { setMsg({ t: "warn", m: e.message }); }
+    catch (e) {
+      console.error("[DocPreview]", e && e.message ? e.message : e); setMsg({ t: "warn", m: e.message }); }
     finally { setBusy(""); }
   };
 
@@ -62,7 +63,8 @@ export default function DocPreview({ title, html, filename, dossier, onClose }) 
     try {
       const r = await shareSharePoint(folder, filename, html);
       setMsg({ t: "ok", m: "Déposé sur SharePoint." + (r.webUrl ? " " + r.webUrl : "") });
-    } catch (e) { setMsg({ t: "warn", m: e.message }); }
+    } catch (e) {
+      console.error("[DocPreview]", e && e.message ? e.message : e); setMsg({ t: "warn", m: e.message }); }
     finally { setBusy(""); }
   };
 
