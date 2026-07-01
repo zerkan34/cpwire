@@ -23,7 +23,11 @@ RUN mkdir -p /usr/share/fonts/truetype/cpwire \
 
 # Build du front puis dépendances serveur.
 RUN cd web && npm ci && npm run build
-RUN cd server && npm ci --omit=dev
+# npm install (pas npm ci) côté serveur : le xlsx corrigé (cf. server/package.json,
+# CVE prototype pollution + ReDoS non patchées sur le registre npm) vient du CDN officiel
+# SheetJS, donc package-lock.json doit pouvoir se régénérer à ce moment — npm ci refuserait
+# un lockfile qui n'a pas encore cette résolution.
+RUN cd server && npm install --omit=dev
 
 ENV NODE_ENV=production
 ENV PYTHON_BIN=python3
