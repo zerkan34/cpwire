@@ -15,7 +15,7 @@ import { dataDirInfo, dataDir } from "./paths.js";
 import { persistenceActive, saveBlob, restoreBlob } from "./persist.js";
 import { initMemory } from "./connaissance.js";
 const isPersistent = () => dataDirInfo().persistent || persistenceActive();
-import { recordDay as recordPointDay, baselineFor as pointBaselineFor, deriveFromPointHistory } from "./pointHistory.js";
+import { recordDay as recordPointDay, recordMonth as recordPointMonth, baselineFor as pointBaselineFor, deriveFromPointHistory } from "./pointHistory.js";
 import { STATUTS, ME, TARGET_DONE, CATEGORY_LABEL, categoryFromStatus } from "./config.js";
 import { DEMO_ISSUES } from "./demo-data.js";
 import { findProgram } from "./programmes.js";
@@ -44,6 +44,7 @@ import { buildRiskScores } from "./risk.js";
 import { buildCharge } from "./charge.js";
 import { buildDossierCrHtml } from "./crArmonie.js";
 import { buildQuotes } from "./quotes.js";
+import { analyticsRouter } from "./routes/analytics.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
@@ -131,7 +132,7 @@ let snapMap = new Map((snap.issues || []).map((i) => [i.cle, i]));
 // Démarrage à chaud : si une photo du portefeuille existe déjà sur disque, on amorce
 // l'historique du jour pour le « point du soir » (la baseline se constitue même si
 // aucune actualisation n'a lieu aujourd'hui).
-if (snap.issues && snap.issues.length) { try { recordPointDay(snap.issues); } catch { /* best-effort */ } }
+if (snap.issues && snap.issues.length) { try { recordPointDay(snap.issues); recordPointMonth(snap.issues); } catch { /* best-effort */ } }
 // Journal de signaux (boucle d'apprentissage) : dérive les signaux du jour à partir de
 // faits déjà calculés (régressions/SLA/stagnation/divergences) et les archive. Best-effort.
 function recordSignalsBest(issues) {
@@ -159,7 +160,7 @@ async function runFullImport() {
     snapMap = new Map(issues.map((i) => [i.cle, i]));
     snap = { syncedAt: new Date().toISOString(), issues };
     saveSnapshot(snap);
-    recordPointDay(snap.issues); // instantané daté du « point du soir » (écarts partagés/persistants)
+    recordPointDay(snap.issues); recordPointMonth(snap.issues); // instantané daté (jour + cumul mensuel)
     recordSignalsBest(snap.issues); // + archivage des signaux du jour
     console.log(`[import] arrière-plan : PRÊT — ${issues.length} tickets en ${Date.now() - t0} ms`);
   } catch (e) {
@@ -270,7 +271,7 @@ async function getIssues(arg, jqlArg) {
     }
     snap = { syncedAt: new Date().toISOString(), issues: Array.from(snapMap.values()) };
     saveSnapshot(snap);
-    recordPointDay(snap.issues); // instantané daté du « point du soir »
+    recordPointDay(snap.issues); recordPointMonth(snap.issues); // instantané daté (jour + cumul mensuel)
     recordSignalsBest(snap.issues); // + archivage des signaux du jour
     return {
       issues: withLate(snap.issues),
@@ -1068,85 +1069,9 @@ app.post("/api/meeting/prep", guard, aiLimiter, async (req, res) => {
 
 app.get("/api/dossiers", guard, (_req, res) => res.json({ dossiers: readDossiers() }));
 
-// Radar des échéances : lit ce qui est déjà écrit (fiches dossiers + mémoire d'équipe)
-// et en extrait les dates au format jj/mm[/aaaa] — zéro invention, voir deadlines.js.
-// Coût quasi nul (texte déjà en mémoire) : jamais besoin de rafraîchir explicitement.
-app.get("/api/deadlines", guard, (_req, res) => {
-  try {
-    res.json({ radar: buildDeadlineRadar(readDossiers(), readConnaissance()) });
-  } catch (err) {
-    console.error("[GET /api/deadlines]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }
-});
-
-// ---- Montée en puissance : signaux (historique), projections, cohérence, digest ----
-
-// Journal de signaux : historique des régressions/SLA/stagnation/divergences (fait réel archivé).
-app.get("/api/signals", guard, (req, res) => {
-  try {
-    const days = Math.min(60, Math.max(1, parseInt(req.query.days, 10) || 30));
-    res.json({ rows: readSignals(days), stats: signalsStats(days) });
-  } catch (err) {
-    console.error("[GET /api/signals]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }
-});
-
-// Projections ancrées sur l'historique (pointHistory) : rythme, tendance, ETA — clairement étiquetées.
-app.get("/api/projections", guard, (_req, res) => {
-  try { res.json(buildProjections()); }
-  catch (err) { console.error("[GET /api/projections]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }
-});
-
-// Audit de cohérence : contradictions internes Jira (réelles) + croisements externes (statut honnête).
-app.get("/api/coherence", guard, async (_req, res) => {
-  try {
-    const got = await getIssues(false);
-    if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    res.json(buildCoherence(withoutDeletedDevs(got.issues)));
-  } catch (err) {
-    console.error("[GET /api/coherence]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
-});
-
-// Score de risque par dossier — condensé de tous les signaux, tracé à des faits réels.
-app.get("/api/risk", guard, async (_req, res) => {
-  try {
-    const got = await getIssues(false);
-    if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    const issues = withoutDeletedDevs(got.issues);
-    const slaReport = buildSlaReport(issues);
-    const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
-    const coherence = buildCoherence(issues);
-    const pointDerived = deriveFromPointHistory();
-    res.json(buildRiskScores({ issues, slaReport, radar, coherence, pointDerived }));
-  } catch (err) {
-    console.error("[GET /api/risk]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
-});
-
-// Charge & capacité par développeur — tiré des assignations Jira réelles.
-app.get("/api/charge", guard, async (_req, res) => {
-  try {
-    const got = await getIssues(false);
-    if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    res.json(buildCharge(withoutDeletedDevs(got.issues)));
-  } catch (err) {
-    console.error("[GET /api/charge]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
-});
-
-// La cote du portefeuille — synthèse « marché » : variation, courbe, volume,
-// vélocité, risque, indice global et téléscripteur. Rafraîchi en direct côté client.
-app.get("/api/quotes", guard, async (_req, res) => {
-  try {
-    const got = await getIssues(false);
-    if (!got) return res.status(409).json({ error: "Jira non configuré." });
-    const issues = withoutDeletedDevs(got.issues);
-    const pointDerived = deriveFromPointHistory();
-    const projections = buildProjections();
-    const slaReport = buildSlaReport(issues);
-    const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
-    const coherence = buildCoherence(issues);
-    const risk = buildRiskScores({ issues, slaReport, radar, coherence, pointDerived });
-    res.json(buildQuotes({ pointDerived, projections, risk }));
-  } catch (err) {
-    console.error("[GET /api/quotes]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
-});
+// Routes analytiques (échéances, signaux, projections, cohérence, risque, charge,
+// cote) extraites dans ./routes/analytics.js (v347) pour alléger app.js — chemins inchangés.
+app.use(analyticsRouter({ getIssues, withoutDeletedDevs }));
 
 // CR de dossier à la charte Armonie : compose le HTML autonome (à passer à /api/pdf/render).
 const CR_TYPES = {

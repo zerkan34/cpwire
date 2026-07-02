@@ -148,35 +148,10 @@ async function saveBlob(blob, suggestedName) {
 }
 
 // Génère le PDF côté navigateur et renvoie un Blob (sans télécharger).
-// html2canvas exige un élément en FLUX NORMAL (static) : le holder est en flux,
-// masqué par le voile (z-index max) le temps du rendu.
-async function clientPdfBlob(html) {
-  const html2pdf = (await import("html2pdf.js")).default;
-  const inner = html.replace(/^[\s\S]*?<body[^>]*>/i, "").replace(/<\/body>[\s\S]*$/i, "");
-  const sm = html.match(/<style>[\s\S]*?<\/style>/i);
-  let css = sm ? sm[0] : "";
-  // Neutralise les règles globales (sinon elles affecteraient l'app) + le @page.
-  css = css.replace(/@page[^}]*}/gi, "")
-           .replace(/(^|})\s*body\s*\{/gi, "$1 .cpw-pdf-root{")
-           .replace(/(^|})\s*\*\s*\{/gi, "$1 .cpw-pdf-root *{");
-  const holder = document.createElement("div");
-  holder.className = "cpw-pdf-root";
-  holder.style.cssText = "width:794px;background:#fff;";
-  holder.innerHTML = css + inner;
-  holder.querySelectorAll(".ch-runfoot").forEach((n) => n.remove());
-  document.body.appendChild(holder);
-  try {
-    return await html2pdf().set({
-      margin: [10, 10, 12, 10],
-      image: { type: "jpeg", quality: 0.95 },
-      html2canvas: { scale: 2, backgroundColor: "#ffffff", windowWidth: 794, width: 794, scrollX: 0, scrollY: 0, x: 0, y: 0 },
-      jsPDF: { unit: "mm", format: "a4", orientation: "portrait" },
-      pagebreak: { mode: ["css", "legacy"] },
-    }).from(holder).outputPdf("blob");
-  } finally {
-    holder.remove();
-  }
-}
+// [Retiré en v346] Le repli client html2pdf.js/jsPDF est supprimé (2 CVE critiques :
+// XSS html2pdf, path traversal jsPDF). Le PDF passe désormais uniquement par le
+// moteur serveur WeasyPrint (charte exacte, texte sélectionnable) ; à défaut, on
+// enregistre la version web (HTML).
 
 export async function printHtml(html, filename = "Document.pdf") {
   const name = /\.pdf$/i.test(filename) ? filename : `${String(filename).replace(/\.html?$/i, "")}.pdf`;
@@ -188,12 +163,7 @@ export async function printHtml(html, filename = "Document.pdf") {
       veil.status("Rendu haute qualité (serveur)…");
       const { renderHtmlPdfBlob } = await import("./api.js");
       blob = await renderHtmlPdfBlob(html, name);
-    } catch (e) { /* moteur serveur absent → PDF navigateur */ }
-    // 2) PDF côté navigateur (portrait A4 avec marges), sans Docker.
-    if (!blob) {
-      try { veil.status("Génération du PDF (navigateur)…"); blob = await clientPdfBlob(html); }
-      catch (e) { /* échec rare → dernier recours */ }
-    }
+    } catch (e) { /* moteur serveur absent → repli HTML ci-dessous */ }
     if (blob) {
       veil.status("Document prêt — choisissez l'emplacement d'enregistrement…");
       try {

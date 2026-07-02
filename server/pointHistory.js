@@ -214,3 +214,39 @@ export function seriesByDossier() {
   }
   return out;
 }
+
+// ---- Cumul MENSUEL (barres temporelles réelles, façon « marché ») -----------
+// pointHistory ne garde que 14 jours ; pour une frise par mois on capitalise à
+// part : un instantané par mois (dernier écrasant les précédents du même mois →
+// valeur de fin de mois une fois le mois écoulé). Démarre au mois courant et se
+// remplit avec le temps. Zéro invention : on n'affiche que les mois réellement
+// enregistrés. Rollups alignés sur ROW_CATS.
+const MFILE = path.join(dataDir(), "point-months.json");
+const KEEP_MONTHS = 24;
+function loadM() { try { return JSON.parse(fs.readFileSync(MFILE, "utf8")) || {}; } catch { return {}; } }
+function saveM(mdb) { try { fs.mkdirSync(dataDir(), { recursive: true }); fs.writeFileSync(MFILE, JSON.stringify(mdb)); } catch { /* FS lecture seule : cumul mensuel ignoré */ } }
+function countsOf(list) { const c = {}; ROW_CATS.forEach((k) => (c[k] = 0)); for (const i of list) if (c[i.categorie] !== undefined) c[i.categorie] += 1; return c; }
+function rollup(list) {
+  const c = countsOf(list);
+  return {
+    termine: c.miseEnProd + c.termine, recette: c.recetteClient + c.recetteArmonie,
+    encours: c.encours, retours: c.retourTest, attente: c.attenteClient, total: list.length,
+  };
+}
+// Enregistre l'instantané du mois courant (dossier par dossier + agrégat).
+export function recordMonth(issues) {
+  if (!Array.isArray(issues) || !issues.length) return;
+  const month = todayStr().slice(0, 7);
+  const mdb = loadM();
+  const groups = {}; for (const i of issues) (groups[i.dossier || "Autre"] ||= []).push(i);
+  const byDossier = {}; for (const [d, list] of Object.entries(groups)) byDossier[d] = rollup(list);
+  mdb[month] = { at: new Date().toISOString(), all: rollup(issues), byDossier };
+  const months = Object.keys(mdb).sort();
+  if (months.length > KEEP_MONTHS) { const keep = new Set(months.slice(-KEEP_MONTHS)); for (const k of Object.keys(mdb)) if (!keep.has(k)) delete mdb[k]; }
+  saveM(mdb);
+}
+// Série mensuelle triée : [{ month, all:{...rollup}, byDossier:{ [d]:{...rollup} } }].
+export function monthlyPortfolio() {
+  const mdb = loadM();
+  return Object.keys(mdb).sort().map((month) => ({ month, all: mdb[month].all || {}, byDossier: mdb[month].byDossier || {} }));
+}

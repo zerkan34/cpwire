@@ -37,6 +37,7 @@ export const fetchCoherence = () => req("/api/coherence");
 export const fetchDigest = (opts = {}) => req(`/api/digest${opts.send ? `?send=${opts.send}${opts.to ? `&to=${encodeURIComponent(opts.to)}` : ""}` : ""}`);
 export const fetchRisk = () => req("/api/risk");
 export const fetchQuotes = () => req("/api/quotes");
+export const fetchPortfolioMonthly = () => req("/api/portfolio-monthly");
 export const fetchCharge = () => req("/api/charge");
 export const fetchDossierCr = (nom, type = "COMOP") => req(`/api/cr/dossier?nom=${encodeURIComponent(nom)}&type=${encodeURIComponent(type)}`);
 export const fetchTicketTransitions = (cle) => req(`/api/ticket/transitions?cle=${encodeURIComponent(cle)}`);
@@ -174,7 +175,7 @@ export async function renderHtmlPdfBlob(html, filename = "Document.pdf") {
   if (!res.ok) { let m = ""; try { m = (await res.json()).error; } catch {} throw new Error(m || `HTTP ${res.status}`); }
   const ct = (res.headers.get("content-type") || "").toLowerCase();
   const blob = await res.blob();
-  // Garde-fous : refuse une réponse non-PDF (ex : index.html renvoyé par erreur) ou vide → déclenche le repli html2pdf.
+  // Garde-fous : refuse une réponse non-PDF (ex : index.html renvoyé par erreur) ou vide → repli sur l'enregistrement HTML.
   if ((!ct.includes("pdf")) && (!blob.type || !blob.type.includes("pdf"))) throw new Error("Réponse non-PDF (serveur indisponible)");
   if (blob.size < 800) throw new Error("PDF vide ou invalide");
   return blob;

@@ -21,6 +21,12 @@ try { const rs = await initSessions(); if (rs) console.log(`[sessions] ${session
 app.listen(PORT, () => {
   console.log(`CPwire API sur http://localhost:${PORT}`);
   console.log(`Auth: ${AUTH_ENABLED ? "oui" : "non"} | Jira: ${isConfigured() ? "oui" : (ALLOW_DEMO ? "démo" : "non configuré")} | IA: ${aiAvailable() ? "oui" : "gabarit"} | moi: ${ME}`);
+  if (!AUTH_ENABLED) {
+    console.warn("[sécurité] ⚠ AUTH DÉSACTIVÉE (AUTH_EMAIL / AUTH_PASSWORD non définis) : l'API est OUVERTE en lecture/écriture. À configurer impérativement en production.");
+  }
+  if (!(process.env.ALLOWED_ORIGINS || "").trim()) {
+    console.warn("[sécurité] ⚠ ALLOWED_ORIGINS vide : CORS permissif (toutes origines acceptées). Définis la liste blanche en production.");
+  }
   const _d = dataDirInfo();
   console.log(`Données: ${_d.dir} | persistance: ${isPersistent() ? (persistenceActive() ? "OUI (base Neon)" : "OUI (disque persistant)") : "NON (éphémère — définir DATABASE_URL ou DATA_DIR)"}`);
   try { startDigestScheduler(runDigest); } catch (e) { console.error("[digest] planificateur non démarré :", e && e.message ? e.message : e); }

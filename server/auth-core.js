@@ -43,7 +43,19 @@ export async function initSessions() {
   } catch (e) { console.error("[sessions] JSON invalide, on repart à vide:", e.message || e); return false; }
 }
 // Secret de signature des liens d'invitation (dérivé du mot de passe : pas de config en plus).
-const SIGN_SECRET = AUTH_PASSWORD || "cpwire-invite-secret";
+// [Sécurité v346] Plus de secret en dur : si AUTH_PASSWORD est défini il sert de
+// secret (et de levier de révocation) ; sinon on génère un secret aléatoire,
+// persisté dans DATA_DIR (ou éphémère par session si le FS est en lecture seule).
+// Objectif : aucun secret de signature présent dans le code source.
+const SIGN_SECRET = AUTH_PASSWORD || (() => {
+  try {
+    const p = path.join(dataDir(), ".sign-secret");
+    if (fs.existsSync(p)) { const v = fs.readFileSync(p, "utf8").trim(); if (v) return v; }
+    const s = crypto.randomBytes(32).toString("hex");
+    try { fs.writeFileSync(p, s, { mode: 0o600 }); } catch { /* FS en lecture seule → secret de session */ }
+    return s;
+  } catch { return crypto.randomBytes(32).toString("hex"); }
+})();
 
 // Routes interdites au rôle « consultation » : aucun récap, aucun CR, aucune réunion.
 export const CONSULT_FORBIDDEN = [/^\/api\/cr\//, /^\/api\/recap$/, /^\/api\/meeting\//];

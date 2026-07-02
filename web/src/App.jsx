@@ -6,6 +6,7 @@ import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Home from "./components/Home.jsx";
+import PosteCommandement from "./components/PosteCommandement.jsx";
 import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
@@ -27,6 +28,8 @@ import ExportBar from "./components/ExportBar.jsx";
 // le chargement initial, ils n'arrivent que quand l'onglet/la modale concernée
 // s'ouvre réellement. Chacun est rendu sous un <Suspense> (page ou modale).
 const Planning = lazy(() => import("./components/Planning.jsx"));
+const Explorateur = lazy(() => import("./components/Explorateur.jsx"));
+const Signaux = lazy(() => import("./components/Signaux.jsx"));
 const Assistant = lazy(() => import("./components/Assistant.jsx"));
 const ImportSources = lazy(() => import("./components/ImportSources.jsx"));
 const Recette = lazy(() => import("./components/Recette.jsx"));
@@ -92,16 +95,20 @@ function greetMessage(role, me) {
   return name ? `${w} ${name} !` : `${w} !`;
 }
 const TABS = [
-  { id: "tour", label: "Tour de contrôle" },
   { id: "cockpit", label: "Pilotage" },
-  { id: "outils", label: "Outils" },
+  { id: "explorateur", label: "Explorateur" },
+  { id: "signaux", label: "Signaux" },
+  { id: "atelier", label: "Atelier" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
   cockpit: [
+    { id: "poste", label: "Poste de commandement" },
     { id: "cote", label: "Cote" },
     { id: "accueil", label: "Vue d'ensemble" },
+    { id: "echeances", label: "Échéances" },
+    { id: "digest", label: "Digest" },
   ],
   tour: [
     { id: "echeances", label: "Échéances" },
@@ -124,13 +131,23 @@ const SUBTABS = {
     { id: "planning", label: "Planning" },
     { id: "reference", label: "Référence" },
   ],
+  atelier: [
+    { id: "charge", label: "Charge & capacité" },
+    { id: "devs", label: "Développeurs" },
+    { id: "gantt", label: "GANTT" },
+    { id: "planning", label: "Planning" },
+    { id: "cra", label: "CRA" },
+    { id: "reunions", label: "Réunions" },
+    { id: "reference", label: "Référence" },
+    { id: "hygiene", label: "Qualité" },
+  ],
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "outils"];
+const PRIMARY = ["cockpit", "explorateur", "signaux", "atelier"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "tour", "outils"];
+const CONSULT_TABS = ["cockpit", "explorateur", "signaux", "atelier"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
 const TAB_SHORT = { cockpit: "Pilotage", tour: "Tour de contrôle", outils: "Outils" };
 
@@ -189,7 +206,7 @@ export default function App() {
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
-  const [sub, setSub] = useState("accueil");   // sous-onglet actif dans un onglet groupé
+  const [sub, setSub] = useState("poste");   // sous-onglet actif dans un onglet groupé
   const pwaGoRef = useRef(false);              // raccourci PWA (?go=) appliqué une seule fois
   const [drawer, setDrawer] = useState(false);
   const [quickOpen, setQuickOpen] = useState(false);   // feuille « accès rapide » (bouton central mobile)
@@ -479,7 +496,7 @@ export default function App() {
   }, [authed, role, showToast]);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
-  useEffect(() => { if (query.trim()) { setTab("outils"); setSub("portefeuille"); } /* eslint-disable-next-line */ }, [query]);
+  useEffect(() => { if (query.trim()) { setTab("explorateur"); } /* eslint-disable-next-line */ }, [query]);
 
   // Actualisation automatique EN CONTINU (toutes les 60 s), tant qu'on est connecté —
   // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
@@ -654,7 +671,7 @@ export default function App() {
   // Onglets selon le rôle : owner = tout + Admin ; consultation = whitelist ; guest (ancien) = tout.
   const visibleTabs = role === "consultation" ? TABS.filter((t) => CONSULT_TABS.includes(t.id))
     : TABS;
-  const primaryTabs = role === "consultation" ? ["cockpit", "outils"] : PRIMARY;
+  const primaryTabs = PRIMARY;
   const secondaryTabs = role === "consultation" ? SECONDARY.filter((id) => CONSULT_TABS.includes(id))
     : SECONDARY;
   const tabLabel = (id) => ([...TABS, ADMIN_TAB].find((t) => t.id === id) || {}).label;
@@ -747,10 +764,10 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       <Suspense fallback={<PageLoading />}>
-      {tab === "cockpit" && (sub === "accueil" || sub === "cote") && (
+      {tab === "cockpit" && (sub === "accueil" || sub === "cote" || sub === "poste") && (
         isMobile ? (
           <MobileHome
-            build="stable-v344"
+            build="stable-v352"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -767,13 +784,21 @@ export default function App() {
             onBell={() => window.dispatchEvent(new CustomEvent("cpwire-pilot"))}
             onRadar={() => window.dispatchEvent(new CustomEvent("cpwire-pilot-ask", { detail: { prompt: "Qu'est-ce qui est bloqué en ce moment sur le portefeuille ?" } }))}
             onAlerts={() => window.dispatchEvent(new CustomEvent("cpwire-pilot-ask", { detail: { prompt: "Quelles sont les alertes du jour : tickets en retard ou en attente ?" } }))}
-            onTeam={() => { setTab("outils"); setTimeout(() => setSub("devs"), 0); }}
+            onTeam={() => { setTab("atelier"); setTimeout(() => setSub("devs"), 0); }}
             onRefresh={() => load(true)}
             onSync={() => load(true, true)}
             onCR={() => setDailyCrOpen(true)}
             onImport={() => setImportOpen(true)}
             onMemo={() => setImportOpen(true)}
             onAdmin={() => setTab("admin")}
+          />
+        ) : sub === "poste" ? (
+          <PosteCommandement
+            facts={facts}
+            engagement={engagementByDossier}
+            onClient={openClient}
+            onTicket={setTicket}
+            goTo={(t, s) => { setTab(t); setTimeout(() => setSub(s), 0); }}
           />
         ) : sub === "cote" ? (
           <>
@@ -784,6 +809,18 @@ export default function App() {
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         )
+      )}
+      {tab === "signaux" && (
+        <>
+          <PageHero k="Signaux" title="Signaux" sub="Risque, cohérence, projections, stagnation et SLA — la surface d'alerte unique." />
+          <Signaux issues={issues} onTicket={setTicket} onClient={openClient} changedKeys={changedKeys} />
+        </>
+      )}
+      {tab === "explorateur" && (
+        <>
+          <PageHero k="Explorateur" title="Explorateur" sub="Tickets, flux, figés et suivi projets — une seule surface, mêmes facettes." />
+          <Explorateur issues={issues} facts={facts} loading={loading} externalQuery={query} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
+        </>
       )}
       {tab === "outils" && sub === "portefeuille" && (
         <>
@@ -827,7 +864,7 @@ export default function App() {
       )}
 
       {/* ---- Tour de contrôle : tout ce qui est daté (mouvements, stagnation, échéances SLA) ---- */}
-      {tab === "tour" && sub === "echeances" && (
+      {(tab === "tour" || tab === "cockpit") && sub === "echeances" && (
         <>
           <PageHero k="Tour de contrôle" title="Échéances" sub="Ce qui a une date, quelque part." />
           <DeadlineRadar onOpen={openClient} />
@@ -857,7 +894,7 @@ export default function App() {
           <Sante onTicket={setTicket} onClient={openClient} />
         </>
       )}
-      {tab === "tour" && sub === "digest" && (
+      {(tab === "tour" || tab === "cockpit") && sub === "digest" && (
         <>
           <PageHero k="Tour de contrôle" title="Digest" sub="Le point du soir, composé pour toi." />
           <Digest onTicket={setTicket} onClient={openClient} />
@@ -874,19 +911,19 @@ export default function App() {
         ? <MobileRecap issues={issues} syncedAt={data?.syncedAt || data?.generatedAt} onTicket={setTicket} onBack={() => { setTab("cockpit"); setSub("accueil"); }} />
         : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
       )}
-      {tab === "outils" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
-      {tab === "outils" && sub === "charge" && (
+      {(tab === "outils" || tab === "atelier") && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
+      {(tab === "outils" || tab === "atelier") && sub === "charge" && (
         <>
           <PageHero k="Outils" title="Charge & capacité" sub="Qui porte quoi, qui est en surcharge, qui a de la marge." />
           <Charge onDev={setDevFiche} />
         </>
       )}
-      {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
-      {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
-      {tab === "outils" && sub === "gantt" && (<><PageHero k="Outils" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
-      {tab === "outils" && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
+      {(tab === "outils" || tab === "atelier") && sub === "reunions" && <Meetings issues={issues} />}
+      {(tab === "outils" || tab === "atelier") && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {(tab === "outils" || tab === "atelier") && sub === "gantt" && (<><PageHero k="Outils" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
+      {(tab === "outils" || tab === "atelier") && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
-      {tab === "outils" && sub === "reference" && (
+      {(tab === "outils" || tab === "atelier") && sub === "reference" && (
         <>
           <PageHero k="Cockpit" title="Référence" sub="Le cœur de connaissance : annuaire programmes ↔ tickets, analyse du portefeuille, mémoire d'équipe." />
           <Reference issues={issues} role={role} onTicket={setTicket} onDev={setDevFiche} />
@@ -894,7 +931,7 @@ export default function App() {
       )}
       {tab === "outils" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
-      {tab === "outils" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
+      {(tab === "outils" || tab === "atelier") && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 
       </Suspense>
@@ -946,9 +983,9 @@ export default function App() {
           <button className="cnav-plus" aria-label="Accès rapide" onClick={() => setQuickOpen(true)}>
             <span className="cnav-plus-in"><span className="cnav-plus-ic">+</span></span>
           </button>
-          <button className={`cnav-tab ${tab === "outils" ? "active" : ""}`}
-            onClick={() => { setTab("outils"); window.scrollTo({ top: 0 }); }}>
-            <span className="cnav-ic" aria-hidden="true"><NavIcon id="outils" /></span><span className="cnav-lb">Outils</span>
+          <button className={`cnav-tab ${tab === "atelier" ? "active" : ""}`}
+            onClick={() => { setTab("atelier"); window.scrollTo({ top: 0 }); }}>
+            <span className="cnav-ic" aria-hidden="true"><NavIcon id="outils" /></span><span className="cnav-lb">Atelier</span>
           </button>
         </div>
       </nav>

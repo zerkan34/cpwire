@@ -40,6 +40,9 @@ const SEED = {
       { terme: "Mode projet", sens: "Engagement projet (lots, jalons), distinct de la TMA." },
       { terme: "CR", sens: "Compte rendu." },
       { terme: "COPIL", sens: "Comité de pilotage." },
+      { terme: "CRA", sens: "Compte rendu d'activité : chaque collaborateur saisit ses jours ouvrés dans Dolibarr pour le mois de facturation." },
+      { terme: "Dolibarr", sens: "Outil interne Armonie de saisie des CRA et de génération/émission des factures." },
+      { terme: "Chronogramme de facturation Armonie", sens: "Cycle fin de mois (RACI porté par la Direction générale) : saisie des CRA par les collaborateurs ; contrôle des CRA à J-1 et corrections éventuelles ; génération des projets de facture (temps passé & forfait) ; contrôle à J+1 et corrections ; émission des factures à J+2. Tout se fait dans Dolibarr." },
     ],
   },
   // Mémoire par client (clé = nom de dossier affiché). « attentes » à compléter par vos soins.
@@ -79,6 +82,7 @@ const SEED = {
         "Offre enrichie : 11 livres répartis sur l'année (1 nov., 2 déc., 1 janv., 1 févr., 2 mars, 1 avr., 1 mai, 2 juin). Lancement 2026/2027, réservé France métropolitaine, Belgique, Luxembourg, Suisse ; abonnements individuels ET regroupés ; papier ET web. Les évolutions DB2 lèvent trois limites historiques : nombre de clubs (8 → n), livres par club (8 → n), livres par tirage (1 → n), n compris entre 1 et 99.",
         "Chiffrage atelier (indicatif) : webservice à créer 5 J/H (+ ~1,5 J/H d'impact programmes) ; index ABO_ABO + ABO_ADR ~12 J/H ; extensions de longueurs (prospects, établissements, animatrices, auteurs, enveloppes) ~11 J/H ; fusion MX_II ~3,5 J/H + 2 J/H sur 8 programmes ; suppression edlmy ~1 J/H + PRI_CDE16 ~1 J/H ; refonte stockage stats à la clôture ~5 J/H (priorité 2).",
         "Projet (suivi global) : Campagne des abonnements — n° PJ2509-0666, signé, 63 J/H budgétés, 43 650 € (correspond au projet MINIKILI+ / PEM).",
+        "Procédure de clôture & RAZ (documentation technique, révision 15/05/2025, GBO) — étapes ordonnées : faire désactiver la réplication (ROBOT HA) par l'exploitation ; désactiver les triggers ; tenir l'OUTQ (MAX/BX472) ; créer la bibliothèque de l'année (CRTLIB RAZ_2025) ; renommer MAX_AP en MAX_2024 ; puis la suite de la chaîne de clôture/RAZ. Recoupe la priorité 2 « arrêt de l'ajout en colonne + RAZ scriptée ».",
       ],
     },
     "DS Smith": {
@@ -99,6 +103,7 @@ const SEED = {
         "Refonte — statuts des lignes : 824 en mise en production, 591 terminées, 380 en recette client, 122 en attente client, 40 en recette Armonie, 44 annulées, 2 en retour test, et 2338 sans ticket associé (#N/A).",
         "Refonte — volumétrie par domaine (nb de lignes) : 99 Non catégorisé 1821 ; 08 Administration commerciale 433 ; 21 Traitements fin de mois 330 ; 20 Traitements début et fin de journée 268 ; 10 Commandes Tafanel 233 ; 13 Logistique Tafanel 202 ; 17 Comptabilité clients et caisse 174 ; 19 Comptabilité générale et fournisseurs 155 ; 14 Logistique Socodis 154 ; 07 Articles-produits-tarifs 137 ; 09 Stocks et promotions des ventes 125 ; 04 Création des tarifs 77 ; 01 Mise à jour et affichage client 64 ; 11 Commandes Socodis 51 ; 12 Commandes Disney 51 ; 03 Mise à jour et affichage des articles 21 ; 06 Gestion des becs 20 ; 18 Investissements et prestations 17 ; 05 Gestion des réductions tarifaires 7 ; 02 Gestion des produits 2.",
         "Projet (suivi global) : Modernisation code et applicatif — n° PJ2412-0601, terminé, 16 J/H budgétés, 10 893 €.",
+        "Priorisation (fichier interne « Vision 20 janvier », snapshot refonte au 26/06/2026, 4346 lignes) : suivi par domaine (01 Articles-Produits-Tarifs, 02 Stocks & promotions des ventes, 3.0 Commandes Tafanel, 4.1 Logistique Tafanel, 6.0 Administration commerciale…) donnant, par option, l'échéance, la date de livraison Armonie, le statut et l'historique des retours de tests. Exemples : OPTION313 Ristournes clients (livrée le 05/02/2026, « VALIDE TAFANEL » ; retours de tests via GESRIS) ; Option 110 libellés permanents sur facture (livrée 13/02/2026) ; REFART Référencement des articles et Option 295 Réception des commandes (échéance 12/02/2026). Interlocuteur tests côté Tafanel : Laurent Le Guen.",
       ],
     },
     Bellion: {
@@ -108,6 +113,7 @@ const SEED = {
       notes: [
         "Dossier SharePoint volumineux (≈ 950 fichiers) : LES PROJETS, Contexte & Processus, Propositions commerciales, Architecture, Hébergement, Facture Électronique, plus Assistance IBM i (jetons) et Phase #02. Jalons tracés : COPIL #05 (17/11/2025), PV de migration vers le nouvel environnement (05/12/2025).",
         "Projet (suivi global) : Modernisation SI — n° PJ2503-0631, en cours, 146 J/H budgétés, 96 780 €.",
+        "Chronogramme de bascule ERP sur V7.5 (fichier VOK V2.5, 04/09/2025) : migration de la base ERP sur environnement bac à sable V7.5 (10/03 → 11/04/2025) ; migration des éditions dans PHL Spool (07/07 → 05/09) et des rapports dans PHL Query (18/08 → 05/09) ; usage en parallèle des environnements V5R4 et cible V7.5 ; validation finale de la migration sur V7.5 le 19/09/2025 ; rédaction d'une documentation détaillée de la procédure de migration.",
       ],
     },
     IMA: {
@@ -117,6 +123,7 @@ const SEED = {
       notes: [
         "Base SharePoint : Gouvernance, Documents & Supports Métiers, Facturations, et un chantier dédié « Migration JIRA » (CDC_Migration_Jira_IMA_Armonie, versions V1.1 → V1.2). Pilotage par COPIL ; dernier COPIL Mars 2026 (dernière mise à jour juin 2026, N. Durand).",
         "Projets (suivi global) : Purge Higgins (n° PJ2411-0595, terminé, 10 J/H, 8 500 €) ; Automatisation purge MCS (TMA, en cours) ; Sésame Espagne (n° PJ2507-0651, proposition envoyée, 16 100 €) ; Décommissionnement UK (n° PJ2507-0650, en cours, 5 J/H, 4 950 €) ; Rétro-documentation REF-BEN (n° PJ2406-0536, proposition envoyée, 12 240 €).",
+        "Export Jira de mai 2026 : 33 tickets TIMA suivis sur le mois (Dataware / MCS — ex. contrôle d'intégrité des fichiers ATR reçus sur le S3, problème de chargement des données Higgins en préproduction, extractions CRA Produits). Le fichier récapitule aussi le temps par intervenant : Joshua Vegas, Ludovic Sagnal, Océane Aimes, Léo Charrier, Maamar Meziane.",
       ],
     },
     DIAPAR: {
@@ -155,6 +162,16 @@ const SEED = {
       ],
       notes: [
         "Avancement (61 programmes). Utilisés depuis la MEP V8R1 : 36 « Oui », 22 « Non », 3 « Non (à tester en recette) ». État de développement : 26 en « Recette », 1 « À faire », 34 sans état renseigné. Colonnes de suivi du fichier : « Test Armonie » et « Validé (Vinci) ».",
+      ],
+    },
+    Vandoren: {
+      contexte: "Vandoren (Bormes-les-Mimosas) — fabricant d'anches et de becs pour instruments à vent. Armonie a réalisé un audit de l'application métier hébergée sur IBM i (AS/400) — compte rendu d'entretien du 01/03/2022 (auteur Dominique Gayte ; participants côté Vandoren : Alain Porte, Patrick Chemla, Jean Rapenne).",
+      attentes: ["À préciser : suites données à l'audit (plan de reprise d'activité, maintenance matérielle/logicielle, modernisation)."],
+      glossaire: [],
+      notes: [
+        "Serveur : POWER modèle 520 en IBM i V7R1, 16 Go de mémoire, disques occupés à ~25 %, en RAID 5 ; une quinzaine d'utilisateurs réguliers. Matériel performant et sans panne, mais ancien (~10 ans d'existence), hors maintenance matérielle et logicielle, et sans IPL.",
+        "Plan de reprise d'activité : assuré uniquement par les sauvegardes sur bandes quotidiennes. Enjeu fort en fin de mois (≈ 97 % du CA à l'export, expéditions concentrées en fin de mois). Préconisation Armonie : doter le SI d'un véritable PRA pour la partie IBM i, adapté aux enjeux métier.",
+        "Application : la paie et la comptabilité ont été sorties de l'IBM i ; il ne reste que l'application métier proprement dite, essentielle au fonctionnement de l'entreprise. L'audit couvre serveur, PRA, programmes, base de données et interface.",
       ],
     },
   },

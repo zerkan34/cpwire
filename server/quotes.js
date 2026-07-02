@@ -77,10 +77,10 @@ export function buildQuotes({ pointDerived = null, projections = null, risk = nu
   // ---- TÉLÉSCRIPTEUR : derniers mouvements (2 derniers jours), plus récents d'abord. ----
   const ds = (pointDerived && Array.isArray(pointDerived.days)) ? pointDerived.days : [];
   const ticker = [];
-  for (let i = ds.length - 1; i >= 0 && ticker.length < 40; i--) {
+  for (let i = ds.length - 1; i >= 0 && ticker.length < 50; i--) {
     for (const m of (ds[i].movements || [])) {
       ticker.push({ cle: m.cle, dossier: m.dossier || "—", from: m.fromLabel || m.fromCat || "", to: m.toLabel || m.toCat || "", dir: m.regression ? "down" : "up", day: ds[i].day });
-      if (ticker.length >= 40) break;
+      if (ticker.length >= 50) break;
     }
   }
 

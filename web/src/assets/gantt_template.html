@@ -484,7 +484,40 @@ function migrate(o){
   return o;
 }
 document.getElementById("gleg").innerHTML=GLEG_HTML;
-(async function(){ let s=null; try{ s=await store.get(); }catch(e){}
+function buildPrintHTML(){
+  var C=(window.__CPW_CLIENT__||"").trim(), P=(window.__CPW_PROJET__||"").trim();
+  var svgEl=svgwrap.querySelector("svg"); var svg=svgEl?svgEl.outerHTML:svgwrap.innerHTML;
+  var leg=(document.getElementById("gleg")||{}).innerHTML||"";
+  var d=new Date().toLocaleDateString("fr-FR",{day:"numeric",month:"long",year:"numeric"});
+  // HTML autonome pour /api/pdf/render (WeasyPrint) — SANS la ligne d'aide.
+  return '<!doctype html><html lang="fr"><head><meta charset="utf-8"><style>'
+    +'@page{size:A4 landscape;margin:12mm;}'
+    +'*{box-sizing:border-box}body{font-family:Inter,"Segoe UI",sans-serif;color:#1F1B33;margin:0}'
+    +'.hd{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:2px solid #A88B4B;padding-bottom:8px;margin-bottom:16px}'
+    +'.brand{font-family:Poppins,sans-serif;font-weight:800;font-size:17px;color:#2E2A5D}.brand .g{color:#A88B4B}.brand .p{color:#6E6A86;font-weight:600;font-size:15px}'
+    +'h1{font-family:Poppins,sans-serif;font-size:14px;color:#2E2A5D;margin:0}'
+    +'svg{width:100%;height:auto;display:block}'
+    +'.leg{margin-top:12px;font-size:9px;color:#6E6A86;display:flex;gap:14px;flex-wrap:wrap;align-items:center}'
+    +'.leg .grp{display:inline-flex;align-items:center;gap:4px}.leg .sw{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:-1px}'
+    +'.foot{margin-top:14px;border-top:1px solid #E2DEF0;padding-top:6px;font-size:8.5px;color:#8b8698;font-family:Poppins,sans-serif}'
+    +'</style></head><body>'
+    +'<div class="hd"><h1>GANTT — '+esc(C||"Projet")+(P?' · '+esc(P):'')+'</h1>'
+    +'<span class="brand">armo<span class="g">n</span>ie<span class="p"> · '+esc(C||"Projet")+'</span></span></div>'
+    +svg+'<div class="leg">'+leg+'</div>'
+    +'<div class="foot">Armonie Group · GANTT '+esc(C)+(P?' — '+esc(P):'')+' · '+d+' · Confidentiel</div>'
+    +'</body></html>';
+}
+// Passerelle avec cp|WIRE : répond aux demandes d'export du parent.
+window.addEventListener("message",function(ev){
+  var t=ev.data&&ev.data.type;
+  try{
+    if(t==="cpw-req-pdf") parent.postMessage({type:"cpw-pdf",html:buildPrintHTML()},"*");
+    else if(t==="cpw-req-data") parent.postMessage({type:"cpw-data",data:DATA},"*");
+  }catch(e){}
+});
+(async function(){ let s=null;
+  if(window.__CPW_SEED__){ s=window.__CPW_SEED__; }              // copie autonome rouverte
+  else { try{ s=await store.get(); }catch(e){} }
   DATA=migrate(s);
   try{
     var C=(window.__CPW_CLIENT__||"").trim(), P=(window.__CPW_PROJET__||"").trim();
