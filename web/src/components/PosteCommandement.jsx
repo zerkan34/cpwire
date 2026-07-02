@@ -10,13 +10,25 @@ import CopilotDot from "./CopilotDot.jsx";
 // chaque chiffre vient de computeFacts (réel) ou de /api/quotes (pointHistory).
 
 const REFRESH_MS = 45000;
-const C = { navy:"#2E2A5D", indigo:"#4B3F8F", gold:"#A88B4B", goldlt:"#BFA168", mauve:"#7E6B9E", rose:"#B58BA6", grey:"#6E6A86", green:"#2F7D4F", orange:"#C2691A", red:"#b23b46" };
-const PAL = [C.navy, C.indigo, C.mauve, C.gold, C.goldlt, C.rose, "#5B6BA8", "#8E6FA4", "#B98E52", "#6E6A86"];
+const C = { navy: "var(--ink)", indigo: "var(--purple)", gold: "var(--gold)", goldlt: "#c9b17a", mauve: "var(--purple-strong)", rose: "var(--blue)", grey: "var(--muted)", green: "var(--green)", orange: "var(--orange)", red: "var(--red)" };
+const PAL = ["var(--purple)", "var(--indigo)", "var(--gold)", "var(--orange)", "var(--blue)", "var(--purple-strong)", "var(--green)", "var(--muted)"];
 const norm = (s) => String(s || "").trim();
 const sign = (n) => (n == null ? "" : n > 0 ? `+${n}` : `${n}`);
 const engOf = (v) => (v instanceof Set ? [...v] : Array.isArray(v) ? v : []);
 const isTMA = (arr) => arr.some((e) => /tma/i.test(e));
 const isProjet = (arr) => arr.some((e) => /projet/i.test(e));
+// Direction « bourse » à 4 sens, calculée sur des faits réels par client.
+const TRI = { up: "▲", down: "▼", right: "▶", left: "◀", none: "·" };
+const DIR_LABEL = {
+  up: "en hausse (avancement)", down: "en baisse (régression)",
+  right: "stable mais actif", left: "à l'arrêt", none: "tendance inconnue",
+};
+const dir4 = (x) => {
+  if (!x || x.varDone == null) return "none";
+  if (x.varDone > 0) return "up";
+  if (x.varDone < 0) return "down";
+  return (x.volume || 0) > 0 ? "right" : "left";
+};
 
 // Secteur d'anneau (camembert évidé) — chemin SVG.
 function ring(cx, cy, rO, rI, a0, a1) {
@@ -100,7 +112,7 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
     const top = rows.slice(0, 8);
     const rest = rows.slice(8).reduce((n, r) => n + r.value, 0);
     const out = top.map((r, i) => ({ ...r, col: PAL[i % PAL.length] }));
-    if (rest > 0) out.push({ label: "Autres", value: rest, col: "#B8B2CC" });
+    if (rest > 0) out.push({ label: "Autres", value: rest, col: "var(--purple-line)" });
     return out;
   }, [single, scoped, byD]);
 
@@ -144,10 +156,12 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
   }, [radar, scope, scoped]);
 
   // Ticker (mouvements en direct) filtré sur la portée, plafonné à 50.
-  const ticker = useMemo(() => {
-    const all = (q && q.ticker) || [];
-    const f = scope.type === "all" ? all : all.filter((t) => scoped.includes(t.dossier));
-    return f.slice(0, 50);
+  // Le « en direct » façon bourse : ce sont les CLIENTS qui défilent, chacun avec
+  // un triangle directionnel réel — ▲ hausse (avancement +), ▼ baisse (régression),
+  // ▶ stable mais actif (ça bouge, solde inchangé), ◀ à l'arrêt (aucun mouvement).
+  const cote = useMemo(() => {
+    const all = (q && q.quotes) || [];
+    return scope.type === "all" ? all : all.filter((x) => scoped.includes(x.dossier));
   }, [q, scope, scoped]);
 
   // « Ce qui bouge le plus » : cotations triées (serveur) filtrées portée.
@@ -197,24 +211,32 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
         <CopilotDot prompt={pilotPrompt} label="Demander à Natacha" />
       </div>
 
-      {/* ticker EN DIRECT (défile, pulsations) */}
-      <div className="pc2-tk" title="Mouvements en direct — survolez pour mettre en pause">
+      {/* ticker EN DIRECT — les clients défilent, chacun avec son triangle (défile, pulsations) */}
+      <div className="pc2-tk" title="La cote des clients en direct — ▲ hausse · ▼ baisse · ▶ stable actif · ◀ à l'arrêt. Survolez pour mettre en pause.">
         <span className="pc2-tk-live">EN DIRECT{clock ? ` · ${clock}` : ""}</span>
         <div className="pc2-tk-vp">
-          {ticker.length ? (
+          {cote.length ? (
             <div className="pc2-tk-track">
               {[0, 1].map((dup) => (
                 <span className="pc2-tk-seg" key={dup} aria-hidden={dup === 1}>
-                  {ticker.map((t, i) => (
-                    <button key={dup + "-" + i} className={`pc2-tk-item ${flash[t.dossier] || ""} ${flash[t.dossier] ? "pulse" : ""}`}
-                      onClick={() => onTicket && onTicket(t.cle)} title={`Ouvrir ${t.cle}`}>
-                      <b>{t.cle}</b> · {t.dossier} · {t.from} → {t.to} <i>{t.dir === "down" ? "▼" : "▲"}</i>
-                    </button>
-                  ))}
+                  {cote.map((t, i) => {
+                    const d = dir4(t);
+                    return (
+                      <button key={dup + "-" + i} className={`pc2-tk-item d-${d} ${flash[t.dossier] ? "pulse" : ""}`}
+                        onClick={() => onClient && onClient(t.dossier)}
+                        title={`${t.dossier} — ${DIR_LABEL[d]}${t.varDone != null && t.varDone !== 0 ? ` (${t.varDone > 0 ? "+" : ""}${t.varDone} terminés)` : ""} · ${t.value != null ? t.value + "%" : "—"}`}>
+                        <b>{t.dossier}</b>
+                        <span className="tri" aria-hidden="true" />
+                        {t.varDone != null && t.varDone !== 0
+                          ? <span className="d">{t.varDone > 0 ? `+${t.varDone}` : t.varDone}</span>
+                          : <span className="d val">{t.value != null ? `${t.value}%` : "—"}</span>}
+                      </button>
+                    );
+                  })}
                 </span>
               ))}
             </div>
-          ) : <span className="pc2-tk-empty">Aucun mouvement récent sur cette portée.</span>}
+          ) : <span className="pc2-tk-empty">Aucune cote sur cette portée.</span>}
         </div>
       </div>
 

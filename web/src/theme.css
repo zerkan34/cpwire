@@ -33,6 +33,12 @@
   --red-bg: #fbe6e3;
   --shadow: 0 1px 3px rgba(38, 35, 64, 0.06), 0 8px 28px rgba(38, 35, 64, 0.07);
   --shadow-lg: 0 18px 50px rgba(38, 35, 64, 0.16);
+  /* Alias de charte : les écrans récents (Poste, Explorateur, Signaux) parlaient
+     une langue de couleurs légèrement différente. On les raccroche aux variables
+     réelles de l'app pour une seule et même identité (mode sombre compris). */
+  --navy: var(--indigo-deep);
+  --lav: var(--purple-soft);
+  --grey: var(--muted);
 }
 * { box-sizing: border-box; }
 html { -webkit-text-size-adjust: 100%; }
@@ -5284,7 +5290,19 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc2-tk-item:hover { color:#fff; }
 .pc2-tk-item b { color:#fff; font-weight:700; }
 .pc2-tk-item i { font-style:normal; }
-.pc2-tk-item.up i { color:#7FD3A0; } .pc2-tk-item.down i { color:#E8909A; }
+.pc2-tk-item .tri { display:inline-block; margin:0 7px; vertical-align:middle; }
+.pc2-tk-item .d { font-weight:700; color:inherit; }
+.pc2-tk-item .d.val { font-weight:600; opacity:.8; }
+.pc2-tk-item.d-up { color:#7FD3A0; }
+.pc2-tk-item.d-down { color:#E8909A; }
+.pc2-tk-item.d-right { color:#E6C583; }
+.pc2-tk-item.d-left { color:#9aa0ba; }
+.pc2-tk-item.d-none { color:#9aa0ba; }
+.pc2-tk-item.d-up .tri { border-left:5px solid transparent; border-right:5px solid transparent; border-bottom:7px solid currentColor; }
+.pc2-tk-item.d-down .tri { border-left:5px solid transparent; border-right:5px solid transparent; border-top:7px solid currentColor; }
+.pc2-tk-item.d-right .tri { border-top:5px solid transparent; border-bottom:5px solid transparent; border-left:7px solid currentColor; }
+.pc2-tk-item.d-left .tri { border-top:5px solid transparent; border-bottom:5px solid transparent; border-right:7px solid currentColor; }
+.pc2-tk-item.d-none .tri { width:6px; height:6px; border-radius:50%; background:currentColor; }
 .pc2-tk-item.pulse { animation:pc2pulse 1.2s ease-in-out infinite; }
 .pc2-tk-empty { color:#B8B2CC; font-size:12.5px; padding:0 18px; align-self:center; }
 @keyframes pc2marq { from { transform:translateX(0); } to { transform:translateX(-50%); } }

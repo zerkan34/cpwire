@@ -105,6 +105,7 @@ const SUBTABS = {
   // Pilotage = une seule page (le Poste de commandement) : aucun sous-onglet.
   cockpit: [],
   atelier: [
+    { id: "morning", label: "Récap" },
     { id: "charge", label: "Charge & capacité" },
     { id: "devs", label: "Développeurs" },
     { id: "gantt", label: "GANTT" },
@@ -740,7 +741,7 @@ export default function App() {
       {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v353"
+            build="stable-v355"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -793,6 +794,10 @@ export default function App() {
           <PageHero k="Cockpit" title="Activité" sub="Les tickets actifs et les mouvements Jira récents." />
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         </>
+      )}
+      {tab === "atelier" && sub === "morning" && (isMobile
+        ? <MobileRecap issues={issues} syncedAt={data?.syncedAt || data?.generatedAt} onTicket={setTicket} onBack={() => { setTab("cockpit"); setSub(""); }} />
+        : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
       )}
       {tab === "atelier" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "atelier" && sub === "charge" && (
