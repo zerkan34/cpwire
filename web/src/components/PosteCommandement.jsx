@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { fetchQuotes, fetchPortfolioMonthly } from "../api.js";
+import { fetchQuotes, fetchPortfolioMonthly, fetchDeadlines } from "../api.js";
 import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
 
@@ -34,10 +34,12 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
   const [flash, setFlash] = useState({});         // dossier -> "up"|"down" (pulsation au changement)
   const [barMode, setBarMode] = useState("dossier"); // "dossier" | "mois"
   const [monthly, setMonthly] = useState([]);
+  const [radar, setRadar] = useState([]);
   const prev = useRef({});
   const timers = useRef([]);
 
   useEffect(() => { fetchPortfolioMonthly().then((r) => setMonthly(r.months || [])).catch(() => setMonthly([])); }, []);
+  useEffect(() => { fetchDeadlines().then((r) => setRadar((r && r.radar) || [])).catch(() => setRadar([])); }, []);
 
   const load = useCallback(async () => {
     try {
@@ -129,6 +131,17 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
     const max = rows.reduce((m, r) => Math.max(m, r.tot), 0) || 1;
     return { rows, max };
   }, [monthly, scope, scoped]);
+
+  // Prochaines échéances (encart) — filtrées sur la portée, les plus proches d'abord.
+  const dfmt = (iso) => { const [, m, d] = iso.split("-"); return `${(+d)} ${MLAB[(+m) - 1] || m}`; };
+  const deadlines = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    return (radar || [])
+      .filter((r) => r.date && r.date >= today)
+      .filter((r) => (scope.type === "all" ? true : scoped.includes(r.dossier)))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .slice(0, 6);
+  }, [radar, scope, scoped]);
 
   // Ticker (mouvements en direct) filtré sur la portée, plafonné à 50.
   const ticker = useMemo(() => {
@@ -316,6 +329,20 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
                 </li>
               ))}
               {!movers.length && <li className="pc2-leg-empty">Rien à signaler sur cette portée.</li>}
+            </ul>
+          </div>
+
+          <div className="pc2-card pc2-movers">
+            <div className="pc2-h sm"><span className="pc2-sq" />PROCHAINES ÉCHÉANCES</div>
+            <ul>
+              {deadlines.map((r, i) => (
+                <li key={i} onClick={() => onClient && onClient(r.dossier)} title={`Ouvrir ${r.dossier}`}>
+                  <span className="pc2-dl-date">{dfmt(r.date)}</span>
+                  <span className="pc2-mv-n">{r.dossier}</span>
+                  {r.label && <span className="pc2-dl-lbl">{r.label}</span>}
+                </li>
+              ))}
+              {!deadlines.length && <li className="pc2-leg-empty">Aucune échéance datée sur cette portée.</li>}
             </ul>
           </div>
         </div>

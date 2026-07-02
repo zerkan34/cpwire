@@ -97,40 +97,13 @@ function greetMessage(role, me) {
 const TABS = [
   { id: "cockpit", label: "Pilotage" },
   { id: "explorateur", label: "Explorateur" },
-  { id: "signaux", label: "Signaux" },
   { id: "atelier", label: "Atelier" },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
-  cockpit: [
-    { id: "poste", label: "Poste de commandement" },
-    { id: "cote", label: "Cote" },
-    { id: "accueil", label: "Vue d'ensemble" },
-    { id: "echeances", label: "Échéances" },
-    { id: "digest", label: "Digest" },
-  ],
-  tour: [
-    { id: "echeances", label: "Échéances" },
-    { id: "flux", label: "Flux d'activité" },
-    { id: "figes", label: "Tickets figés" },
-    { id: "sla", label: "SLA" },
-    { id: "sante", label: "Santé & signaux" },
-    { id: "digest", label: "Digest" },
-  ],
-  outils: [
-    { id: "morning", label: "Récap" },
-    { id: "portefeuille", label: "Tickets" },
-    { id: "projets", label: "Suivi projets" },
-    { id: "hygiene", label: "Qualité" },
-    { id: "charge", label: "Charge" },
-    { id: "devs", label: "Développeurs" },
-    { id: "reunions", label: "Réunions" },
-    { id: "cra", label: "CRA" },
-    { id: "gantt", label: "GANTT" },
-    { id: "planning", label: "Planning" },
-    { id: "reference", label: "Référence" },
-  ],
+  // Pilotage = une seule page (le Poste de commandement) : aucun sous-onglet.
+  cockpit: [],
   atelier: [
     { id: "charge", label: "Charge & capacité" },
     { id: "devs", label: "Développeurs" },
@@ -144,12 +117,12 @@ const SUBTABS = {
 };
 
 // Navigation mobile : 4 onglets en barre du bas, le reste dans le tiroir (burger).
-const PRIMARY = ["cockpit", "explorateur", "signaux", "atelier"];
+const PRIMARY = ["cockpit", "explorateur", "atelier"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "explorateur", "signaux", "atelier"];
+const CONSULT_TABS = ["cockpit", "explorateur", "atelier", "signaux"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
-const TAB_SHORT = { cockpit: "Pilotage", tour: "Tour de contrôle", outils: "Outils" };
+const TAB_SHORT = { cockpit: "Pilotage", explorateur: "Explorateur", atelier: "Atelier" };
 
 // Sous-onglets visibles d'un groupe selon le rôle (la Mémoire est réservée à l'owner).
 function subsForRole(groupId, role) {
@@ -764,10 +737,10 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       <Suspense fallback={<PageLoading />}>
-      {tab === "cockpit" && (sub === "accueil" || sub === "cote" || sub === "poste") && (
+      {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v352"
+            build="stable-v353"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -792,27 +765,20 @@ export default function App() {
             onMemo={() => setImportOpen(true)}
             onAdmin={() => setTab("admin")}
           />
-        ) : sub === "poste" ? (
+        ) : (
           <PosteCommandement
             facts={facts}
             engagement={engagementByDossier}
             onClient={openClient}
             onTicket={setTicket}
-            goTo={(t, s) => { setTab(t); setTimeout(() => setSub(s), 0); }}
+            goTo={(t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }}
           />
-        ) : sub === "cote" ? (
-          <>
-            <PageHero k="Cockpit" title="Cote du portefeuille" sub="Le mouvement, pas les totaux — en direct au rythme des synchros." />
-            <QuoteBoard onClient={openClient} onTicket={setTicket} />
-          </>
-        ) : (
-          <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
-            onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         )
       )}
+      {/* Signaux : plus un onglet — atteignable en drill depuis les KPI du Poste. */}
       {tab === "signaux" && (
         <>
-          <PageHero k="Signaux" title="Signaux" sub="Risque, cohérence, projections, stagnation et SLA — la surface d'alerte unique." />
+          <PageHero k="Signaux" title="Signaux" sub="Risque, cohérence, projections, stagnation et SLA." />
           <Signaux issues={issues} onTicket={setTicket} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
@@ -822,116 +788,32 @@ export default function App() {
           <Explorateur issues={issues} facts={facts} loading={loading} externalQuery={query} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
-      {tab === "outils" && sub === "portefeuille" && (
-        <>
-          {diag && (
-            <p className="hint" style={{ marginTop: 4 }}>
-              Import vérifié — {diag.totalImporte} tickets : {Object.entries(diag.parProjet).map(([k, v]) => `${k} (${v})`).join(" · ") || "—"}
-            </p>
-          )}
-          <PageHero k="Cockpit" title="Tickets" sub="La liste complète, filtrable et cherchable." />
-
-          <div className="section-title">
-            <span>{dossier === "Tous" ? "Tous les tickets" : `Tickets — ${dossier}`}</span>
-          </div>
-          <div className="panel cockpit-panel">
-            <div className="recap-hd recap-hd-ring">
-              <span className="recap-hd-name">{cockpitFilterLabel}</span>
-              <span className="recap-hd-meta">{filtered.length} ticket{filtered.length > 1 ? "s" : ""} affiché{filtered.length > 1 ? "s" : ""}</span>
-              {filtered.length > 0 && (() => {
-                const dn = filtered.filter((i) => i.statut === "Terminé").length;
-                const pct = Math.round((dn / filtered.length) * 100);
-                return (
-                  <span className="tk-ring" role="img" aria-label={`${pct}% terminés`}
-                    style={{ background: `conic-gradient(from 130deg, #2bd97f, #22d3ee ${Math.round(pct * 0.55)}%, #2bd97f ${pct}%, rgba(255,255,255,.10) ${pct}% 100%)` }}>
-                    <span className="tk-ring-c">{pct}<small>%</small></span>
-                  </span>
-                );
-              })()}
-            </div>
-            <div className="cockpit-bd">
-              <Filters issues={issues} counts={counts} statuts={STATUTS} dossier={dossier} statut={statut}
-                onlyLate={onlyLate} onlyMine={onlyMine} onlyFlagged={onlyFlagged} query={query} person={person} priorite={priorite}
-                onDossier={setDossier} onStatut={setStatut}
-                onToggleLate={() => setOnlyLate((v) => !v)} onToggleMine={() => setOnlyMine((v) => !v)}
-                onToggleFlagged={() => setOnlyFlagged((v) => !v)}
-                onQuery={setQuery} onPerson={setPerson} onPriorite={setPriorite} onReset={resetFilters} />
-              <div className="sep" />
-              <IssueTable rows={filtered} loading={loading} onTicket={setTicket} onDev={setDevFiche} changedKeys={changedKeys} />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ---- Tour de contrôle : tout ce qui est daté (mouvements, stagnation, échéances SLA) ---- */}
-      {(tab === "tour" || tab === "cockpit") && sub === "echeances" && (
-        <>
-          <PageHero k="Tour de contrôle" title="Échéances" sub="Ce qui a une date, quelque part." />
-          <DeadlineRadar onOpen={openClient} />
-        </>
-      )}
-      {tab === "tour" && sub === "flux" && (
-        <>
-          <PageHero k="Tour de contrôle" title="Flux d'activité" sub="Ce qui bouge, en direct." />
-          <ActivityFeed issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
-        </>
-      )}
-      {tab === "tour" && sub === "figes" && (
-        <>
-          <PageHero k="Tour de contrôle" title="Tickets figés" sub="Ce qui ne bouge plus." />
-          <StaleTickets issues={issues} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
-        </>
-      )}
-      {tab === "tour" && sub === "sla" && (
-        <>
-          <PageHero k="Tour de contrôle" title="SLA" sub="Les engagements de délai qui approchent ou dépassent la cible." />
-          <SlaAlert issues={issues} onTicket={setTicket} onClient={openClient} changedKeys={changedKeys} />
-        </>
-      )}
-      {tab === "tour" && sub === "sante" && (
-        <>
-          <PageHero k="Tour de contrôle" title="Santé & signaux" sub="Cohérence, projections et mémoire des faits." />
-          <Sante onTicket={setTicket} onClient={openClient} />
-        </>
-      )}
-      {(tab === "tour" || tab === "cockpit") && sub === "digest" && (
-        <>
-          <PageHero k="Tour de contrôle" title="Digest" sub="Le point du soir, composé pour toi." />
-          <Digest onTicket={setTicket} onClient={openClient} />
-        </>
-      )}
-
       {tab === "cockpit" && sub === "activite" && (
         <>
           <PageHero k="Cockpit" title="Activité" sub="Les tickets actifs et les mouvements Jira récents." />
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         </>
       )}
-      {tab === "outils" && sub === "morning" && (isMobile
-        ? <MobileRecap issues={issues} syncedAt={data?.syncedAt || data?.generatedAt} onTicket={setTicket} onBack={() => { setTab("cockpit"); setSub("accueil"); }} />
-        : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
-      )}
-      {(tab === "outils" || tab === "atelier") && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
-      {(tab === "outils" || tab === "atelier") && sub === "charge" && (
+      {tab === "atelier" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
+      {tab === "atelier" && sub === "charge" && (
         <>
-          <PageHero k="Outils" title="Charge & capacité" sub="Qui porte quoi, qui est en surcharge, qui a de la marge." />
+          <PageHero k="Atelier" title="Charge & capacité" sub="Qui porte quoi, qui est en surcharge, qui a de la marge." />
           <Charge onDev={setDevFiche} />
         </>
       )}
-      {(tab === "outils" || tab === "atelier") && sub === "reunions" && <Meetings issues={issues} />}
-      {(tab === "outils" || tab === "atelier") && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
-      {(tab === "outils" || tab === "atelier") && sub === "gantt" && (<><PageHero k="Outils" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
-      {(tab === "outils" || tab === "atelier") && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
+      {tab === "atelier" && sub === "reunions" && <Meetings issues={issues} />}
+      {tab === "atelier" && sub === "cra" && (<><PageHero k="Atelier" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "atelier" && sub === "gantt" && (<><PageHero k="Atelier" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
+      {tab === "atelier" && sub === "planning" && (<><PageHero k="Atelier" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
-      {(tab === "outils" || tab === "atelier") && sub === "reference" && (
+      {tab === "atelier" && sub === "reference" && (
         <>
-          <PageHero k="Cockpit" title="Référence" sub="Le cœur de connaissance : annuaire programmes ↔ tickets, analyse du portefeuille, mémoire d'équipe." />
+          <PageHero k="Atelier" title="Référence" sub="Le cœur de connaissance : annuaire programmes ↔ tickets, analyse du portefeuille, mémoire d'équipe." />
           <Reference issues={issues} role={role} onTicket={setTicket} onDev={setDevFiche} />
         </>
       )}
-      {tab === "outils" && sub === "projets" && <Projets issues={issues} facts={facts} onTicket={setTicket} onDev={setDevFiche} />}
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
-      {(tab === "outils" || tab === "atelier") && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
+      {tab === "atelier" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
 
       </Suspense>

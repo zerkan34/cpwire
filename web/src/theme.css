@@ -5360,3 +5360,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc2-barmode { margin-left:auto; display:inline-flex; gap:4px; }
 .pc2-barmode button { border:1px solid var(--line); background:#fff; color:var(--grey); font-family:"Inter"; font-weight:600; font-size:10.5px; padding:4px 10px; border-radius:12px; cursor:pointer; letter-spacing:0; text-transform:none; }
 .pc2-barmode button.on { background:var(--navy,#2E2A5D); border-color:var(--navy,#2E2A5D); color:#fff; }
+
+/* encart Prochaines échéances (Poste de commandement) */
+.pc2-dl-date { font-family:"Poppins"; font-weight:700; font-size:12px; color:var(--gold,#A88B4B); min-width:54px; }
+.pc2-dl-lbl { margin-left:auto; font-size:11px; color:var(--grey); max-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
