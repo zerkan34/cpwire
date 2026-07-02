@@ -34,6 +34,7 @@ function d(cle, dossier, resume, assigne, statut, echeance = null) {
     echeance,
     enRetard: Boolean(due && due < today && statut !== "Terminé"),
     maj: new Date().toISOString(),
+    statutDepuis: statut === "Terminé" ? null : (() => { const h = [...cle].reduce((a, c) => a + c.charCodeAt(0), 0); const s = new Date(); s.setDate(s.getDate() - (h % 18) - 1); return s.toISOString(); })(),
     url: "#",
   };
 }

@@ -57,6 +57,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   const [filter, setFilter] = useState("encours");
   const [copied, setCopied] = useState(false);
   const [sortBy, setSortBy] = useState({ k: "date", dir: "desc" });
+  // Tick « live » : rafraîchit les durées relatives (depuis X) sans rechargement.
+  const [, setNow] = useState(Date.now());
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 45000); return () => clearInterval(t); }, []);
   const ro = useReadOnly();
   useModalBack(onClose);
 
@@ -82,6 +85,18 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     retard: items.filter((i) => i.enRetard).length,
     flagged: items.filter((i) => i.flagged).length,
   }), [items]);
+
+  // Jauges % : répartition des tickets du dév par état (part réelle, pas d'invention).
+  const gauges = useMemo(() => {
+    const t = g.total || 0;
+    const pc = (n) => (t ? Math.round((n / t) * 100) : 0);
+    return [
+      { k: "En cours", n: g.encours, pct: pc(g.encours), cls: "prog" },
+      { k: "En recette", n: g.recette, pct: pc(g.recette), cls: "todo" },
+      { k: "Terminés", n: g.termine, pct: pc(g.termine), cls: "done" },
+      { k: "En retard", n: g.retard, pct: pc(g.retard), cls: "block" },
+    ];
+  }, [g]);
 
   const topProjet = useMemo(() => {
     const c = {};
@@ -237,6 +252,16 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
             ))}
           </div>
 
+          <div className="dev-gauges" title="Part des tickets du développeur par état — se met à jour à chaque synchro.">
+            {gauges.map((x) => (
+              <div className="dg" key={x.k}>
+                <div className="dg-top"><span>{x.k}</span><b>{x.pct}%</b></div>
+                <div className="dg-bar"><span className={`dg-fill ${x.cls}`} style={{ width: `${x.pct}%` }} /></div>
+                <div className="dg-sub">{x.n} ticket{x.n > 1 ? "s" : ""}{g.total ? ` / ${g.total}` : ""}</div>
+              </div>
+            ))}
+          </div>
+
           <div className="dev-sec-h">{FLABEL[filter]} ({filtered.length})</div>
           {filtered.length === 0 ? (
             <div className="empty">Aucun ticket dans cette catégorie.</div>
@@ -261,7 +286,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
                   return (
                     <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
                       <td className="c-cle"><span className="k">{i.cle}</span></td>
-                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{(ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie)) && i.statutDepuis ? <span className="tis" title={`Dans « ${i.statutJira || i.statut} » depuis le ${fr(i.statutDepuis)}`}>· depuis {agoTxt(i.statutDepuis)}</span> : null}</td>
                       <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
                       {showWork
                         ? <>

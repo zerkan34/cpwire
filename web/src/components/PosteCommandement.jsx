@@ -239,6 +239,13 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
           ) : <span className="pc2-tk-empty">Aucune cote sur cette portée.</span>}
         </div>
       </div>
+      <div className="pc2-tk-legend">
+        <span className="lg">Lecture :</span>
+        <span className="lg d-up"><span className="tri" /><b>hausse</b> (avancement)</span>
+        <span className="lg d-down"><span className="tri" /><b>baisse</b> (régression)</span>
+        <span className="lg d-right"><span className="tri" /><b>stable</b> mais actif</span>
+        <span className="lg d-left"><span className="tri" /><b>à l'arrêt</b></span>
+      </div>
 
       <div className="pc2-grid">
         {/* colonne gauche : camembert + barres */}

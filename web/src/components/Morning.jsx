@@ -18,6 +18,17 @@ function etatLabel(i) {
   return (i.statut || "en cours").toLowerCase();
 }
 
+// « depuis X » : temps écoulé dans le statut courant (source : statuscategorychangedate Jira).
+function sinceTxt(d) {
+  if (!d) return "";
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  if (isNaN(days)) return "";
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return "1 j";
+  if (days < 30) return days + " j";
+  const m = Math.floor(days / 30); return m + (m > 1 ? " mois" : " mois");
+}
+
 export default function Morning({ issues = [], onTicket, embedded = false }) {
   const [busy, setBusy] = useState("");
   const [doc, setDoc] = useState(null);
@@ -117,7 +128,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
                         <button type="button" className="pc-acc-row" onClick={() => onTicket(i)}>
                           <span className="pc-acc-l1">{i.flagged ? <span className="brief-flag">🚩 </span> : null}<b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
                           <span className={`pc-acc-l2 ${blocked ? "blocked" : ""}`}>
-                            {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}<b>{etatLabel(i)}</b>{i.enRetard ? <span className="brief-late"> · en retard ⚠</span> : null}
+                            {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}<b>{etatLabel(i)}</b>{i.statutDepuis ? <span className="brief-since"> · depuis {sinceTxt(i.statutDepuis)}</span> : null}{i.enRetard ? <span className="brief-late"> · en retard ⚠</span> : null}
                           </span>
                         </button>
                       </li>
