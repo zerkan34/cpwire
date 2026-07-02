@@ -266,7 +266,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           {filtered.length === 0 ? (
             <div className="empty">Aucun ticket dans cette catégorie.</div>
           ) : (
-            <table className="fiche-tbl work-tbl">
+            <table className="cpw-tbl fiche-tbl work-tbl">
               <thead><tr>
                 {th("cle", "Clé", "c-cle")}{th("resume", "Résumé", "c-res")}{th("statut", "Statut", "c-stat")}
                 {showWork
@@ -325,7 +325,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
 
           {per.projets.length > 0 ? (
-            <table className="proj-tbl">
+            <table className="cpw-tbl proj-tbl">
               <thead><tr><th>Projet</th><th>Tickets travaillés</th><th>Terminés</th></tr></thead>
               <tbody>
                 {per.projets.map((p) => (
@@ -340,7 +340,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
           {per.list.length > 0 && (
             <>
               <div className="dev-sec-h">Ce qu'il a fait ({per.list.length})</div>
-              <table className="fiche-tbl">
+              <table className="cpw-tbl fiche-tbl">
                 <thead><tr><th className="c-cle">Clé</th><th className="c-proj">Projet</th><th className="c-res">Résumé</th><th className="c-date">Date</th><th className="c-stat">Statut</th></tr></thead>
                 <tbody>
                   {per.list.slice(0, 200).map((i) => (

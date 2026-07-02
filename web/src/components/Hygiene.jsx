@@ -45,7 +45,7 @@ export default function Hygiene({ issues = [], onTicket }) {
       </div>
 
 
-      <table className="data">
+      <table className="cpw-tbl data">
         <thead><tr><th>Client / dossier</th><th>Ouverts</th><th>À corriger</th><th>Incohér.</th><th>Qualité</th></tr></thead>
         <tbody>
           {rep.byDossier.map((d) => (

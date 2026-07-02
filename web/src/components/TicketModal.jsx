@@ -243,7 +243,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                 {activity.timeline && activity.timeline.length > 0 && (
                   <>
                     <div className="act-sub">Historique des changements</div>
-                    <table className="act-tbl">
+                    <table className="cpw-tbl act-tbl">
                       <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Action</th></tr></thead>
                       <tbody>
                         {activity.timeline.map((t, k) => (
@@ -260,7 +260,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                 {activity.worklogs && activity.worklogs.length > 0 && (
                   <>
                     <div className="act-sub">Temps saisi{activity.totalSeconds > 0 ? ` — total ${activity.totalTime}` : ""}</div>
-                    <table className="act-tbl">
+                    <table className="cpw-tbl act-tbl">
                       <thead><tr><th className="c-when">Quand</th><th className="c-who">Qui</th><th>Durée &amp; détail</th></tr></thead>
                       <tbody>
                         {activity.worklogs.map((w, k) => (

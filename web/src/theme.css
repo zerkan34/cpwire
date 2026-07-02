@@ -5407,3 +5407,74 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* GANTT livrés (enregistrés dans le projet) */
 .gantt-chip.saved { border-color:var(--gold); }
 .gantt-chip.saved .gantt-chip-open b { color:var(--gold-deep); }
+
+/* ============================================================
+   SYSTÈME DE TABLEAUX cp|WIRE — identité unique (charte Armonie)
+   .cpw-tbl : porté par TOUS les tableaux de données de l'app.
+   Priorité renforcée (.cpw-tbl.cpw-tbl) pour l'emporter sur les
+   anciennes règles par-tableau sans avoir à les supprimer.
+   Scopé desktop : sur mobile, la conversion en cartes existante
+   (styles par classe) reste en place.
+   ============================================================ */
+@media (min-width: 721px) {
+  .cpw-tbl.cpw-tbl {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    font-family: "Inter", sans-serif;
+    font-size: 13px;
+    color: var(--body);
+    margin: 10px 0 14px;
+    box-shadow: var(--shadow);
+    table-layout: auto;
+  }
+  /* En-tête : bandeau navy, Poppins, petit, majuscules dorées-blanches */
+  .cpw-tbl.cpw-tbl > thead th {
+    background: var(--indigo-deep);
+    color: #fff;
+    font-family: "Poppins", sans-serif;
+    font-weight: 600;
+    font-size: 10.5px;
+    letter-spacing: .055em;
+    text-transform: uppercase;
+    text-align: left;
+    padding: 12px 13px;
+    border: 0;
+    white-space: nowrap;
+    position: sticky; top: 0; z-index: 1;
+  }
+  .cpw-tbl.cpw-tbl > thead th .sort-ar { color: rgba(255,255,255,.55); }
+  .cpw-tbl.cpw-tbl > thead th .sort-ar:not(.dim) { color: var(--gold); }
+  /* Coins arrondis même sans wrapper */
+  .cpw-tbl.cpw-tbl > thead th:first-child { border-top-left-radius: 13px; }
+  .cpw-tbl.cpw-tbl > thead th:last-child  { border-top-right-radius: 13px; }
+  .cpw-tbl.cpw-tbl > tbody tr:last-child td:first-child { border-bottom-left-radius: 13px; }
+  .cpw-tbl.cpw-tbl > tbody tr:last-child td:last-child  { border-bottom-right-radius: 13px; }
+  /* Cellules : un seul liseré, en haut ; jamais de double bord */
+  .cpw-tbl.cpw-tbl > tbody td {
+    padding: 11px 13px;
+    border-top: 1px solid var(--line-soft);
+    border-bottom: 0;
+    vertical-align: middle;
+    line-height: 1.45;
+    background: transparent;
+  }
+  .cpw-tbl.cpw-tbl > tbody tr:first-child td { border-top: 0; }
+  /* Zébrage discret + survol */
+  .cpw-tbl.cpw-tbl > tbody tr:nth-child(even) td { background: var(--row-alt); }
+  .cpw-tbl.cpw-tbl > tbody tr:hover td { background: var(--purple-soft); }
+  .cpw-tbl.cpw-tbl > tbody tr { transition: background .12s ease; }
+  /* Ligne « total » (CRA & co) : liseré or, fond lavande */
+  .cpw-tbl.cpw-tbl > tbody tr.cra-total td,
+  .cpw-tbl.cpw-tbl > tbody tr.total td { border-top: 2px solid var(--gold); background: var(--lav); font-weight: 700; color: var(--ink); }
+  /* Alignements numériques réutilisables */
+  .cpw-tbl.cpw-tbl .r, .cpw-tbl.cpw-tbl .num,
+  .cpw-tbl.cpw-tbl th.r, .cpw-tbl.cpw-tbl td.r,
+  .cpw-tbl.cpw-tbl th.num, .cpw-tbl.cpw-tbl td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  /* Clé monospace lisible sur fond clair */
+  .cpw-tbl.cpw-tbl .k { font-family: "JetBrains Mono", monospace; font-weight: 700; color: var(--purple-strong); font-size: 12px; }
+}

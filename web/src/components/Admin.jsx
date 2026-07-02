@@ -183,7 +183,7 @@ export default function Admin() {
       <p className="hint">Vous voyez ici qui a un accès et qui est connecté en ce moment. L'information n'est visible que par vous.</p>
       {loading ? <div className="empty">Chargement…</div> : (
         <div className="adm-table-wrap">
-          <table className="data adm-table">
+          <table className="cpw-tbl data adm-table">
             <thead><tr><th>Personne</th><th>Rôle</th><th>État</th><th>Dernière activité</th><th></th></tr></thead>
             <tbody>
               {users.length === 0 && <tr><td colSpan={5} className="adm-muted">Aucun compte invité pour l'instant.</td></tr>}

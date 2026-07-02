@@ -240,7 +240,7 @@ export default function CRA({ onTicket }) {
 
               <div className="cra-card">
                 <div className="cra-card-h">Temps par projet</div>
-                <table className="fiche-tbl cra-tbl">
+                <table className="cpw-tbl fiche-tbl cra-tbl">
                   <thead><tr><th>Projet</th><th className="num">Temps</th><th className="num">Part</th><th className="num">Tickets</th><th className="num">Terminés</th></tr></thead>
                   <tbody>
                     {view.projects.map((pr) => {
@@ -264,7 +264,7 @@ export default function CRA({ onTicket }) {
               {person === "Tous" && view.persons && view.persons.length > 0 && (
                 <div className="cra-card">
                   <div className="cra-card-h">Détail par personne</div>
-                  <table className="fiche-tbl cra-tbl">
+                  <table className="cpw-tbl fiche-tbl cra-tbl">
                     <thead><tr><th>Personne</th><th className="num">Temps</th><th className="num">Part</th><th>Projets</th></tr></thead>
                     <tbody>
                       {view.persons.map((p) => {
@@ -285,7 +285,7 @@ export default function CRA({ onTicket }) {
 
               <div className="cra-card">
                 <div className="cra-card-h">Réalisations de la période <span className="cra-card-meta">ce qui a été fait, par ticket</span></div>
-                <table className="fiche-tbl cra-tbl">
+                <table className="cpw-tbl fiche-tbl cra-tbl">
                   <thead><tr><th>Clé</th><th>Projet</th><th>Résumé</th><th className="num">Temps</th><th>Statut</th></tr></thead>
                   <tbody>
                     {realisations.map((r) => (

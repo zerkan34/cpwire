@@ -87,7 +87,7 @@ export default function IssueTable({ rows, loading, onTicket, onDev, changedKeys
 
   return (
     <>
-    <table>
+    <table className="cpw-tbl">
       <thead>
         <tr>
           {COLS.map((c) => (

@@ -172,7 +172,7 @@ function ClientBlock({ c, facts, onOpen, onOpen360, q = "" }) {
         </div>
       ) : null}
       <div className="pf-tablewrap">
-        <table className="proj-tbl pf-table">
+        <table className="cpw-tbl proj-tbl pf-table">
           <thead>
             <tr>
               <th>Projet</th><th>État</th><th>N° projet</th><th>Début</th><th>Fin</th>

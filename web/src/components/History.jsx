@@ -250,7 +250,7 @@ export default function History({ issues = [], canCR = true, onTicket, onDev, de
               </button>
               {isOpen && (
                 <div className="cli-body">
-                  <table className="fiche-tbl">
+                  <table className="cpw-tbl fiche-tbl">
                     <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-proj">Dév.</th><th className="c-stat">Statut</th><th className="c-date">Date</th></tr></thead>
                     <tbody>
                       {c.items.slice(0, 40).map((i) => {

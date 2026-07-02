@@ -238,7 +238,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
               {seg !== "TMA" && (!qx || projetsShown.length > 0) && (<>
               <h3 className="c360-sec">Projets ({projetsShown.length})</h3>
               <div className="pf-tablewrap">
-                <table className="proj-tbl pf-table">
+                <table className="cpw-tbl proj-tbl pf-table">
                   <thead><tr><th>Projet</th><th>État</th><th>N°</th><th className="r">Budgété</th><th className="r">Facturé</th><th className="r">Reste</th><th>Avanc.</th></tr></thead>
                   <tbody>
                     {projetsShown.map((p, i) => {

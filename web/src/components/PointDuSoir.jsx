@@ -181,7 +181,7 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
           <button className="pds-copy" onClick={copy}>{copied ? "Copié ✓" : "Copier le point"}</button>
         </div>
       </div>
-      <table className="pds-tbl">
+      <table className="cpw-tbl pds-tbl">
         <tbody>
           {rows.map((r) => {
             const open = openK === r.k;
