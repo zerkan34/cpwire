@@ -5154,3 +5154,98 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .eh-hero{ flex-direction:column; align-items:flex-start; }
   .eh-row-prog{ display:none; }
 }
+
+/* ============================================================================
+   COTE DU PORTEFEUILLE — écran « marché » live (QuoteBoard)
+   ========================================================================== */
+.qb { }
+.qb-ticker { display:flex; align-items:center; background:#2E2A5D; color:#fff; border-radius:12px; overflow:hidden; height:40px; }
+.qb-ticker-tag { flex:none; background:#A88B4B; color:#2E2A5D; font-weight:800; font-size:10px; letter-spacing:.12em; padding:0 14px; height:100%; display:flex; align-items:center; }
+.qb-ticker-track { display:flex; gap:30px; white-space:nowrap; animation:qbmarquee 42s linear infinite; padding-left:24px; }
+.qb-ticker:hover .qb-ticker-track { animation-play-state:paused; }
+@keyframes qbmarquee { from{transform:translateX(0)} to{transform:translateX(-50%)} }
+.qb-tk { font-size:12.5px; color:#D9D2EC; }
+.qb-tk b { color:#fff; } .qb-tk-d { color:#BFA168; font-weight:600; }
+.qb-tk-a { margin-left:5px; font-size:10px; } .qb-tk-a.qb-up { color:#4ade80; } .qb-tk-a.qb-down { color:#f28b93; }
+.qb-muted { color:#9b95b8; }
+
+.qb-index { display:flex; align-items:center; gap:28px; background:linear-gradient(180deg,#F5F2FC,var(--card,#fff)); border:1px solid var(--line); border-radius:16px; padding:18px 26px; margin-top:16px; }
+.qb-index-l { flex:none; }
+.qb-index-lbl { font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:700; }
+.qb-index-val { font-family:"Poppins"; font-weight:800; font-size:40px; color:#2E2A5D; line-height:1; margin:4px 0 8px; }
+.qb-index-spark { flex:1 1 auto; display:flex; justify-content:center; }
+.qb-index-meta { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:6px; }
+.qb-im b { font-family:"Poppins"; font-weight:800; color:#2E2A5D; font-size:16px; } .qb-im span { color:var(--muted); font-size:11px; margin-left:6px; }
+.qb-live { display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+.qb-live-dot { width:8px; height:8px; border-radius:50%; background:#2F7D4F; animation:qbpulse 1.6s ease-in-out infinite; }
+@keyframes qbpulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+.qb-var { display:inline-flex; align-items:center; gap:5px; font-family:"Poppins"; font-weight:700; font-size:13px; }
+.qb-var small { font-family:"Inter"; font-weight:600; font-size:11px; opacity:.8; }
+.qb-up { color:#2F7D4F; } .qb-down { color:#b23b46; } .qb-flat { color:var(--muted); }
+.qb-arw { font-size:9px; }
+
+.qb-note { color:var(--muted); font-size:12px; margin:13px 2px; }
+.qb-table { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--card,#fff); }
+.qb-hd, .qb-row { display:grid; grid-template-columns:1.6fr .7fr 1.15fr 1.2fr .65fr .8fr .8fr; align-items:center; gap:10px; padding:11px 16px; }
+.qb-hd { background:#2E2A5D; color:#fff; font-family:"Poppins"; font-weight:600; font-size:11px; text-transform:uppercase; letter-spacing:.03em; }
+.qb-hd .c-name, .qb-hd .c-val { color:#fff; }
+.qb-hd .c-val,.qb-hd .c-var,.qb-hd .c-vol,.qb-hd .c-vel,.qb-hd .c-risk { text-align:right; }
+.qb-row { border-top:1px solid var(--line); cursor:pointer; font-size:13.5px; }
+.qb-row:hover { background:var(--line-soft,#f5f3fb); }
+.qb-row .c-val,.qb-row .c-vol,.qb-row .c-vel,.qb-row .c-risk { text-align:right; }
+.c-name { font-family:"Poppins"; font-weight:700; color:#2E2A5D; display:flex; align-items:center; gap:9px; }
+.c-val { font-family:"Poppins"; font-weight:700; color:#2E2A5D; }
+.c-var { display:flex; justify-content:flex-end; }
+.c-spark { display:flex; justify-content:center; }
+.c-vol b { font-family:"Poppins"; font-weight:800; color:#2E2A5D; } .qb-z { color:#c3bfd2; font-style:normal; }
+.c-vel { color:var(--muted); }
+.c-risk { display:flex; justify-content:flex-end; }
+.qb-tick { width:8px; height:9px; border-radius:2px; flex:none; }
+.qb-tick.qb-up { background:#2F7D4F; } .qb-tick.qb-down { background:#b23b46; } .qb-tick.qb-flat { background:#c9c4d8; }
+.qb-risk { font-family:"Poppins"; font-weight:800; font-size:12px; color:#fff !important; border-radius:8px; padding:2px 10px; }
+.qb-risk-ok { color:#2F7D4F; font-size:11px; font-weight:700; }
+.qb-empty { padding:28px; text-align:center; color:var(--muted); font-size:13px; }
+.spark { display:block; }
+
+.qb-flash-up { animation:qbFlashUp 2.5s ease-out; }
+.qb-flash-down { animation:qbFlashDown 2.5s ease-out; }
+@keyframes qbFlashUp { 0%{background:rgba(47,125,79,.22)} 100%{background:transparent} }
+@keyframes qbFlashDown { 0%{background:rgba(178,59,70,.20)} 100%{background:transparent} }
+
+@media (prefers-reduced-motion: reduce){
+  .qb-ticker-track { animation:none; } .qb-live-dot { animation:none; }
+  .qb-flash-up,.qb-flash-down { animation:none; }
+}
+@media (max-width: 1100px){
+  .qb-index { flex-direction:column; align-items:flex-start; gap:14px; }
+  .qb-hd .c-spark, .qb-row .c-spark, .qb-hd .c-vel, .qb-row .c-vel { display:none; }
+  .qb-hd, .qb-row { grid-template-columns:1.6fr .7fr 1.1fr .6fr .8fr; }
+}
+
+/* ============================================================================
+   OUTIL GANTT (Outils › GANTT) — sélection client/projet + iframe de l'outil
+   ========================================================================== */
+.gantt-bar { padding:16px 18px; margin-bottom:16px; }
+.gantt-fields { display:flex; align-items:flex-end; gap:14px; flex-wrap:wrap; }
+.gantt-fld { display:flex; flex-direction:column; gap:5px; }
+.gantt-fld span { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; }
+.gantt-fld input { border:1px solid var(--line); border-radius:9px; padding:9px 12px; font-size:14px; min-width:220px; background:var(--card,#fff); color:var(--ink); }
+.gantt-fld input:focus { outline:none; border-color:var(--gold); }
+.gantt-go { height:38px; padding:0 18px; border:0; border-radius:9px; background:#2E2A5D; color:#fff; font-family:"Poppins"; font-weight:700; font-size:13px; cursor:pointer; }
+.gantt-go:hover { background:#231F4A; } .gantt-go:disabled { opacity:.45; cursor:not-allowed; }
+.gantt-recent { display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid var(--line); }
+.gantt-recent-lbl { font-size:11px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-right:2px; }
+.gantt-chip { display:inline-flex; align-items:center; border:1px solid var(--line); border-radius:99px; overflow:hidden; background:var(--card,#fff); }
+.gantt-chip.on { border-color:#2E2A5D; box-shadow:0 0 0 1px #2E2A5D; }
+.gantt-chip-open { border:0; background:transparent; padding:6px 4px 6px 13px; font-size:12.5px; color:var(--ink); cursor:pointer; display:flex; align-items:center; gap:5px; }
+.gantt-chip-open b { font-family:"Poppins"; font-weight:700; color:#2E2A5D; } .gantt-chip-open i { color:#CFC9E0; font-style:normal; }
+.gantt-chip-x { border:0; background:transparent; color:var(--muted); cursor:pointer; font-size:16px; line-height:1; padding:6px 11px 6px 5px; }
+.gantt-chip-x:hover { color:#b23b46; }
+.gantt-stage { border:1px solid var(--line); border-radius:14px; overflow:hidden; background:#fff; }
+.gantt-frame { width:100%; height:82vh; border:0; display:block; background:#fff; }
+.gantt-empty { padding:44px; text-align:center; }
+.gantt-empty-in { max-width:560px; margin:0 auto; }
+.gantt-empty-t { font-family:"Poppins"; font-weight:700; font-size:18px; color:#2E2A5D; margin-bottom:8px; }
+.gantt-empty p { color:var(--muted); font-size:13.5px; line-height:1.6; }
+.gantt-empty-note { font-size:12px; margin-top:10px; }

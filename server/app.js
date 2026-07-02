@@ -43,6 +43,7 @@ import { buildDigest, digestText, digestHtml } from "./digest.js";
 import { buildRiskScores } from "./risk.js";
 import { buildCharge } from "./charge.js";
 import { buildDossierCrHtml } from "./crArmonie.js";
+import { buildQuotes } from "./quotes.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
@@ -1127,6 +1128,24 @@ app.get("/api/charge", guard, async (_req, res) => {
     res.json(buildCharge(withoutDeletedDevs(got.issues)));
   } catch (err) {
     console.error("[GET /api/charge]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
+});
+
+// La cote du portefeuille — synthèse « marché » : variation, courbe, volume,
+// vélocité, risque, indice global et téléscripteur. Rafraîchi en direct côté client.
+app.get("/api/quotes", guard, async (_req, res) => {
+  try {
+    const got = await getIssues(false);
+    if (!got) return res.status(409).json({ error: "Jira non configuré." });
+    const issues = withoutDeletedDevs(got.issues);
+    const pointDerived = deriveFromPointHistory();
+    const projections = buildProjections();
+    const slaReport = buildSlaReport(issues);
+    const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
+    const coherence = buildCoherence(issues);
+    const risk = buildRiskScores({ issues, slaReport, radar, coherence, pointDerived });
+    res.json(buildQuotes({ pointDerived, projections, risk }));
+  } catch (err) {
+    console.error("[GET /api/quotes]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
 });
 
 // CR de dossier à la charte Armonie : compose le HTML autonome (à passer à /api/pdf/render).

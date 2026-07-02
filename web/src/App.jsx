@@ -17,6 +17,8 @@ import DeadlineRadar from "./components/DeadlineRadar.jsx";
 import Sante from "./components/Sante.jsx";
 import Digest from "./components/Digest.jsx";
 import Charge from "./components/Charge.jsx";
+import GanttTool from "./components/GanttTool.jsx";
+import QuoteBoard from "./components/QuoteBoard.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -98,7 +100,8 @@ const TABS = [
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
 const SUBTABS = {
   cockpit: [
-    { id: "accueil", label: "Accueil" },
+    { id: "cote", label: "Cote" },
+    { id: "accueil", label: "Vue d'ensemble" },
   ],
   tour: [
     { id: "echeances", label: "Échéances" },
@@ -117,6 +120,7 @@ const SUBTABS = {
     { id: "devs", label: "Développeurs" },
     { id: "reunions", label: "Réunions" },
     { id: "cra", label: "CRA" },
+    { id: "gantt", label: "GANTT" },
     { id: "planning", label: "Planning" },
     { id: "reference", label: "Référence" },
   ],
@@ -635,7 +639,7 @@ export default function App() {
   const diag = data?.diagnostic;
   // L'accueil bascule sur l'écran natif MobileHome UNIQUEMENT sur petit écran (largeur),
   // jamais à cause du mode PWA installé : sur ordinateur (plein écran), Pilotage = dashboard desktop comme les autres pages.
-  const pwaAccueil = isMobile && tab === "cockpit" && sub === "accueil";
+  const pwaAccueil = isMobile && tab === "cockpit" && (sub === "accueil" || sub === "cote");
   const mhWarning = (diag && diag.projetsSansTicket?.length > 0)
     ? `Import : ${diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé : ${diag.projetsSansTicket.join(", ")} — vérifie la clé du projet et tes droits d'accès dans Jira.`
     : "";
@@ -743,10 +747,10 @@ export default function App() {
 
       <div className="page-anim" key={tab + ":" + sub}>
       <Suspense fallback={<PageLoading />}>
-      {tab === "cockpit" && sub === "accueil" && (
+      {tab === "cockpit" && (sub === "accueil" || sub === "cote") && (
         isMobile ? (
           <MobileHome
-            build="stable-v342"
+            build="stable-v344"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -771,6 +775,11 @@ export default function App() {
             onMemo={() => setImportOpen(true)}
             onAdmin={() => setTab("admin")}
           />
+        ) : sub === "cote" ? (
+          <>
+            <PageHero k="Cockpit" title="Cote du portefeuille" sub="Le mouvement, pas les totaux — en direct au rythme des synchros." />
+            <QuoteBoard onClient={openClient} onTicket={setTicket} />
+          </>
         ) : (
           <Home facts={facts} issues={issues} role={role} engagement={engagementByDossier} onOpen={openClient} onOpen360={open360} can360={can360}
             onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
@@ -874,6 +883,7 @@ export default function App() {
       )}
       {tab === "outils" && sub === "reunions" && <Meetings issues={issues} />}
       {tab === "outils" && sub === "cra" && (<><PageHero k="Récap" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
+      {tab === "outils" && sub === "gantt" && (<><PageHero k="Outils" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
       {tab === "outils" && sub === "planning" && (<><PageHero k="Cockpit" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}
       {tab === "cockpit" && sub === "recette" && <Recette issues={issues} facts={facts} onTicket={setTicket} />}
       {tab === "outils" && sub === "reference" && (
@@ -929,8 +939,8 @@ export default function App() {
       {/* ---- Nav (mobile) : Accueil · ✚ · Outils ---- */}
       <nav className="cockpit-nav" aria-label="Navigation principale">
         <div className="cnav-shell">
-          <button className={`cnav-tab ${tab === "cockpit" && sub === "accueil" ? "active" : ""}`}
-            onClick={() => { setTab("cockpit"); setSub("accueil"); window.scrollTo({ top: 0 }); }}>
+          <button className={`cnav-tab ${tab === "cockpit" && (sub === "accueil" || sub === "cote") ? "active" : ""}`}
+            onClick={() => { setTab("cockpit"); setSub("cote"); window.scrollTo({ top: 0 }); }}>
             <span className="cnav-ic" aria-hidden="true"><NavIcon id="accueil" /></span><span className="cnav-lb">Accueil</span>
           </button>
           <button className="cnav-plus" aria-label="Accès rapide" onClick={() => setQuickOpen(true)}>
