@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>GANTT Bellion — cockpit d'avancement</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --navy:#2E2A5D; --indigo:#4B3F8F; --gold:#A88B4B; --gold2:#BFA168;
+  --lav:#F5F2FC; --ink:#1F1B33; --grey:#6E6A86; --line:#E2DEF0; --green:#2F7D4F; --orange:#C2691A;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%}
+body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--ink);background:#EEEAF4;font-size:14px}
+h1,h2,h3{font-family:Poppins,Inter,sans-serif}
+
+/* UN SEUL DOCUMENT */
+.doc{max-width:1080px;margin:26px auto;background:#fff;border:1px solid var(--line);border-radius:24px;box-shadow:0 16px 48px rgba(31,27,51,.13);overflow:hidden}
+.dochead{display:table;width:100%;padding:15px 26px 14px}
+.hleft{display:table-cell;vertical-align:middle;text-align:left;white-space:nowrap}
+.hright{display:table-cell;vertical-align:middle;text-align:right;white-space:nowrap}
+.brand{font-family:Poppins;font-weight:800;font-size:16px;color:var(--navy)}
+.brand .g{color:var(--gold)}
+.brand .sep{color:#CFC9E0;margin:0 8px}
+.brand .proj{color:var(--grey);font-weight:600;font-size:14px}
+.tabs{display:inline}
+.tab{display:inline-block;padding:8px 16px;border-radius:999px;font-family:Poppins;font-weight:700;font-size:13px;color:var(--grey);cursor:pointer;border:0;background:none;transition:.15s;user-select:none}
+.tab:hover{color:var(--navy)}
+.tab.active{background:var(--navy);color:#fff}
+.savewrap{display:inline-block;font-family:Poppins;font-weight:600;font-size:11.5px;color:var(--grey);margin-left:14px}
+.savewrap::before{content:"";display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px}
+.savewrap.saving::before{background:var(--gold2)}
+.docbody{padding:24px 30px 30px}
+.panel-tab{display:none}
+.panel-tab.active{display:block}
+.htitle{font-family:Poppins;font-weight:800;font-size:20px;color:var(--navy);margin:0 0 3px}
+.htitle::before{content:"";display:inline-block;width:8px;height:8px;background:var(--gold);border-radius:2px;margin-right:11px;vertical-align:middle;position:relative;top:-2px}
+.hdesc{color:var(--grey);font-size:13px;margin:0 0 16px}
+#svgwrap{width:100%}
+#svgwrap svg{display:block;width:100%;user-select:none}
+.gbar{cursor:ew-resize}
+.hit{cursor:pointer}
+.gleg{margin:10px 0 2px;font-size:9.5px;color:var(--grey);line-height:1.9}
+.gleg .sw{display:inline-block;width:10px;height:8px;border-radius:2px;vertical-align:-1px;margin-right:5px}
+.gleg .grp{white-space:nowrap;margin-right:13px}
+.hint{margin-top:10px;font-size:9.5px;color:var(--grey);border-top:1px solid var(--line);padding-top:10px}
+@media(max-width:720px){.dochead,.hleft,.hright{display:block;text-align:center;white-space:normal}.hright{margin-top:12px}}
+
+/* buttons */
+.btn{font-family:Poppins;font-weight:700;font-size:12.5px;border:1px solid var(--line);background:#fff;color:var(--navy);
+  padding:9px 16px;border-radius:10px;cursor:pointer;transition:.15s;white-space:nowrap}
+.btn:hover{border-color:var(--indigo);color:var(--indigo)}
+.btn.primary{background:var(--navy);color:#fff;border-color:var(--navy)}
+.btn.primary:hover{background:var(--indigo);border-color:var(--indigo);color:#fff}
+.btn.ghost{border-style:dashed}
+.btn.danger{color:#b3261e;border-color:#f0c9c5}
+.btn.danger:hover{background:#fdeceb;border-color:#b3261e;color:#b3261e}
+
+/* tables */
+.tblwrap{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:auto hidden}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{font-family:Poppins;font-weight:700;font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:#fff;background:var(--navy);text-align:left;padding:12px 12px}
+.tbl td{padding:8px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.tbl tbody tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:#FAF9FD}
+.tbl input[type=text]{width:100%;min-width:150px;border:1px solid transparent;border-radius:9px;padding:8px 9px;font:inherit;color:var(--ink);background:transparent}
+.tbl input[type=text]:hover{border-color:var(--line)}
+.tbl input[type=text]:focus{border-color:var(--indigo);background:#fff;outline:none}
+.tbl select{border:1px solid var(--line);border-radius:9px;padding:7px 8px;font:inherit;background:#fff;color:var(--ink);cursor:pointer}
+.tbl select:focus{border-color:var(--indigo);outline:none}
+.pcell{display:flex;align-items:center;gap:9px}
+.pcell input[type=range]{width:104px;accent-color:var(--indigo)}
+.pcell b{font-family:Poppins;color:var(--indigo);min-width:40px;text-align:right}
+.pdot{width:11px;height:11px;border-radius:3px;display:inline-block;flex:none}
+.rowdel{border:0;background:none;color:#b3261e;cursor:pointer;font-size:18px;border-radius:8px;padding:2px 9px;line-height:1}
+.rowdel:hover{background:#fdeceb}
+.addbar{margin:14px 0 2px}
+.count{color:var(--grey);font-size:12.5px;margin-left:10px;font-weight:400}
+tr.flash td{animation:fl 1.3s ease}
+@keyframes fl{0%{background:#FBF0D2}100%{background:transparent}}
+
+/* data cards */
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:16px;max-width:640px}
+.card h3{margin:0 0 6px;color:var(--navy);font-size:15px}
+.card h3::before{content:"";display:inline-block;width:6px;height:6px;background:var(--gold2);border-radius:2px;margin-right:9px;vertical-align:middle;position:relative;top:-2px}
+.card p{color:var(--grey);font-size:12.5px;margin:4px 0 14px;line-height:1.5}
+.card .fld{margin:11px 0}
+.card label{display:block;font-family:Poppins;font-weight:700;font-size:10.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--grey);margin-bottom:6px}
+.card input[type=text]{width:100%;padding:9px 11px;border:1px solid var(--line);border-radius:10px;font:inherit}
+.card textarea{width:100%;height:120px;border:1px solid var(--line);border-radius:10px;padding:11px;font-family:ui-monospace,monospace;font-size:12px}
+.card input[type=text]:focus,.card textarea:focus{border-color:var(--indigo);outline:none}
+.status{font-size:12.5px;margin-top:10px;min-height:18px}
+.status.err{color:#b3261e}.status.ok{color:var(--green)}
+.rowbtns{display:flex;gap:10px;flex-wrap:wrap}
+
+@media print{
+  @page{size:A4 landscape;margin:9mm}
+  .dochead,.hint{display:none!important}
+  .doc{box-shadow:none;border:0;border-radius:0;max-width:none;margin:0}
+  .docbody{padding:0}
+  .panel-tab{display:none!important}
+  #tab-gantt{display:block!important}
+  .htitle{font-size:16pt;margin:0}
+  .hdesc{font-size:8.5pt;margin-bottom:5px}
+  #svgwrap svg{width:auto!important;height:150mm!important;max-width:100%!important;display:block;margin:0 auto}
+  .gleg{font-size:7.5pt;margin-top:4px}
+  body{background:#fff}
+}
+</style>
+</head>
+<body>
+  <div class="doc">
+    <header class="dochead">
+      <span class="hleft"><span class="brand">armo<span class="g">n</span>ie<span class="sep">·</span><span class="proj">Bellion</span></span></span>
+      <span class="hright"><nav class="tabs"><span class="tab active" data-tab="gantt">GANTT</span><span class="tab" data-tab="tasks">Tâches</span><span class="tab" data-tab="milestones">Jalons</span><span class="tab" data-tab="data">Données</span></nav><span id="saveStat" class="savewrap">Enregistré</span></span>
+    </header>
+    <main class="docbody">
+    <!-- GANTT -->
+    <section class="panel-tab active" id="tab-gantt">
+        <h2 class="htitle">GANTT du projet</h2>
+        <p class="hdesc">Phases, tâches et jalons sur un seul calendrier.</p>
+        <div id="svgwrap"><svg width="100%" viewBox="0 0 760 466" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="Inter,sans-serif"><rect x="314.5" y="42" width="62.5" height="358" fill="#FAF9FD"/><rect x="439.5" y="42" width="62.5" height="358" fill="#FAF9FD"/><rect x="564.5" y="42" width="62.5" height="358" fill="#FAF9FD"/><rect x="689.5" y="42" width="62.5" height="358" fill="#FAF9FD"/><text x="8" y="26" font-family="Poppins" font-weight="700" font-size="9" fill="#6E6A86">Tâche</text><text x="283.3" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Juin</text><text x="345.8" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Juil.</text><text x="408.3" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Août</text><text x="470.8" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Sept.</text><text x="533.3" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Oct.</text><text x="595.8" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Nov.</text><text x="658.3" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Déc.</text><text x="720.8" y="26" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="#2E2A5D">Janv.</text><text x="8" y="58.0" font-family="Poppins" font-weight="700" font-size="8" fill="#6E6A86">Phases</text><rect x="253.5" y="45" width="59.5" height="20" rx="5" fill="#A88B4B"/><text x="283.3" y="58.0" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="8.6" fill="#fff">Phase 0</text><rect x="316.0" y="45" width="122.0" height="20" rx="5" fill="#4B3F8F"/><text x="377.0" y="58.0" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="8.6" fill="#fff">Phase 1</text><rect x="441.0" y="45" width="247.0" height="20" rx="5" fill="#2E2A5D"/><text x="564.5" y="58.0" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="8.6" fill="#fff">Phase 2 · et la suite</text><rect x="691.0" y="45" width="59.5" height="20" rx="5" fill="#BFA168"/><text x="720.8" y="58.0" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="8.6" fill="#fff">Phase 3</text><line x1="252.0" y1="68" x2="252.0" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="314.5" y1="68" x2="314.5" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="377.0" y1="68" x2="377.0" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="439.5" y1="68" x2="439.5" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="502.0" y1="68" x2="502.0" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="564.5" y1="68" x2="564.5" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="627.0" y1="68" x2="627.0" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="689.5" y1="68" x2="689.5" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="752.0" y1="68" x2="752.0" y2="400" stroke="#E2DEF0" stroke-width="1"/><line x1="0" y1="68" x2="760" y2="68" stroke="#C9C3DE" stroke-width="1"/><line x1="267.6" y1="68" x2="267.6" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="283.3" y1="68" x2="283.3" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="298.9" y1="68" x2="298.9" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="330.1" y1="68" x2="330.1" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="345.8" y1="68" x2="345.8" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="361.4" y1="68" x2="361.4" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="392.6" y1="68" x2="392.6" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="408.3" y1="68" x2="408.3" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="423.9" y1="68" x2="423.9" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="455.1" y1="68" x2="455.1" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="470.8" y1="68" x2="470.8" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="486.4" y1="68" x2="486.4" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="517.6" y1="68" x2="517.6" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="533.3" y1="68" x2="533.3" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="548.9" y1="68" x2="548.9" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="580.1" y1="68" x2="580.1" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="595.8" y1="68" x2="595.8" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="611.4" y1="68" x2="611.4" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="642.6" y1="68" x2="642.6" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="658.3" y1="68" x2="658.3" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="673.9" y1="68" x2="673.9" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="705.1" y1="68" x2="705.1" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="720.8" y1="68" x2="720.8" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><line x1="736.4" y1="68" x2="736.4" y2="400" stroke="#EEEBF6" stroke-width="0.6"/><rect x="0" y="68" width="760" height="18" fill="#A88B4B" opacity="0.12"/><rect x="0" y="68" width="3" height="18" fill="#A88B4B"/><text x="10" y="80.0" font-family="Poppins" font-weight="700" font-size="8.2" fill="#A88B4B">PHASE 0 · Cadrage et socle (juin)</text><text x="10" y="98.8" font-size="8.2" fill="#1F1B33">Analyse de l'existant (IDEFI)</text><rect x="255.0" y="90.5" width="56.5" height="11" rx="4.5" fill="#A88B4B" opacity="0.20"/><rect x="255.0" y="90.5" width="56.5" height="11" rx="4.5" fill="#A88B4B"/><text x="259.0" y="98.4" font-family="Poppins" font-weight="700" font-size="6.6" fill="#fff">100%</text><rect class="hit" data-id="idprv2kgm" x="0" y="86" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idprv2kgm" x="255.0" y="88.5" width="56.5" height="15" fill="transparent"/><text x="10" y="118.8" font-size="8.2" fill="#1F1B33">Architecture du modèle de données</text><rect x="255.0" y="110.5" width="56.5" height="11" rx="4.5" fill="#A88B4B" opacity="0.20"/><rect x="255.0" y="110.5" width="56.5" height="11" rx="4.5" fill="#A88B4B"/><text x="259.0" y="118.4" font-family="Poppins" font-weight="700" font-size="6.6" fill="#fff">100%</text><rect class="hit" data-id="idkfct8y8" x="0" y="106" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idkfct8y8" x="255.0" y="108.5" width="56.5" height="15" fill="transparent"/><text x="10" y="138.8" font-size="8.2" fill="#1F1B33">Mise en place machine IA (init + tests)</text><rect x="255.0" y="130.5" width="56.5" height="11" rx="4.5" fill="#A88B4B" opacity="0.20"/><rect x="255.0" y="130.5" width="56.5" height="11" rx="4.5" fill="#A88B4B"/><text x="259.0" y="138.4" font-family="Poppins" font-weight="700" font-size="6.6" fill="#fff">100%</text><rect class="hit" data-id="idfv6yli9" x="0" y="126" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idfv6yli9" x="255.0" y="128.5" width="56.5" height="15" fill="transparent"/><rect x="0" y="146" width="760" height="18" fill="#4B3F8F" opacity="0.12"/><rect x="0" y="146" width="3" height="18" fill="#4B3F8F"/><text x="10" y="158.0" font-family="Poppins" font-weight="700" font-size="8.2" fill="#4B3F8F">PHASE 1 · Infrastructure IA et préparation (été)</text><text x="10" y="176.8" font-size="8.2" fill="#1F1B33">Réinstallation &amp; paramétrage du S922</text><rect x="317.5" y="168.5" width="119.0" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="id25q1lhw" x="0" y="164" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="id25q1lhw" x="317.5" y="166.5" width="119.0" height="15" fill="transparent"/><text x="10" y="196.8" font-size="8.2" fill="#1F1B33">Provisionnement infra · workspaces · IaC</text><rect x="317.5" y="188.5" width="119.0" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="id7y0bx9g" x="0" y="184" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="id7y0bx9g" x="317.5" y="186.5" width="119.0" height="15" fill="transparent"/><text x="10" y="216.8" font-size="8.2" fill="#1F1B33">Construction du modèle de données</text><rect x="317.5" y="208.5" width="119.0" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="idqbvin96" x="0" y="204" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idqbvin96" x="317.5" y="206.5" width="119.0" height="15" fill="transparent"/><text x="10" y="236.8" font-size="8.2" fill="#1F1B33">Entraînement PHP / Symfony</text><rect x="317.5" y="228.5" width="119.0" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="id934ix6u" x="0" y="224" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="id934ix6u" x="317.5" y="226.5" width="119.0" height="15" fill="transparent"/><text x="10" y="256.8" font-size="8.2" fill="#1F1B33">PHL Mirror (démarrage puis optimisation)</text><rect x="317.5" y="248.5" width="119.0" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="idcviuvcw" x="0" y="244" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idcviuvcw" x="317.5" y="246.5" width="119.0" height="15" fill="transparent"/><text x="10" y="276.8" font-size="8.2" fill="#1F1B33">Structurer les devs · lister les acteurs</text><rect x="380.0" y="268.5" width="56.5" height="11" rx="4.5" fill="#4B3F8F" opacity="0.20"/><rect class="hit" data-id="idl1t6tp8" x="0" y="264" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idl1t6tp8" x="380.0" y="266.5" width="56.5" height="15" fill="transparent"/><rect x="0" y="284" width="760" height="18" fill="#2E2A5D" opacity="0.12"/><rect x="0" y="284" width="3" height="18" fill="#2E2A5D"/><text x="10" y="296.0" font-family="Poppins" font-weight="700" font-size="8.2" fill="#2E2A5D">PHASE 2 · Développement applicatif (sept. et la suite)</text><text x="10" y="314.8" font-size="8.2" fill="#1F1B33">Back end RPG Free · intégration IA au cycle dev</text><rect x="442.5" y="306.5" width="306.5" height="11" rx="4.5" fill="#2E2A5D" opacity="0.20"/><rect class="hit" data-id="idtfdw5q6" x="0" y="302" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="idtfdw5q6" x="442.5" y="304.5" width="306.5" height="15" fill="transparent"/><text x="10" y="334.8" font-size="8.2" fill="#1F1B33">Front end PHP Symfony · intégration IA au cycle dev</text><rect x="442.5" y="326.5" width="306.5" height="11" rx="4.5" fill="#2E2A5D" opacity="0.20"/><rect class="hit" data-id="iddn6mlv7" x="0" y="322" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="iddn6mlv7" x="442.5" y="324.5" width="306.5" height="15" fill="transparent"/><text x="10" y="354.8" font-size="8.2" fill="#1F1B33">Sprints courts · coordination</text><rect x="442.5" y="346.5" width="306.5" height="11" rx="4.5" fill="#2E2A5D" opacity="0.20"/><rect class="hit" data-id="id6hc2zw5" x="0" y="342" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="id6hc2zw5" x="442.5" y="344.5" width="306.5" height="15" fill="transparent"/><rect x="0" y="362" width="760" height="18" fill="#BFA168" opacity="0.12"/><rect x="0" y="362" width="3" height="18" fill="#BFA168"/><text x="10" y="374.0" font-family="Poppins" font-weight="700" font-size="8.2" fill="#BFA168">PHASE 3 · Module IA, analyse et tests (janv.)</text><text x="10" y="392.8" font-size="8.2" fill="#1F1B33">Module IA : analyse + tests fonctionnels</text><rect x="692.5" y="384.5" width="56.5" height="11" rx="4.5" fill="#BFA168" opacity="0.20"/><rect class="hit" data-id="id4jqo8c9" x="0" y="380" width="248" height="20" fill="transparent"/><rect class="gbar" data-id="id4jqo8c9" x="692.5" y="382.5" width="56.5" height="15" fill="transparent"/><line x1="314.5" y1="42" x2="314.5" y2="400" stroke="#C2691A" stroke-width="1.5" stroke-dasharray="4 3"/><text x="314.5" y="15" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="7" fill="#C2691A">auj.</text><line x1="0" y1="400" x2="760" y2="400" stroke="#C9C3DE" stroke-width="1"/><text x="8" y="418.0" font-family="Poppins" font-weight="700" font-size="7.6" fill="#A88B4B" letter-spacing="1">JALONS</text><path d="M439.5 413.0 L445.5 419.0 L439.5 425.0 L433.5 419.0 Z" fill="#C2691A" stroke="#fff" stroke-width="1.2"/><text x="429.5" y="421.8" text-anchor="end" font-family="Poppins" font-weight="600" font-size="7.6" fill="#C2691A">AIME 2 opérationnel · fin août</text><path d="M439.5 436.0 L445.5 442.0 L439.5 448.0 L433.5 442.0 Z" fill="#A88B4B" stroke="#fff" stroke-width="1.2"/><text x="449.5" y="444.8" text-anchor="start" font-family="Poppins" font-weight="600" font-size="7.6" fill="#2E2A5D">Lancement des développements · sept.</text><path d="M689.5 413.0 L695.5 419.0 L689.5 425.0 L683.5 419.0 Z" fill="#A88B4B" stroke="#fff" stroke-width="1.2"/><text x="679.5" y="421.8" text-anchor="end" font-family="Poppins" font-weight="600" font-size="7.6" fill="#2E2A5D">Module IA · janvier</text></svg></div>
+        <div class="gleg" id="gleg"><span class="grp"><span class="sw" style="background:#A88B4B"></span>Réalisé</span><span class="grp"><span class="sw" style="background:#4B3F8F"></span>Été</span><span class="grp"><span class="sw" style="background:#2E2A5D"></span>Développement</span><span class="grp"><span class="sw" style="background:#BFA168"></span>Module IA</span><span class="grp"><span style="color:#A88B4B;font-weight:700">◆</span> jalon</span><span class="grp"><span style="color:#C2691A;font-weight:700">◆</span> échéance ferme</span><span class="grp"><span style="color:#C2691A;font-weight:700;letter-spacing:-2px">╌╌</span> aujourd’hui</span></div>
+        <div class="hint"><b>Glissez une barre</b> pour régler son avancement · <b>cliquez un nom</b> pour l'éditer dans l'onglet Tâches. Sauvegarde automatique.</div>
+    </section>
+
+    <!-- TÂCHES -->
+    <section class="panel-tab" id="tab-tasks">
+      <h2 class="htitle">Tâches <span class="count" id="taskCount"></span></h2>
+      <p class="hdesc">Modifiez le nom, la phase, les mois et l'avancement de chaque tâche. Les changements se reflètent aussitôt dans le GANTT.</p>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th style="width:38%">Tâche</th><th>Phase</th><th>Début</th><th>Fin</th><th>Avancement</th><th></th></tr></thead>
+        <tbody id="taskBody"></tbody>
+      </table></div>
+      <div class="addbar"><button class="btn ghost" id="addTask">+ Ajouter une tâche</button></div>
+    </section>
+
+    <!-- JALONS -->
+    <section class="panel-tab" id="tab-milestones">
+      <h2 class="htitle">Jalons <span class="count" id="msCount"></span></h2>
+      <p class="hdesc">Les jalons (losanges) apparaissent sous le calendrier. Réglez le mois, le type et la position de l'étiquette.</p>
+      <div class="tblwrap"><table class="tbl">
+        <thead><tr><th style="width:34%">Jalon</th><th>Mois</th><th>Type</th><th>Étiquette</th><th>Ligne</th><th></th></tr></thead>
+        <tbody id="msBody"></tbody>
+      </table></div>
+      <div class="addbar"><button class="btn ghost" id="addMs">+ Ajouter un jalon</button></div>
+    </section>
+
+    <!-- DONNÉES -->
+    <section class="panel-tab" id="tab-data">
+      <h2 class="htitle">Données</h2>
+      <p class="hdesc">Importer depuis Jira, sauvegarder ou recharger le plan, imprimer, réinitialiser.</p>
+
+      <div class="card">
+        <h3>Importer depuis Jira</h3>
+        <p>Renseignez une clé de projet (ex. <b>TBEL</b>) ou une requête JQL. L'avancement est déduit du statut (Terminé = 100 %, En cours = 50 %, À faire = 0 %) et les dates sont rangées dans le bon mois. Les tickets sont <b>ajoutés</b> à vos tâches (aucun écrasement). Fonctionne uniquement dans l'environnement Claude.</p>
+        <div class="fld"><label>Clé de projet</label><input type="text" id="jKey" placeholder="TBEL"/></div>
+        <div class="fld"><label>JQL (optionnel)</label><input type="text" id="jJql" placeholder="project = TBEL ORDER BY duedate"/></div>
+        <button class="btn primary" id="jGo">Récupérer les tickets</button>
+        <div class="status" id="jStatus"></div>
+      </div>
+
+      <div class="card">
+        <h3>Sauvegarde du plan (JSON)</h3>
+        <p>Exportez pour garder une copie, ou collez un export pour recharger un plan.</p>
+        <div class="rowbtns" style="margin-bottom:12px"><button class="btn" id="expBtn">Télécharger le JSON</button></div>
+        <div class="fld"><label>Importer un JSON</label><textarea id="impTxt" placeholder='{"tasks":[...],"milestones":[...]}'></textarea></div>
+        <button class="btn" id="impBtn">Charger ce JSON</button>
+        <div class="status" id="impStatus"></div>
+      </div>
+
+      <div class="card">
+        <h3>Impression</h3>
+        <p>Imprime uniquement le GANTT (format paysage recommandé).</p>
+        <button class="btn" id="printBtn">Imprimer le GANTT</button>
+      </div>
+
+      <div class="card">
+        <h3>Réinitialiser</h3>
+        <p>Revenir au plan Bellion par défaut. Vos modifications seront perdues.</p>
+        <button class="btn danger" id="resetBtn">Réinitialiser au plan par défaut</button>
+      </div>
+    </section>
+    </main>
+  </div>
+
+<script>
+/* ================= CONSTANTES (identiques au GANTT PDF) ================= */
+const NAVY="#2E2A5D",IND="#4B3F8F",GOLD="#A88B4B",GOLD2="#BFA168",ORANGE="#C2691A";
+const GREY="#6E6A86",STRIPE="#FAF9FD",GRID="#E2DEF0",GRID2="#C9C3DE",WK="#EEEBF6",INK="#1F1B33";
+const MONTHS=["Juin","Juil.","Août","Sept.","Oct.","Nov.","Déc.","Janv."];
+const NM=MONTHS.length;
+const W=760,left=252,pad=8, chart=W-left-pad, mw=chart/NM;
+const header=42,pband=26,gh=18,row=20,barh=11,ms_lane=58;
+const TODAY_MONTH=1;
+const PHASES={
+  p0:{name:"PHASE 0 · Cadrage et socle (juin)",short:"Phase 0 · Cadrage",color:GOLD},
+  p1:{name:"PHASE 1 · Infrastructure IA et préparation (été)",short:"Phase 1 · Infra IA & prépa",color:IND},
+  p2:{name:"PHASE 2 · Développement applicatif (sept. et la suite)",short:"Phase 2 · Développement",color:NAVY},
+  p3:{name:"PHASE 3 · Module IA, analyse et tests (janv.)",short:"Phase 3 · Module IA",color:GOLD2},
+};
+const PHASE_ORDER=["p0","p1","p2","p3"];
+const PHASE_BAND=[
+  {name:"Phase 0",s:0,e:1,col:GOLD},
+  {name:"Phase 1",s:1,e:3,col:IND},
+  {name:"Phase 2 · et la suite",s:3,e:7,col:NAVY},
+  {name:"Phase 3",s:7,e:8,col:GOLD2},
+];
+
+function uid(){return 'id'+Math.random().toString(36).slice(2,9)}
+const DEFAULT={
+ tasks:[
+  {id:uid(),name:"Analyse de l'existant (IDEFI)",phase:"p0",s:0,e:0,progress:100},
+  {id:uid(),name:"Architecture du modèle de données",phase:"p0",s:0,e:0,progress:100},
+  {id:uid(),name:"Mise en place machine IA (init + tests)",phase:"p0",s:0,e:0,progress:100},
+  {id:uid(),name:"Réinstallation & paramétrage du S922",phase:"p1",s:1,e:2,progress:0},
+  {id:uid(),name:"Provisionnement infra · workspaces · IaC",phase:"p1",s:1,e:2,progress:0},
+  {id:uid(),name:"Construction du modèle de données",phase:"p1",s:1,e:2,progress:0},
+  {id:uid(),name:"Entraînement PHP / Symfony",phase:"p1",s:1,e:2,progress:0},
+  {id:uid(),name:"PHL Mirror (démarrage puis optimisation)",phase:"p1",s:1,e:2,progress:0},
+  {id:uid(),name:"Structurer les devs · lister les acteurs",phase:"p1",s:2,e:2,progress:0},
+  {id:uid(),name:"Back end RPG Free · intégration IA au cycle dev",phase:"p2",s:3,e:7,progress:0},
+  {id:uid(),name:"Front end PHP Symfony · intégration IA au cycle dev",phase:"p2",s:3,e:7,progress:0},
+  {id:uid(),name:"Sprints courts · coordination",phase:"p2",s:3,e:7,progress:0},
+  {id:uid(),name:"Module IA : analyse + tests fonctionnels",phase:"p3",s:7,e:7,progress:0},
+ ],
+ milestones:[
+  {id:uid(),name:"AIME 2 opérationnel · fin août",month:3,kind:"ferme",side:"end",lane:0},
+  {id:uid(),name:"Lancement des développements · sept.",month:3,kind:"jalon",side:"start",lane:1},
+  {id:uid(),name:"Module IA · janvier",month:7,kind:"jalon",side:"end",lane:0},
+ ]
+};
+
+/* ================= STORAGE ================= */
+const KEY="gantt_bellion_v3";
+const store={
+  async get(){
+    try{ if(window.storage){const r=await window.storage.get(KEY); return r&&r.value?JSON.parse(r.value):null;} }catch(e){}
+    try{ const v=localStorage.getItem(KEY); return v?JSON.parse(v):null; }catch(e){ return null; }
+  },
+  async set(o){ const s=JSON.stringify(o);
+    try{ if(window.storage){await window.storage.set(KEY,s); return;} }catch(e){}
+    try{ localStorage.setItem(KEY,s); }catch(e){}
+  }
+};
+
+let DATA={tasks:[],milestones:[]};
+let lastH=466;
+const esc=s=>(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+const escA=s=>(s||"").replace(/&/g,"&amp;").replace(/"/g,"&quot;").replace(/</g,"&lt;");
+const byId=id=>DATA.tasks.find(t=>t.id===id);
+const msById=id=>DATA.milestones.find(m=>m.id===id);
+
+/* ================= RENDER SVG (clone exact du PDF) ================= */
+function groupsFromData(){
+  return PHASE_ORDER.map(pk=>({pk,color:PHASES[pk].color,name:PHASES[pk].name,
+      tasks:DATA.tasks.filter(t=>t.phase===pk)})).filter(g=>g.tasks.length>0);
+}
+function buildSVG(){
+  const groups=groupsFromData();
+  const body_h=groups.reduce((a,g)=>a+gh+g.tasks.length*row,0);
+  const gy=header+pband;
+  const H=header+pband+body_h+ms_lane+8; lastH=H;
+  const S=[`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg" font-family="Inter,sans-serif">`];
+  for(let i=0;i<NM;i++) if(i%2===1)
+    S.push(`<rect x="${(left+i*mw).toFixed(1)}" y="${header}" width="${mw.toFixed(1)}" height="${pband+body_h}" fill="${STRIPE}"/>`);
+  S.push(`<text x="8" y="${header-16}" font-family="Poppins" font-weight="700" font-size="9" fill="${GREY}">Tâche</text>`);
+  MONTHS.forEach((m,i)=>S.push(`<text x="${(left+i*mw+mw/2).toFixed(1)}" y="${header-16}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="9.5" fill="${NAVY}">${m}</text>`));
+  S.push(`<text x="8" y="${(header+pband/2+3).toFixed(1)}" font-family="Poppins" font-weight="700" font-size="8" fill="${GREY}">Phases</text>`);
+  PHASE_BAND.forEach(p=>{
+    const x0=left+p.s*mw+1.5, x1=left+p.e*mw-1.5, cx=(x0+x1)/2;
+    S.push(`<rect x="${x0.toFixed(1)}" y="${header+3}" width="${(x1-x0).toFixed(1)}" height="${pband-6}" rx="5" fill="${p.col}"/>`);
+    S.push(`<text x="${cx.toFixed(1)}" y="${(header+pband/2+3).toFixed(1)}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="8.6" fill="#fff">${esc(p.name)}</text>`);
+  });
+  for(let i=0;i<=NM;i++) S.push(`<line x1="${(left+i*mw).toFixed(1)}" y1="${gy}" x2="${(left+i*mw).toFixed(1)}" y2="${gy+body_h}" stroke="${GRID}" stroke-width="1"/>`);
+  S.push(`<line x1="0" y1="${gy}" x2="${W}" y2="${gy}" stroke="${GRID2}" stroke-width="1"/>`);
+  for(let i=0;i<NM;i++) for(const w of [1,2,3]){const xw=left+i*mw+w*mw/4;
+    S.push(`<line x1="${xw.toFixed(1)}" y1="${gy}" x2="${xw.toFixed(1)}" y2="${gy+body_h}" stroke="${WK}" stroke-width="0.6"/>`);}
+  let y=gy;
+  for(const g of groups){
+    S.push(`<rect x="0" y="${y}" width="${W}" height="${gh}" fill="${g.color}" opacity="0.12"/>`);
+    S.push(`<rect x="0" y="${y}" width="3" height="${gh}" fill="${g.color}"/>`);
+    S.push(`<text x="10" y="${(y+gh/2+3).toFixed(1)}" font-family="Poppins" font-weight="700" font-size="8.2" fill="${g.color}">${esc(g.name)}</text>`);
+    y+=gh;
+    for(const t of g.tasks){
+      const rowTop=y, cy=y+row/2;
+      S.push(`<text x="10" y="${(cy+2.8).toFixed(1)}" font-size="8.2" fill="${INK}">${esc(t.name)}</text>`);
+      const bx0=left+t.s*mw+3, bx1=left+(t.e+1)*mw-3, bw=Math.max(bx1-bx0,6);
+      S.push(`<rect x="${bx0.toFixed(1)}" y="${(cy-barh/2).toFixed(1)}" width="${bw.toFixed(1)}" height="${barh}" rx="4.5" fill="${g.color}" opacity="0.20"/>`);
+      if(t.progress>0){
+        S.push(`<rect x="${bx0.toFixed(1)}" y="${(cy-barh/2).toFixed(1)}" width="${(bw*t.progress/100).toFixed(1)}" height="${barh}" rx="4.5" fill="${g.color}"/>`);
+        S.push(`<text x="${(bx0+4).toFixed(1)}" y="${(cy+2.4).toFixed(1)}" font-family="Poppins" font-weight="700" font-size="6.6" fill="#fff">${t.progress}%</text>`);
+      }
+      S.push(`<rect class="hit" data-id="${t.id}" x="0" y="${rowTop}" width="${left-4}" height="${row}" fill="transparent"/>`);
+      S.push(`<rect class="gbar" data-id="${t.id}" x="${bx0.toFixed(1)}" y="${(cy-barh/2-2).toFixed(1)}" width="${bw.toFixed(1)}" height="${barh+4}" fill="transparent"/>`);
+      y+=row;
+    }
+  }
+  const tx=left+TODAY_MONTH*mw;
+  S.push(`<line x1="${tx.toFixed(1)}" y1="${header}" x2="${tx.toFixed(1)}" y2="${gy+body_h}" stroke="${ORANGE}" stroke-width="1.5" stroke-dasharray="4 3"/>`);
+  S.push(`<text x="${tx.toFixed(1)}" y="${header-27}" text-anchor="middle" font-family="Poppins" font-weight="700" font-size="7" fill="${ORANGE}">auj.</text>`);
+  const ly=gy+body_h;
+  S.push(`<line x1="0" y1="${ly}" x2="${W}" y2="${ly}" stroke="${GRID2}" stroke-width="1"/>`);
+  S.push(`<text x="8" y="${(ly+18).toFixed(1)}" font-family="Poppins" font-weight="700" font-size="7.6" fill="${GOLD}" letter-spacing="1">JALONS</text>`);
+  const dia=(x,yc,fill,r=6)=>`<path d="M${x.toFixed(1)} ${(yc-r).toFixed(1)} L${(x+r).toFixed(1)} ${yc.toFixed(1)} L${x.toFixed(1)} ${(yc+r).toFixed(1)} L${(x-r).toFixed(1)} ${yc.toFixed(1)} Z" fill="${fill}" stroke="#fff" stroke-width="1.2"/>`;
+  DATA.milestones.forEach(m=>{
+    const mx=left+m.month*mw, yc=ly+19+(m.lane||0)*23, col=m.kind==="ferme"?ORANGE:GOLD;
+    S.push(dia(mx,yc,col));
+    const tcol=m.kind==="ferme"?ORANGE:NAVY;
+    if(m.side==="start")
+      S.push(`<text x="${(mx+10).toFixed(1)}" y="${(yc+2.8).toFixed(1)}" text-anchor="start" font-family="Poppins" font-weight="600" font-size="7.6" fill="${tcol}">${esc(m.name)}</text>`);
+    else
+      S.push(`<text x="${(mx-10).toFixed(1)}" y="${(yc+2.8).toFixed(1)}" text-anchor="end" font-family="Poppins" font-weight="600" font-size="7.6" fill="${tcol}">${esc(m.name)}</text>`);
+  });
+  S.push('</svg>');
+  return S.join('');
+}
+const GLEG_HTML=
+ `<span class="grp"><span class="sw" style="background:${GOLD}"></span>Réalisé</span>`+
+ `<span class="grp"><span class="sw" style="background:${IND}"></span>Été</span>`+
+ `<span class="grp"><span class="sw" style="background:${NAVY}"></span>Développement</span>`+
+ `<span class="grp"><span class="sw" style="background:${GOLD2}"></span>Module IA</span>`+
+ `<span class="grp"><span style="color:${GOLD};font-weight:700">◆</span> jalon</span>`+
+ `<span class="grp"><span style="color:${ORANGE};font-weight:700">◆</span> échéance ferme</span>`+
+ `<span class="grp"><span style="color:${ORANGE};font-weight:700;letter-spacing:-2px">╌╌</span> aujourd'hui</span>`;
+
+const svgwrap=document.getElementById("svgwrap");
+function sizeSVG(){ const svg=svgwrap.querySelector("svg"); if(!svg) return;
+  const w=svgwrap.clientWidth||svgwrap.getBoundingClientRect().width||900;
+  svg.setAttribute("width",w); svg.setAttribute("height",w*lastH/W);
+  svg.style.width=w+"px"; svg.style.height=(w*lastH/W)+"px"; }
+function renderGantt(){ svgwrap.innerHTML=buildSVG(); sizeSVG(); bindSVG(); }
+window.addEventListener("resize",sizeSVG);
+
+function svgX(evt){ const svg=svgwrap.querySelector("svg");
+  const pt=svg.createSVGPoint(); pt.x=evt.clientX; pt.y=evt.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse()).x; }
+function bindSVG(){
+  // glisser sur la barre = régler l'avancement (jauge qui se remplit)
+  svgwrap.querySelectorAll(".gbar").forEach(bar=>{
+    bar.addEventListener("mousedown",e=>{ e.preventDefault(); const t=byId(bar.dataset.id);
+      const setP=ev=>{ const x=svgX(ev), bx0=left+t.s*mw+3, bx1=left+(t.e+1)*mw-3, bw=Math.max(bx1-bx0,6);
+        let p=Math.max(0,Math.min(100,Math.round(((x-bx0)/bw)*20)*5)); t.progress=p; renderGantt(); };
+      setP(e);
+      const mm=ev=>setP(ev), mu=()=>{document.removeEventListener("mousemove",mm);document.removeEventListener("mouseup",mu);save();};
+      document.addEventListener("mousemove",mm); document.addEventListener("mouseup",mu);
+    });
+  });
+  // clic sur le libellé = éditer dans l'onglet Tâches
+  svgwrap.querySelectorAll(".hit").forEach(el=>{
+    el.addEventListener("click",()=>{ showTab("tasks");
+      const tr=document.querySelector('#taskBody tr[data-id="'+el.dataset.id+'"]');
+      if(tr){ tr.scrollIntoView({behavior:"smooth",block:"center"}); tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash");
+        const inp=tr.querySelector('[data-f="name"]'); if(inp) setTimeout(()=>inp.focus(),300); }
+    });
+  });
+}
+
+/* ================= TÂCHES (table éditable) ================= */
+const taskBody=document.getElementById("taskBody");
+function monthOpts(sel){return MONTHS.map((m,i)=>`<option value="${i}" ${i===sel?"selected":""}>${m} ${i<=6?"2026":"2027"}</option>`).join("");}
+function renderTasks(){
+  taskBody.innerHTML=DATA.tasks.map(t=>{
+    const ph=PHASE_ORDER.map(pk=>`<option value="${pk}" ${pk===t.phase?"selected":""}>${PHASES[pk].short}</option>`).join("");
+    return `<tr data-id="${t.id}">
+      <td><div style="display:flex;align-items:center;gap:9px"><span class="pdot" data-dot style="background:${PHASES[t.phase].color}"></span><input type="text" data-f="name" value="${escA(t.name)}"></div></td>
+      <td><select data-f="phase">${ph}</select></td>
+      <td><select data-f="s">${monthOpts(t.s)}</select></td>
+      <td><select data-f="e">${monthOpts(t.e)}</select></td>
+      <td><div class="pcell"><input type="range" min="0" max="100" step="5" data-f="progress" value="${t.progress}"><b data-pv>${t.progress}%</b></div></td>
+      <td><button class="rowdel" title="Supprimer">×</button></td>
+    </tr>`;}).join("");
+  document.getElementById("taskCount").textContent=DATA.tasks.length+" tâche"+(DATA.tasks.length>1?"s":"");
+}
+taskBody.addEventListener("input",e=>{ const tr=e.target.closest("tr"); if(!tr)return; const t=byId(tr.dataset.id); const f=e.target.dataset.f;
+  if(f==="name"){ t.name=e.target.value; save(); }
+  if(f==="progress"){ t.progress=+e.target.value; tr.querySelector("[data-pv]").textContent=t.progress+"%"; save(); }
+});
+taskBody.addEventListener("change",e=>{ const tr=e.target.closest("tr"); if(!tr)return; const t=byId(tr.dataset.id); const f=e.target.dataset.f;
+  if(f==="phase"){ t.phase=e.target.value; tr.querySelector("[data-dot]").style.background=PHASES[t.phase].color; save(); }
+  if(f==="s"){ t.s=+e.target.value; if(t.s>t.e){t.e=t.s; tr.querySelector('[data-f="e"]').value=t.e;} save(); }
+  if(f==="e"){ t.e=+e.target.value; if(t.e<t.s){t.s=t.e; tr.querySelector('[data-f="s"]').value=t.s;} save(); }
+  if(f==="progress"){ save(); }
+});
+taskBody.addEventListener("click",e=>{ if(!e.target.classList.contains("rowdel"))return;
+  const tr=e.target.closest("tr"); const t=byId(tr.dataset.id);
+  if(confirm("Supprimer « "+t.name+" » ?")){ DATA.tasks=DATA.tasks.filter(x=>x.id!==t.id); save(); renderTasks(); }
+});
+document.getElementById("addTask").onclick=()=>{ const nt={id:uid(),name:"Nouvelle tâche",phase:"p1",s:TODAY_MONTH,e:TODAY_MONTH,progress:0};
+  DATA.tasks.push(nt); save(); renderTasks();
+  const tr=document.querySelector('#taskBody tr[data-id="'+nt.id+'"]'); if(tr){tr.scrollIntoView({behavior:"smooth",block:"center"}); const inp=tr.querySelector('[data-f="name"]'); if(inp){inp.focus();inp.select();}}
+};
+
+/* ================= JALONS (table éditable) ================= */
+const msBody=document.getElementById("msBody");
+function renderMilestones(){
+  msBody.innerHTML=DATA.milestones.map(m=>{
+    const typ=[["jalon","Jalon (doré)"],["ferme","Échéance ferme (orange)"]].map(([v,l])=>`<option value="${v}" ${v===m.kind?"selected":""}>${l}</option>`).join("");
+    const side=[["end","À gauche du repère"],["start","À droite du repère"]].map(([v,l])=>`<option value="${v}" ${v===m.side?"selected":""}>${l}</option>`).join("");
+    const lane=[[0,"Ligne 1"],[1,"Ligne 2"]].map(([v,l])=>`<option value="${v}" ${v===(m.lane||0)?"selected":""}>${l}</option>`).join("");
+    return `<tr data-id="${m.id}">
+      <td><input type="text" data-f="name" value="${escA(m.name)}"></td>
+      <td><select data-f="month">${monthOpts(m.month)}</select></td>
+      <td><select data-f="kind">${typ}</select></td>
+      <td><select data-f="side">${side}</select></td>
+      <td><select data-f="lane">${lane}</select></td>
+      <td><button class="rowdel" title="Supprimer">×</button></td>
+    </tr>`;}).join("");
+  document.getElementById("msCount").textContent=DATA.milestones.length+" jalon"+(DATA.milestones.length>1?"s":"");
+}
+msBody.addEventListener("input",e=>{ const tr=e.target.closest("tr"); if(!tr)return; const m=msById(tr.dataset.id);
+  if(e.target.dataset.f==="name"){ m.name=e.target.value; save(); } });
+msBody.addEventListener("change",e=>{ const tr=e.target.closest("tr"); if(!tr)return; const m=msById(tr.dataset.id); const f=e.target.dataset.f;
+  if(f==="month")m.month=+e.target.value; else if(f==="lane")m.lane=+e.target.value; else m[f]=e.target.value; save(); });
+msBody.addEventListener("click",e=>{ if(!e.target.classList.contains("rowdel"))return;
+  const tr=e.target.closest("tr"); const m=msById(tr.dataset.id);
+  if(confirm("Supprimer le jalon « "+m.name+" » ?")){ DATA.milestones=DATA.milestones.filter(x=>x.id!==m.id); save(); renderMilestones(); }
+});
+document.getElementById("addMs").onclick=()=>{ const nm={id:uid(),name:"Nouveau jalon",month:TODAY_MONTH,kind:"jalon",side:"end",lane:0};
+  DATA.milestones.push(nm); save(); renderMilestones();
+  const tr=document.querySelector('#msBody tr[data-id="'+nm.id+'"]'); if(tr){tr.scrollIntoView({behavior:"smooth",block:"center"}); const inp=tr.querySelector('[data-f="name"]'); if(inp){inp.focus();inp.select();}}
+};
+
+/* ================= ONGLETS ================= */
+function showTab(name){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===name));
+  document.querySelectorAll(".panel-tab").forEach(p=>p.classList.toggle("active",p.id==="tab-"+name));
+  if(name==="gantt"){ renderGantt(); setTimeout(sizeSVG,30); }
+  if(name==="tasks") renderTasks();
+  if(name==="milestones") renderMilestones();
+}
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+
+/* ================= DONNÉES ================= */
+let savedTimer;
+function save(){ store.set(DATA); const s=document.getElementById("saveStat");
+  if(s){ s.textContent="Enregistrement…"; s.classList.add("saving"); clearTimeout(savedTimer);
+    savedTimer=setTimeout(()=>{s.textContent="Enregistré";s.classList.remove("saving");},500); } }
+
+document.getElementById("expBtn").onclick=()=>{ const blob=new Blob([JSON.stringify(DATA,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download="gantt_bellion.json"; a.click(); };
+document.getElementById("impBtn").onclick=()=>{ const st=document.getElementById("impStatus");
+  try{ const o=JSON.parse(document.getElementById("impTxt").value); if(!o.tasks)throw 0;
+    DATA=migrate(o); save(); renderTasks(); renderMilestones(); renderGantt();
+    st.className="status ok"; st.textContent="Plan chargé. Consultez l'onglet GANTT.";
+  }catch(e){ st.className="status err"; st.textContent="JSON invalide."; } };
+document.getElementById("printBtn").onclick=()=>{ showTab("gantt"); setTimeout(()=>window.print(),120); };
+document.getElementById("resetBtn").onclick=()=>{ if(confirm("Réinitialiser au plan par défaut ? Vos modifications seront perdues.")){
+  DATA=structuredClone(DEFAULT); save(); renderTasks(); renderMilestones(); renderGantt(); showTab("gantt"); } };
+
+function dateToMonth(iso){ if(!iso)return null; const d=new Date(iso); if(isNaN(d))return null;
+  let m=(d.getFullYear()-2026)*12+(d.getMonth()-5); return Math.max(0,Math.min(NM-1,m)); }
+document.getElementById("jGo").onclick=async()=>{
+  const key=document.getElementById("jKey").value.trim(), jql=document.getElementById("jJql").value.trim();
+  const st=document.getElementById("jStatus");
+  if(!key&&!jql){ st.className="status err"; st.textContent="Renseignez une clé de projet ou une JQL."; return; }
+  st.className="status"; st.textContent="Connexion à Jira…";
+  const prompt=`Utilise les outils Atlassian/Jira pour récupérer les tickets ${jql?("correspondant à cette JQL : "+jql):("du projet "+key)}. `+
+    `Renvoie UNIQUEMENT un tableau JSON (aucun texte autour) : [{"key":"...","name":"résumé","start":"AAAA-MM-JJ","end":"AAAA-MM-JJ","progress":0}]. `+
+    `progress = 100 si statut Terminé/Done, 50 si En cours/In Progress, sinon 0. start = date de début sinon date de création ; end = due date sinon start. JSON strict.`;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1500,messages:[{role:"user",content:prompt}],
+        mcp_servers:[{type:"url",url:"https://mcp.atlassian.com/v1/mcp",name:"atlassian"}]})});
+    const data=await res.json();
+    const txt=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n");
+    const mm=txt.match(/\[[\s\S]*\]/); if(!mm) throw 0;
+    const arr=JSON.parse(mm[0]); let n=0;
+    arr.forEach(it=>{ if(!it.name)return; let s=dateToMonth(it.start), e=dateToMonth(it.end);
+      if(s===null)s=TODAY_MONTH; if(e===null)e=s; if(e<s)e=s;
+      DATA.tasks.push({id:uid(),name:(it.key?it.key+" · ":"")+it.name,phase:"p2",s,e,progress:Math.max(0,Math.min(100,+it.progress||0))}); n++; });
+    save(); renderTasks();
+    st.className="status ok"; st.textContent=n+" ticket(s) importé(s) dans l'onglet Tâches. Ajustez phase, mois et avancement au besoin.";
+  }catch(err){ st.className="status err";
+    st.textContent="Import indisponible ici (connecteur Jira dispo uniquement dans Claude, ou clé inconnue). Saisie manuelle ou import JSON possibles."; }
+};
+
+/* ================= MIGRATION + INIT ================= */
+function migrate(o){
+  if(!o||!Array.isArray(o.tasks)||!o.tasks.length) return structuredClone(DEFAULT);
+  o.tasks.forEach(t=>{
+    if(!Number.isFinite(t.s)){ let m=dateToMonth(t.start); t.s=(m==null?TODAY_MONTH:m); }
+    if(!Number.isFinite(t.e)){ let m=dateToMonth(t.end);   t.e=(m==null?t.s:m); }
+    t.s=Math.max(0,Math.min(NM-1,+t.s)); t.e=Math.max(t.s,Math.min(NM-1,+t.e));
+    t.progress=Math.max(0,Math.min(100,+t.progress||0));
+    if(!t.phase||!PHASES[t.phase]) t.phase="p2";
+    if(!t.id) t.id=uid(); if(!t.name) t.name="Tâche";
+  });
+  if(!Array.isArray(o.milestones)||!o.milestones.length) o.milestones=structuredClone(DEFAULT.milestones);
+  o.milestones.forEach(m=>{ if(!m.id)m.id=uid(); m.month=Math.max(0,Math.min(NM-1,+m.month||0));
+    if(m.kind!=="ferme")m.kind="jalon"; if(m.side!=="start")m.side="end"; m.lane=(+m.lane===1?1:0); if(!m.name)m.name="Jalon"; });
+  return o;
+}
+document.getElementById("gleg").innerHTML=GLEG_HTML;
+(async function(){ let s=null; try{ s=await store.get(); }catch(e){}
+  DATA=migrate(s);
+  renderGantt(); renderTasks(); renderMilestones();
+  setTimeout(sizeSVG,60);
+})();
+</script>
+</body>
+</html>

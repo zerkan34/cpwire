@@ -16,6 +16,12 @@ const IDX_KEY = "cpwire-gantt-index";
 const readIndex = () => { try { return JSON.parse(localStorage.getItem(IDX_KEY) || "{}"); } catch { return {}; } };
 const writeIndex = (o) => { try { localStorage.setItem(IDX_KEY, JSON.stringify(o)); } catch { /* quota */ } };
 
+// GANTT livrés, enregistrés dans le projet (fichiers statiques servis par l'app).
+// Documents autonomes (sauvegarde, impression et export intégrés).
+const SAVED = [
+  { id: "bellion", client: "Bellion", projet: "ERP26", src: "/gantts/bellion.html" },
+];
+
 export default function GanttTool({ dossiers = [] }) {
   const [client, setClient] = useState("");
   const [projet, setProjet] = useState("");
@@ -64,6 +70,9 @@ export default function GanttTool({ dossiers = [] }) {
     setActive({ client: cc, projet: pp, key });
   };
 
+  // Ouvre un GANTT enregistré (fichier statique, document autonome).
+  const openSaved = (s) => setActive({ client: s.client, projet: s.projet, key: "saved:" + s.id, src: s.src });
+
   const remove = (key) => {
     if (!window.confirm("Supprimer ce GANTT et son plan enregistré ?")) return;
     try { localStorage.removeItem("cpwire-gantt:" + key); } catch { /* noop */ }
@@ -97,6 +106,18 @@ export default function GanttTool({ dossiers = [] }) {
             {active && active.key === slug(client) + ":" + slug(projet) ? "Ouvert" : "Ouvrir / créer"}
           </button>
         </div>
+        {SAVED.length ? (
+          <div className="gantt-recent">
+            <span className="gantt-recent-lbl">GANTT enregistrés</span>
+            {SAVED.map((s) => (
+              <span key={s.id} className={`gantt-chip saved ${active && active.key === "saved:" + s.id ? "on" : ""}`}>
+                <button className="gantt-chip-open" onClick={() => openSaved(s)} title="Ouvrir le GANTT livré">
+                  <b>{s.client}</b><i>·</i>{s.projet}
+                </button>
+              </span>
+            ))}
+          </div>
+        ) : null}
         {entries.length ? (
           <div className="gantt-recent">
             <span className="gantt-recent-lbl">Mes GANTT</span>
@@ -115,17 +136,27 @@ export default function GanttTool({ dossiers = [] }) {
       {active ? (
         <div className="gantt-stage">
           <div className="gantt-export">
-            <span className="gantt-export-lbl">{active.client} · {active.projet}</span>
+            <span className="gantt-export-lbl">{active.client} · {active.projet}{active.src ? " · enregistré" : ""}</span>
             <div className="gantt-export-btns">
-              <button className="gantt-dl" onClick={askPdf} disabled={busy === "pdf"}>
-                {busy === "pdf" ? "Génération…" : "⬇ PDF (à envoyer)"}
-              </button>
-              <button className="gantt-dl ghost" onClick={askEditable} disabled={busy === "html"}>
-                {busy === "html" ? "Préparation…" : "⬇ Version modifiable"}
-              </button>
+              {active.src ? (
+                <button className="gantt-dl ghost" onClick={() => window.open(active.src, "_blank", "noopener")}>
+                  ↗ Ouvrir dans un onglet
+                </button>
+              ) : (
+                <>
+                  <button className="gantt-dl" onClick={askPdf} disabled={busy === "pdf"}>
+                    {busy === "pdf" ? "Génération…" : "⬇ PDF (à envoyer)"}
+                  </button>
+                  <button className="gantt-dl ghost" onClick={askEditable} disabled={busy === "html"}>
+                    {busy === "html" ? "Préparation…" : "⬇ Version modifiable"}
+                  </button>
+                </>
+              )}
             </div>
           </div>
-          <iframe ref={frameRef} key={active.key} title={`GANTT ${active.client} ${active.projet}`} className="gantt-frame" srcDoc={srcDoc} />
+          {active.src
+            ? <iframe key={active.key} title={`GANTT ${active.client} ${active.projet}`} className="gantt-frame" src={active.src} />
+            : <iframe ref={frameRef} key={active.key} title={`GANTT ${active.client} ${active.projet}`} className="gantt-frame" srcDoc={srcDoc} />}
         </div>
       ) : (
         <div className="panel gantt-empty">
