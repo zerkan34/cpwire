@@ -741,7 +741,7 @@ export default function App() {
       {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v359"
+            build="stable-v364"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -769,9 +769,12 @@ export default function App() {
         ) : (
           <PosteCommandement
             facts={facts}
+            issues={issues}
+            changedKeys={changedKeys}
             engagement={engagementByDossier}
             onClient={openClient}
             onTicket={setTicket}
+            onDev={setDevFiche}
             goTo={(t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }}
           />
         )

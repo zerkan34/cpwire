@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { fetchQuotes, fetchPortfolioMonthly, fetchDeadlines } from "../api.js";
 import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
+import ActivityFeed from "./ActivityFeed.jsx";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
 // Un seul écran, une seule mécanique : la PORTÉE (Tout / Client / Projet / TMA)
@@ -29,6 +30,16 @@ const dir4 = (x) => {
   if (x.varDone < 0) return "down";
   return (x.volume || 0) > 0 ? "right" : "left";
 };
+// « depuis X » : temps écoulé dans le statut courant.
+const sinceTxt = (d) => {
+  if (!d) return "—";
+  const days = Math.floor((Date.now() - new Date(d).getTime()) / 86400000);
+  if (isNaN(days)) return "—";
+  if (days <= 0) return "aujourd'hui";
+  if (days === 1) return "1 j";
+  if (days < 30) return days + " j";
+  return Math.floor(days / 30) + " mois";
+};
 
 // Secteur d'anneau (camembert évidé) — chemin SVG.
 function ring(cx, cy, rO, rI, a0, a1) {
@@ -38,7 +49,7 @@ function ring(cx, cy, rO, rI, a0, a1) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${rO} ${rO} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${xi1.toFixed(2)} ${yi1.toFixed(2)} A${rI} ${rI} 0 ${lg} 0 ${xi0.toFixed(2)} ${yi0.toFixed(2)} Z`;
 }
 
-export default function PosteCommandement({ facts, engagement = {}, onClient, onTicket, goTo }) {
+export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo }) {
   const [scope, setScope] = useState({ type: "all", value: null });
   const [pick, setPick] = useState("");          // "client" → dropdown ouvert
   const [q, setQ] = useState(null);
@@ -154,6 +165,23 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
       .sort((a, b) => a.date.localeCompare(b.date))
       .slice(0, 6);
   }, [radar, scope, scoped]);
+
+  // « Qui fait quoi » en direct : par dev, son ticket actif le plus récemment touché,
+  // le nombre de tickets qu'il porte, et depuis combien de temps sur le ticket courant.
+  // Réel : tickets actifs assignés + statutDepuis. Pas de « difficulté » (absente des données).
+  const whoWhat = useMemo(() => {
+    const ACT = ["encours", "retourTest"];
+    const pool = (issues || [])
+      .filter((i) => ACT.includes(i.categorie))
+      .filter((i) => (scope.type === "all" ? true : scoped.includes(i.dossier)))
+      .filter((i) => i.dev && i.dev !== "Non assigné");
+    const byDev = {};
+    pool.forEach((i) => { (byDev[i.dev] ||= []).push(i); });
+    return Object.entries(byDev).map(([dev, list]) => {
+      list.sort((a, b) => new Date(b.statutDepuis || b.maj || 0) - new Date(a.statutDepuis || a.maj || 0));
+      return { dev, count: list.length, cur: list[0] };
+    }).sort((a, b) => b.count - a.count).slice(0, 8);
+  }, [issues, scope, scoped]);
 
   // Ticker (mouvements en direct) filtré sur la portée, plafonné à 50.
   // Le « en direct » façon bourse : ce sont les CLIENTS qui défilent, chacun avec
@@ -282,6 +310,12 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
           </div>
 
           <div className="pc2-card">
+            <div className="pc2-h"><span className="pc2-sq" /><span className="live-dot" />FLUX D'ACTUALITÉ</div>
+            <div className="pc2-sub">Les mouvements Jira récents, en direct.</div>
+            <ActivityFeed issues={issues} onTicket={onTicket} onClient={onClient} changedKeys={changedKeys} />
+          </div>
+
+          <div className="pc2-card">
             <div className="pc2-h"><span className="pc2-sq" />{barMode === "mois" ? "MOUVEMENTS PAR MOIS" : "COMPOSITION PAR DOSSIER"}
               <span className="pc2-barmode">
                 <button className={barMode === "mois" ? "on" : ""} onClick={() => setBarMode("mois")}>Par mois</button>
@@ -372,6 +406,26 @@ export default function PosteCommandement({ facts, engagement = {}, onClient, on
                 </li>
               ))}
               {!deadlines.length && <li className="pc2-leg-empty">Aucune échéance datée sur cette portée.</li>}
+            </ul>
+          </div>
+
+          <div className="pc2-card pc2-movers">
+            <div className="pc2-h sm"><span className="pc2-sq" /><span className="live-dot" />QUI FAIT QUOI</div>
+            <ul className="pc2-www">
+              {whoWhat.map((r) => (
+                <li key={r.dev} onClick={() => onDev && onDev(r.dev)} title={`Ouvrir la fiche de ${r.dev}`}>
+                  <span className="pc2-www-top">
+                    <span className="pc2-www-dev">{r.dev}</span>
+                    <span className="pc2-www-n">{r.count}</span>
+                  </span>
+                  {r.cur && (
+                    <span className="pc2-www-cur">
+                      <b>{r.cur.cle}</b> · {r.cur.dossier} · depuis {sinceTxt(r.cur.statutDepuis || r.cur.maj)}
+                    </span>
+                  )}
+                </li>
+              ))}
+              {!whoWhat.length && <li className="pc2-leg-empty">Personne d'actif sur cette portée.</li>}
             </ul>
           </div>
         </div>

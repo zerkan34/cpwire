@@ -9,8 +9,12 @@
 // dire « regarde ici en premier », avec le détail qui le justifie.
 
 const CLOSED = new Set(["termine", "miseEnProd", "annule"]);
-const ageInStatus = (i) => {
-  const d = i.statutDepuis || i.maj; if (!d) return null;
+// « Figé » = aucune activité depuis longtemps → on mesure la dernière MISE À JOUR
+// (i.maj = champ Jira « updated »), et NON statutDepuis (= entrée de catégorie de
+// statut, trop grossier : un ticket « En cours » depuis des mois mais travaillé hier
+// n'est PAS figé). Utiliser statutDepuis ici saturait le score (tout « critique »).
+const daysSinceUpdate = (i) => {
+  const d = i.maj; if (!d) return null;
   const t = Date.parse(d); if (isNaN(t)) return null;
   return Math.floor((Date.now() - t) / 86400000);
 };
@@ -29,7 +33,7 @@ export function buildRiskScores({ issues = [], slaReport = null, radar = [], coh
   // Figés : tickets actifs sans changement d'état depuis ≥ 30 j.
   for (const i of issues) {
     if (CLOSED.has(i.categorie)) continue;
-    const a = ageInStatus(i);
+    const a = daysSinceUpdate(i);
     if (a != null && a >= 30) { const b = bucket(i.dossier || "—"); b.fige += 1; if (b.figesCles.length < 8) b.figesCles.push(i.cle); }
   }
 

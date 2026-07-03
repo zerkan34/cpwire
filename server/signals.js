@@ -44,7 +44,9 @@ function trim(db) {
 
 // Âge en jours depuis l'entrée dans le statut courant (statutDepuis) ; repli sur maj.
 function ageInStatus(i) {
-  const d = i.statutDepuis || i.maj; if (!d) return null;
+  // Stagnation = sans activité : dernière MISE À JOUR (maj), pas l'entrée de catégorie
+  // (statutDepuis surcompte : un ticket longtemps « En cours » mais suivi n'est pas figé).
+  const d = i.maj; if (!d) return null;
   const t = Date.parse(d); if (isNaN(t)) return null;
   return Math.floor((Date.now() - t) / 86400000);
 }
@@ -82,7 +84,7 @@ export function computeSignals({ issues = [], slaReport = null, radar = [], poin
   for (const i of issues) {
     if (["termine", "miseEnProd", "annule"].includes(i.categorie)) continue;
     const age = ageInStatus(i);
-    if (age != null && age >= STAGNATION_DAYS) out.push({ type: "stagnation", cle: i.cle, dossier: i.dossier || "—", detail: `${age} j sans changement d'état` });
+    if (age != null && age >= STAGNATION_DAYS) out.push({ type: "stagnation", cle: i.cle, dossier: i.dossier || "—", detail: `${age} j sans mise à jour` });
   }
 
   // 4) Divergences de date — deux sources se contredisent (fait deadlines.js).

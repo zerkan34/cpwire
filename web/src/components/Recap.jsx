@@ -10,11 +10,19 @@ import { computeFacts } from "../facts.js";
 // Remplace les deux anciens onglets (Brief du matin + Historique).
 const VIEWS = [
   { id: "brief", label: "Aujourd'hui", sub: "Ce qui est en mouvement aujourd'hui, par client." },
-  { id: "histo", label: "Historique & totaux", sub: "Les récaps passés et les totaux, par client et par période." },
+  { id: "histo", label: "Historique", sub: "Les récaps passés et les totaux, par client et par période." },
+];
+
+// Fenêtres de mouvement du brief.
+const PERIODS = [
+  { id: 0, label: "Aujourd'hui" },
+  { id: 1, label: "Hier" },
+  { id: 7, label: "7 jours" },
 ];
 
 export default function Recap({ issues = [], canCR = true, onTicket, onDev, deletedDevs = [], inactiveDevs = [] }) {
   const [view, setView] = useState("brief");
+  const [period, setPeriod] = useState(0);
   const cur = VIEWS.find((v) => v.id === view) || VIEWS[0];
   const facts = useMemo(() => computeFacts(issues), [issues]);
   const [pdsD, setPdsD] = useState("Tafanel");
@@ -43,6 +51,14 @@ export default function Recap({ issues = [], canCR = true, onTicket, onDev, dele
       </div>
       {view === "brief"
         ? <>
+            <div className="recap-period" role="tablist" aria-label="Période du brief">
+              {PERIODS.map((p) => (
+                <button key={p.id} type="button" role="tab" aria-selected={period === p.id}
+                  className={`recap-per-b ${period === p.id ? "on" : ""}`} onClick={() => setPeriod(p.id)}>
+                  {p.label}
+                </button>
+              ))}
+            </div>
             <div className="recap-pds">
               <div className="recap-pds-pick">
                 <span>Périmètre suivi</span>
@@ -52,7 +68,7 @@ export default function Recap({ issues = [], canCR = true, onTicket, onDev, dele
               </div>
               <PointDuSoir dossier={pdsD} cats={pdsBlock.cats} items={pdsItems} onTicket={onTicket} />
             </div>
-            <Morning issues={issues} onTicket={onTicket} embedded />
+            <Morning issues={issues} onTicket={onTicket} embedded windowDays={period} />
           </>
         : <History issues={issues} canCR={canCR} onTicket={onTicket} onDev={onDev} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />}
     </>

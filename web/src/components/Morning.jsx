@@ -29,20 +29,33 @@ function sinceTxt(d) {
   const m = Math.floor(days / 30); return m + (m > 1 ? " mois" : " mois");
 }
 
-export default function Morning({ issues = [], onTicket, embedded = false }) {
+export default function Morning({ issues = [], onTicket, embedded = false, windowDays = null }) {
   const [busy, setBusy] = useState("");
   const [doc, setDoc] = useState(null);
   const [err, setErr] = useState("");
   const [openD, setOpenD] = useState(null);
   const [eng, setEng] = useState("all"); // périmètre du récap à générer : all | TMA | Projet
 
+  // Fenêtre de mouvement : filtre les tickets actifs par date de dernière MAJ (statutDepuis sinon maj).
+  const inWindow = (i) => {
+    if (windowDays == null) return true;
+    const d = i.statutDepuis || i.maj;
+    if (!d) return windowDays >= 7; // sans date : visible seulement sur la fenêtre large
+    const day = new Date(d); day.setHours(0, 0, 0, 0);
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const diff = Math.round((today - day) / 86400000);
+    if (windowDays === 0) return diff <= 0;       // aujourd'hui
+    if (windowDays === 1) return diff === 1;       // hier
+    return diff >= 0 && diff < windowDays;          // n derniers jours
+  };
+
   const parDossier = useMemo(() => {
     const m = {};
-    issues.filter((i) => ACTIVE.includes(i.categorie)).forEach((i) => {
+    issues.filter((i) => ACTIVE.includes(i.categorie) && inWindow(i)).forEach((i) => {
       (m[i.dossier] ||= []).push(i);
     });
     return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
-  }, [issues]);
+  }, [issues, windowDays]);
 
   const make = async (dossier, kind = "morning") => {
     const key = `${dossier}|${kind}`;
@@ -126,7 +139,7 @@ export default function Morning({ issues = [], onTicket, embedded = false }) {
                     return (
                       <li key={i.cle}>
                         <button type="button" className="pc-acc-row" onClick={() => onTicket(i)}>
-                          <span className="pc-acc-l1">{i.flagged ? <span className="brief-flag">🚩 </span> : null}<b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
+                          <span className="pc-acc-l1"><span className="live-dot" title="Suivi en direct" />{i.flagged ? <span className="brief-flag">🚩 </span> : null}<b className="pc-acc-key">{i.cle}</b>{i.resume}</span>
                           <span className={`pc-acc-l2 ${blocked ? "blocked" : ""}`}>
                             {i.dev && i.dev !== "Non assigné" ? <>suivi par <b>{i.dev}</b> · </> : null}<b>{etatLabel(i)}</b>{i.statutDepuis ? <span className="brief-since"> · depuis {sinceTxt(i.statutDepuis)}</span> : null}{i.enRetard ? <span className="brief-late"> · en retard ⚠</span> : null}
                           </span>
