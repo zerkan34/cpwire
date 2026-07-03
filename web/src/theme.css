@@ -5569,3 +5569,8 @@ input, select, textarea { transition: border-color .15s ease, box-shadow .15s ea
 .af-detail-lbl { font-weight: 700; color: var(--purple-strong); margin-right: 8px; text-transform: uppercase; font-size: 10px; letter-spacing: .04em; }
 .af-detail-note { color: var(--muted); font-size: 11px; }
 @keyframes cpwFade { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+
+/* --- Poste : bandeau KPI (3 tuiles strictement égales, alignées) --- */
+.pc2-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+.pc2-kpis .pc2-kpi { min-height: 92px; justify-content: center; border-radius: 16px; }
+@media (max-width: 780px) { .pc2-kpis { grid-template-columns: 1fr; } }

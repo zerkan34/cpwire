@@ -275,6 +275,21 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
         <span className="lg d-left"><span className="tri" /><b>à l'arrêt</b></span>
       </div>
 
+      <div className="pc2-kpis">
+        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
+          <b>{agg.pct}%</b><span>Indice — {single ? scope.value : "portefeuille"}</span>
+          {idxVar != null && <em className={idxVar >= 0 ? "up" : "down"}>{idxVar >= 0 ? "▲" : "▼"} {sign(idxVar)}</em>}
+        </button>
+        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
+          <b>{agg.enRetard}</b><span>En retard (SLA à surveiller)</span>
+          <em className={agg.enRetard ? "down" : "up"}>{agg.enRetard ? "à traiter" : "sain"}</em>
+        </button>
+        <button className="pc2-kpi" onClick={() => goTo && goTo("explorateur", "")}>
+          <b>{agg.afaire}</b><span>À faire / en attente</span>
+          <em className="flat">{agg.retours} retour{agg.retours > 1 ? "s" : ""}</em>
+        </button>
+      </div>
+
       <div className="pc2-grid">
         {/* colonne gauche : camembert + barres */}
         <div className="pc2-col">
@@ -359,21 +374,8 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
           </div>
         </div>
 
-        {/* colonne droite : KPIs + indice + ce qui bouge */}
+        {/* colonne droite : indice + ce qui bouge */}
         <div className="pc2-col">
-          <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
-            <b>{agg.pct}%</b><span>Indice — {single ? scope.value : "portefeuille"}</span>
-            {idxVar != null && <em className={idxVar >= 0 ? "up" : "down"}>{idxVar >= 0 ? "▲" : "▼"} {sign(idxVar)}</em>}
-          </button>
-          <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
-            <b>{agg.enRetard}</b><span>En retard (SLA à surveiller)</span>
-            <em className={agg.enRetard ? "down" : "up"}>{agg.enRetard ? "à traiter" : "sain"}</em>
-          </button>
-          <button className="pc2-kpi" onClick={() => goTo && goTo("explorateur", "")}>
-            <b>{agg.afaire}</b><span>À faire / en attente</span>
-            <em className="flat">{agg.retours} retour{agg.retours > 1 ? "s" : ""}</em>
-          </button>
-
           <div className="pc2-card pc2-spark">
             <div className="pc2-h sm"><span className="pc2-sq" />INDICE — TENDANCE</div>
             {scopedSpark.length > 1
