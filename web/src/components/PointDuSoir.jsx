@@ -124,17 +124,17 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
       ${breakdown ? `<h3>Détail par statut</h3>${breakdown}` : ""}`;
     const extraCss = `
       table.ps { width: 100%; border-collapse: collapse; margin: 4px 0 10px; font-size: 13px; }
-      table.ps th { background: #2E2A5D; color: #fff; text-align: left; padding: 7px 11px; font-family: Poppins, Inter, sans-serif; font-size: 12px; font-weight: 600; }
+      table.ps th { background: var(--indigo-deep); color: #fff; text-align: left; padding: 7px 11px; font-family: Poppins, Inter, sans-serif; font-size: 12px; font-weight: 600; }
       table.ps th.num, table.ps td.num { text-align: right; }
-      table.ps td { padding: 6px 11px; border-bottom: 1px solid #E7E5F1; }
-      table.ps tbody tr:nth-child(even) { background: #F5F2FC; }
+      table.ps td { padding: 6px 11px; border-bottom: 1px solid var(--line); }
+      table.ps tbody tr:nth-child(even) { background: var(--purple-soft); }
       table.ps td.num.up { color: #1f8a5f; } table.ps td.num.down { color: #C0392B; }
-      .tot { color: #6E6A86; font-size: 12px; margin: 2px 0 14px; }
-      .ch-body h3 { font-family: Poppins, Inter, sans-serif; color: #2E2A5D; font-size: 15px; margin: 16px 0 6px; }
-      .ch-body h4 { font-family: Poppins, Inter, sans-serif; color: #4B3F8F; font-size: 13px; margin: 11px 0 3px; }
-      .ch-body h4 .cnt { color: #A8884E; font-weight: 700; }
+      .tot { color: var(--muted); font-size: 12px; margin: 2px 0 14px; }
+      .ch-body h3 { font-family: Poppins, Inter, sans-serif; color: var(--indigo-deep); font-size: 15px; margin: 16px 0 6px; }
+      .ch-body h4 { font-family: Poppins, Inter, sans-serif; color: var(--purple-strong); font-size: 13px; margin: 11px 0 3px; }
+      .ch-body h4 .cnt { color: var(--gold); font-weight: 700; }
       ul.tk { margin: 3px 0 8px; padding-left: 18px; } ul.tk li { margin: 2px 0; font-size: 12.5px; line-height: 1.4; }
-      ul.tk .asg { color: #6E6A86; }`;
+      ul.tk .asg { color: var(--muted); }`;
     const html = charterDoc({
       docTitle: `Le point du soir — ${dossierLbl}`,
       extraCss,

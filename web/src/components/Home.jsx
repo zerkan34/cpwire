@@ -65,9 +65,9 @@ export default function Home({ facts, issues = [], role, engagement = {}, onOpen
 
   // Camembert d'avancement global (données réelles).
   const donutSegs = [
-    { label: "Terminé / mis en prod", value: g.valides || 0, top: "#BFA168", side: "#8A6E37", lc: "#2E2A5D" },
-    { label: "En cours / recette", value: (g.actifsDev || 0) + (g.enRecette || 0) + (g.retours || 0), top: "#4B3F8F", side: "#322A63", lc: "#fff" },
-    { label: "À faire", value: (g.cats && g.cats.afaire) || 0, top: "#2E2A5D", side: "#231F4A", lc: "#fff" },
+    { label: "Terminé / mis en prod", value: g.valides || 0, top: "var(--gold-deep)", side: "#8A6E37", lc: "var(--indigo-deep)" },
+    { label: "En cours / recette", value: (g.actifsDev || 0) + (g.enRecette || 0) + (g.retours || 0), top: "var(--purple-strong)", side: "#322A63", lc: "#fff" },
+    { label: "À faire", value: (g.cats && g.cats.afaire) || 0, top: "var(--indigo-deep)", side: "var(--indigo-deep)", lc: "#fff" },
   ];
   const slaWatch = (sla?.alerts?.length || 0);
 

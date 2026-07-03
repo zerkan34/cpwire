@@ -24,7 +24,7 @@ const CAT_LABEL = {
 const CAT_ORDER = ["afaire", "encours", "retourTest", "retourProd", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine", "annule"];
 const CAT_COLOR = {
   afaire: "#8a86a6", encours: "#3a3658", retourTest: "#C0392B", retourProd: "#C0392B",
-  recetteArmonie: "#2f5fa8", recetteClient: "#A8884E", attenteClient: "#b07423",
+  recetteArmonie: "#2f5fa8", recetteClient: "var(--gold)", attenteClient: "#b07423",
   miseEnProd: "#1f8a5f", termine: "#1f8a5f", annule: "#b8b5c9",
 };
 

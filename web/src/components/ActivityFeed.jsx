@@ -42,6 +42,31 @@ function Sparkline({ data = [], w = 108, h = 24 }) {
   );
 }
 
+// Explication en langage simple de ce que fait la personne sur le ticket (2 lignes max),
+// dérivée du statut réel — « comme si on ne connaissait rien ».
+function plainWhat(iss) {
+  const c = iss && iss.categorie;
+  if (c === "encours") return "Cette personne développe le ticket en ce moment : elle écrit ou corrige du code pour le faire fonctionner.";
+  if (c === "retourTest") return "Le ticket vient d'être renvoyé en test : une correction a été faite, on revérifie qu'elle marche.";
+  if (c === "recetteClient") return "Le ticket est en validation côté client : on attend son feu vert pour le clôturer.";
+  if (c === "recetteArmonie") return "Le ticket est en vérification interne (recette) avant d'être proposé au client.";
+  if (c === "afaire") return "Le ticket est prévu mais pas encore commencé : il attend son tour dans la file.";
+  if (c === "termine" || c === "miseEnProd") return "Le ticket est terminé, il n'y a plus rien à faire dessus.";
+  return "Travail en cours sur ce ticket.";
+}
+// Estimation INDICATIVE de la charge restante — faute de points de complexité dans Jira,
+// on se base sur la priorité (transparent, clairement libellé « indicatif »).
+const PRIO_EFFORT = {
+  critique: "≈ 3 à 5 jours", bloquant: "≈ 3 à 5 jours", highest: "≈ 3 à 5 jours",
+  haute: "≈ 2 à 4 jours", majeure: "≈ 2 à 4 jours", high: "≈ 2 à 4 jours",
+  moyenne: "≈ 1 à 2 jours", medium: "≈ 1 à 2 jours", normale: "≈ 1 à 2 jours",
+  basse: "≈ moins d'1 jour", mineure: "≈ moins d'1 jour", low: "≈ moins d'1 jour", lowest: "≈ moins d'1 jour",
+};
+const effortOf = (iss) => {
+  const p = (iss && iss.priorite ? String(iss.priorite) : "").toLowerCase().trim();
+  return PRIO_EFFORT[p] || "à estimer (priorité non renseignée)";
+};
+
 export default function ActivityFeed({ issues = [], onTicket, onClient, changedKeys }) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -52,6 +77,8 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
   const [lastAt, setLastAt] = useState("");
   const [openRank, setOpenRank] = useState(false);
   const [openPulse, setOpenPulse] = useState(true);
+  const [openRows, setOpenRows] = useState(() => new Set());
+  const toggleRow = (id) => setOpenRows((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const timer = useRef(null);
   const lastSeenRef = useRef(Number(localStorage.getItem(SEEN_KEY)) || 0);
 
@@ -255,18 +282,33 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
             <div className="af-day">
               <div className="af-day-hd">{dateFR ? `Aujourd'hui — ${dateFR}` : "Aujourd'hui"} <b>{shownToday.length}</b></div>
               <ul className="af-list">
-                {shownToday.map((e, idx) => (
-                  <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}${freshCls(e.cle, e.regression)}`} key={`${e.cle}-${e.at}-${idx}`}>
+                {shownToday.map((e, idx) => {
+                  const rid = `${e.cle}-${e.at}-${idx}`;
+                  const iss = byKey[e.cle];
+                  const on = openRows.has(rid);
+                  return (
+                  <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}${freshCls(e.cle, e.regression)}`} key={rid}>
                     <span className="af-h">{hhmm(e.at)}</span>
                     <Cli d={e.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(e.cle)} title="Ouvrir le ticket">{e.cle}</button>
                     <StatusChips from={e.from} to={e.to} statut={e.statut} kind={e.kind} regression={e.regression} />
                     <span className="af-t" title={e.resume}>{e.resume || "—"}</span>
-                    {(e.who || e.dev) ? (
-                      <span className="af-who">{e.who ? <>par <b>{e.who}</b></> : null}{e.dev && e.dev !== e.who ? <span className="af-dev"> · dév. {e.dev}</span> : null}</span>
-                    ) : <span className="af-who af-who-none">—</span>}
+                    <span className="af-who">
+                      {(e.who || e.dev)
+                        ? <>{e.who ? <>par <b>{e.who}</b></> : null}{e.dev && e.dev !== e.who ? <span className="af-dev"> · dév. {e.dev}</span> : null}</>
+                        : <span className="af-who-none">—</span>}
+                      <button type="button" className={`af-exp ${on ? "on" : ""}`} aria-expanded={on}
+                        onClick={() => toggleRow(rid)} title="Voir l'explication simple">▾</button>
+                    </span>
+                    {on ? (
+                      <div className="af-detail">
+                        <p className="af-detail-what">{plainWhat(iss)}</p>
+                        <p className="af-detail-est"><span className="af-detail-lbl">Temps estimé</span>{effortOf(iss)}<span className="af-detail-note"> · estimation indicative (d'après la priorité)</span></p>
+                      </div>
+                    ) : null}
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             </div>
           ) : (type !== "creation" || nNew === 0) && !shownHistory.length ? (
