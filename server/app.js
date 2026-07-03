@@ -12,6 +12,7 @@ import "dotenv/config";
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { dataDirInfo, dataDir } from "./paths.js";
+import shareflyRouter from "./sharefly.js";
 import { persistenceActive, saveBlob, restoreBlob } from "./persist.js";
 import { initMemory } from "./connaissance.js";
 const isPersistent = () => dataDirInfo().persistent || persistenceActive();
@@ -1349,6 +1350,7 @@ app.post("/api/devs/restore", guard, writeGuard, (req, res) => {
 // ---- Sert l'interface (build) en production : un seul service à déployer ----
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = process.env.WEB_DIST || path.join(__dirname2, "../web/dist");
+app.use(shareflyRouter); // /sharefly (page) + /api/sharefly/* (état partagé) — AVANT le fallback SPA
 if (fs.existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST));
   app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, "index.html")));

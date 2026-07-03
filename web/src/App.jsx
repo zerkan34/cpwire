@@ -50,6 +50,7 @@ const Recap = lazy(() => import("./components/Recap.jsx"));
 const Meetings = lazy(() => import("./components/Meetings.jsx"));
 const CRA = lazy(() => import("./components/CRA.jsx"));
 const MobileRecap = lazy(() => import("./components/MobileRecap.jsx"));
+const ShareFly = lazy(() => import("./components/ShareFly.jsx"));
 
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 import InstallPWA from "./components/InstallPWA.jsx";
@@ -98,6 +99,7 @@ const TABS = [
   { id: "cockpit", label: "Pilotage" },
   { id: "explorateur", label: "Explorateur" },
   { id: "atelier", label: "Atelier" },
+  { id: "sharefly", label: "ShareFly", annex: true },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -121,7 +123,7 @@ const SUBTABS = {
 const PRIMARY = ["cockpit", "explorateur", "atelier"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "explorateur", "atelier", "signaux"];
+const CONSULT_TABS = ["cockpit", "explorateur", "atelier", "sharefly", "signaux"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
 const TAB_SHORT = { cockpit: "Pilotage", explorateur: "Explorateur", atelier: "Atelier" };
 
@@ -713,7 +715,7 @@ export default function App() {
 
       <div className="tabs">
         {visibleTabs.map((t) => (
-          <button key={t.id} className={`tab ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
+          <button key={t.id} className={`tab ${tab === t.id ? "active" : ""} ${t.annex ? "tab-annex" : ""}`} onClick={() => setTab(t.id)}>
             {t.label}{t.id === "cockpit" && data?.kpis?.mine ? <span className="b">{data.kpis.mine} pour moi</span> : null}
           </button>
         ))}
@@ -741,7 +743,7 @@ export default function App() {
       {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v366"
+            build="stable-v367"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -823,6 +825,7 @@ export default function App() {
       {tab === "cockpit" && sub === "documents" && <SharePointFiles />}
       {tab === "atelier" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
+      {tab === "sharefly" && <ShareFly />}
 
       </Suspense>
       </div>

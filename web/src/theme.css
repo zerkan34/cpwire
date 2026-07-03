@@ -5574,3 +5574,8 @@ input, select, textarea { transition: border-color .15s ease, box-shadow .15s ea
 .pc2-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
 .pc2-kpis .pc2-kpi { min-height: 92px; justify-content: center; border-radius: 16px; }
 @media (max-width: 780px) { .pc2-kpis { grid-template-columns: 1fr; } }
+
+/* --- ShareFly : onglet annexe + page plein cadre --- */
+.tab-annex { margin-left: 10px; }
+.sharefly-wrap { width: 100%; height: calc(100vh - 172px); min-height: 600px; display: flex; flex-direction: column; margin-top: 8px; }
+.sharefly-frame { flex: 1; width: 100%; border: 0; display: block; border-radius: 14px; background: #fff; box-shadow: var(--shadow); }
