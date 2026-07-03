@@ -12,7 +12,8 @@ import "dotenv/config";
 import { searchIssues, isConfigured, fetchIssueDescription, fetchIssueActivity, fetchDevWork, fetchChangesSummary, fetchCRA, fetchStatusTransitions, fetchBlockerSince } from "./jira.js";
 import { loadSnapshot, saveSnapshot } from "./store.js";
 import { dataDirInfo, dataDir } from "./paths.js";
-import shareflyRouter from "./sharefly.js";
+import shareflyRouter, { resync as resyncSharefly } from "./sharefly.js";
+import { recordDeliverable } from "./deliverables.js";
 import { persistenceActive, saveBlob, restoreBlob } from "./persist.js";
 import { initMemory } from "./connaissance.js";
 const isPersistent = () => dataDirInfo().persistent || persistenceActive();
@@ -433,6 +434,18 @@ app.get("/api/activite", guard, async (_req, res) => {
     if (!got) return res.status(409).json({ error: "Jira non configuré.", needsConfig: true });
     const issues = withoutDeletedDevs(got.issues);
     const now = new Date();
+    // Déclencheur auto (Lot 3) : comptages Jira RÉELS par dossier -> ShareFly.
+    try {
+      const jc = {};
+      for (const i of issues) {
+        const d = i.dossier; if (!d || d === "Autre") continue;
+        if (i.categorie === "annule") continue;
+        const r = (jc[d] ||= { total: 0, open: 0 });
+        r.total++;
+        if (i.categorie !== "termine" && i.categorie !== "miseEnProd") r.open++;
+      }
+      resyncSharefly({ jira: jc });
+    } catch (e) { console.error("[sharefly] comptages activite:", e && e.message); }
     const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const end = new Date(start.getTime() + 24 * 3600 * 1000);
     const startISO = start.toISOString(), endISO = end.toISOString();
@@ -950,6 +963,7 @@ app.post("/api/import/apply", guard, writeGuard, async (req, res) => {
     const { filename, proposal, apercu, dataset, diff } = req.body || {};
     if (!proposal) return res.status(400).json({ error: "Proposition manquante." });
     const entry = applyImport({ filename, proposal, apercu, dataset, diff, by: req.userEmail });
+    try { resyncSharefly(); } catch {}
     try { logEvent("import_applique", `Import validé : ${filename || "document"}`, { type: proposal.type, client: proposal.client }); } catch (e) {
       console.error("[POST /api/import/apply]", e && e.message ? e.message : e); /* journal best-effort */ }
     res.json({ ok: true, entry });
@@ -1093,6 +1107,7 @@ app.get("/api/cr/dossier", guard, async (req, res) => {
     const all = withoutDeletedDevs(got.issues);
     const sub = all.filter((i) => canon(i.dossier) === canon(nom));
     if (!sub.length) return res.status(404).json({ error: `Aucun ticket pour le dossier « ${nom} ».` });
+    try { recordDeliverable({ client: nom, type: typeLabel, title: `${typeLabel} — ${nom}` }); resyncSharefly(); } catch {}
 
     // KPIs + répartition par catégorie (ordre logique de flux).
     const CAT_ORDER = ["afaire", "encours", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "termine", "miseEnProd"];
@@ -1227,6 +1242,7 @@ app.put("/api/dossiers/:nom", guard, writeGuard, (req, res) => {
   try {
     const saved = saveDossier(req.params.nom, req.body || {});
     logEvent("fiche_dossier", `Fiche mise à jour - ${req.params.nom}`, {});
+    try { resyncSharefly(); } catch {}
     res.json({ ok: true, fiche: saved });
   } catch (err) {
     console.error("[PUT /api/dossiers/:nom]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }
@@ -1241,6 +1257,7 @@ app.post("/api/connaissance/learn", guard, writeGuard, learnLimiter, async (_req
     if (!got) return res.status(409).json({ error: "Jira non configuré." });
     // Tourne avec IA si disponible, sinon en extraction déterministe (zéro invention).
     const r = await runAutoLearn(got.issues, { force: true });
+    try { resyncSharefly(); } catch {}
     res.json({ ok: true, learned: r.learned, mode: r.mode, connaissance: readConnaissance() });
   } catch (e) {
     console.error("[POST /api/connaissance/learn]", e && e.message ? e.message : e); res.status(502).json({ error: String(e.message || e) }); }
@@ -1249,6 +1266,7 @@ app.put("/api/connaissance", guard, writeGuard, (req, res) => {
   try {
     const k = saveConnaissance(req.body || {});
     logEvent("connaissance", "Mémoire d'équipe mise à jour", {});
+    try { resyncSharefly(); } catch {}
     res.json({ ok: true, connaissance: k });
   } catch (err) {
     console.error("[PUT /api/connaissance]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }
@@ -1263,7 +1281,7 @@ app.post("/api/connaissance/appris/remove", guard, writeGuard, (req, res) => {
   if (!dossier || !source) return res.status(400).json({ error: "dossier et source requis." });
   try {
     const ok = forgetLearned(dossier, source);
-    if (ok) logEvent("connaissance", `Source apprise oubliée — ${dossier}`, { source });
+    if (ok) { logEvent("connaissance", `Source apprise oubliée — ${dossier}`, { source }); try { resyncSharefly(); } catch {} }
     res.json({ ok });
   } catch (err) {
     console.error("[POST /api/connaissance/appris/remove]", err && err.message ? err.message : err); res.status(500).json({ error: String(err.message || err) }); }

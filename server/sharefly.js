@@ -18,6 +18,8 @@ import { fileURLToPath } from "url";
 import { dataDir } from "./paths.js";
 import { readAll as readDossiers } from "./dossiers.js";
 import { readConnaissance } from "./connaissance.js";
+import { listImports } from "./import.js";
+import { listDeliverables } from "./deliverables.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -66,13 +68,23 @@ function catalogueJs() {
   return _mergedJs;
 }
 
-/* --- Dérivation cp|WIRE -> ShareFly (Lot 1) ---
-   Mapping dossier cp|WIRE -> index client ShareFly (window.CLIENTS),
-   vérifié sur la liste des 15 clients. On ne dérive QUE pour un client existant. */
-const CPWIRE_TO_CI = {
-  "EDL": 2, "DS Smith": 4, "Tafanel": 1, "Bellion": 0, "Belmet": 0,
-  "Balas": 3, "IMA": 5, "DIAPAR": 9, "Segurel": 8,
+/* --- Dérivation cp|WIRE -> ShareFly ---
+   Mapping nom de client cp|WIRE -> index client ShareFly (window.CLIENTS),
+   vérifié sur la liste des 15 clients. Tolère les variantes de nom (accents/casse). */
+const CI_BY_NAME = {
+  "edl": 2, "ecole des loisirs": 2,
+  "tafanel": 1,
+  "ds smith": 4, "dssmith": 4,
+  "bellion": 0, "belmet": 0, "belmet groupe bellion": 0,
+  "balas": 3,
+  "ima": 5, "inter mutuelle assistance": 5, "inter mutuelles assistance": 5,
+  "diapar": 9,
+  "segurel": 8,
 };
+function ciOf(name) {
+  const k = String(name || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[—–-]/g, " ").replace(/\s+/g, " ").trim().toLowerCase();
+  return CI_BY_NAME[k] != null ? CI_BY_NAME[k] : null;
+}
 function memoireCount(c) {
   if (!c) return 0;
   let n = 0;
@@ -83,40 +95,71 @@ function memoireCount(c) {
   if (Array.isArray(c.appris)) n += c.appris.length;
   return n;
 }
+// Compte par index client (ci) à partir d'une liste d'enregistrements réels.
+function countByCi(list, getName) {
+  const m = {};
+  for (const e of (list || [])) {
+    const ci = ciOf(getName(e));
+    if (ci == null) continue;
+    m[ci] = (m[ci] || 0) + 1;
+  }
+  return m;
+}
 // Construit les documents dérivés à partir des SEULES données réelles disponibles.
 function deriveDocs({ jira } = {}) {
   const year = new Date().getFullYear();
   const at = new Date().toISOString();
   const dossiers = readDossiers() || {};
   const conn = readConnaissance() || { clients: {} };
+  const impByCi = countByCi(safeCall(listImports), (e) => e.client || (e.proposal && e.proposal.client) || "");
+  const delByCi = countByCi(safeCall(listDeliverables), (e) => e.client);
   const out = [];
   const parClient = {};
   for (const key of Object.keys(dossiers)) {
-    const ci = CPWIRE_TO_CI[key];
+    const ci = ciOf(key);
     if (ci == null) continue;                 // pas de client ShareFly correspondant : on n'invente rien
     const bucket = (parClient[key] = []);
+    const push = (kind, n, id) => { out.push({ n, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients", p: `cp|WIRE/${key}/${n}`, src: "cpwire", id, at }); bucket.push(kind); };
     // 1) Fiche dossier — donnée réelle (dossiers.json)
-    out.push({ n: `Fiche dossier — ${key}`, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients",
-      p: `cp|WIRE/${key}/Fiche dossier — ${key}`, src: "cpwire", id: `cpwire:fiche:${key}`, at });
-    bucket.push("fiche");
-    // 2) Mémoire IA — seulement si contenu réel appris/saisi
-    const cm = conn.clients && conn.clients[key];
-    const nMem = memoireCount(cm);
-    if (nMem > 0) {
-      out.push({ n: `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients",
-        p: `cp|WIRE/${key}/Mémoire IA — ${key}`, src: "cpwire", id: `cpwire:memoire:${key}`, at });
-      bucket.push("mémoire");
-    }
-    // 3) État Jira — seulement si comptages réels fournis (aucune invention)
+    push("fiche", `Fiche dossier — ${key}`, `cpwire:fiche:${key}`);
+    // 2) Mémoire IA — seulement si contenu réel
+    const nMem = memoireCount(conn.clients && conn.clients[key]);
+    if (nMem > 0) push("mémoire", `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, `cpwire:memoire:${key}`);
+    // 3) État Jira — seulement si comptages réels fournis
     const jc = jira && jira[key];
     if (jc && jc.total != null) {
       const open = (jc.open != null) ? jc.open : "?";
-      out.push({ n: `État Jira — ${key} (${open}/${jc.total} ouvert${open === 1 ? "" : "s"})`, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients",
-        p: `cp|WIRE/${key}/État Jira — ${key}`, src: "cpwire", id: `cpwire:jira:${key}`, at });
-      bucket.push("jira");
+      push("jira", `État Jira — ${key} (${open}/${jc.total} ouvert${open === 1 ? "" : "s"})`, `cpwire:jira:${key}`);
     }
+    // 4) Imports — comptage réel (listImports)
+    if (impByCi[ci]) push("imports", `Imports — ${key} (${impByCi[ci]} import${impByCi[ci] > 1 ? "s" : ""})`, `cpwire:imports:${key}`);
+    // 5) Livrables — comptage réel (registre deliverables)
+    if (delByCi[ci]) push("livrables", `Livrables — ${key} (${delByCi[ci]})`, `cpwire:livrables:${key}`);
   }
   return { out, parClient };
+}
+function safeCall(fn) { try { return fn() || []; } catch { return []; } }
+
+/* --- Moteur de synchro cp|WIRE -> ShareFly ---
+   syncNow : dérive + écrit l'overlay + trace au journal (synchrone).
+   resync  : version débouncée pour les déclencheurs événementiels (écritures,
+             chargement Jira…), qui mémorise les DERNIERS comptages Jira réels. */
+let _lastJira = null;
+let _resyncT = null;
+function syncNow({ jira } = {}) {
+  if (jira != null) _lastJira = jira;
+  const { out, parClient } = deriveDocs({ jira: _lastJira });
+  writeOverlay(out);
+  STATE.mov.unshift({ t: Date.now(), who: "cp|WIRE", act: "sync-catalogue",
+    detail: `${out.length} document(s) dérivé(s) vers ShareFly`, clients: Object.keys(parClient).length });
+  STATE.mov = STATE.mov.slice(0, 600);
+  persist();
+  return { out, parClient };
+}
+export function resync(opts = {}) {
+  if (opts && opts.jira != null) _lastJira = opts.jira;
+  clearTimeout(_resyncT);
+  _resyncT = setTimeout(() => { try { syncNow({}); } catch (e) { console.error("[sharefly] resync:", e.message); } }, 800);
 }
 
 let _t = null;
@@ -158,17 +201,11 @@ router.get("/api/sharefly/derived", (_req, res) => {
        Body optionnel : { jira: { "<dossier>": { total, open } } } (comptages réels). */
 router.post("/api/sharefly/sync", (req, res) => {
   const jira = (req.body && req.body.jira && typeof req.body.jira === "object") ? req.body.jira : null;
-  const { out, parClient } = deriveDocs({ jira });
-  writeOverlay(out);
-  const entry = { t: Date.now(), who: "cp|WIRE", act: "sync-catalogue",
-    detail: `${out.length} document(s) dérivé(s) vers ShareFly`, clients: Object.keys(parClient).length };
-  STATE.mov.unshift(entry);
-  STATE.mov = STATE.mov.slice(0, 600);
-  persist();
+  const { out, parClient } = syncNow({ jira });
   res.json({
     ok: true, derived: out.length, parClient,
     jira: jira ? Object.keys(jira).length : 0,
-    note: "Sources actives : fiche dossier + mémoire IA (toujours), état Jira (si comptages réels fournis). Livrables générés et imports : à brancher via hook d'enregistrement (Lot 3).",
+    note: "Sources : fiche + mémoire IA + imports + livrables (données réelles), état Jira si comptages fournis. Déclenchement auto câblé sur les écritures et le chargement Jira (Lot 3).",
   });
 });
 
@@ -187,10 +224,10 @@ router.put("/api/sharefly/roles", (req, res) => {
   res.json({ ok: true });
 });
 
-/* --- Amorçage : dès le démarrage, dérive fiche + mémoire (sources toujours
-   disponibles) pour que ShareFly montre immédiatement les entités cp|WIRE.
-   Jira (comptages) et imports/livrables : brancher via hook (Lot 3). --- */
-try { const { out } = deriveDocs({}); writeOverlay(out); }
+/* --- Amorçage : dès le démarrage, dérive tout ce qui est disponible (fiche,
+   mémoire, imports, livrables déjà enregistrés). Les comptages Jira arrivent
+   au premier chargement de /api/activite (déclencheur auto). --- */
+try { syncNow({}); }
 catch (e) { console.error("[sharefly] amorçage dérivation:", e.message); }
 
 export default router;
