@@ -91,7 +91,9 @@ app.use(cors({
 // car l'app enregistre l'audio des réunions).
 app.use((_req, res, next) => {
   res.setHeader("X-Content-Type-Options", "nosniff");
-  res.setHeader("X-Frame-Options", "DENY");
+  // SAMEORIGIN (et non DENY) : cp|WIRE encadre ses propres pages en iframe
+  // (ShareFly, GANTT Bellion) en même origine ; le framing cross-origin reste bloqué.
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-DNS-Prefetch-Control", "off");
   res.setHeader("Permissions-Policy", "geolocation=(), camera=(), microphone=(self)");

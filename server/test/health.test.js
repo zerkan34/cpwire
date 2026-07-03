@@ -47,7 +47,7 @@ test("une route front inconnue continue de servir l'app (SPA fallback)", async (
 test("les en-têtes de sécurité de base sont présents", async () => {
   const res = await fetch(`${base}/api/health`);
   assert.equal(res.headers.get("x-content-type-options"), "nosniff");
-  assert.equal(res.headers.get("x-frame-options"), "DENY");
+  assert.equal(res.headers.get("x-frame-options"), "SAMEORIGIN");
 });
 
 test("sans AUTH configurée, /api/session renvoie le rôle owner sans jeton", async () => {
