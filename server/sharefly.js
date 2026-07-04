@@ -124,12 +124,13 @@ function deriveDocs({ jira } = {}) {
     const ci = ciOf(key);
     if (ci == null) continue;                 // pas de client ShareFly correspondant : on n'invente rien
     const bucket = (parClient[key] = []);
-    const push = (kind, n, id) => { out.push({ n, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients", p: `cp|WIRE/${key}/${n}`, src: "cpwire", id, at }); bucket.push(kind); };
-    // 1) Fiche dossier — donnée réelle (dossiers.json)
-    push("fiche", `Fiche dossier — ${key}`, `cpwire:fiche:${key}`);
-    // 2) Mémoire IA — seulement si contenu réel
+    const push = (kind, n, id, url) => { out.push({ n, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients", p: `cp|WIRE/${key}/${n}`, src: "cpwire", id, at, url }); bucket.push(kind); };
+    const kf = encodeURIComponent(key);
+    // 1) Fiche dossier — donnée réelle (dossiers.json), OUVRABLE (HTML rendu à la demande)
+    push("fiche", `Fiche dossier — ${key}`, `cpwire:fiche:${key}`, `/api/sharefly/view/fiche/${kf}`);
+    // 2) Mémoire IA — seulement si contenu réel, OUVRABLE
     const nMem = memoireCount(conn.clients && conn.clients[key]);
-    if (nMem > 0) push("mémoire", `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, `cpwire:memoire:${key}`);
+    if (nMem > 0) push("mémoire", `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, `cpwire:memoire:${key}`, `/api/sharefly/view/memoire/${kf}`);
     // 3) État Jira — seulement si comptages réels fournis
     const jc = jira && jira[key];
     if (jc && jc.total != null) {
@@ -214,6 +215,58 @@ router.get("/api/sharefly/catalogue", (_req, res) => {
 /* --- Documents dérivés cp|WIRE actuellement dans l'overlay (inspection) --- */
 router.get("/api/sharefly/derived", (_req, res) => {
   res.json(readOverlay());
+});
+
+/* --- Rendu HTML charté à la demande des documents cp|WIRE (fiche, mémoire) ---
+   Le contenu est construit en direct depuis les données réelles (dossiers.json,
+   connaissance) : chaque client a donc de VRAIS documents ouvrables, sans stockage. */
+function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+const FIELD_LABELS = { description: "Description", tech: "Environnement technique", team: "Équipe", equipe: "Équipe", contexte: "Contexte", perimetre: "Périmètre", enjeux: "Enjeux", contacts: "Contacts", stack: "Stack", notes: "Notes" };
+function renderValue(v) {
+  if (v == null || v === "") return "";
+  if (Array.isArray(v)) { if (!v.length) return ""; return "<ul>" + v.map((x) => `<li>${escH(typeof x === "object" && x ? (x.text || x.nom || x.label || JSON.stringify(x)) : x)}</li>`).join("") + "</ul>"; }
+  if (typeof v === "object") return `<pre>${escH(JSON.stringify(v, null, 2))}</pre>`;
+  return `<p>${escH(v).replace(/\n/g, "<br>")}</p>`;
+}
+function htmlShell(kicker, title, bodyHtml) {
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(title)} — Armonie</title>
+<style>@page{margin:18mm}body{font-family:Inter,system-ui,Arial,sans-serif;color:#1D1D1B;max-width:820px;margin:24px auto;padding:0 18px;line-height:1.55}
+.bar{height:6px;border-radius:4px;background:linear-gradient(90deg,#3B2E8C,#E91E63 60%,#F2C316)}
+.kick{color:#3B2E8C;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin:16px 0 2px}
+h1{font-family:Poppins,Arial,sans-serif;font-size:26px;margin:0 0 12px}
+h2{font-family:Poppins,Arial,sans-serif;color:#3B2E8C;font-size:15px;margin:22px 0 6px}
+p{margin:6px 0}ul{margin:6px 0 6px 18px;padding:0}li{margin:3px 0}
+pre{background:#F5F2FC;border:1px solid #E2DEF0;border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap}
+.ft{margin-top:28px;color:#6E6A86;font-size:11px;border-top:1px solid #E2DEF0;padding-top:10px}</style></head>
+<body><div class="bar"></div><div class="kick">${escH(kicker)}</div><h1>${escH(title)}</h1>${bodyHtml}
+<div class="ft">Document cp|WIRE · charte Armonie · ${new Date().toLocaleDateString("fr-FR")}</div></body></html>`;
+}
+function renderFiche(key, fiche) {
+  if (!fiche) return htmlShell("Armonie Delivery · Fiche dossier", `Fiche dossier — ${key}`, "<p>Aucune fiche renseignée pour ce dossier.</p>");
+  let body = "";
+  for (const [k, v] of Object.entries(fiche)) { const val = renderValue(v); if (val) body += `<h2>${escH(FIELD_LABELS[k] || k)}</h2>${val}`; }
+  return htmlShell("Armonie Delivery · Fiche dossier", `Fiche dossier — ${key}`, body || "<p>Fiche vide.</p>");
+}
+function renderMemoire(key, m) {
+  if (!m) return htmlShell("Armonie Delivery · Mémoire IA", `Mémoire IA — ${key}`, "<p>Aucune mémoire enregistrée pour ce client.</p>");
+  let body = "";
+  if (m.contexte) body += `<h2>Contexte</h2>${renderValue(m.contexte)}`;
+  if (m.attentes && m.attentes.length) body += `<h2>Attentes</h2>${renderValue(m.attentes)}`;
+  if (m.notes && m.notes.length) body += `<h2>Notes</h2>${renderValue(m.notes)}`;
+  if (m.auto && m.auto.points && m.auto.points.length) body += `<h2>Points appris (analyse automatique)</h2>${renderValue(m.auto.points)}`;
+  if (m.appris && m.appris.length) body += `<h2>Sources apprises</h2>${renderValue(m.appris.map((a) => a.text || a.source || ""))}`;
+  if (m.glossaire && m.glossaire.length) body += `<h2>Glossaire</h2>${renderValue(m.glossaire)}`;
+  return htmlShell("Armonie Delivery · Mémoire IA", `Mémoire IA — ${key}`, body || "<p>Mémoire vide.</p>");
+}
+
+/* --- Vue à la demande d'un document cp|WIRE (fiche / mémoire), rendue en HTML charté --- */
+router.get("/api/sharefly/view/:kind/:key", (req, res) => {
+  const { kind, key } = req.params;
+  try {
+    if (kind === "fiche") { const d = readDossiers() || {}; return res.type("text/html").send(renderFiche(key, d[key])); }
+    if (kind === "memoire") { const c = readConnaissance() || { clients: {} }; return res.type("text/html").send(renderMemoire(key, (c.clients || {})[key])); }
+    return res.status(404).send("Vue inconnue.");
+  } catch (e) { console.error("[sharefly] view:", e && e.message); res.status(500).send("Erreur de rendu."); }
 });
 
 /* --- Contenu réel d'un livrable produit par cp|WIRE (ouvrable dans ShareFly) --- */
