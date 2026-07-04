@@ -1,13 +1,16 @@
-import React from "react";
+import React, { useEffect } from "react";
 
-// ShareFly — l'annexe documentaire de cp|WIRE.
-// L'app ShareFly (catalogue + journal + rôles) est servie en statique par le
-// serveur Express sur /sharefly/ (voir server/sharefly.js). On l'affiche ici
-// en plein cadre, dans le layout de cp|WIRE.
+// ShareFly s'ouvre en PLEINE PAGE (hors chrome cp|WIRE), avec un bouton
+// « ← cp|WIRE » dans son propre en-tête pour revenir. On redirige donc le
+// navigateur vers la page autonome /sharefly/ dès que l'onglet est activé.
 export default function ShareFly() {
+  useEffect(() => { window.location.href = "/sharefly/"; }, []);
   return (
-    <div className="sharefly-wrap">
-      <iframe title="ShareFly" src="/sharefly/" className="sharefly-frame" />
+    <div className="sharefly-wrap" style={{ padding: 32, color: "var(--muted, #6E6A86)" }}>
+      Ouverture de ShareFly en plein écran…{" "}
+      <a href="/sharefly/" style={{ color: "var(--indigo, #3B2E8C)", fontWeight: 600 }}>
+        cliquer ici si rien ne se passe
+      </a>.
     </div>
   );
 }

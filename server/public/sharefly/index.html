@@ -343,12 +343,20 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .sheet .rlist{margin-top:12px}
 .sheet .rrow{display:flex;justify-content:space-between;gap:10px;padding:9px 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--navy)}
 .sheet .rrow .mlink{color:var(--indigo);cursor:pointer}
+.backbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer;margin-right:12px;white-space:nowrap}
+.backbtn:hover{background:var(--indigo,#3B2E8C);color:#fff;border-color:var(--indigo,#3B2E8C)}
+.mopen{margin:2px 0 10px}
+.mopen .mbtn.open{width:100%;justify-content:center;background:var(--indigo,#3B2E8C);color:#fff;border-color:var(--indigo,#3B2E8C);font-weight:700}
+.mopen .mbtn.open:hover{filter:brightness(1.08)}
+.lspin{width:34px;height:34px;margin:10px auto 4px;border:3px solid var(--filet,#E2DEF0);border-top-color:var(--indigo,#3B2E8C);border-radius:50%;animation:lspinrot .8s linear infinite}
+@keyframes lspinrot{to{transform:rotate(360deg)}}
 
 </style>
 </head>
 <body>
 <div class="mockbar"><span class="pt"></span><span>Catalogue — noms &amp; métadonnées des 14 333 documents · <b>dépose</b> ou <b>connecte</b> pour les fichiers réels</span></div>
 <div class="top">
+  <button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/')">← cp|WIRE</button>
   <img class="logo" src="" id="logo" alt="armonie">
   <span class="appname" onclick="go('')">ShareFly</span>
   <div class="search">
@@ -376,6 +384,7 @@ window.SPACES=[{"key": "clients", "name": "Clients", "desc": "15 clients · un d
 /* window.DOCS externalisé -> /sharefly/catalogue.js (Lot 0) */
 
 </script>
+<script src="/sharefly/config.js"></script>
 <script src="/sharefly/catalogue.js"></script>
 <script>
 const $=s=>document.querySelector(s);
@@ -531,6 +540,7 @@ async function openDoc(d){
     <h3>${esc(baseName(d.n))}</h3>
     <div class="mprev">${previewHtml(d,ex)}</div>
     <div class="mbody">${body}</div>
+    <div class="mopen"><button class="mbtn open" data-a="open" type="button">Ouvrir le document</button></div>
     <div class="mact4">
       <button class="mbtn" data-a="edit" type="button">${I.edit}Modifier</button>
       <button class="mbtn" data-a="import" type="button">${I.imp}Importer</button>
@@ -561,7 +571,28 @@ function previewHtml(d,ex){
   }
   return `<div class="pv-none"><b>Document du catalogue</b><span>Aperçu disponible après dépôt du fichier réel.</span></div>`;
 }
+/* ouvrir le document : fichier déposé (blob) · dérivé cp|WIRE · lien profond SharePoint */
+async function openFile(d){
+  if(!d)return;
+  // 1) fichier réellement déposé dans ce navigateur -> ouvrir tel quel
+  if(d._added){
+    let u=BLOBS[d._id];
+    if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+    if(u){window.open(u,'_blank','noopener');return;}
+    toast('Fichier brut absent de ce poste');return;
+  }
+  // 2) document dérivé cp|WIRE (fiche, mémoire, état Jira…) -> ouvrir cp|WIRE
+  if(d.src==='cpwire'){window.open((window.SHAREFLY_CPWIRE_BASE||'/'),'_blank','noopener');return;}
+  // 3) document du catalogue SharePoint -> lien profond (URL de base configurée)
+  const sp=String(window.SHAREFLY_SP_BASE||'').replace(/\/+$/,'');
+  if(sp && d.p){
+    const url=sp+'/'+String(d.p).split('/').filter(Boolean).map(encodeURIComponent).join('/');
+    window.open(url,'_blank','noopener');return;
+  }
+  toast('Ouverture indisponible : URL SharePoint non configurée (SHAREFLY_SP_BASE)');
+}
 function docAction(a,d,m){
+  if(a==='open'){openFile(d);return;}
   if(a==='refresh'){openDoc(d);toast('Actualisé');return;}
   if(a==='export'){openExport(d);return;}
   if(a==='edit'){openEdit(d);return;}
@@ -571,8 +602,23 @@ function docAction(a,d,m){
 function sheet(html,wire){let s=document.getElementById('sheet');if(!s){s=document.createElement('div');s.id='sheet';s.className='sheet';document.body.appendChild(s);}s.innerHTML=`<div class="sb"></div><div class="sc">${html}</div>`;s.classList.add('show');const close=()=>s.classList.remove('show');s.querySelector('.sb').onclick=close;if(wire)wire(s,close);return s;}
 /* export : brut / CSV / charte Armonie */
 function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
-async function exportBrut(d){let u=BLOBS[d._id];if(!u){const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}if(!u){toast('Fichier brut indisponible');return;}const a=document.createElement('a');a.href=u;a.download=d.n;a.click();}
-function exportFicheCsv(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'');const rows=[['nom','type','extension','annee','client','categorie','engagement','emplacement'],[baseName(d.n),d.x,extOf(d.n),d.y||'',client,d.k||'',d.e||'',d.p]];const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');dl(new Blob([csv],{type:'text/csv'}),baseName(d.n)+'_fiche.csv');}
+/* enregistre un blob en laissant l'utilisateur CHOISIR l'emplacement (File System Access API),
+   avec repli téléchargement classique. Retourne true si enregistré, false si annulé. */
+async function saveBlob(blob,name){
+  try{
+    if(window.showSaveFilePicker){
+      const ext=(String(name).split('.').pop()||'').toLowerCase();
+      const acc={}; acc[blob.type||'application/octet-stream']=['.'+ext];
+      let h;
+      try{h=await window.showSaveFilePicker({suggestedName:name,types:[{description:'Fichier',accept:acc}]});}
+      catch(e){if(e&&e.name==='AbortError')return false;throw e;}
+      const w=await h.createWritable();await w.write(blob);await w.close();return true;
+    }
+    dl(blob,name);return true;                 // repli : dossier de téléchargement du navigateur
+  }catch(e){toast('Enregistrement échoué : '+(e.message||e));return false;}
+}
+async function exportBrut(d){let b=null;try{b=await idbGet(d._id);}catch(_){}if(!b){toast('Fichier brut indisponible');return false;}return await saveBlob(b,d.n);}
+async function exportFicheCsv(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'');const rows=[['nom','type','extension','annee','client','categorie','engagement','emplacement'],[baseName(d.n),d.x,extOf(d.n),d.y||'',client,d.k||'',d.e||'',d.p]];const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');return await saveBlob(new Blob([csv],{type:'text/csv'}),baseName(d.n)+'_fiche.csv');}
 function chartFiche(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'—');const ex=extOf(d.n);
   const meta=[['Type',(ex?('.'+ex+' · '):'')+d.x],['Année',d.y||'—'],['Client',client],['Catégorie',d.k||'—'],['Engagement',d.e||'—'],['Emplacement',d.p]];
   const trs=meta.map(r=>`<tr><th>${esc(r[0])}</th><td>${esc(String(r[1]))}</td></tr>`).join('');
@@ -591,7 +637,7 @@ function chartFiche(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'—')
   <body><div class="bar"></div><div class="kick">Armonie Delivery · Fiche document</div>
   <h1>${esc(baseName(d.n))}</h1><table>${trs}</table>${prev}
   <div class="ft">Document habillé à la charte Armonie · Confidentiel · ${new Date().toLocaleDateString('fr-FR')}</div></body></html>`;}
-function exportCharte(d){dl(new Blob([chartFiche(d)],{type:'text/html'}),baseName(d.n)+'_charte-armonie.html');toast('Fiche chartée exportée — ouvre-la puis Imprimer › PDF');}
+async function exportCharte(d){return await saveBlob(new Blob([chartFiche(d)],{type:'text/html'}),baseName(d.n)+'_charte-armonie.html');}
 function openExport(d){
   const canFile=!!(BLOBS[d._id]||d._stored);
   const html=`<h4>Exporter — ${esc(baseName(d.n))}</h4><p class="sub">Choisis le format et l'habillage.</p>
@@ -601,10 +647,21 @@ function openExport(d){
     <p class="sub" style="margin-top:8px">Mise en charte d'un fichier Office existant : via le pipeline (hébergement) — lot suivant.</p>
     <div class="row2"><button class="pbtn sec" data-x="cancel">Fermer</button></div>`;
   sheet(html,(s,close)=>{
-    s.querySelectorAll('.opt').forEach(o=>o.onclick=()=>{const x=o.dataset.x;
-      if(x==='brut'){if(!canFile){toast('Fichier brut indisponible');return;}exportBrut(d);logMove('Export (brut)',d.n,d.client||'');close();}
-      else if(x==='csv'){exportFicheCsv(d);logMove('Export (CSV)',d.n,d.client||'');close();}
-      else if(x==='charte'){exportCharte(d);logMove('Export (charte Armonie)',d.n,d.client||'');close();}});
+    s.querySelectorAll('.opt').forEach(o=>o.onclick=async()=>{
+      const x=o.dataset.x;
+      if(x==='brut'&&!canFile){toast('Fichier brut indisponible');return;}
+      const label=x==='brut'?'Fichier brut':x==='csv'?'Fiche métadonnées (CSV)':'Fiche charte Armonie';
+      sheet(`<h4>Export en cours…</h4><p class="sub">Choisis l'emplacement d'enregistrement dans la fenêtre du navigateur.</p><div class="lspin"></div>`);
+      let ok=false;
+      try{ ok = x==='brut'?await exportBrut(d):x==='csv'?await exportFicheCsv(d):await exportCharte(d); }catch(e){ ok=false; }
+      if(ok){
+        logMove('Export ('+label+')',d.n,d.client||'');
+        const note=x==='charte'?'<p class="sub">Ouvre le fichier puis Imprimer › Enregistrer en PDF.</p>':'';
+        sheet(`<h4>✓ Export terminé</h4><p class="sub">${esc(label)} — «\u00a0${esc(baseName(d.n))}\u00a0» enregistré.</p>${note}<div class="row2"><button class="pbtn" data-x="ok">Fermer</button></div>`,(s2,c2)=>{s2.querySelector('[data-x="ok"]').onclick=c2;});
+      }else{
+        sheet(`<h4>Export annulé</h4><p class="sub">Aucun fichier enregistré.</p><div class="row2"><button class="pbtn sec" data-x="ok">Fermer</button></div>`,(s2,c2)=>{s2.querySelector('[data-x="ok"]').onclick=c2;});
+      }
+    });
     s.querySelector('[data-x="cancel"]').onclick=close;
   });
 }

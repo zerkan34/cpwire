@@ -170,6 +170,15 @@ function persist() {
 
 router.use(express.json({ limit: "1mb" }));
 
+/* --- Config front (URL de base SharePoint + retour cp|WIRE), injectée côté page.
+   DOIT précéder le static. Surchargeable par env SHAREFLY_SP_BASE / SHAREFLY_CPWIRE_BASE. */
+router.get("/sharefly/config.js", (_req, res) => {
+  const sp = process.env.SHAREFLY_SP_BASE || "";
+  const cp = process.env.SHAREFLY_CPWIRE_BASE || "/";
+  res.type("application/javascript")
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};`);
+});
+
 /* --- Loader synchrone du catalogue pour la page ShareFly ---
    DOIT être déclaré AVANT le static, sinon express.static l'intercepte.
    Chargé par <script src="/sharefly/catalogue.js"> : exécution classique,
