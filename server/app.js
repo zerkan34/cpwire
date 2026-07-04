@@ -1107,7 +1107,6 @@ app.get("/api/cr/dossier", guard, async (req, res) => {
     const all = withoutDeletedDevs(got.issues);
     const sub = all.filter((i) => canon(i.dossier) === canon(nom));
     if (!sub.length) return res.status(404).json({ error: `Aucun ticket pour le dossier « ${nom} ».` });
-    try { recordDeliverable({ client: nom, type: typeLabel, title: `${typeLabel} — ${nom}` }); resyncSharefly(); } catch {}
 
     // KPIs + répartition par catégorie (ordre logique de flux).
     const CAT_ORDER = ["afaire", "encours", "retourTest", "recetteArmonie", "recetteClient", "attenteClient", "termine", "miseEnProd"];
@@ -1157,6 +1156,8 @@ app.get("/api/cr/dossier", guard, async (req, res) => {
     };
     const html = buildDossierCrHtml(data);
     const filename = `ARMONIE-${nom.toUpperCase().replace(/[^A-Z0-9]/gi, "_")}-${typeKey}-${data.date}.pdf`;
+    // Livrable réel produit par cp|WIRE : on héberge le HTML charté -> ouvrable dans ShareFly.
+    try { recordDeliverable({ client: nom, type: typeLabel, title: `${typeLabel} — ${nom} (${data.date})`, html, ext: "html" }); resyncSharefly(); } catch (e) { console.error("[sharefly] record livrable:", e && e.message); }
     res.json({ html, filename, resume: { tickets: sub.length, termines, over: over.length, figes: figes.length, risk: risk ? risk.score : null } });
   } catch (err) {
     console.error("[GET /api/cr/dossier]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }

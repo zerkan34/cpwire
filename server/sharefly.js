@@ -19,7 +19,7 @@ import { dataDir } from "./paths.js";
 import { readAll as readDossiers } from "./dossiers.js";
 import { readConnaissance } from "./connaissance.js";
 import { listImports } from "./import.js";
-import { listDeliverables } from "./deliverables.js";
+import { listDeliverables, getDeliverable } from "./deliverables.js";
 import { analyseCatalogue } from "./catalogueAnalyse.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -113,7 +113,11 @@ function deriveDocs({ jira } = {}) {
   const dossiers = readDossiers() || {};
   const conn = readConnaissance() || { clients: {} };
   const impByCi = countByCi(safeCall(listImports), (e) => e.client || (e.proposal && e.proposal.client) || "");
-  const delByCi = countByCi(safeCall(listDeliverables), (e) => e.client);
+  const delivsByCi = {};
+  for (const e of safeCall(listDeliverables)) {
+    const ci = ciOf(e.client); if (ci == null) continue;
+    (delivsByCi[ci] || (delivsByCi[ci] = [])).push(e);
+  }
   const out = [];
   const parClient = {};
   for (const key of Object.keys(dossiers)) {
@@ -134,8 +138,14 @@ function deriveDocs({ jira } = {}) {
     }
     // 4) Imports — comptage réel (listImports)
     if (impByCi[ci]) push("imports", `Imports — ${key} (${impByCi[ci]} import${impByCi[ci] > 1 ? "s" : ""})`, `cpwire:imports:${key}`);
-    // 5) Livrables — comptage réel (registre deliverables)
-    if (delByCi[ci]) push("livrables", `Livrables — ${key} (${delByCi[ci]})`, `cpwire:livrables:${key}`);
+    // 5) Livrables produits par cp|WIRE — documents OUVRABLES (contenu hébergé)
+    for (const e of (delivsByCi[ci] || []).slice(0, 12)) {
+      const yr = e.at ? new Date(e.at).getFullYear() : year;
+      out.push({ n: e.title || `${e.type} — ${key}`, ci, k: e.type || "Livrable", e: "", x: "cp|WIRE", y: yr, sp: "clients",
+        p: `cp|WIRE/${key}/${e.title || e.type}`, src: "cpwire", id: `cpwire:deliv:${e.id}`, at: e.at || at,
+        url: e.hasFile ? `/api/sharefly/deliverable/${e.id}` : undefined });
+      bucket.push("livrable");
+    }
   }
   return { out, parClient };
 }
@@ -204,6 +214,13 @@ router.get("/api/sharefly/catalogue", (_req, res) => {
 /* --- Documents dérivés cp|WIRE actuellement dans l'overlay (inspection) --- */
 router.get("/api/sharefly/derived", (_req, res) => {
   res.json(readOverlay());
+});
+
+/* --- Contenu réel d'un livrable produit par cp|WIRE (ouvrable dans ShareFly) --- */
+router.get("/api/sharefly/deliverable/:id", (req, res) => {
+  const d = getDeliverable(req.params.id);
+  if (!d || d.content == null) return res.status(404).send("Livrable introuvable ou non hébergé sur ce serveur.");
+  res.type(d.mime).send(d.content);
 });
 
 /* --- Lot 2 : cp|WIRE lit le catalogue ShareFly et en tire ses analyses
