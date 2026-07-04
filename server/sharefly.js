@@ -20,6 +20,7 @@ import { readAll as readDossiers } from "./dossiers.js";
 import { readConnaissance } from "./connaissance.js";
 import { listImports } from "./import.js";
 import { listDeliverables } from "./deliverables.js";
+import { analyseCatalogue } from "./catalogueAnalyse.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -203,6 +204,18 @@ router.get("/api/sharefly/catalogue", (_req, res) => {
 /* --- Documents dérivés cp|WIRE actuellement dans l'overlay (inspection) --- */
 router.get("/api/sharefly/derived", (_req, res) => {
   res.json(readOverlay());
+});
+
+/* --- Lot 2 : cp|WIRE lit le catalogue ShareFly et en tire ses analyses
+       (couverture par client, orphelins / à classer / hors périmètre, fraîcheur). --- */
+router.get("/api/sharefly/analyse", (_req, res) => {
+  try {
+    const docs = baseDocs().concat(readOverlay());
+    res.json(analyseCatalogue(docs));
+  } catch (e) {
+    console.error("[sharefly] analyse:", e && e.message);
+    res.status(500).json({ error: String(e && e.message || e) });
+  }
 });
 
 /* --- Synchro cp|WIRE -> ShareFly : dérive les docs des sources réelles,

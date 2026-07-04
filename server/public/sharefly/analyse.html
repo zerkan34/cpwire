@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Analyse cp|WIRE — Catalogue ShareFly</title>
+<style>
+  :root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--violetc:#C4C0DC;
+    --lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0;--vert:#2F7D4F;--sh:0 10px 30px rgba(29,29,27,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);background:var(--lav)}
+  .top{display:flex;align-items:center;gap:12px;padding:14px 22px;background:#fff;border-bottom:1px solid var(--filet);position:sticky;top:0;z-index:5}
+  .top h1{font:700 16px Poppins,Inter,sans-serif;margin:0;flex:1}
+  .top .kick{color:var(--violet);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--filet);background:var(--lav);color:var(--violet);font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .wrap{max-width:1060px;margin:0 auto;padding:22px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+  .card{background:#fff;border:1px solid var(--filet);border-radius:14px;padding:14px 16px;box-shadow:var(--sh)}
+  .card .lbl{color:var(--gris);font-size:12px;font-weight:600}
+  .card .val{font:700 26px Poppins,Inter,sans-serif;margin-top:2px}
+  .card.warn .val{color:var(--magenta)}
+  .sec{background:#fff;border:1px solid var(--filet);border-radius:16px;padding:18px 20px;margin-bottom:20px;box-shadow:var(--sh)}
+  .sec h2{font:700 14px Poppins,Inter,sans-serif;color:var(--violet);margin:0 0 14px;text-transform:uppercase;letter-spacing:.05em}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:9px 10px;font-size:13.5px;border-bottom:1px solid var(--filet)}
+  th{color:var(--gris);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.03em}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  .bar{height:7px;border-radius:5px;background:var(--filet);overflow:hidden;min-width:90px}
+  .bar span{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--magenta))}
+  .badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .badge.ok{background:rgba(47,125,79,.12);color:var(--vert)}
+  .badge.old{background:rgba(233,30,99,.12);color:var(--magenta)}
+  .badge.abs{background:rgba(110,106,134,.14);color:var(--gris)}
+  .badge.low{background:rgba(242,195,22,.18);color:#8a6d00}
+  .muted{color:var(--gris);font-size:12.5px}
+  .dist{display:flex;flex-wrap:wrap;gap:8px}
+  .pill{background:var(--lav);border:1px solid var(--filet);border-radius:20px;padding:5px 12px;font-size:12.5px}
+  .pill b{color:var(--violet)}
+  .err{color:var(--magenta);font-weight:600}
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="btn" href="/sharefly/">← ShareFly</a>
+  <a class="btn" href="/" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/');return false;">← cp|WIRE</a>
+  <div style="flex:1">
+    <div class="kick">Armonie Delivery · Lecture cp|WIRE</div>
+    <h1>Analyse du catalogue documentaire</h1>
+  </div>
+  <span class="muted" id="stamp"></span>
+</div>
+<div class="wrap" id="root"><p class="muted">Chargement de l'analyse…</p></div>
+
+<script src="/sharefly/config.js"></script>
+<script>
+const $=(s,r=document)=>r.querySelector(s);
+const fmt=n=>String(n==null?'—':n).replace(/\B(?=(\d{3})+(?!\d))/g,'\u202f');
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function card(lbl,val,warn){return `<div class="card ${warn?'warn':''}"><div class="lbl">${esc(lbl)}</div><div class="val">${fmt(val)}</div></div>`;}
+function bar(v,max){const w=max?Math.max(3,Math.round(v/max*100)):0;return `<div class="bar"><span style="width:${w}%"></span></div>`;}
+function fresh(c){
+  if(c.absent) return '<span class="badge abs">absent</span>';
+  if(c.frais) return '<span class="badge ok">à jour</span>';
+  if(c.dernAnnee) return '<span class="badge old">ancien</span>';
+  return '<span class="badge abs">sans année</span>';
+}
+
+function render(r){
+  $('#stamp').textContent='Généré le '+new Date(r.genereLe).toLocaleString('fr-FR');
+  const maxClient=Math.max(1,...r.clients.map(c=>c.total));
+  const maxPort=Math.max(1,...r.portfolio.map(p=>p.total));
+
+  const resume=`<div class="cards">
+    ${card('Documents catalogue',r.total)}
+    ${card('Sans client (archives)',r.orphelins)}
+    ${card('À classer',r.aClasser,r.aClasser>0)}
+    ${card('Hors périmètre cp|WIRE',r.horsPerimetre)}
+    ${card('Sans année',r.sansAnnee)}
+  </div>`;
+
+  const portfolio=`<div class="sec"><h2>Couverture du périmètre cp|WIRE (8 dossiers pilotés)</h2>
+    <table><thead><tr><th>Client</th><th class="num">Documents</th><th style="width:140px">Volume</th><th class="num">Récents</th><th class="num">Dern. année</th><th>Fraîcheur</th></tr></thead><tbody>
+    ${r.portfolio.map(p=>`<tr>
+      <td>${esc(p.nom)} ${p.faible&&!p.absent?'<span class="badge low">faible</span>':''}</td>
+      <td class="num">${fmt(p.total)}</td>
+      <td>${bar(p.total,maxPort)}</td>
+      <td class="num">${fmt(p.recents)}</td>
+      <td class="num">${p.dernAnnee||'—'}</td>
+      <td>${fresh(p)}</td></tr>`).join('')}
+    </tbody></table>
+    <p class="muted" style="margin-top:10px">« Récents » = documents des ${r.recent} dernières années. « Faible » = moins de 20 documents. « Dérivés cp|WIRE » (fiche, mémoire, état Jira…) alimentent aussi ces volumes.</p>
+  </div>`;
+
+  const clients=`<div class="sec"><h2>Couverture par client (catalogue complet)</h2>
+    <table><thead><tr><th>Client</th><th class="num">Documents</th><th style="width:140px">Volume</th><th class="num">Dérivés cp|WIRE</th><th class="num">% récents</th><th>Fraîcheur</th></tr></thead><tbody>
+    ${r.clients.map(c=>`<tr>
+      <td>${esc(c.nom)} ${c.perimetre?'':'<span class="badge abs">hors périmètre</span>'}</td>
+      <td class="num">${fmt(c.total)}</td>
+      <td>${bar(c.total,maxClient)}</td>
+      <td class="num">${fmt(c.derives)}</td>
+      <td class="num">${c.tauxRecent==null?'—':c.tauxRecent+'%'}</td>
+      <td>${fresh(c)}</td></tr>`).join('')}
+    </tbody></table></div>`;
+
+  const dist=(obj)=>Object.entries(obj).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="pill">${esc(k)} <b>${fmt(v)}</b></span>`).join('');
+  const repart=`<div class="sec"><h2>Répartition</h2>
+    <p class="muted" style="margin:0 0 6px">Par espace</p><div class="dist">${dist(r.parEspace)}</div>
+    <p class="muted" style="margin:14px 0 6px">Par type de fichier</p><div class="dist">${dist(r.parType)}</div></div>`;
+
+  $('#root').innerHTML=resume+portfolio+clients+repart;
+}
+
+fetch('/api/sharefly/analyse').then(r=>r.json()).then(render)
+  .catch(e=>{$('#root').innerHTML='<p class="err">Analyse indisponible : '+esc(e.message||e)+'</p>';});
+</script>
+</body>
+</html>
