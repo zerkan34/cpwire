@@ -21,6 +21,7 @@ import { readConnaissance } from "./connaissance.js";
 import { listImports } from "./import.js";
 import { listDeliverables, getDeliverable } from "./deliverables.js";
 import { analyseCatalogue } from "./catalogueAnalyse.js";
+import * as sharepoint from "./sharepoint.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -188,8 +189,9 @@ router.get("/sharefly/config.js", (_req, res) => {
   const sp = process.env.SHAREFLY_SP_BASE || "";
   const cp = process.env.SHAREFLY_CPWIRE_BASE || "/";
   const mode = process.env.SHAREFLY_SP_MODE || "search"; // "search" (robuste, par nom) ou "path" (lien direct)
+  const spc = sharepoint.isConfigured();
   res.type("application/javascript")
-    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};`);
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};`);
 });
 
 /* --- Loader synchrone du catalogue pour la page ShareFly ---
@@ -268,6 +270,25 @@ router.get("/api/sharefly/view/:kind/:key", (req, res) => {
     if (kind === "memoire") { const c = readConnaissance() || { clients: {} }; return res.type("text/html").send(renderMemoire(key, (c.clients || {})[key])); }
     return res.status(404).send("Vue inconnue.");
   } catch (e) { console.error("[sharefly] view:", e && e.message); res.status(500).send("Erreur de rendu."); }
+});
+
+/* --- Rapatriement d'un fichier SharePoint DANS le lecteur intégré de ShareFly
+       (via Microsoft Graph). Redirige l'iframe vers l'URL d'affichage résolue. --- */
+router.get("/api/sharefly/spstatus", (_req, res) => {
+  res.json({ connected: sharepoint.isConfigured() });
+});
+router.get("/api/sharefly/spfile", async (req, res) => {
+  if (!sharepoint.isConfigured()) return res.status(501).send("Connexion SharePoint non configurée.");
+  const name = req.query.name;
+  if (!name) return res.status(400).send("Nom de fichier manquant.");
+  try {
+    const v = await sharepoint.viewable(String(name));
+    if (!v) return res.status(404).send("Fichier introuvable dans SharePoint.");
+    res.redirect(v.url); // l'iframe du lecteur intégré suit la redirection et affiche le document
+  } catch (e) {
+    console.error("[sharefly] spfile:", e && e.message);
+    res.status(502).send("Erreur SharePoint : " + (e && e.message || e));
+  }
 });
 
 /* --- Contenu réel d'un livrable produit par cp|WIRE (ouvrable dans ShareFly) --- */

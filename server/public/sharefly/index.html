@@ -570,11 +570,12 @@ function previewHtml(d,ex){
   ex=ex||extOf(d.n);
   if(d.url){return `<iframe class="pv-pdf" src="${esc(d.url)}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;}
   if(d._added){
-    const u=BLOBS[d._id];
     if(u){
       if(['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ex))return `<img class="pv-img" src="${u}" alt="">`;
       if(ex==='pdf')return `<embed class="pv-pdf" src="${u}" type="application/pdf">`;
+      if(ex==='html'||ex==='htm')return `<iframe class="pv-pdf" src="${u}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;
     }
+    if((ex==='html'||ex==='htm')&&d._text)return `<iframe class="pv-pdf" srcdoc="${esc(d._text)}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;
     if(d._text)return `<pre class="pv-txt">${esc(d._text.slice(0,3000))}</pre>`;
     if(u)return `<div class="pv-none"><b>.${esc(ex.toUpperCase())}</b><span>Aperçu non rendu ici — utilise Exporter › Fichier brut.</span></div>`;
     return `<div class="pv-none"><b>Fichier déposé</b><span>Binaire non conservé sur ce navigateur.</span></div>`;
@@ -590,6 +591,7 @@ async function openFile(d){
   if(d._added){
     let u=BLOBS[d._id];
     if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+    if(!u && d._text && ['html','htm'].includes(extOf(d.n))){u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));}
     if(u){openInApp(u,d.n);return;}
     toast('Fichier brut absent de ce poste');return;
   }
@@ -598,10 +600,16 @@ async function openFile(d){
     sheet(`<h4>Synthèse cp|WIRE</h4><p class="sub">« ${esc(baseName(d.n))} » est un indicateur (comptage), pas un document à ouvrir.</p><div class="row2" style="margin-top:14px"><button class="pbtn" data-x="ok">Compris</button></div>`,(s,close)=>{const b=s.querySelector('[data-x="ok"]');if(b)b.onclick=close;});
     return;
   }
-  // référence SharePoint : le contenu n'est pas dans ShareFly -> on NE relance PAS SharePoint
+  // référence SharePoint : si la connexion est active, on rapatrie le fichier
+  // DANS le lecteur intégré de ShareFly (aucun renvoi externe).
+  if(window.SHAREFLY_SP_CONNECTED){
+    openInApp('/api/sharefly/spfile?name='+encodeURIComponent(baseName(d.n)), d.n);
+    return;
+  }
+  // sinon : contenu non rapatrié -> on NE relance PAS SharePoint, on explique
   sheet(`<h4>Document pas encore dans ShareFly</h4>
     <p class="sub">« ${esc(baseName(d.n))} » est <b>référencé</b> depuis SharePoint, mais son contenu n'a pas été rapatrié dans ShareFly — il n'y a rien à afficher ici pour l'instant.</p>
-    <p class="sub" style="margin-top:10px">Pour le visualiser dans ShareFly : dépose-le via <b>Importer</b>, ou connecte SharePoint pour que ShareFly récupère les fichiers automatiquement.</p>
+    <p class="sub" style="margin-top:10px">Pour le visualiser dans ShareFly : dépose-le via <b>Importer</b>, ou connecte SharePoint (Microsoft Graph) pour que ShareFly récupère les fichiers automatiquement.</p>
     <div class="row2" style="margin-top:14px"><button class="pbtn" data-x="ok">Compris</button></div>`,
     (s,close)=>{const b=s.querySelector('[data-x="ok"]');if(b)b.onclick=close;});
 }
