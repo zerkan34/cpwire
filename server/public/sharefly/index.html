@@ -380,6 +380,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .pv-card-lbl{font-family:'Poppins',sans-serif;font-size:9.5px;letter-spacing:1.4px;text-transform:uppercase;color:var(--muted,#6E6A86);font-weight:600;margin-bottom:6px}
 .pv-card-x p{margin:0;font-size:12.5px;line-height:1.6;color:#4a4668;max-height:190px;overflow:auto;word-break:break-word}
 .pv-card-note{padding:12px 20px 16px;font-size:12px;line-height:1.5;color:var(--muted,#6E6A86);border-top:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC)}
+.pv-load{display:flex;align-items:center;justify-content:center;min-height:180px;color:var(--muted,#6E6A86);font-size:13px;font-weight:600;border:1px solid var(--filet,#E2DEF0);border-radius:14px;background:var(--lav,#F5F2FC)}
 
 </style>
 </head>
@@ -571,7 +572,7 @@ async function openDoc(d){
   m.innerHTML=`<div class="mback"></div><div class="mcard wide">
     <div class="mhead"><span class="tag t"><i style="background:${typeColor(d.x)}"></i>${esc(ex?('.'+ex):d.x)}</span>${tagcat}<span class="mfolder" title="${esc(folder)}">${esc(folder)}</span><button class="mx" id="mx" type="button">✕</button></div>
     <h3>${esc(baseName(d.n))}</h3>
-    <div class="mprev">${previewHtml(d,ex)}</div>
+    <div class="mprev" id="mprev">${previewHtml(d,ex)}</div>
     <div class="mbody">${body}</div>
     <div class="mopen"><button class="mbtn open" data-a="open" type="button">Ouvrir le document</button></div>
     <div class="mact4">
@@ -589,12 +590,35 @@ async function openDoc(d){
   const cp=m.querySelector('[data-copy]'); if(cp) cp.onclick=()=>{try{navigator.clipboard.writeText(cp.dataset.copy);}catch(e){}toast('Emplacement copié');};
   const cl=m.querySelector('[data-cls]'); if(cl) cl.onclick=()=>openClassify(d);
   m.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>docAction(b.dataset.a,d,m));
+  renderPreviewAsync(d,ex,m.querySelector('#mprev'));
+}
+// charge le vrai fichier (blob) depuis le stockage et l'affiche rendu (PDF/image/html)
+async function renderPreviewAsync(d,ex,box){
+  if(!box||!d._added)return;
+  ex=(ex||extOf(d.n)||'').toLowerCase();
+  const IMG=['png','jpg','jpeg','gif','webp','bmp','svg'];
+  if(!(ex==='pdf'||ex==='html'||ex==='htm'||IMG.includes(ex)))return; // Office & co : on garde la carte
+  let u=BLOBS[d._id];
+  if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+  if(!u&&d._text&&(ex==='html'||ex==='htm')){try{u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));BLOBS[d._id]=u;}catch(_){}}
+  if(!u){box.innerHTML=previewCard(d,ex,"Le fichier réel n'est pas disponible sur ce poste. Réimporte-le pour l'aperçu, ou clique <b>Ouvrir le document</b>.");return;}
+  if(IMG.includes(ex))box.innerHTML=`<img class="pv-img" src="${u}" alt="">`;
+  else if(ex==='pdf')box.innerHTML=`<embed class="pv-pdf" src="${u}" type="application/pdf">`;
+  else box.innerHTML=`<iframe class="pv-pdf" src="${u}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;
+}
+function looksBinary(t){
+  if(!t)return false;
+  const s=t.slice(0,300);
+  if(/^%PDF|^PK\x03\x04|^\x89PNG|^GIF8|^\xFF\xD8\xFF|^\uFFFD/.test(s))return true;
+  let bad=0;for(let i=0;i<s.length;i++){const c=s.charCodeAt(i);if(c===0||(c<9)||(c>13&&c<32)||c===0xFFFD)bad++;}
+  return bad/Math.max(1,s.length)>0.08;
 }
 function previewCard(d,ex,note){
   ex=(ex||extOf(d.n)||'').toLowerCase();
-  const TYPE={xlsx:'Classeur Excel',xls:'Classeur Excel',xlsm:'Classeur Excel',docx:'Document Word',doc:'Document Word',pptx:'Présentation PowerPoint',ppt:'Présentation PowerPoint',csv:'Données CSV',txt:'Fichier texte',md:'Markdown',json:'Données JSON',zip:'Archive'}[ex]||('Fichier .'+(ex||'?').toUpperCase());
+  const TYPE={pdf:'Document PDF',xlsx:'Classeur Excel',xls:'Classeur Excel',xlsm:'Classeur Excel',docx:'Document Word',doc:'Document Word',pptx:'Présentation PowerPoint',ppt:'Présentation PowerPoint',csv:'Données CSV',txt:'Fichier texte',md:'Markdown',json:'Données JSON',zip:'Archive'}[ex]||('Fichier .'+(ex||'?').toUpperCase());
   const sz=d.size?humanSize(d.size):'';
-  const ex2=d._text?esc(d._text.replace(/\s+/g,' ').trim().slice(0,700)):'';
+  const raw=d._text?d._text.slice(0,4000):'';
+  const ex2=(raw&&!looksBinary(raw))?esc(raw.replace(/\s+/g,' ').trim().slice(0,700)):'';
   const nt=note||"Ce format ne s'affiche pas dans le navigateur. Clique <b>Ouvrir le document</b> pour le consulter, ou <b>Exporter</b> pour récupérer le fichier.";
   return `<div class="pv-card">
     <div class="pv-card-h">
@@ -609,16 +633,10 @@ function previewHtml(d,ex){
   ex=ex||extOf(d.n);
   if(d.url){return `<iframe class="pv-pdf" src="${esc(d.url)}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;}
   if(d._added){
-    const u=BLOBS[d._id];
-    if(u){
-      if(['png','jpg','jpeg','gif','webp','bmp','svg'].includes(ex))return `<img class="pv-img" src="${u}" alt="">`;
-      if(ex==='pdf')return `<embed class="pv-pdf" src="${u}" type="application/pdf">`;
-      if(ex==='html'||ex==='htm')return `<iframe class="pv-pdf" src="${u}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;
-    }
-    if((ex==='html'||ex==='htm')&&d._text)return `<iframe class="pv-pdf" srcdoc="${esc(d._text)}" title="Aperçu" style="width:100%;height:420px;border:0;border-radius:10px;background:#fff"></iframe>`;
-    if(d._text)return previewCard(d,ex);
-    if(u)return previewCard(d,ex);
-    return previewCard(d,ex,"Le fichier brut n'est pas conservé sur ce navigateur. Réimporte-le pour le consulter ou l'exporter.");
+    const ex2=(ex||extOf(d.n)||'').toLowerCase();
+    const RENDER=['pdf','html','htm','png','jpg','jpeg','gif','webp','bmp','svg'];
+    if(RENDER.includes(ex2))return `<div class="pv-load">Chargement de l'aperçu…</div>`; // renderPreviewAsync remplace
+    return previewCard(d,ex2);
   }
   return `<div class="pv-none"><b>Document du catalogue</b><span>Aperçu disponible après dépôt du fichier réel.</span></div>`;
 }
@@ -850,11 +868,12 @@ function openRoles(){
 /* journal des mouvements (vue) */
 function renderJournal(){
   buildSide('journal');MOV_SEEN=Date.now();try{localStorage.setItem(SEEN_KEY,String(MOV_SEEN));}catch(_){}updateBell();
-  const rows=MOV.map(m=>`<tr><td class="mono" style="color:var(--muted);white-space:nowrap">${relTime(m.t)}</td><td><span class="avatar" style="width:24px;height:24px;border-radius:7px;font-size:9px;display:inline-flex">${esc(m.who)}</span></td><td><b style="font-family:'Poppins';font-weight:600;color:var(--navy)">${esc(m.a)}</b></td><td>${esc(baseName(m.n))||'—'}</td><td>${esc(m.s)||'—'}</td></tr>`).join('');
+  const rows=MOV.map(m=>`<tr data-jn="${esc(m.n||'')}" style="cursor:pointer"><td class="mono" style="color:var(--muted);white-space:nowrap">${relTime(m.t)}</td><td><span class="avatar" style="width:24px;height:24px;border-radius:7px;font-size:9px;display:inline-flex">${esc(m.who)}</span></td><td><b style="font-family:'Poppins';font-weight:600;color:var(--navy)">${esc(m.a)}</b></td><td>${esc(baseName(m.n))||'—'}</td><td>${esc(m.s)||'—'}</td></tr>`).join('');
   $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Journal des mouvements</span></div>
     <div class="eyebrow">Traçabilité</div><h2 class="poppins" style="font-size:20px;color:var(--navy);font-weight:700">Journal des mouvements</h2>
     <div class="sub" style="color:var(--muted)">Chaque dépôt, classement, modification, export ou attribution de rôle est enregistré. Rien ne se perd.</div>
     <div style="margin-top:16px">${MOV.length?`<table class="tbl"><thead><tr><th>Quand</th><th>Qui</th><th>Action</th><th>Objet</th><th>Section</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Aucun mouvement pour l\'instant. Dépose un fichier pour commencer.</div>'}</div>`;
+  $('#view').querySelectorAll('tr[data-jn]').forEach(tr=>{tr.onclick=()=>{const nm=tr.dataset.jn;if(!nm)return;const doc=allDocs().find(x=>x.n===nm)||window.ADDED.find(x=>x.n===nm);if(doc)openDoc(doc);else toast('Document non trouvé dans le catalogue');};});
 }
 /* cloche + menu profil */
 function menuEl(id){let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.className='dropdown';document.body.appendChild(el);}return el;}
@@ -862,7 +881,8 @@ function closeMenu(id){const el=document.getElementById(id);if(el)el.classList.r
 function toggleMenu(id,build){const el=menuEl(id);const open=el.classList.contains('show');closeMenu('bellmenu');closeMenu('profmenu');if(!open){build(el);el.classList.add('show');}}
 function updateBell(){const dot=document.getElementById('belldot');if(!dot)return;const c=unseen();if(c>0){dot.hidden=false;dot.textContent=c>9?'9+':String(c);}else{dot.hidden=true;}}
 function buildBellMenu(el){const items=MOV.slice(0,20);
-  el.innerHTML=`<div class="dh">Notifications</div>`+(items.length?items.map(m=>`<div class="di"><div class="ic">${I.ref}</div><div class="tx"><b>${esc(m.a)}</b> ${esc(baseName(m.n))||''}<small>${esc(m.s)||''} · ${relTime(m.t)}</small></div></div>`).join(''):`<div class="empty">Aucune notification.</div>`)+`<div class="di" data-all="1" style="justify-content:center"><div class="tx" style="color:var(--indigo);font-weight:600">Voir le journal complet</div></div>`;
+  el.innerHTML=`<div class="dh">Notifications</div>`+(items.length?items.map(m=>`<div class="di" data-jn="${esc(m.n||'')}" style="cursor:pointer"><div class="ic">${I.ref}</div><div class="tx"><b>${esc(m.a)}</b> ${esc(baseName(m.n))||''}<small>${esc(m.s)||''} · ${relTime(m.t)}</small></div></div>`).join(''):`<div class="empty">Aucune notification.</div>`)+`<div class="di" data-all="1" style="justify-content:center"><div class="tx" style="color:var(--indigo);font-weight:600">Voir le journal complet</div></div>`;
+  el.querySelectorAll('.di[data-jn]').forEach(di=>{di.onclick=()=>{const nm=di.dataset.jn;if(!nm)return;const doc=allDocs().find(x=>x.n===nm)||window.ADDED.find(x=>x.n===nm);closeMenu('bellmenu');if(doc)openDoc(doc);else toast('Document non trouvé');};});
   const all=el.querySelector('[data-all]');if(all)all.onclick=()=>{closeMenu('bellmenu');go('journal');};}
 function buildProfMenu(el){
   el.innerHTML=`<div class="pcard"><span class="avatar">ND</span><div><b>Nicolas Durand</b><span>Super administrateur</span></div></div>
@@ -946,6 +966,12 @@ function renderHome(){
   const tiles=SPACES.map((s,ix)=>{const _c=SPACE_COLORS[ix%4];return `<a class="tile" href="#/${s.key==='clients'?'clients':'espace/'+s.key}"><div class="ic" style="background:${_c[0]};color:${_c[1]}">${I[s.key]||I.doc}</div><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><span class="cnt">${fmt(s.count+addedSpace(s.key))}</span></a>`;}).join('');
   const board=top.map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="pchip" href="#/client/${i}"><span class="monogram ${e} sm">${esc(initials(c.name))}</span><span class="pcol"><span class="nm">${esc(c.name)}</span><span class="vv">${fmt(c.files+addedClient(i))} fich. · ${fmt(c.folders)} dos.</span></span></a>`;}).join('');
   const chips=top.slice(0,8).map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="ccard ${e}" href="#/client/${i}"><div class="cc-head"><span class="monogram ${e}">${esc(initials(c.name))}</span><div><h3>${esc(c.name)}</h3><div class="e"><span class="dot ${e}"></span>${engText(c.eng)}</div></div></div><div class="v"><span class="mono">${fmt(c.files+addedClient(i))}</span> fichiers · <span class="mono">${fmt(c.folders)}</span> dossiers</div><div class="bar"><span style="width:${Math.max(3,Math.round((c.files/maxFiles)*100))}%"></span></div></a>`;}).join('');
+  const cpw=allDocs().filter(d=>d.src==='cpwire'||d.url);
+  let cpwSec='';
+  if(cpw.length){
+    const rows=cpw.slice(0,60).map((d,i)=>`<tr data-i="${i}" style="cursor:pointer"><td><div class="name">${I.doc}<span class="nm" title="${esc(d.n)}">${esc(baseName(d.n))}</span></div></td><td>${esc((d.ci>=0&&CLIENTS[d.ci])?CLIENTS[d.ci].name:(d.client||'—'))}</td><td>${d.k?`<span class="tag">${esc(d.k)}</span>`:'—'}</td></tr>`).join('');
+    cpwSec=`<div class="sec"><div class="eyebrow">Pipeline</div><h2>Documents produits par cp|WIRE</h2><div class="sub">Fiches, mémoires, comptes rendus et livrables générés automatiquement — cliquables pour ouvrir la fiche. ${fmt(cpw.length)} document${cpw.length>1?'s':''}.</div><div id="cpwpipe" style="margin-top:12px"><table class="tbl"><thead><tr><th>Document</th><th>Client</th><th>Catégorie</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  }
   $('#view').innerHTML=`
     <div class="hero">
       <div class="ey">Espace de delivery · TMA &amp; Projets</div>
@@ -962,9 +988,11 @@ function renderHome(){
       </div>
       <div class="pboard">${board}</div>
     </div>
+    ${cpwSec}
     <div class="sec"><div class="eyebrow">Espaces</div><h2>Où aller</h2><div class="sub">Huit espaces, des droits adaptés à chacun.</div><div class="tiles">${tiles}</div></div>
     <div class="sec"><div class="eyebrow">Accès rapide</div><h2>Clients</h2><div class="sub">Triés par volume — un seul dossier par client. <a href="#/clients">Voir les 15 →</a></div><div class="cgrid">${chips}</div></div>
     <div class="foot"><span class="a">ARMONIE GROUP · CONFIDENTIEL</span><span>armonie.group · plateforme de démonstration</span></div>`;
+  const ph=$('#cpwpipe'); if(ph){ph.querySelectorAll('tbody tr').forEach(tr=>{tr.onclick=()=>openDoc(cpw[+tr.dataset.i]);});}
 }
 
 function renderClients(){
@@ -1020,7 +1048,7 @@ function renderClient(idx){
         <div class="kv"><span class="k">Dossiers</span><span class="v">${fmt(c.folders)}</span></div>
       </div>
       <div class="panel"><h3>Catégorie la plus fournie</h3>
-        <div class="kv"><span class="k">${esc(Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—')}</span><span class="v">${fmt(Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[1]||0)}</span></div>
+        <div class="kv" data-topcat="${esc(Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'')}" style="cursor:pointer" title="Filtrer sur cette catégorie"><span class="k">${esc(Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[0]||'—')}</span><span class="v">${fmt(Object.entries(catCount).sort((a,b)=>b[1]-a[1])[0]?.[1]||0)}</span></div>
       </div>
     </div></div>
     <div class="foot"><span class="a">ARMONIE GROUP · CONFIDENTIEL</span><span>armonie.group · plateforme</span></div>`;
@@ -1031,6 +1059,8 @@ function renderClient(idx){
     $('#cats').querySelectorAll('.cat').forEach(x=>x.classList.remove('active'));b.classList.add('active');
     document.getElementById('docs').scrollIntoView({behavior:'smooth',block:'start'});
   });
+  const tc=$('#view').querySelector('[data-topcat]');
+  if(tc&&tc.dataset.topcat){tc.onclick=()=>{const sel=$('#docs').querySelector('#fk');if(sel){sel.value=tc.dataset.topcat;sel.dispatchEvent(new Event('change'));document.getElementById('docs').scrollIntoView({behavior:'smooth',block:'start'});}};}
 }
 
 function renderSpace(key){
