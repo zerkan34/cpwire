@@ -187,8 +187,9 @@ router.use(express.json({ limit: "1mb" }));
 router.get("/sharefly/config.js", (_req, res) => {
   const sp = process.env.SHAREFLY_SP_BASE || "";
   const cp = process.env.SHAREFLY_CPWIRE_BASE || "/";
+  const mode = process.env.SHAREFLY_SP_MODE || "search"; // "search" (robuste, par nom) ou "path" (lien direct)
   res.type("application/javascript")
-    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};`);
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};`);
 });
 
 /* --- Loader synchrone du catalogue pour la page ShareFly ---

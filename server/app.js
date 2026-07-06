@@ -546,6 +546,7 @@ app.post("/api/cr/daily", guard, async (req, res) => {
     const tr = await fetchStatusTransitions(todayKeys, startToday.toISOString(), null);
     const out = await dailyReport(dossier, sub, null, tr.items);
     logEvent("cr_journalier", `CR journalier - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    try { if (dossier && !/^tous/i.test(dossier) && out && out.html) { recordDeliverable({ client: dossier, type: "CR journalier", title: `CR journalier — ${dossier} — ${new Date().toLocaleDateString("fr-FR")}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record cr/daily:", e && e.message); }
     res.json(out);
   } catch (err) {
     console.error("[POST /api/cr/daily]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
@@ -1057,6 +1058,7 @@ app.post("/api/meeting/report", guard, writeGuard, aiLimiter, upload.fields([{ n
     } catch { /* pas de Jira → on rédige sans bloc chiffres */ }
     const out = await meetingReport({ titre, participants, notes, transcript, images, equipe, consigne, jiraFacts });
     logEvent("cr_reunion", `CR reunion - ${titre || "sans titre"}`, { via: out.generatedBy, images: images.length, audio: !!audio, consigne: !!(consigne && consigne.trim()) });
+    try { const cl = String(dossier || "").trim(); if (cl && !/^tous/i.test(cl) && out && out.html) { recordDeliverable({ client: cl, type: "CR réunion", title: (titre && titre.trim()) ? `CR réunion — ${titre.trim()}` : `CR réunion — ${cl}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record meeting:", e && e.message); }
     res.json({ ...out, transcript });
   } catch (err) {
     console.error("[POST /api/meeting/report]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }

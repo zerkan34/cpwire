@@ -350,6 +350,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .mopen .mbtn.open:hover{filter:brightness(1.08)}
 .lspin{width:34px;height:34px;margin:10px auto 4px;border:3px solid var(--filet,#E2DEF0);border-top-color:var(--indigo,#3B2E8C);border-radius:50%;animation:lspinrot .8s linear infinite}
 @keyframes lspinrot{to{transform:rotate(360deg)}}
+.vwrap{position:fixed;inset:0;background:rgba(29,29,27,.55);z-index:9999;display:none;padding:24px}
+.vwrap.on{display:flex;flex-direction:column}
+.vbar{display:flex;align-items:center;gap:12px;background:#fff;border-radius:12px 12px 0 0;padding:10px 16px}
+.vtt{flex:1;font-weight:700;font-size:14px;color:var(--indigo,#3B2E8C);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.vcl{border:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);font-weight:700;font-size:13px;padding:6px 14px;border-radius:9px;cursor:pointer}
+.vcl:hover{background:var(--indigo,#3B2E8C);color:#fff}
+.vframe{flex:1;width:100%;border:0;border-radius:0 0 12px 12px;background:#fff}
 
 </style>
 </head>
@@ -359,6 +366,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
   <button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/')">← cp|WIRE</button>
   <img class="logo" src="" id="logo" alt="armonie">
   <span class="appname" onclick="go('')">ShareFly</span>
+  <a class="backbtn" href="/sharefly/docs-cpwire.html" title="Tous les documents produits par cp|WIRE" style="margin-right:0">Docs cp|WIRE</a>
   <a class="backbtn" href="/sharefly/analyse.html" title="Analyse cp|WIRE du catalogue" style="margin-right:0">Analyse cp|WIRE</a>
   <div class="search">
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
@@ -576,24 +584,42 @@ function previewHtml(d,ex){
 /* ouvrir le document : fichier déposé (blob) · dérivé cp|WIRE · lien profond SharePoint */
 async function openFile(d){
   if(!d)return;
-  // 0) livrable cp|WIRE hébergé (contenu réel) -> ouvrir directement
-  if(d.url){window.open(d.url,'_blank','noopener');return;}
-  // 1) fichier réellement déposé dans ce navigateur -> ouvrir tel quel
+  // document cp|WIRE hébergé (fiche, mémoire, CR) -> LECTEUR INTÉGRÉ à ShareFly
+  if(d.url){openInApp(d.url,d.n);return;}
+  // fichier déposé dans ce navigateur -> lecteur intégré
   if(d._added){
     let u=BLOBS[d._id];
     if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
-    if(u){window.open(u,'_blank','noopener');return;}
+    if(u){openInApp(u,d.n);return;}
     toast('Fichier brut absent de ce poste');return;
   }
-  // 2) document dérivé cp|WIRE (fiche, mémoire, état Jira…) -> ouvrir cp|WIRE
-  if(d.src==='cpwire'){window.open((window.SHAREFLY_CPWIRE_BASE||'/'),'_blank','noopener');return;}
-  // 3) document du catalogue SharePoint -> lien profond (URL de base configurée)
-  const sp=String(window.SHAREFLY_SP_BASE||'').replace(/\/+$/,'');
-  if(sp && d.p){
-    const url=sp+'/'+String(d.p).split('/').filter(Boolean).map(encodeURIComponent).join('/');
-    window.open(url,'_blank','noopener');return;
+  // synthèse cp|WIRE sans fichier (ex. « Imports — … ») : indicateur, pas un document
+  if(d.src==='cpwire'){
+    sheet(`<h4>Synthèse cp|WIRE</h4><p class="sub">« ${esc(baseName(d.n))} » est un indicateur (comptage), pas un document à ouvrir.</p><div class="row2" style="margin-top:14px"><button class="pbtn" data-x="ok">Compris</button></div>`,(s,close)=>{const b=s.querySelector('[data-x="ok"]');if(b)b.onclick=close;});
+    return;
   }
-  toast('Ouverture indisponible : URL SharePoint non configurée (SHAREFLY_SP_BASE)');
+  // référence SharePoint : le contenu n'est pas dans ShareFly -> on NE relance PAS SharePoint
+  sheet(`<h4>Document pas encore dans ShareFly</h4>
+    <p class="sub">« ${esc(baseName(d.n))} » est <b>référencé</b> depuis SharePoint, mais son contenu n'a pas été rapatrié dans ShareFly — il n'y a rien à afficher ici pour l'instant.</p>
+    <p class="sub" style="margin-top:10px">Pour le visualiser dans ShareFly : dépose-le via <b>Importer</b>, ou connecte SharePoint pour que ShareFly récupère les fichiers automatiquement.</p>
+    <div class="row2" style="margin-top:14px"><button class="pbtn" data-x="ok">Compris</button></div>`,
+    (s,close)=>{const b=s.querySelector('[data-x="ok"]');if(b)b.onclick=close;});
+}
+// Lecteur de document INTÉGRÉ à ShareFly (aucun renvoi externe).
+function openInApp(url,title){
+  let v=document.getElementById('vwrap');
+  if(!v){
+    v=document.createElement('div');v.id='vwrap';v.className='vwrap';
+    v.innerHTML='<div class="vbar"><span class="vtt" id="vtt"></span><button class="vcl" id="vcl">Fermer ✕</button></div><iframe class="vframe" id="vframe" title="Document"></iframe>';
+    document.body.appendChild(v);
+    const close=()=>{v.classList.remove('on');v.querySelector('#vframe').src='about:blank';};
+    v.querySelector('#vcl').onclick=close;
+    v.addEventListener('click',e=>{if(e.target===v)close();});
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&v.classList.contains('on'))close();});
+  }
+  v.querySelector('#vtt').textContent=title||'Document';
+  v.querySelector('#vframe').src=url;
+  v.classList.add('on');
 }
 function docAction(a,d,m){
   if(a==='open'){openFile(d);return;}

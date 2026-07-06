@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documents cp|WIRE — ShareFly</title>
+<style>
+  :root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--violetc:#C4C0DC;
+    --lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0;--vert:#2F7D4F;--sh:0 10px 30px rgba(29,29,27,.08)}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);background:var(--lav)}
+  .top{display:flex;align-items:center;gap:12px;padding:14px 22px;background:#fff;border-bottom:1px solid var(--filet);position:sticky;top:0;z-index:5}
+  .top h1{font:700 16px Poppins,Inter,sans-serif;margin:0;flex:1}
+  .top .kick{color:var(--violet);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px}
+  .btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--filet);background:var(--lav);color:var(--violet);font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer;text-decoration:none;white-space:nowrap}
+  .btn:hover{background:var(--violet);color:#fff;border-color:var(--violet)}
+  .wrap{max-width:1000px;margin:0 auto;padding:22px}
+  .client{background:#fff;border:1px solid var(--filet);border-radius:16px;padding:16px 18px;margin-bottom:16px;box-shadow:var(--sh)}
+  .client h2{font:700 15px Poppins,Inter,sans-serif;margin:0 0 4px}
+  .client .cnt{color:var(--gris);font-size:12.5px;margin-bottom:12px}
+  .doc{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--filet)}
+  .doc:first-of-type{border-top:0}
+  .doc .ico{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,var(--violet),var(--magenta));color:#fff;display:flex;align-items:center;justify-content:center;font:700 11px Poppins,sans-serif;flex:0 0 auto}
+  .doc .nm{flex:1;font-size:14px;font-weight:600}
+  .doc .nm small{display:block;color:var(--gris);font-weight:500;font-size:12px}
+  .doc .open{background:var(--violet);color:#fff;border:0;border-radius:9px;padding:7px 14px;font-weight:700;font-size:13px;cursor:pointer;text-decoration:none}
+  .doc .open:hover{filter:brightness(1.08)}
+  .doc .no{color:var(--gris);font-size:12px;font-style:italic}
+  .muted{color:var(--gris);font-size:12.5px}
+  .err{color:var(--magenta);font-weight:600}
+</style>
+</head>
+<body>
+<div class="top">
+  <a class="btn" href="/sharefly/">← ShareFly</a>
+  <a class="btn" href="/" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/');return false;">← cp|WIRE</a>
+  <div style="flex:1">
+    <div class="kick">Armonie Delivery · Documents produits par cp|WIRE</div>
+    <h1>Documents cp|WIRE</h1>
+  </div>
+  <span class="muted" id="count"></span>
+</div>
+<div class="wrap" id="root"><p class="muted">Chargement des documents cp|WIRE…</p></div>
+
+<script src="/sharefly/config.js"></script>
+<script>
+const CLIENTS=["Belmet — Groupe Bellion","Tafanel","École des Loisirs","Balas","DS Smith","Inter Mutuelle Assistance","Vinci Immobilier","Vandoren","Segurel","Diapar","Eminence","Maîtres Laitiers du Cotentin","Aluminium France Extrusion","Mécarungis","Loxam"];
+const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const kind=d=>{const i=d.id||'';if(i.includes(':fiche:'))return'FIC';if(i.includes(':memoire:'))return'MÉM';if(i.includes(':jira:'))return'JIR';if(i.includes(':imports:'))return'IMP';if(i.includes(':deliv:'))return'CR';return'DOC';};
+
+function render(list){
+  $('#count').textContent=list.length+' document'+(list.length>1?'s':'');
+  if(!list.length){$('#root').innerHTML='<p class="muted">Aucun document cp|WIRE généré pour le moment. Ils apparaissent dès qu\'un dossier a une fiche, une mémoire, des imports ou un CR généré.</p>';return;}
+  const byCi={};
+  for(const d of list){(byCi[d.ci]=byCi[d.ci]||[]).push(d);}
+  let html='';
+  Object.keys(byCi).map(Number).sort((a,b)=>byCi[b].length-byCi[a].length).forEach(ci=>{
+    const docs=byCi[ci];
+    html+=`<div class="client"><h2>${esc(CLIENTS[ci]||('Client '+ci))}</h2><div class="cnt">${docs.length} document${docs.length>1?'s':''} cp|WIRE</div>`;
+    for(const d of docs){
+      const openable=!!d.url;
+      html+=`<div class="doc"><div class="ico">${kind(d)}</div>
+        <div class="nm">${esc(d.n)}<small>type cp|WIRE · ${d.y||''}</small></div>
+        ${openable?`<a class="open" href="${esc(d.url)}" target="_blank" rel="noopener">Ouvrir</a>`:'<span class="no">synthèse (comptage)</span>'}
+      </div>`;
+    }
+    html+='</div>';
+  });
+  $('#root').innerHTML=html;
+}
+function $(s){return document.querySelector(s);}
+
+fetch('/api/sharefly/derived').then(r=>r.json()).then(render)
+  .catch(e=>{$('#root').innerHTML='<p class="err">Chargement impossible : '+esc(e.message||e)+'</p>';});
+</script>
+</body>
+</html>

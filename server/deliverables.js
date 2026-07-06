@@ -24,17 +24,20 @@ export function listDeliverables() { return load(); }
 export function recordDeliverable({ client, type, title, html, content, ext } = {}) {
   if (!client) return null;
   const body = html != null ? html : content;
-  const id = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-  const e = {
-    id, client: String(client), type: String(type || "Livrable"), title: String(title || ""),
-    ext: (ext || "html"), at: new Date().toISOString(), hasFile: false,
-  };
+  const list = load();
+  const now = Date.now();
+  const t = String(title || "");
+  // Anti-doublon : même client + même titre produit il y a moins de 5 min -> on réutilise l'entrée.
+  let e = list.find((x) => x.client === String(client) && x.title === t && (now - new Date(x.at).getTime()) < 5 * 60 * 1000);
+  if (e) { e.at = new Date().toISOString(); if (type) e.type = String(type); if (ext) e.ext = ext; }
+  else {
+    e = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8), client: String(client), type: String(type || "Livrable"), title: t, ext: (ext || "html"), at: new Date().toISOString(), hasFile: false };
+    list.unshift(e);
+  }
   if (body != null) {
-    try { fs.mkdirSync(dataDir(), { recursive: true }); fs.writeFileSync(artefactPath(id, e.ext), String(body)); e.hasFile = true; }
+    try { fs.mkdirSync(dataDir(), { recursive: true }); fs.writeFileSync(artefactPath(e.id, e.ext), String(body)); e.hasFile = true; }
     catch (err) { console.error("[deliverables] artefact non stocké:", err.message); }
   }
-  const list = load();
-  list.unshift(e);
   save(list);
   return e;
 }
