@@ -191,7 +191,7 @@ router.get("/sharefly/config.js", (_req, res) => {
   const mode = process.env.SHAREFLY_SP_MODE || "search"; // "search" (robuste, par nom) ou "path" (lien direct)
   const spc = sharepoint.isConfigured();
   res.type("application/javascript")
-    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v390";`);
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v391";`);
 });
 
 /* --- Loader synchrone du catalogue pour la page ShareFly ---
@@ -224,6 +224,8 @@ router.get("/api/sharefly/derived", (_req, res) => {
    Le contenu est construit en direct depuis les données réelles (dossiers.json,
    connaissance) : chaque client a donc de VRAIS documents ouvrables, sans stockage. */
 function escH(s) { return String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+function slugRef(s) { return String(s || "").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+function isoDate() { return new Date().toISOString().slice(0, 10); }
 const FIELD_LABELS = { description: "Description", tech: "Environnement technique", team: "Équipe", equipe: "Équipe", contexte: "Contexte", perimetre: "Périmètre", enjeux: "Enjeux", contacts: "Contacts", stack: "Stack", notes: "Notes" };
 function renderValue(v) {
   if (v == null || v === "") return "";
@@ -241,8 +243,9 @@ function renderValue(v) {
   }
   return `<p>${escH(v).replace(/\n/g, "<br>")}</p>`;
 }
-function htmlShell(kicker, title, bodyHtml) {
+function htmlShell(kicker, title, bodyHtml, meta) {
   const date = new Date().toLocaleDateString("fr-FR");
+  const metaHtml = (meta && meta.length) ? `<div class="meta">${meta.map(([l, v]) => `<div class="row"><span class="l">${escH(l)}</span><span class="v">${escH(v)}</span></div>`).join("")}</div>` : "";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(title)} — Armonie</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -261,6 +264,11 @@ body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);margin:0;bac
 h1{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:30px;line-height:1.12;margin:0 0 10px;color:var(--noir)}
 .rule{width:64px;height:4px;background:var(--jaune);border-radius:3px;margin:0 0 10px}
 .pill{display:inline-block;border:1.5px solid var(--violet);color:var(--violet);border-radius:20px;padding:3px 13px;font-size:10px;font-weight:600;font-family:Poppins,Arial,sans-serif;letter-spacing:.05em}
+.meta{margin:14px 0 6px;border:1px solid var(--filet);border-radius:12px;overflow:hidden}
+.meta .row{display:flex;font-size:12px;border-bottom:1px solid var(--filet)}
+.meta .row:last-child{border-bottom:0}
+.meta .l{width:34%;background:var(--lav);color:var(--violet);font-weight:600;font-family:Poppins,Arial,sans-serif;padding:8px 14px}
+.meta .v{padding:8px 14px}
 h2{font-family:Poppins,Arial,sans-serif;font-weight:700;color:var(--violet);font-size:16px;margin:28px 0 8px;display:flex;align-items:center;gap:9px}
 h2::before{content:"";width:8px;height:8px;background:var(--jaune);display:inline-block;border-radius:2px;flex:none}
 p{margin:6px 0}
@@ -286,18 +294,21 @@ pre{background:var(--lav);border:1px solid var(--filet);border-radius:10px;paddi
   <h1>${escH(title)}</h1>
   <div class="rule"></div>
   <span class="pill">Document de travail</span>
+  ${metaHtml}
   ${bodyHtml}
   <div class="ft"><span>ARMONIE GROUP · CONFIDENTIEL</span><span>Produit par cp|WIRE · charte Armonie</span></div>
 </div></body></html>`;
 }
 function renderFiche(key, fiche) {
-  if (!fiche) return htmlShell("Fiche dossier", key, "<p>Aucune fiche renseignée pour ce dossier.</p>");
+  const meta = [["Client", key], ["Type", "Fiche dossier"], ["Référence", `ARMONIE-${slugRef(key)}-FICHE-${isoDate()}`], ["Statut", "Document de travail"]];
+  if (!fiche) return htmlShell("Fiche dossier", key, "<p>Aucune fiche renseignée pour ce dossier.</p>", meta);
   let body = "";
   for (const [k, v] of Object.entries(fiche)) { const val = renderValue(v); if (val) body += `<h2>${escH(FIELD_LABELS[k] || k)}</h2>${val}`; }
-  return htmlShell("Fiche dossier", key, body || "<p>Fiche vide.</p>");
+  return htmlShell("Fiche dossier", key, body || "<p>Fiche vide.</p>", meta);
 }
 function renderMemoire(key, m) {
-  if (!m) return htmlShell("Mémoire IA", key, "<p>Aucune mémoire enregistrée pour ce client.</p>");
+  const meta = [["Client", key], ["Type", "Mémoire IA"], ["Référence", `ARMONIE-${slugRef(key)}-MEMOIRE-${isoDate()}`], ["Statut", "Document de travail"]];
+  if (!m) return htmlShell("Mémoire IA", key, "<p>Aucune mémoire enregistrée pour ce client.</p>", meta);
   let body = "";
   if (m.contexte) body += `<h2>Contexte</h2>${renderValue(m.contexte)}`;
   if (m.attentes && m.attentes.length) body += `<h2>Attentes</h2>${renderValue(m.attentes)}`;
@@ -305,7 +316,7 @@ function renderMemoire(key, m) {
   if (m.auto && m.auto.points && m.auto.points.length) body += `<h2>Points appris (analyse automatique)</h2>${renderValue(m.auto.points)}`;
   if (m.appris && m.appris.length) body += `<h2>Sources apprises</h2>${renderValue(m.appris.map((a) => a.text || a.source || ""))}`;
   if (m.glossaire && m.glossaire.length) body += `<h2>Glossaire</h2>${renderValue(m.glossaire)}`;
-  return htmlShell("Mémoire IA", key, body || "<p>Mémoire vide.</p>");
+  return htmlShell("Mémoire IA", key, body || "<p>Mémoire vide.</p>", meta);
 }
 
 /* --- Vue à la demande d'un document cp|WIRE (fiche / mémoire), rendue en HTML charté --- */
