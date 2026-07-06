@@ -320,7 +320,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 #modal .mbtn.ghost{color:var(--muted)}
 @media(max-width:620px){#modal .mact4{grid-template-columns:repeat(2,1fr)}}
 /* sous-modales (export / classer / éditer / rôles) */
-.sheet{position:fixed;inset:0;z-index:70;display:none}
+.sheet{position:fixed;inset:0;z-index:300;display:none}
 .sheet.show{display:block}
 .sheet .sb{position:absolute;inset:0;background:rgba(20,16,40,.42)}
 .sheet .sc{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,94vw);max-height:86vh;overflow:auto;background:#fff;border-radius:18px;box-shadow:var(--sh-lg);padding:22px 24px;animation:pop .2s ease}
@@ -357,6 +357,13 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .vcl{border:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);font-weight:700;font-size:13px;padding:6px 14px;border-radius:9px;cursor:pointer}
 .vcl:hover{background:var(--indigo,#3B2E8C);color:#fff}
 .vframe{flex:1;width:100%;border:0;border-radius:0 0 12px 12px;background:#fff}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(118px,1fr));gap:10px;max-height:44vh;overflow:auto;margin:6px 0 2px}
+.ptile{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 8px;border:1px solid var(--line,#E2DEF0);border-radius:12px;background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);cursor:pointer;font-size:11.5px;font-weight:600;text-align:center;font-family:inherit}
+.ptile:hover{background:var(--indigo,#3B2E8C);color:#fff}
+.ptile.on{outline:2px solid var(--indigo,#3B2E8C);outline-offset:1px}
+.ptile span{line-height:1.2;word-break:break-word}
+.pcrumb{font-size:12px;color:var(--muted,#6E6A86);margin:2px 0 8px;font-weight:600}
+.pbtn[disabled]{opacity:.45;cursor:not-allowed}
 
 </style>
 </head>
@@ -536,7 +543,7 @@ async function openDoc(d){
     ['Type',(ex?('.'+ex+' · '):'')+esc(d.x)],
     ['Année',d.y||'—'],
     ['Client', d.ci>=0?`<a class="mlink" data-go="client">${esc(client)}</a>`:esc(client)],
-    ['Catégorie', (d._added&&(!d.k||d.k==='(à classer)'))?`<a class="mlink warn" data-cls="1">(à classer) — classer</a>`:esc(d.k||'—')],
+    ['Catégorie', d._added?`<a class="mlink${(!d.k||d.k==='(à classer)')?' warn':''}" data-cls="1">${(!d.k||d.k==='(à classer)')?'(à classer) — classer':esc(d.k)+' — reclasser'}</a>`:esc(d.k||'—')],
     ['Engagement',d.e||'—'],
     ['Emplacement cible',`<a class="mlink" data-copy="${esc(d.p)}">${esc(d.p)}</a>`]
   ];
@@ -717,21 +724,61 @@ async function openEdit(d){
 }
 /* classer un fichier "à classer" */
 function openClassify(d){
-  const cats=['Contrats','Factures','Comptes rendus','Spécifications','Cahier des charges','Livrables','Divers'];
-  const clientOpts=['<option value="">— Choisir un client —</option>'].concat(CLIENTS.map((c,i)=>`<option value="${i}" ${d.ci===i?'selected':''}>${esc(c.name)}</option>`)).join('');
-  let pickCat=(d.k&&d.k!=='(à classer)')?d.k:'';
-  const html=`<h4>Classer — ${esc(baseName(d.n))}</h4><p class="sub">Choisis le client et la catégorie de destination.</p>
-    <select class="fld" id="ccl">${clientOpts}</select>
-    <div class="chips" id="cch">${cats.map(c=>`<span class="chip ${c===pickCat?'on':''}" data-c="${esc(c)}">${esc(c)}</span>`).join('')}</div>
-    <input class="fld" id="cfree" placeholder="…ou saisis une catégorie" value="${esc(pickCat&&!cats.includes(pickCat)?pickCat:'')}">
-    <div class="row2"><button class="pbtn sec" data-x="c">Annuler</button><button class="pbtn" data-x="s">Classer ici</button></div>`;
-  sheet(html,(s,close)=>{
-    s.querySelectorAll('.chip').forEach(ch=>ch.onclick=()=>{s.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));ch.classList.add('on');pickCat=ch.dataset.c;s.querySelector('#cfree').value='';});
-    s.querySelector('#cfree').oninput=e=>{if(e.target.value){s.querySelectorAll('.chip').forEach(x=>x.classList.remove('on'));pickCat=e.target.value;}};
-    s.querySelector('[data-x="c"]').onclick=close;
-    s.querySelector('[data-x="s"]').onclick=()=>{const ci=parseInt(s.querySelector('#ccl').value,10);const cat=(s.querySelector('#cfree').value||pickCat||'').trim();if(isNaN(ci)){toast('Choisis un client');return;}if(!cat){toast('Choisis une catégorie');return;}const cname=CLIENTS[ci].name;d.ci=ci;d.client=cname;d.k=cat;d.sp='clients';d.p=`CLIENTS/${cname}/${cat}/`+d.n;saveAdded();logMove('Classement',d.n,cname);close();toast('Fichier classé');openDoc(d);};
-  });
+  const CATS=['Contrats','Factures','Comptes rendus','Spécifications','Cahier des charges','Livrables','Gouvernance','Échanges client','Divers'];
+  const spaceList=(window.SPACES||[]).map(s=>({key:s.key,name:s.name}));
+  const sel={sp:null,ci:(d.ci>=0?d.ci:null),k:(d.k&&d.k!=='(à classer)')?d.k:null};
+  const F='<svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>';
+  function destPath(){
+    if(sel.sp==='clients'&&sel.ci!=null&&CLIENTS[sel.ci]) return 'CLIENTS/'+CLIENTS[sel.ci].name+(sel.k?'/'+sel.k:'');
+    const s=spaceList.find(x=>x.key===sel.sp); return (s?s.name:sel.sp||'')+(sel.k?'/'+sel.k:'');
+  }
+  function render(){
+    const crumb=['Racine'];
+    if(sel.sp){const s=spaceList.find(x=>x.key===sel.sp);crumb.push(s?s.name:sel.sp);}
+    if(sel.ci!=null&&CLIENTS[sel.ci])crumb.push(CLIENTS[sel.ci].name);
+    if(sel.k)crumb.push(sel.k);
+    let step='',grid='';
+    if(!sel.sp){step='Choisis un espace';grid=spaceList.map(s=>`<button class="ptile" data-sp="${esc(s.key)}">${F}<span>${esc(s.name)}</span></button>`).join('');}
+    else if(sel.sp==='clients'&&sel.ci==null){step='Choisis un client';grid=CLIENTS.map((c,i)=>`<button class="ptile" data-ci="${i}">${F}<span>${esc(c.name)}</span></button>`).join('');}
+    else {step='Choisis une catégorie';grid=CATS.map(c=>`<button class="ptile ${sel.k===c?'on':''}" data-k="${esc(c)}">${F}<span>${esc(c)}</span></button>`).join('');}
+    const canMove = !!(sel.sp && (sel.sp!=='clients' || sel.ci!=null) && sel.k);
+    const html=`<h4>Classer — ${esc(baseName(d.n))}</h4>
+      <div class="pcrumb">${crumb.map(esc).join(' › ')}</div>
+      <p class="sub">${step}</p>
+      <div class="pgrid">${grid}</div>
+      <div class="row2" style="margin-top:14px">
+        ${sel.sp?'<button class="pbtn sec" data-x="back">↑ Remonter</button>':'<button class="pbtn sec" data-x="c">Annuler</button>'}
+        <button class="pbtn" data-x="move" ${canMove?'':'disabled'}>Déplacer ici</button>
+      </div>`;
+    sheet(html,(s,close)=>{
+      s.querySelectorAll('[data-sp]').forEach(b=>b.onclick=()=>{sel.sp=b.dataset.sp;if(sel.sp!=='clients')sel.ci=null;sel.k=null;render();});
+      s.querySelectorAll('[data-ci]').forEach(b=>b.onclick=()=>{sel.ci=+b.dataset.ci;sel.k=null;render();});
+      s.querySelectorAll('[data-k]').forEach(b=>b.onclick=()=>{sel.k=b.dataset.k;render();});
+      const bk=s.querySelector('[data-x="back"]');if(bk)bk.onclick=()=>{if(sel.k)sel.k=null;else if(sel.ci!=null)sel.ci=null;else sel.sp=null;render();};
+      const cc=s.querySelector('[data-x="c"]');if(cc)cc.onclick=close;
+      const mv=s.querySelector('[data-x="move"]');if(mv&&canMove)mv.onclick=()=>{
+        const dest=destPath();
+        sheet(`<h4>Déplacer le document ?</h4><p class="sub">« ${esc(baseName(d.n))} » sera classé dans :</p><p class="sub" style="color:var(--indigo,#3B2E8C);font-weight:700">${esc(dest)}</p><div class="row2" style="margin-top:14px"><button class="pbtn sec" data-x="no">Retour</button><button class="pbtn" data-x="yes">Confirmer le déplacement</button></div>`,(s2,c2)=>{
+          s2.querySelector('[data-x="no"]').onclick=()=>{c2();render();};
+          s2.querySelector('[data-x="yes"]').onclick=()=>{
+            d.sp=sel.sp;
+            if(sel.sp==='clients'&&sel.ci!=null){d.ci=sel.ci;d.client=CLIENTS[sel.ci].name;}
+            d.k=sel.k||d.k;
+            d.p=dest+'/'+d.n;
+            try{saveAdded();}catch(_){}
+            try{logMove('Classé',d.n,d.client||'');}catch(_){}
+            c2();
+            toast('Document classé : '+dest);
+            try{if((location.hash||'').includes('depot'))renderDepot();else if(typeof route==='function')route();}catch(_){}
+            openDoc(d);
+          };
+        });
+      };
+    });
+  }
+  render();
 }
+
 /* rôles (super admin) */
 function openRoles(){
   let R=[];try{R=JSON.parse(localStorage.getItem('armonie_roles_v1')||'[]')||[];}catch(_){}
@@ -1131,7 +1178,7 @@ function renderDepot(){
     const L=window.ADDED;
     if(!L.length){$('#dztbl').innerHTML='<div class="empty" style="margin-top:8px">Aucun document ajouté pour l\'instant. Glisse un fichier ci-dessus.</div>';$('#dzcount').textContent='';return;}
     let h=`<table class="tbl"><thead><tr><th>Fichier</th><th>Client</th><th>Catégorie</th><th>Destination</th><th>Taille</th><th></th></tr></thead><tbody>`;
-    L.forEach(d=>{h+=`<tr><td><div class="name">${I.doc}<span>${esc(d.n)}</span></div></td>
+    L.forEach(d=>{h+=`<tr><td><div class="name dzopen" data-id="${d._id}" style="cursor:pointer">${I.doc}<span>${esc(d.n)}</span></div></td>
       <td>${d.client?esc(d.client):'<span class="dzbadge tri">à trier</span>'}</td>
       <td>${d.client?`<span class="tag">${esc(d.k)}</span>`:'—'}</td>
       <td><span class="path" style="font-size:12px">${esc(d.p)}</span></td>
@@ -1139,9 +1186,10 @@ function renderDepot(){
       <td style="white-space:nowrap;text-align:right">${(BLOBS[d._id]||d._stored)?`<a class="dzlink" data-act="open" data-id="${d._id}">ouvrir</a> · `:''}<a class="dzlink" data-act="del" data-id="${d._id}">retirer</a></td></tr>`;});
     h+='</tbody></table>';$('#dztbl').innerHTML=h;
     $('#dzcount').textContent=L.length+' document'+(L.length>1?'s':'')+' ajouté'+(L.length>1?'s':'');
+    $('#dztbl').querySelectorAll('.dzopen').forEach(el=>el.onclick=()=>{const doc=(window.ADDED||[]).find(x=>x._id===el.dataset.id);if(doc)openDoc(doc);});
     $('#dztbl').querySelectorAll('.dzlink').forEach(a=>a.onclick=async()=>{
       const id=a.dataset.id;
-      if(a.dataset.act==='open'){let u=BLOBS[id];if(!u){const b=await idbGet(id);if(b){u=URL.createObjectURL(b);BLOBS[id]=u;}}if(u)window.open(u,'_blank');else toast('Fichier non disponible sur ce navigateur (stockage binaire indisponible).');}
+      if(a.dataset.act==='open'){let u=BLOBS[id];if(!u){const b=await idbGet(id);if(b){u=URL.createObjectURL(b);BLOBS[id]=u;}}if(u)openInApp(u,((window.ADDED||[]).find(x=>x._id===id)||{}).n||'Document');else toast('Fichier non disponible sur ce navigateur (stockage binaire indisponible).');}
       else{await idbDel(id);window.ADDED=window.ADDED.filter(x=>x._id!==id);saveAdded();draw();}
     });
   }
