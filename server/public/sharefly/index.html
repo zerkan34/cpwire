@@ -500,10 +500,19 @@ const fileType=n=>{const e=n.includes('.')?n.split('.').pop().toLowerCase():'';r
 const STORE_KEY='armonie_delivery_added_v1';
 let MEM=[];
 function loadAdded(){try{const s=localStorage.getItem(STORE_KEY);if(s)return JSON.parse(s);}catch(e){}return MEM;}
-function saveAdded(){MEM=window.ADDED;try{localStorage.setItem(STORE_KEY,JSON.stringify(window.ADDED));}catch(e){}}
+function saveAdded(){MEM=window.ADDED;try{localStorage.setItem(STORE_KEY,JSON.stringify(window.ADDED));}catch(e){try{toast('Stockage local plein : cet ajout ne sera pas conservé après rechargement. Exporte tes ajouts (CSV) pour les sauvegarder.');}catch(_){}}}
 window.ADDED=loadAdded();
 const BLOBS={};                       // objectURLs de la session (pour rouvrir)
-const allDocs=()=>DOCS.concat(window.ADDED);
+const refKeyOf=d=>(((d&&d.n)||'')+'|'+((d&&d.p)||'')+'|'+(((d&&d.ci)>=0)?d.ci:''));
+// Repère UNE référence SharePoint (non rapatriée) portant exactement ce nom de fichier.
+// Renvoie null si aucune ou si plusieurs (ambiguïté -> pas de remplacement automatique).
+function findReference(name){
+  const nm=String(name||'').trim().toLowerCase();if(!nm)return null;
+  const alreadyKeys=new Set(window.ADDED.filter(d=>d._refKey).map(d=>d._refKey));
+  const matches=DOCS.filter(d=>!d._added&&d.src!=='cpwire'&&!d.url&&String(d.n||'').trim().toLowerCase()===nm&&!alreadyKeys.has(refKeyOf(d)));
+  return matches.length===1?matches[0]:null;
+}
+const allDocs=()=>{const keys=new Set(window.ADDED.filter(d=>d._refKey).map(d=>d._refKey));const base=keys.size?DOCS.filter(d=>!(!d._added&&d.src!=='cpwire'&&keys.has(refKeyOf(d)))):DOCS;return base.concat(window.ADDED);};
 const addedClient=i=>window.ADDED.filter(d=>d.ci===i).length;
 const addedSpace=k=>window.ADDED.filter(d=>d.sp===k).length;
 function toast(msg){let t=document.getElementById('toast');if(!t){t=document.createElement('div');t.id='toast';document.body.appendChild(t);}t.textContent=msg;t.classList.add('show');clearTimeout(window._tt);window._tt=setTimeout(()=>t.classList.remove('show'),2800);}
@@ -566,7 +575,7 @@ async function openDoc(d){
     ['Emplacement cible',`<a class="mlink" data-copy="${esc(d.p)}">${esc(d.p)}</a>`]
   ];
   const body=rows.map(r=>`<div class="mrow"><span class="mk">${r[0]}</span><span class="mv">${r[1]}</span></div>`).join('');
-  const tagcat=d._added?'<span class="dzbadge ok">ajouté</span>':'<span class="mcat">catalogue</span>';
+  const tagcat=d._added?`<span class="dzbadge ok">${d._refKey?'rapatrié':'ajouté'}</span>`:'<span class="mcat">catalogue</span>';
   let m=document.getElementById('modal');
   if(!m){m=document.createElement('div');m.id='modal';document.body.appendChild(m);}
   m.innerHTML=`<div class="mback"></div><div class="mcard wide">
@@ -575,6 +584,8 @@ async function openDoc(d){
     <div class="mprev" id="mprev">${previewHtml(d,ex)}</div>
     <div class="mbody">${body}</div>
     <div class="mopen"><button class="mbtn open" data-a="open" type="button">Ouvrir le document</button></div>
+    ${d._added?`<div class="mopen" style="margin-top:8px"><button class="mbtn open" data-a="chart" type="button" style="background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);border:1px solid var(--filet,#E2DEF0)">✦ Générer une version Armonie</button></div>`:''}
+    ${(!d._added&&d.src!=='cpwire'&&!d.url&&!cpwireUrl(d))?`<div class="mopen" style="margin-top:8px"><button class="mbtn open" data-a="spimport" type="button" style="background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);border:1px solid var(--filet,#E2DEF0)">⇪ Importer ce fichier</button></div>`:''}
     <div class="mact4">
       <button class="mbtn" data-a="edit" type="button">${I.edit}Modifier</button>
       <button class="mbtn" data-a="import" type="button">${I.imp}Importer</button>
@@ -675,12 +686,29 @@ async function openFile(d){
     openInApp('/api/sharefly/spfile?name='+encodeURIComponent(baseName(d.n)), d.n);
     return;
   }
-  // sinon : contenu non rapatrié -> on NE relance PAS SharePoint, on explique
-  sheet(`<h4>Document pas encore dans ShareFly</h4>
-    <p class="sub">« ${esc(baseName(d.n))} » est <b>référencé</b> depuis SharePoint, mais son contenu n'a pas été rapatrié dans ShareFly — il n'y a rien à afficher ici pour l'instant.</p>
-    <p class="sub" style="margin-top:10px">Pour le visualiser dans ShareFly : dépose-le via <b>Importer</b>, ou connecte SharePoint (Microsoft Graph) pour que ShareFly récupère les fichiers automatiquement.</p>
-    <div class="row2" style="margin-top:14px"><button class="pbtn" data-x="ok">Compris</button></div>`,
-    (s,close)=>{const b=s.querySelector('[data-x="ok"]');if(b)b.onclick=close;});
+  // sinon : contenu non rapatrié -> fiche « Référence SharePoint » avec import direct
+  const cl=(d.ci>=0&&CLIENTS[d.ci])?CLIENTS[d.ci].name:(d.client||'—');
+  const rows=[['Client',cl],['Catégorie',d.k||'—'],['Type',d.x||'—'],['Emplacement',d.p||'—']]
+    .map((r,i,a)=>`<div style="display:flex;font-size:12.5px;${i<a.length-1?'border-bottom:1px solid var(--filet,#E2DEF0)':''}"><span style="width:34%;background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);font-weight:600;padding:7px 12px">${esc(r[0])}</span><span style="padding:7px 12px">${esc(String(r[1]))}</span></div>`).join('');
+  sheet(`<h4>Référence SharePoint</h4>
+    <p class="sub">« ${esc(baseName(d.n))} » est une <b>référence</b> du catalogue SharePoint. Son contenu n'est pas encore rapatrié dans ShareFly.</p>
+    <div style="margin:10px 0;border:1px solid var(--filet,#E2DEF0);border-radius:10px;overflow:hidden">${rows}</div>
+    <p class="sub">Importe le fichier depuis ton poste (ou un .zip SharePoint) : il sera <b>rangé automatiquement au même endroit</b> que cette référence.</p>
+    <div class="row2" style="margin-top:14px"><button class="pbtn" data-x="imp">Importer ce fichier</button><button class="pbtn sec" data-x="ok">Fermer</button></div>`,
+    (s,close)=>{const ok=s.querySelector('[data-x="ok"]');if(ok)ok.onclick=close;const im=s.querySelector('[data-x="imp"]');if(im)im.onclick=()=>{close();importForReference(d);};});
+}
+// Import d'un fichier réel pour une référence SharePoint : il hérite du client,
+// de la catégorie et de l'emplacement de la référence (rangement identique).
+function importForReference(ref){
+  const inp=document.createElement('input');inp.type='file';inp.multiple=true;
+  inp.onchange=async()=>{
+    if(!inp.files||!inp.files.length)return;
+    const res=await processFiles([...inp.files],{silent:true,classify:{ci:ref.ci,k:ref.k,sp:ref.sp,client:(ref.ci>=0&&CLIENTS[ref.ci])?CLIENTS[ref.ci].name:ref.client,refKey:refKeyOf(ref)}});
+    try{route();}catch(_){}
+    const n=res?res.length:0;
+    if(n)toast(n>1?n+' fichiers rapatriés — la référence est remplacée':'Fichier rapatrié — la référence est remplacée');
+  };
+  inp.click();
 }
 // Lecteur de document INTÉGRÉ à ShareFly (aucun renvoi externe).
 function openInApp(url,title){
@@ -715,6 +743,8 @@ function openInApp(url,title){
 }
 function docAction(a,d,m){
   if(a==='open'){openFile(d);return;}
+  if(a==='chart'){try{const blob=new Blob([chartFiche(d)],{type:'text/html'});openInApp(URL.createObjectURL(blob),'Version Armonie — '+baseName(d.n));}catch(e){toast('Génération impossible : '+(e.message||e));}return;}
+  if(a==='spimport'){if(m)m.classList.remove('show');importForReference(d);return;}
   if(a==='refresh'){openDoc(d);toast('Actualisé');return;}
   if(a==='export'){openExport(d);return;}
   if(a==='edit'){openEdit(d);return;}
@@ -742,23 +772,97 @@ async function saveBlob(blob,name){
 async function exportBrut(d){let b=null;try{b=await idbGet(d._id);}catch(_){}if(!b){toast('Fichier brut indisponible');return false;}return await saveBlob(b,d.n);}
 async function exportFicheCsv(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'');const rows=[['nom','type','extension','annee','client','categorie','engagement','emplacement'],[baseName(d.n),d.x,extOf(d.n),d.y||'',client,d.k||'',d.e||'',d.p]];const csv='\ufeff'+rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(';')).join('\r\n');return await saveBlob(new Blob([csv],{type:'text/csv'}),baseName(d.n)+'_fiche.csv');}
 function chartFiche(d){const client=d.ci>=0?CLIENTS[d.ci].name:(d.client||'—');const ex=extOf(d.n);
+  const slug=(client&&client!=='—'?client:'DOC').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Z0-9]+/g,'-').replace(/^-+|-+$/g,'');
+  const ref=`ARMONIE-${slug}-DOC-${new Date().toISOString().slice(0,10)}`;
   const meta=[['Type',(ex?('.'+ex+' · '):'')+d.x],['Année',d.y||'—'],['Client',client],['Catégorie',d.k||'—'],['Engagement',d.e||'—'],['Emplacement',d.p]];
-  const trs=meta.map(r=>`<tr><th>${esc(r[0])}</th><td>${esc(String(r[1]))}</td></tr>`).join('');
-  const prev=d._text?`<h2>Aperçu</h2><pre>${esc(d._text.slice(0,4000))}</pre>`:'';
+  const idrows=meta.map(r=>`<div class="row"><span class="l">${esc(r[0])}</span><span class="v">${esc(String(r[1]))}</span></div>`).join('');
+  const enbref=d._text?`<div class="enbref"><div class="lbl">Aperçu du contenu</div><p>${esc(d._text.slice(0,1600)).replace(/\n{2,}/g,'<br><br>').replace(/\n/g,'<br>')}</p></div>`:'';
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>${esc(baseName(d.n))} — Armonie</title>
-  <style>@page{margin:18mm}body{font-family:Inter,Arial,sans-serif;color:#1D1D1B;max-width:800px;margin:24px auto;padding:0 16px}
-  .bar{height:6px;border-radius:4px;background:linear-gradient(90deg,#3B2E8C,#E91E63 60%,#F2C316)}
-  .kick{color:#3B2E8C;font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:12px;margin:16px 0 2px}
-  h1{font-family:Poppins,Arial,sans-serif;color:#1D1D1B;font-size:26px;margin:0 0 4px}
-  table{border-collapse:collapse;width:100%;margin:18px 0}
-  th,td{text-align:left;padding:10px 12px;border-bottom:1px solid #E2DEF0;font-size:14px}
-  th{color:#6E6A86;font-weight:600;width:180px}
-  h2{font-family:Poppins,Arial,sans-serif;color:#3B2E8C;font-size:15px;margin:20px 0 6px}
-  pre{background:#F5F2FC;border:1px solid #E2DEF0;border-radius:10px;padding:14px;font-size:12px;white-space:pre-wrap}
-  .ft{margin-top:24px;color:#6E6A86;font-size:11px;border-top:1px solid #E2DEF0;padding-top:10px}</style></head>
-  <body><div class="bar"></div><div class="kick">Armonie Delivery · Fiche document</div>
-  <h1>${esc(baseName(d.n))}</h1><table>${trs}</table>${prev}
-  <div class="ft">Document habillé à la charte Armonie · Confidentiel · ${new Date().toLocaleDateString('fr-FR')}</div></body></html>`;}
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>:root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0}
+  *{box-sizing:border-box}@page{margin:16mm}
+  body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);margin:0;background:#fff;line-height:1.62;font-size:14px}
+  .topbar{height:10px;background:linear-gradient(90deg,var(--noir),var(--violet) 55%,var(--jaune))}
+  .page{max-width:840px;margin:0 auto;padding:0 30px 60px}
+  .rhead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0 11px;border-bottom:2px solid var(--noir);margin-bottom:4px}
+  .brand{font-family:Poppins,Arial,sans-serif;font-weight:800;letter-spacing:.13em;font-size:12px}.brand b{color:var(--violet)}
+  .rhead .r{font-size:9.5px;color:var(--gris);letter-spacing:.06em;text-transform:uppercase;text-align:right}
+  .sk{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:11px;margin:32px 0 8px;display:flex;align-items:center;gap:9px}
+  .sk::before{content:"";width:9px;height:9px;background:var(--jaune);border-radius:2px}
+  h1{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:30px;line-height:1.1;margin:0 0 12px;letter-spacing:-.01em}
+  .goldrule-top{width:96px;height:4px;background:var(--jaune);border-radius:3px;margin:0 0 12px}
+  .pill{display:inline-block;border:1.5px solid var(--violet);color:var(--violet);border-radius:20px;padding:3px 14px;font-size:10px;font-weight:600;font-family:Poppins,Arial,sans-serif;letter-spacing:.06em}
+  .idcard{margin:16px 0 4px;border:1px solid var(--filet);border-radius:14px;overflow:hidden}
+  .idcard .row{display:flex;font-size:12.5px;border-bottom:1px solid var(--filet)}.idcard .row:last-child{border-bottom:0}
+  .idcard .l{width:32%;background:var(--lav);color:var(--violet);font-weight:600;font-family:Poppins,Arial,sans-serif;font-size:11.5px;padding:9px 16px}
+  .idcard .v{padding:9px 16px}
+  .enbref{background:var(--lav);border-left:4px solid var(--jaune);border-radius:0 12px 12px 0;padding:14px 20px;margin:18px 0}
+  .enbref .lbl{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}.enbref p{margin:0;font-size:13px}
+  .signs{margin-top:34px;padding-top:14px;border-top:1px solid var(--filet)}
+  .signs .k{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--violet)}
+  .signs .n{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:12px;margin-top:2px}
+  .signs .r{font-size:10px;color:var(--gris);margin-top:1px}
+  .ft{margin-top:14px;color:var(--gris);font-size:10px;display:flex;justify-content:space-between;gap:16px}</style></head>
+  <body><div class="topbar"></div><div class="page">
+  <div class="rhead"><div class="brand">NOTOS <b>PHL</b>SOFT</div><div class="r">${esc(ref)} · Confidentiel</div></div>
+  <div class="sk">Fiche document</div>
+  <h1>${esc(baseName(d.n))}</h1>
+  <div class="goldrule-top"></div>
+  <span class="pill">Document de travail</span>
+  <div class="idcard">${idrows}</div>
+  ${enbref}
+  <div class="signs"><div class="k">Établi par</div><div class="n">Nicolas Durand</div><div class="r">Chef de projet (MOE) · Armonie Group</div></div>
+  <div class="ft"><span>${esc(ref)} · Confidentiel</span><span>Produit par cp|WIRE · ${new Date().toLocaleDateString('fr-FR')}</span></div>
+  </div></body></html>`;}
+function chartPortfolio(){
+  const all=allDocs();const byCi={};
+  all.forEach(d=>{if(d.ci>=0){const b=byCi[d.ci]||(byCi[d.ci]={n:0,cats:{},last:null});b.n++;if(d.k&&d.k!=='(à classer)')b.cats[d.k]=(b.cats[d.k]||0)+1;if(d.at&&(!b.last||d.at>b.last.at))b.last={n:baseName(d.n),at:d.at};}});
+  const order=Object.keys(byCi).sort((a,b)=>byCi[b].n-byCi[a].n);
+  const rows=order.map(ci=>{const b=byCi[ci];const name=(CLIENTS[ci]&&CLIENTS[ci].name)||('Client '+ci);
+    const cats=Object.entries(b.cats).sort((x,y)=>y[1]-x[1]).slice(0,3).map(([k,v])=>esc(k)+' ('+v+')').join(', ')||'—';
+    const last=b.last?esc(b.last.n)+' · '+new Date(b.last.at).toLocaleDateString('fr-FR'):'—';
+    return `<tr><td style="font-weight:600">${esc(name)}</td><td style="text-align:right;font-variant-numeric:tabular-nums">${b.n}</td><td>${cats}</td><td>${last}</td></tr>`;}).join('');
+  const total=all.length,nCli=order.length;
+  const ref='ARMONIE-PORTEFEUILLE-'+new Date().toISOString().slice(0,10);
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Revue de portefeuille — Armonie</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>:root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0}
+  *{box-sizing:border-box}@page{margin:15mm}
+  body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);margin:0;background:#fff;line-height:1.6;font-size:13px}
+  .topbar{height:10px;background:linear-gradient(90deg,var(--noir),var(--violet) 55%,var(--jaune))}
+  .page{max-width:920px;margin:0 auto;padding:0 30px 60px}
+  .rhead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0 11px;border-bottom:2px solid var(--noir);margin-bottom:4px}
+  .brand{font-family:Poppins,Arial,sans-serif;font-weight:800;letter-spacing:.13em;font-size:12px}.brand b{color:var(--violet)}
+  .rhead .r{font-size:9.5px;color:var(--gris);letter-spacing:.06em;text-transform:uppercase;text-align:right}
+  .sk{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:11px;margin:30px 0 8px;display:flex;align-items:center;gap:9px}
+  .sk::before{content:"";width:9px;height:9px;background:var(--jaune);border-radius:2px}
+  h1{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:30px;line-height:1.1;margin:0 0 12px;letter-spacing:-.01em}
+  .goldrule-top{width:96px;height:4px;background:var(--jaune);border-radius:3px;margin:0 0 14px}
+  .kpi{display:flex;gap:26px;margin:6px 0 18px}
+  .kpi .v{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:24px;color:var(--violet)}
+  .kpi .l{font-size:11px;color:var(--gris);text-transform:uppercase;letter-spacing:.06em}
+  .dtwrap{border:1px solid var(--filet);border-radius:14px;overflow:hidden;margin:8px 0}
+  table.dt{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.dt thead th{background:var(--violet);color:#fff;font-family:Poppins,Arial,sans-serif;font-weight:600;text-align:left;padding:9px 14px;font-size:11.5px;letter-spacing:.02em}
+  table.dt thead th:nth-child(2){text-align:right}
+  table.dt tbody td{padding:8px 14px;border-top:1px solid var(--filet);vertical-align:top}
+  table.dt tbody tr:nth-child(even){background:var(--lav)}
+  .signs{margin-top:30px;padding-top:14px;border-top:1px solid var(--filet)}
+  .signs .k{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--violet)}
+  .signs .n{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:12px;margin-top:2px}
+  .signs .r{font-size:10px;color:var(--gris);margin-top:1px}
+  .ft{margin-top:14px;color:var(--gris);font-size:10px;display:flex;justify-content:space-between;gap:16px}</style></head>
+  <body><div class="topbar"></div><div class="page">
+  <div class="rhead"><div class="brand">NOTOS <b>PHL</b>SOFT</div><div class="r">${esc(ref)} · Confidentiel</div></div>
+  <div class="sk">Pilotage · cp|WIRE</div>
+  <h1>Revue de portefeuille</h1>
+  <div class="goldrule-top"></div>
+  <div class="kpi"><div><div class="v">${nCli}</div><div class="l">clients actifs</div></div><div><div class="v">${total}</div><div class="l">documents</div></div><div><div class="v">${new Date().toLocaleDateString('fr-FR')}</div><div class="l">à date du</div></div></div>
+  <div class="dtwrap"><table class="dt"><thead><tr><th>Client</th><th>Documents</th><th>Catégories principales</th><th>Dernier document</th></tr></thead><tbody>${rows||'<tr><td colspan="4">—</td></tr>'}</tbody></table></div>
+  <div class="signs"><div class="k">Établi par</div><div class="n">Nicolas Durand</div><div class="r">Chef de projet (MOE) · Armonie Group</div></div>
+  <div class="ft"><span>${esc(ref)} · Confidentiel</span><span>Produit par cp|WIRE</span></div>
+  </div></body></html>`;
+}
 async function exportCharte(d){return await saveBlob(new Blob([chartFiche(d)],{type:'text/html'}),baseName(d.n)+'_charte-armonie.html');}
 function openExport(d){
   const canFile=!!(BLOBS[d._id]||d._stored);
@@ -973,16 +1077,30 @@ function mountDocs(host, baseList, opts){
 function renderHome(){
   buildSide('home');
   const top=CLIENTS.slice(0,12);
-  const maxFiles=Math.max(1,...CLIENTS.map(c=>c.files));
-  const tiles=SPACES.map((s,ix)=>{const _c=SPACE_COLORS[ix%4];return `<a class="tile" href="#/${s.key==='clients'?'clients':'espace/'+s.key}"><div class="ic" style="background:${_c[0]};color:${_c[1]}">${I[s.key]||I.doc}</div><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><span class="cnt">${fmt(s.count+addedSpace(s.key))}</span></a>`;}).join('');
-  const board=top.map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="pchip" href="#/client/${i}"><span class="monogram ${e} sm">${esc(initials(c.name))}</span><span class="pcol"><span class="nm">${esc(c.name)}</span><span class="vv">${fmt(c.files+addedClient(i))} fich. · ${fmt(c.folders)} dos.</span></span></a>`;}).join('');
-  const chips=top.slice(0,8).map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="ccard ${e}" href="#/client/${i}"><div class="cc-head"><span class="monogram ${e}">${esc(initials(c.name))}</span><div><h3>${esc(c.name)}</h3><div class="e"><span class="dot ${e}"></span>${engText(c.eng)}</div></div></div><div class="v"><span class="mono">${fmt(c.files+addedClient(i))}</span> fichiers · <span class="mono">${fmt(c.folders)}</span> dossiers</div><div class="bar"><span style="width:${Math.max(3,Math.round((c.files/maxFiles)*100))}%"></span></div></a>`;}).join('');
-  const cpw=allDocs().filter(d=>d.src==='cpwire'||d.url);
+  const _all=allDocs();
+  const bySp={},byCi={};
+  _all.forEach(d=>{bySp[d.sp]=(bySp[d.sp]||0)+1;if(d.ci>=0)byCi[d.ci]=(byCi[d.ci]||0)+1;});
+  const totalDocs=_all.length;
+  const maxFiles=Math.max(1,...CLIENTS.map(c=>byCi[CLIENTS.indexOf(c)]||0));
+  const tiles=SPACES.map((s,ix)=>{const _c=SPACE_COLORS[ix%4];return `<a class="tile" href="#/${s.key==='clients'?'clients':'espace/'+s.key}"><div class="ic" style="background:${_c[0]};color:${_c[1]}">${I[s.key]||I.doc}</div><h3>${esc(s.name)}</h3><p>${esc(s.desc)}</p><span class="cnt">${fmt(bySp[s.key]||0)}</span></a>`;}).join('');
+  const board=top.map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="pchip" href="#/client/${i}"><span class="monogram ${e} sm">${esc(initials(c.name))}</span><span class="pcol"><span class="nm">${esc(c.name)}</span><span class="vv">${fmt(byCi[i]||0)} fich. · ${fmt(c.folders)} dos.</span></span></a>`;}).join('');
+  const chips=top.slice(0,8).map(c=>{const i=CLIENTS.indexOf(c);const e=engClass(c.eng);return `<a class="ccard ${e}" href="#/client/${i}"><div class="cc-head"><span class="monogram ${e}">${esc(initials(c.name))}</span><div><h3>${esc(c.name)}</h3><div class="e"><span class="dot ${e}"></span>${engText(c.eng)}</div></div></div><div class="v"><span class="mono">${fmt(byCi[i]||0)}</span> fichiers · <span class="mono">${fmt(c.folders)}</span> dossiers</div><div class="bar"><span style="width:${Math.max(3,Math.round(((byCi[i]||0)/maxFiles)*100))}%"></span></div></a>`;}).join('');
+  const cpw=_all.filter(d=>d.src==='cpwire'||d.url);
   let cpwSec='';
   if(cpw.length){
     const rows=cpw.slice(0,60).map((d,i)=>`<tr data-i="${i}" style="cursor:pointer"><td><div class="name">${I.doc}<span class="nm" title="${esc(d.n)}">${esc(baseName(d.n))}</span></div></td><td>${esc((d.ci>=0&&CLIENTS[d.ci])?CLIENTS[d.ci].name:(d.client||'—'))}</td><td>${d.k?`<span class="tag">${esc(d.k)}</span>`:'—'}</td></tr>`).join('');
-    cpwSec=`<div class="sec"><div class="eyebrow">Pipeline</div><h2>Documents produits par cp|WIRE</h2><div class="sub">Fiches, mémoires, comptes rendus et livrables générés automatiquement — cliquables pour ouvrir la fiche. ${fmt(cpw.length)} document${cpw.length>1?'s':''}.</div><div id="cpwpipe" style="margin-top:12px"><table class="tbl"><thead><tr><th>Document</th><th>Client</th><th>Catégorie</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    cpwSec=`<div class="sec"><div class="eyebrow">Pipeline</div><h2>Documents produits par cp|WIRE</h2><div class="sub">Fiches, mémoires, comptes rendus et livrables générés automatiquement — cliquables pour ouvrir la fiche. ${fmt(cpw.length)} document${cpw.length>1?'s':''}.</div><button id="cpwrevue" class="more" style="margin:10px 0 0">⇩ Revue de portefeuille (charte Armonie)</button><div id="cpwpipe" style="margin-top:12px"><table class="tbl"><thead><tr><th>Document</th><th>Client</th><th>Catégorie</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
   }
+  let newsCard='';
+  try{if(localStorage.getItem('armonie_sf_news')!=='v403'){newsCard=`<div class="sec" id="whatsnew" style="background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-left:4px solid var(--jaune,#F2C316);border-radius:0 14px 14px 0;padding:16px 20px;margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px">
+      <div style="font-family:Poppins,Arial,sans-serif;font-weight:700;color:var(--indigo,#3B2E8C);text-transform:uppercase;letter-spacing:.14em;font-size:11px">Nouveautés · travailler sans connexion SharePoint</div>
+      <button id="wnx" class="more" style="margin:0">J'ai compris</button></div>
+    <ul style="margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.65;list-style:disc">
+      <li><b>Rapatrier un dossier</b> : onglet <b>Dépôt</b> → « Rapatrier un dossier » (ou dépose un .zip SharePoint). Les fichiers correspondant à une référence la <b>remplacent automatiquement</b>.</li>
+      <li><b>Version Armonie</b> : ouvre un fichier importé → « <b>✦ Générer une version Armonie</b> » (document à la charte, imprimable en PDF).</li>
+      <li><b>Revue de portefeuille</b> : bouton « <b>⇩ Revue de portefeuille</b> » ci-dessous — synthèse par client à la charte.</li>
+      <li><b>Recherche</b> : plusieurs mots, sans accents, sur le nom, le client, la catégorie, l'emplacement, le type et l'année.</li></ul></div>`;}}catch(_){}
   $('#view').innerHTML=`
     <div class="hero">
       <div class="ey">Espace de delivery · TMA &amp; Projets</div>
@@ -993,17 +1111,20 @@ function renderHome(){
         <div class="sepv"></div>
         <div><div class="n mono">${fmt(STATS.elements)}</div><div class="l">éléments</div></div>
         <div class="sepv"></div>
-        <div><div class="n mono">${fmt(STATS.files+window.ADDED.length)}</div><div class="l">documents</div></div>
+        <div><div class="n mono">${fmt(totalDocs)}</div><div class="l">documents</div></div>
         <div class="sepv"></div>
         <div><div class="n mono">9</div><div class="l">catégories / client</div></div>
       </div>
       <div class="pboard">${board}</div>
     </div>
+    ${newsCard}
     ${cpwSec}
     <div class="sec"><div class="eyebrow">Espaces</div><h2>Où aller</h2><div class="sub">Huit espaces, des droits adaptés à chacun.</div><div class="tiles">${tiles}</div></div>
     <div class="sec"><div class="eyebrow">Accès rapide</div><h2>Clients</h2><div class="sub">Triés par volume — un seul dossier par client. <a href="#/clients">Voir les 15 →</a></div><div class="cgrid">${chips}</div></div>
     <div class="foot"><span class="a">ARMONIE GROUP · CONFIDENTIEL</span><span>armonie.group · plateforme de démonstration</span></div>`;
   const ph=$('#cpwpipe'); if(ph){ph.querySelectorAll('tbody tr').forEach(tr=>{tr.onclick=()=>openDoc(cpw[+tr.dataset.i]);});}
+  {const rv=$('#cpwrevue');if(rv)rv.onclick=()=>{try{const blob=new Blob([chartPortfolio()],{type:'text/html'});openInApp(URL.createObjectURL(blob),'Revue de portefeuille');}catch(e){toast('Génération impossible : '+(e.message||e));}};}
+  {const wx=$('#wnx');if(wx)wx.onclick=()=>{try{localStorage.setItem('armonie_sf_news','v403');}catch(_){}const w=$('#whatsnew');if(w)w.remove();};}
 }
 
 function renderClients(){
@@ -1090,14 +1211,25 @@ function renderSpace(key){
 
 function renderSearch(q){
   buildSide('');
-  const term=q.toLowerCase();
-  const docs=allDocs().filter(d=>d.n.toLowerCase().includes(term));
+  const toks=dznorm(q).split(' ').filter(Boolean);
+  const scoreOf=d=>{
+    const name=dznorm(d.n||''),cli=dznorm((d.ci>=0&&CLIENTS[d.ci])?CLIENTS[d.ci].name:(d.client||'')),cat=dznorm(d.k||''),path=dznorm(d.p||''),typ=dznorm(d.x||''),yr=String(d.y||'');
+    let s=0;
+    for(const t of toks){
+      const inName=name.includes(t),inCli=cli.includes(t),inCat=cat.includes(t),inPath=path.includes(t),inTyp=typ.includes(t),inYr=yr.includes(t);
+      if(!(inName||inCli||inCat||inPath||inTyp||inYr))return -1; // AND : chaque mot doit matcher un champ
+      if(inName)s+=name.startsWith(t)?6:4;
+      if(inCli)s+=3;if(inCat)s+=2;if(inPath)s+=1;if(inTyp)s+=1;if(inYr)s+=1;
+    }
+    return s;
+  };
+  const docs=toks.length?allDocs().map(d=>({d,s:scoreOf(d)})).filter(o=>o.s>=0).sort((a,b)=>b.s-a.s).map(o=>o.d):[];
   $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Recherche</span></div>
     <div class="eyebrow">Résultats</div><h2 class="poppins" style="font-size:20px;color:var(--navy);font-weight:700">« ${esc(q)} »</h2>
-    <div class="sub" style="color:var(--muted)">${fmt(docs.length)} document${docs.length>1?'s':''} trouvé${docs.length>1?'s':''} dans tout le delivery.</div>
+    <div class="sub" style="color:var(--muted)">${fmt(docs.length)} document${docs.length>1?'s':''} trouvé${docs.length>1?'s':''} · recherche sur le nom, le client, la catégorie, l'emplacement, le type et l'année.</div>
     <div id="docs"></div>`;
   if(docs.length) mountDocs($('#docs'),docs,{cats:true,eng:true});
-  else $('#docs').innerHTML='<div class="empty" style="margin-top:18px">Aucun document ne contient « '+esc(q)+' ».</div>';
+  else $('#docs').innerHTML='<div class="empty" style="margin-top:18px">Aucun document ne correspond à « '+esc(q)+' ».</div>';
 }
 
 /* ---------- dépôt / auto-classement (règles, même logique que le script) ---------- */
@@ -1195,26 +1327,40 @@ function openLoader(msg){let l=document.getElementById('loader');if(!l){l=docume
 function setLoad(msg){const m=document.getElementById('lmsg');if(m)m.textContent=msg;}
 function closeLoader(){const l=document.getElementById('loader');if(l)l.classList.remove('show');}
 function showConfirm(results,zips,learned){
-  const n=results.length;const byC={},byK={};let atrier=0,viaC=0;
-  results.forEach(d=>{if(d.client){byC[d.client]=(byC[d.client]||0)+1;byK[d.k]=(byK[d.k]||0)+1;}else atrier++;if(d._where==='contenu')viaC++;});
+  const n=results.length;const byC={},byK={};let viaC=0;const aVerifier=[];
+  results.forEach(d=>{
+    const ok=(d.ci>=0)&&d.k&&d.k!=='(à classer)';
+    if(d.client)byC[d.client]=(byC[d.client]||0)+1;
+    if(d.k&&d.k!=='(à classer)')byK[d.k]=(byK[d.k]||0)+1;
+    if(!ok)aVerifier.push(d);
+    if(d._where==='contenu')viaC++;
+  });
+  const ranges=n-aVerifier.length;
+  const remplacees=results.filter(d=>d._refKey).length;
   const chips=o=>Object.entries(o).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="cchip">${esc(k)} <b>${v}</b></span>`).join('')||'—';
   const did=`<b>${n}</b> fichier${n>1?'s':''} intégré${n>1?'s':''}`+(zips.length?` · <b>${zips.length}</b> archive${zips.length>1?'s':''} .zip décompressée${zips.length>1?'s':''}`:'');
-  const learnt=`Contenu lu&nbsp;: <b>${learned}/${n}</b>`+(viaC?` · <b>${viaC}</b> classé${viaC>1?'s':''} grâce au contenu`:'')+(atrier?` · <b>${atrier}</b> à trier`:'');
+  const learnt=`Contenu lu&nbsp;: <b>${learned}/${n}</b>`+(viaC?` · <b>${viaC}</b> classé${viaC>1?'s':''} grâce au contenu`:'');
+  const statLine=`<div style="display:flex;gap:10px;margin:10px 0 2px;flex-wrap:wrap">
+    <span style="background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:600;color:var(--indigo,#3B2E8C)"><b>${ranges}</b> rangé${ranges>1?'s':''} automatiquement</span>
+    ${remplacees?`<span style="background:#EAF6EF;border:1px solid #BFE3CC;border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:600;color:#2F7D4F"><b>${remplacees}</b> référence${remplacees>1?'s':''} SharePoint remplacée${remplacees>1?'s':''}</span>`:''}
+    ${aVerifier.length?`<span style="background:#FDECF2;border:1px solid #F7C6D8;border-radius:20px;padding:5px 13px;font-size:12.5px;font-weight:600;color:var(--magenta,#E91E63)"><b>${aVerifier.length}</b> à vérifier</span>`:''}</div>`;
   const rows=results.slice(0,300).map(d=>`<div class="crow"><span class="cn">${esc(d.n)}${d._fromZip?` <span class="cz">zip</span>`:''}</span><span class="cd">${esc(d.p)}</span></div>`).join('');
   let m=document.getElementById('confirm');if(!m){m=document.createElement('div');m.id='confirm';document.body.appendChild(m);}
   m.innerHTML=`<div class="mback"></div><div class="mcard">
     <div class="mhead"><span class="dzbadge ok">Intégration terminée</span><button class="mx" id="cfx" type="button">✕</button></div>
+    ${statLine}
     <div class="csec"><h4>Ce que j'ai fait</h4><p>${did}. Rangés par métadonnées (client + catégorie), stockés sur ce poste.</p></div>
     <div class="csec"><h4>Ce que j'ai appris</h4><p>${learnt}.</p>
       <div style="margin-top:8px"><div class="cl">Clients reconnus</div>${chips(byC)}</div>
       <div style="margin-top:8px"><div class="cl">Catégories</div>${chips(byK)}</div></div>
     <div class="csec"><h4>Où c'est rangé</h4><div class="clist">${rows||'—'}</div></div>
-    <div class="mact"><button class="btn" id="cfview" type="button">Voir la liste</button> <button class="reset" id="cfclose" type="button">Fermer</button></div>
+    <div class="mact">${aVerifier.length?`<button class="btn" id="cffix" type="button">Ranger les ${aVerifier.length} à vérifier</button> `:''}<button class="reset" id="cfview" type="button">Voir la liste</button> <button class="reset" id="cfclose" type="button">Fermer</button></div>
   </div>`;
   requestAnimationFrame(()=>m.classList.add('show'));
   const close=()=>m.classList.remove('show');
   m.querySelector('.mback').onclick=close;m.querySelector('#cfx').onclick=close;m.querySelector('#cfclose').onclick=close;
   m.querySelector('#cfview').onclick=()=>{close();go('depot');};
+  const fix=m.querySelector('#cffix');if(fix)fix.onclick=()=>{close();go('depot');setTimeout(()=>{try{openClassify(aVerifier[0]);}catch(_){}},140);};
 }
 async function _readU8(file){return new Uint8Array(await file.arrayBuffer());}
 async function _expand(name,u8,fromZip,acc,depth){
@@ -1222,8 +1368,27 @@ async function _expand(name,u8,fromZip,acc,depth){
     try{const ents=await unzip(u8);for(const e of ents){const bn=e.name.split('/').pop();if(bn)await _expand(bn,e.data,name,acc,depth+1);}return;}catch(err){}}
   acc.push({name,u8,fromZip});
 }
-async function processFiles(fileList){
-  const files=[...fileList];if(!files.length)return;
+async function _readDirEntries(dirHandle,out,depth){
+  if(depth>6)return;
+  for await(const [,handle] of dirHandle.entries()){
+    if(handle.kind==='file'){try{out.push(await handle.getFile());}catch(_){}}
+    else if(handle.kind==='directory'){await _readDirEntries(handle,out,depth+1);}
+  }
+}
+// Rapatrier un dossier local entier (ex. bibliothèque SharePoint synchronisée via OneDrive).
+async function pickDirectory(){
+  if(!window.showDirectoryPicker){toast('Ton navigateur ne permet pas de choisir un dossier. Dépose un .zip à la place.');return;}
+  let dir;try{dir=await window.showDirectoryPicker();}catch(e){if(e&&e.name==='AbortError')return;toast('Sélection annulée');return;}
+  openLoader('Lecture du dossier…');
+  const files=[];
+  try{await _readDirEntries(dir,files,0);}catch(e){closeLoader();toast('Lecture impossible : '+(e.message||e));return;}
+  closeLoader();
+  if(!files.length){toast('Dossier vide');return;}
+  await processFiles(files);
+}
+async function processFiles(fileList,opts){
+  opts=opts||{};
+  const files=[...fileList];if(!files.length)return [];
   openLoader('Préparation…');
   const acc=[];
   for(const f of files){setLoad('Lecture de '+f.name);const u8=await _readU8(f);await _expand(f.name,u8,null,acc,0);}
@@ -1233,21 +1398,25 @@ async function processFiles(fileList){
     let text='';try{text=await extractAny(a.name,a.u8);}catch(_){}
     if(text)learned++;
     const doc=makeDoc(a.name,text,a.u8.length,a.fromZip);
+    if(opts.classify){const c=opts.classify;if(c.ci>=0){doc.ci=c.ci;doc.client=(CLIENTS[c.ci]&&CLIENTS[c.ci].name)||c.client||doc.client;}if(c.k)doc.k=c.k;if(c.sp)doc.sp=c.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;if(c.refKey)doc._refKey=c.refKey;doc._where='référence';}
+    else{const ref=findReference(doc.n);if(ref){if(ref.ci>=0){doc.ci=ref.ci;doc.client=(CLIENTS[ref.ci]&&CLIENTS[ref.ci].name)||ref.client||doc.client;}if(ref.k)doc.k=ref.k;if(ref.sp)doc.sp=ref.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;doc._refKey=refKeyOf(ref);doc._where='référence';}}
     try{const blob=new Blob([a.u8]);BLOBS[doc._id]=URL.createObjectURL(blob);doc._stored=await idbPut(doc._id,blob);}catch(_){}
     window.ADDED.unshift(doc);results.push(doc);logMove('Dépôt',doc.n,doc.client||'À trier');
   }
   saveAdded();closeLoader();
   if((location.hash||'').replace(/^#\/?/,'').startsWith('depot'))renderDepot();
-  showConfirm(results,zips,learned);
+  if(!opts.silent)showConfirm(results,zips,learned);
+  return results;
 }
 
 function renderDepot(){
   buildSide('depot');
   $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Dépôt</span></div>
     <div class="eyebrow">Auto-classement</div><h2 class="poppins" style="font-size:20px;color:var(--navy);font-weight:700">Dépose un fichier, l'app le classe</h2>
-    <div class="sub" style="color:var(--muted)">Tout type de fichier est lu (texte, Excel, PDF, Word, PowerPoint…), les .zip sont décompressés. Chaque fichier est classé, intégré à la base et conservé sur ce poste.</div>
+    <div class="sub" style="color:var(--muted)">Tout type de fichier est lu (texte, Excel, PDF, Word, PowerPoint…), les .zip sont décompressés. Chaque fichier est classé, intégré à la base et conservé sur ce poste. Un fichier qui correspond à une référence SharePoint la remplace automatiquement (dépose un dossier SharePoint en .zip pour tout rapatrier d'un coup).</div>
     <div class="dz" id="dz"><h3>Glisse tes fichiers (ou un .zip) ici</h3><div>tout type · les archives sont décompressées</div>
       <button class="btn" id="dzpick" type="button">Choisir des fichiers</button>
+      <button class="btn" id="dzdir" type="button" style="margin-left:8px;background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);border:1px solid var(--filet,#E2DEF0)">Rapatrier un dossier</button>
       <input type="file" id="dzinput" multiple style="display:none"></div>
     <div class="dzact"><button class="more" id="dzcsv" style="margin:0">Exporter mes ajouts (CSV)</button><button class="reset" id="dzreset">réinitialiser mes ajouts</button><span id="dzstore" class="dzbadge"></span><span class="count" id="dzcount"></span></div>
     <div id="dztbl"></div>
@@ -1255,6 +1424,7 @@ function renderDepot(){
   const sb=$('#dzstore');if(sb){sb.textContent=IDB.ok?'fichiers persistants':'métadonnées seules';sb.className='dzbadge '+(IDB.ok?'ok':'tri');}
   const dz=$('#dz'),inp=$('#dzinput');
   $('#dzpick').onclick=()=>inp.click();
+  {const db=$('#dzdir');if(db)db.onclick=pickDirectory;}
   inp.onchange=()=>add([...inp.files]);
   ['dragenter','dragover'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.add('drag');}));
   ['dragleave','drop'].forEach(e=>dz.addEventListener(e,ev=>{ev.preventDefault();dz.classList.remove('drag');}));
@@ -1294,7 +1464,16 @@ function renderDepot(){
 }
 
 /* ---------- router ---------- */
+function refreshCounts(){
+  try{
+    const ci={},sp={};
+    allDocs().forEach(d=>{if(d.ci>=0)ci[d.ci]=(ci[d.ci]||0)+1;if(d.sp)sp[d.sp]=(sp[d.sp]||0)+1;});
+    if(Array.isArray(window.CLIENTS))window.CLIENTS.forEach((c,i)=>{c.files=ci[i]||0;});
+    if(Array.isArray(window.SPACES))window.SPACES.forEach(s=>{s.count=sp[s.key]||0;});
+  }catch(_){}
+}
 function route(override){
+  refreshCounts();
   const h=(override||location.hash).replace(/^#\/?/,'');
   const parts=h.split('/');
   window.scrollTo(0,0);
@@ -1311,6 +1490,30 @@ window.addEventListener('hashchange',()=>route());
 document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href^="#/"]');if(a){e.preventDefault();const hh=a.getAttribute('href');try{location.hash=hh;}catch(_){}route(hh);}});
 $('#q').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.value.trim()){go('q/'+encodeURIComponent(e.target.value.trim()));}});
 idbOpen().then(()=>{initTopbar();route();try{syncInit();}catch(e){}});
+/* Temps réel : suit l'overlay cp|WIRE et met à jour le catalogue sans recharger.
+   N'interrompt jamais une saisie / modale / fenêtre ouverte. Aucune dépendance SharePoint. */
+(function liveSync(){
+  const baseDocs=(window.DOCS||[]).filter(d=>d.src!=='cpwire');
+  const ovSig=arr=>JSON.stringify((arr||[]).map(d=>[d.id,d.n,d.k,d.p,d.url]));
+  let _sig=ovSig((window.DOCS||[]).filter(d=>d.src==='cpwire'));
+  async function poll(){
+    try{
+      const r=await fetch('/api/sharefly/derived',{cache:'no-store'});
+      if(!r.ok)return;
+      const ov=await r.json();
+      if(!Array.isArray(ov))return;
+      const sig=ovSig(ov);
+      if(sig===_sig)return;
+      _sig=sig;
+      window.DOCS=baseDocs.concat(ov);
+      const busy=document.querySelector('#modal.show,#sheet.show')
+        ||(document.getElementById('vwrap')&&document.getElementById('vwrap').classList.contains('on'))
+        ||(document.activeElement&&/^(INPUT|SELECT|TEXTAREA)$/.test(document.activeElement.tagName));
+      if(!busy){try{route();}catch(_){}try{toast('Catalogue cp|WIRE mis à jour');}catch(_){}}
+    }catch(_){}
+  }
+  setInterval(poll,30000);
+})();
 </script>
 <script>try{var _v=document.getElementById('sfver');if(_v)_v.textContent=(window.SHAREFLY_VER||'v?');}catch(_){}</script>
 </body>

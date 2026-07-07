@@ -567,6 +567,7 @@ app.post("/api/cr/daily-period", guard, async (req, res) => {
     const tr = await fetchStatusTransitions(keys, startISO, endISO);
     const out = await dailyReport(scope || "Tous les clients", sub, { startISO, endISO, label }, tr.items);
     logEvent("cr_journalier", `CR détaillé - ${scope || "Tous"} - ${label || "?"}`, { dossier: scope || "Tous", periode: label, count: sub.length, scanned: tr.scanned, capped: tr.capped, via: out.generatedBy });
+    try { if (scope && out && out.html) { recordDeliverable({ client: scope, type: "CR de période", title: label ? `CR de période — ${scope} — ${label}` : `CR de période — ${scope}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record cr/daily-period:", e && e.message); }
     res.json(out);
   } catch (err) {
     console.error("[POST /api/cr/daily-period]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
@@ -739,6 +740,7 @@ app.post("/api/cr/written", guard, aiLimiter, async (req, res) => {
     const sub = withoutDeletedDevs(got.issues).filter((i) => i.dossier === dossier);
     const out = await writtenDailyReport(dossier, sub);
     logEvent("cr_ecrit", `CR écrit - ${dossier}`, { dossier, count: sub.length, via: out.generatedBy });
+    try { if (dossier && !/^tous/i.test(dossier) && out && out.html) { recordDeliverable({ client: dossier, type: "CR écrit", title: `CR écrit — ${dossier} — ${new Date().toLocaleDateString("fr-FR")}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record cr/written:", e && e.message); }
     res.json(out);
   } catch (err) {
     console.error("[POST /api/cr/written]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
@@ -753,6 +755,7 @@ app.post("/api/cr/date", guard, aiLimiter, async (req, res) => {
     const range = (startISO || endISO || label) ? { startISO, endISO, label } : dateISO; // plage, sinon compat jour unique
     const out = await writtenDateReport(dossier, range, visible);
     logEvent("cr_date", `CR rédigé - ${dossier || "Tous"} - ${label || dateISO || "?"}`, { dossier: dossier || "Tous", periode: label || dateISO, via: out.generatedBy });
+    try { if (dossier && !/^tous/i.test(dossier) && out && out.html) { recordDeliverable({ client: dossier, type: "CR rédigé", title: `CR rédigé — ${dossier} — ${label || dateISO || new Date().toLocaleDateString("fr-FR")}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record cr/date:", e && e.message); }
     res.json(out);
   } catch (err) {
     console.error("[POST /api/cr/date]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
@@ -1081,6 +1084,7 @@ app.post("/api/meeting/prep", guard, aiLimiter, async (req, res) => {
     } catch {}
     const out = await meetingPrep({ dossier: dossier || "Tous les clients", sujet, type, notes, importedText, issues: sub, clientNames });
     logEvent("prep_reunion", `Préparation réunion - ${dossier || "tous"}${sujet ? " · " + sujet : ""}`, { dossier: dossier || "Tous", sujet: sujet || type || "" });
+    try { if (dossier && !/^tous/i.test(dossier) && out && out.html) { recordDeliverable({ client: dossier, type: "Préparation réunion", title: (sujet && sujet.trim()) ? `Préparation réunion — ${sujet.trim()}` : `Préparation réunion — ${dossier}`, html: out.html, ext: "html" }); resyncSharefly(); } } catch (e) { console.error("[sharefly] record meeting/prep:", e && e.message); }
     res.json(out);
   } catch (err) {
     console.error("[POST /api/meeting/prep]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }

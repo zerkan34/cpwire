@@ -121,17 +121,20 @@ function deriveDocs({ jira } = {}) {
   }
   const out = [];
   const parClient = {};
+  // catégorie (rubrique) automatique par type de document cp|WIRE
+  const CAT = { fiche: "Gouvernance", memoire: "Gouvernance", jira: "Pilotage", imports: "Divers" };
+  const delivCat = (e) => (/\b(cr|compte[- ]?rendu|copil|comop|bilan|go\s*\/?\s*no|kickoff|kick-off|lancement|r[eé]union|pr[eé]p)\b/i.test(`${e.type || ""} ${e.title || ""}`) ? "Comptes rendus" : (e.type && !/livrable/i.test(e.type) ? e.type : "Livrables"));
   for (const key of Object.keys(dossiers)) {
     const ci = ciOf(key);
     if (ci == null) continue;                 // pas de client ShareFly correspondant : on n'invente rien
     const bucket = (parClient[key] = []);
-    const push = (kind, n, id, url) => { out.push({ n, ci, k: "", e: "", x: "cp|WIRE", y: year, sp: "clients", p: `cp|WIRE/${key}/${n}`, src: "cpwire", id, at, url }); bucket.push(kind); };
+    const push = (kind, n, id, url) => { const cat = CAT[kind] || "Divers"; out.push({ n, ci, k: cat, e: "", x: "cp|WIRE", y: year, sp: "clients", p: `CLIENTS/${key}/${cat}/${n}`, src: "cpwire", id, at, url }); bucket.push(kind); };
     const kf = encodeURIComponent(key);
     // 1) Fiche dossier — donnée réelle (dossiers.json), OUVRABLE (HTML rendu à la demande)
     push("fiche", `Fiche dossier — ${key}`, `cpwire:fiche:${key}`, `/api/sharefly/view/fiche/${kf}`);
     // 2) Mémoire IA — seulement si contenu réel, OUVRABLE
     const nMem = memoireCount(conn.clients && conn.clients[key]);
-    if (nMem > 0) push("mémoire", `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, `cpwire:memoire:${key}`, `/api/sharefly/view/memoire/${kf}`);
+    if (nMem > 0) push("memoire", `Mémoire IA — ${key} (${nMem} élément${nMem > 1 ? "s" : ""})`, `cpwire:memoire:${key}`, `/api/sharefly/view/memoire/${kf}`);
     // 3) État Jira — seulement si comptages réels fournis
     const jc = jira && jira[key];
     if (jc && jc.total != null) {
@@ -140,11 +143,12 @@ function deriveDocs({ jira } = {}) {
     }
     // 4) Imports — comptage réel (listImports)
     if (impByCi[ci]) push("imports", `Imports — ${key} (${impByCi[ci]} import${impByCi[ci] > 1 ? "s" : ""})`, `cpwire:imports:${key}`);
-    // 5) Livrables produits par cp|WIRE — documents OUVRABLES (contenu hébergé)
+    // 5) Livrables produits par cp|WIRE — documents OUVRABLES (contenu hébergé), rangés par type
     for (const e of (delivsByCi[ci] || []).slice(0, 12)) {
       const yr = e.at ? new Date(e.at).getFullYear() : year;
-      out.push({ n: e.title || `${e.type} — ${key}`, ci, k: e.type || "Livrable", e: "", x: "cp|WIRE", y: yr, sp: "clients",
-        p: `cp|WIRE/${key}/${e.title || e.type}`, src: "cpwire", id: `cpwire:deliv:${e.id}`, at: e.at || at,
+      const cat = delivCat(e);
+      out.push({ n: e.title || `${e.type} — ${key}`, ci, k: cat, e: "", x: "cp|WIRE", y: yr, sp: "clients",
+        p: `CLIENTS/${key}/${cat}/${e.title || e.type}`, src: "cpwire", id: `cpwire:deliv:${e.id}`, at: e.at || at,
         url: e.hasFile ? `/api/sharefly/deliverable/${e.id}` : undefined });
       bucket.push("livrable");
     }
@@ -159,21 +163,33 @@ function safeCall(fn) { try { return fn() || []; } catch { return []; } }
              chargement Jira…), qui mémorise les DERNIERS comptages Jira réels. */
 let _lastJira = null;
 let _resyncT = null;
-function syncNow({ jira } = {}) {
+let _lastSig = "";
+function syncNow({ jira, silent } = {}) {
   if (jira != null) _lastJira = jira;
   const { out, parClient } = deriveDocs({ jira: _lastJira });
-  writeOverlay(out);
-  STATE.mov.unshift({ t: Date.now(), who: "cp|WIRE", act: "sync-catalogue",
-    detail: `${out.length} document(s) dérivé(s) vers ShareFly`, clients: Object.keys(parClient).length });
-  STATE.mov = STATE.mov.slice(0, 600);
-  persist();
-  return { out, parClient };
+  const sig = JSON.stringify(out.map((d) => [d.id, d.n, d.k, d.p, d.url]));
+  const changed = sig !== _lastSig;
+  if (changed) {
+    writeOverlay(out);
+    _lastSig = sig;
+    if (!silent) {
+      STATE.mov.unshift({ t: Date.now(), who: "cp|WIRE", act: "sync-catalogue",
+        detail: `${out.length} document(s) dérivé(s) vers ShareFly`, clients: Object.keys(parClient).length });
+      STATE.mov = STATE.mov.slice(0, 600);
+      persist();
+    }
+  }
+  return { out, parClient, changed };
 }
 export function resync(opts = {}) {
   if (opts && opts.jira != null) _lastJira = opts.jira;
   clearTimeout(_resyncT);
   _resyncT = setTimeout(() => { try { syncNow({}); } catch (e) { console.error("[sharefly] resync:", e.message); } }, 800);
 }
+// Filet de sécurité : resync périodique silencieuse (rattrape toute mutation non
+// déclenchée explicitement). N'écrit et ne notifie que si le contenu a changé.
+const _autoSync = setInterval(() => { try { syncNow({ silent: true }); } catch (e) { console.error("[sharefly] auto-sync:", e.message); } }, 5 * 60 * 1000);
+if (_autoSync.unref) _autoSync.unref();
 
 let _t = null;
 function persist() {
@@ -191,7 +207,7 @@ router.get("/sharefly/config.js", (_req, res) => {
   const mode = process.env.SHAREFLY_SP_MODE || "search"; // "search" (robuste, par nom) ou "path" (lien direct)
   const spc = sharepoint.isConfigured();
   res.type("application/javascript")
-    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v391";`);
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v404";`);
 });
 
 /* --- Loader synchrone du catalogue pour la page ShareFly ---
@@ -245,72 +261,83 @@ function renderValue(v) {
 }
 function htmlShell(kicker, title, bodyHtml, meta) {
   const date = new Date().toLocaleDateString("fr-FR");
-  const metaHtml = (meta && meta.length) ? `<div class="meta">${meta.map(([l, v]) => `<div class="row"><span class="l">${escH(l)}</span><span class="v">${escH(v)}</span></div>`).join("")}</div>` : "";
+  const ref = (meta && (meta.find((x) => x[0] === "Référence") || [])[1]) || "";
+  const metaHtml = (meta && meta.length) ? `<div class="idcard">${meta.map(([l, v]) => `<div class="row"><span class="l">${escH(l)}</span><span class="v">${escH(v)}</span></div>`).join("")}</div>` : "";
   return `<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escH(title)} — Armonie</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0}
+:root{--noir:#1D1D1B;--violet:#3B2E8C;--jaune:#F2C316;--magenta:#E91E63;--lav:#F5F2FC;--gris:#6E6A86;--filet:#E2DEF0;--violetclair:#C4C0DC}
 *{box-sizing:border-box}@page{margin:16mm}
-body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);margin:0;background:#fff;line-height:1.6;font-size:14px}
-.topbar{height:8px;background:linear-gradient(90deg,var(--noir),var(--violet) 55%,var(--jaune))}
-.page{max-width:860px;margin:0 auto;padding:0 26px 60px}
-.head{display:flex;align-items:flex-start;justify-content:space-between;padding:24px 0 0;gap:16px}
-.brand{font-family:Poppins,Arial,sans-serif;font-weight:800;letter-spacing:.12em;font-size:12px;color:var(--noir)}
+body{font-family:Inter,system-ui,Arial,sans-serif;color:var(--noir);margin:0;background:#fff;line-height:1.62;font-size:14px}
+.topbar{height:10px;background:linear-gradient(90deg,var(--noir),var(--violet) 55%,var(--jaune))}
+.page{max-width:880px;margin:0 auto;padding:0 30px 64px}
+.rhead{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:18px 0 11px;border-bottom:2px solid var(--noir);margin-bottom:4px}
+.brand{font-family:Poppins,Arial,sans-serif;font-weight:800;letter-spacing:.13em;font-size:12px;color:var(--noir)}
 .brand b{color:var(--violet)}
-.docmeta{text-align:right;font-size:10.5px;color:var(--gris);letter-spacing:.03em;line-height:1.5}
-.kick{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:11px;margin:32px 0 6px;display:flex;align-items:center;gap:8px}
-.kick::before{content:"";width:9px;height:9px;background:var(--jaune);display:inline-block;border-radius:2px}
-h1{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:30px;line-height:1.12;margin:0 0 10px;color:var(--noir)}
-.rule{width:64px;height:4px;background:var(--jaune);border-radius:3px;margin:0 0 10px}
-.pill{display:inline-block;border:1.5px solid var(--violet);color:var(--violet);border-radius:20px;padding:3px 13px;font-size:10px;font-weight:600;font-family:Poppins,Arial,sans-serif;letter-spacing:.05em}
-.meta{margin:14px 0 6px;border:1px solid var(--filet);border-radius:12px;overflow:hidden}
-.meta .row{display:flex;font-size:12px;border-bottom:1px solid var(--filet)}
-.meta .row:last-child{border-bottom:0}
-.meta .l{width:34%;background:var(--lav);color:var(--violet);font-weight:600;font-family:Poppins,Arial,sans-serif;padding:8px 14px}
-.meta .v{padding:8px 14px}
-h2{font-family:Poppins,Arial,sans-serif;font-weight:700;color:var(--violet);font-size:16px;margin:28px 0 8px;display:flex;align-items:center;gap:9px}
-h2::before{content:"";width:8px;height:8px;background:var(--jaune);display:inline-block;border-radius:2px;flex:none}
+.rhead .r{font-size:9.5px;color:var(--gris);letter-spacing:.06em;text-transform:uppercase;text-align:right}
+.sk{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;letter-spacing:.16em;text-transform:uppercase;font-size:11px;margin:34px 0 8px;display:flex;align-items:center;gap:9px}
+.sk::before{content:"";width:9px;height:9px;background:var(--jaune);display:inline-block;border-radius:2px}
+h1{font-family:Poppins,Arial,sans-serif;font-weight:800;font-size:33px;line-height:1.08;margin:0 0 12px;color:var(--noir);letter-spacing:-.01em}
+.goldrule-top{width:96px;height:4px;background:var(--jaune);border-radius:3px;margin:0 0 12px}
+.pill{display:inline-block;border:1.5px solid var(--violet);color:var(--violet);border-radius:20px;padding:3px 14px;font-size:10px;font-weight:600;font-family:Poppins,Arial,sans-serif;letter-spacing:.06em}
+.idcard{margin:16px 0 4px;border:1px solid var(--filet);border-radius:14px;overflow:hidden}
+.idcard .row{display:flex;font-size:12.5px;border-bottom:1px solid var(--filet)}
+.idcard .row:last-child{border-bottom:0}
+.idcard .l{width:32%;background:var(--lav);color:var(--violet);font-weight:600;font-family:Poppins,Arial,sans-serif;font-size:11.5px;padding:9px 16px;letter-spacing:.02em}
+.idcard .v{padding:9px 16px}
+.enbref{background:var(--lav);border-left:4px solid var(--jaune);border-radius:0 12px 12px 0;padding:14px 20px;margin:18px 0}
+.enbref .lbl{color:var(--violet);font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:10px;letter-spacing:.16em;text-transform:uppercase;margin-bottom:6px}
+.enbref p{margin:0}
+h2{font-family:Poppins,Arial,sans-serif;font-weight:700;color:var(--noir);font-size:17px;margin:30px 0 8px;display:flex;align-items:center;gap:10px}
+h2::before{content:"";width:9px;height:9px;background:var(--jaune);display:inline-block;border-radius:2px;flex:none}
 p{margin:6px 0}
 ul{margin:8px 0 8px 2px;padding:0;list-style:none}
-li{margin:5px 0;padding-left:18px;position:relative}
+li{margin:6px 0;padding-left:18px;position:relative}
 li::before{content:"";position:absolute;left:0;top:9px;width:6px;height:6px;background:var(--violet);border-radius:2px}
 a{color:var(--violet)}
-.kvtbl{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--filet);border-radius:12px;overflow:hidden;margin:10px 0}
+.kvtbl{width:100%;border-collapse:separate;border-spacing:0;border:1px solid var(--filet);border-radius:14px;overflow:hidden;margin:10px 0}
 .kvtbl tr:not(:last-child) td{border-bottom:1px solid var(--filet)}
-.kvtbl td{padding:9px 14px;vertical-align:top;font-size:13px}
-.kvtbl td.k{width:32%;color:var(--violet);font-weight:600;background:var(--lav);font-family:Poppins,Arial,sans-serif;font-size:12px}
+.kvtbl td{padding:9px 16px;vertical-align:top;font-size:13px}
+.kvtbl td.k{width:30%;color:var(--violet);font-weight:600;background:var(--lav);font-family:Poppins,Arial,sans-serif;font-size:12px}
 .kvtbl .kvtbl{margin:0;border:0;border-radius:0}
 .kvtbl .kvtbl td{border:0;padding:3px 0}
-.kvtbl .kvtbl td.k{background:none;width:38%}
+.kvtbl .kvtbl td.k{background:none;width:40%}
 pre{background:var(--lav);border:1px solid var(--filet);border-radius:10px;padding:12px;font-size:12px;white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace}
-.ft{margin-top:34px;color:var(--gris);font-size:10.5px;border-top:1px solid var(--filet);padding-top:12px;display:flex;justify-content:space-between;gap:16px}
+.goldrule{width:140px;height:1.6px;background:var(--jaune);border-radius:1px;margin:26px auto 0}
+.signs{margin-top:34px;padding-top:14px;border-top:1px solid var(--filet)}
+.signs .k{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:8px;letter-spacing:.14em;text-transform:uppercase;color:var(--violet)}
+.signs .n{font-family:Poppins,Arial,sans-serif;font-weight:700;font-size:12px;color:var(--noir);margin-top:2px}
+.signs .r{font-size:10px;color:var(--gris);margin-top:1px}
+.ft{margin-top:14px;color:var(--gris);font-size:10px;letter-spacing:.03em;display:flex;justify-content:space-between;gap:16px}
 </style></head>
 <body>
 <div class="topbar"></div>
 <div class="page">
-  <div class="head"><div class="brand">NOTOS <b>PHL</b>SOFT</div><div class="docmeta">ARMONIE GROUP · Confidentiel<br>${date}</div></div>
-  <div class="kick">${escH(kicker)}</div>
+  <div class="rhead"><div class="brand">NOTOS <b>PHL</b>SOFT</div><div class="r">${escH(ref || "ARMONIE GROUP")} · Confidentiel</div></div>
+  <div class="sk">${escH(kicker)}</div>
   <h1>${escH(title)}</h1>
-  <div class="rule"></div>
+  <div class="goldrule-top"></div>
   <span class="pill">Document de travail</span>
   ${metaHtml}
   ${bodyHtml}
-  <div class="ft"><span>ARMONIE GROUP · CONFIDENTIEL</span><span>Produit par cp|WIRE · charte Armonie</span></div>
+  <div class="signs"><div class="k">Établi par</div><div class="n">Nicolas Durand</div><div class="r">Chef de projet (MOE) · Armonie Group</div></div>
+  <div class="ft"><span>${escH(ref)}${ref ? " · " : ""}Confidentiel</span><span>Produit par cp|WIRE · ${date}</span></div>
 </div></body></html>`;
 }
 function renderFiche(key, fiche) {
-  const meta = [["Client", key], ["Type", "Fiche dossier"], ["Référence", `ARMONIE-${slugRef(key)}-FICHE-${isoDate()}`], ["Statut", "Document de travail"]];
+  const meta = [["Client", key], ["Type", "Fiche dossier"], ["Référence", `ARMONIE-${slugRef(key)}-FICHE-${isoDate()}`]];
   if (!fiche) return htmlShell("Fiche dossier", key, "<p>Aucune fiche renseignée pour ce dossier.</p>", meta);
   let body = "";
-  for (const [k, v] of Object.entries(fiche)) { const val = renderValue(v); if (val) body += `<h2>${escH(FIELD_LABELS[k] || k)}</h2>${val}`; }
+  if (fiche.description) body += `<div class="enbref"><div class="lbl">En bref</div>${renderValue(fiche.description)}</div>`;
+  for (const [k, v] of Object.entries(fiche)) { if (k === "description") continue; const val = renderValue(v); if (val) body += `<h2>${escH(FIELD_LABELS[k] || k)}</h2>${val}`; }
   return htmlShell("Fiche dossier", key, body || "<p>Fiche vide.</p>", meta);
 }
 function renderMemoire(key, m) {
-  const meta = [["Client", key], ["Type", "Mémoire IA"], ["Référence", `ARMONIE-${slugRef(key)}-MEMOIRE-${isoDate()}`], ["Statut", "Document de travail"]];
+  const meta = [["Client", key], ["Type", "Mémoire IA"], ["Référence", `ARMONIE-${slugRef(key)}-MEMOIRE-${isoDate()}`]];
   if (!m) return htmlShell("Mémoire IA", key, "<p>Aucune mémoire enregistrée pour ce client.</p>", meta);
   let body = "";
-  if (m.contexte) body += `<h2>Contexte</h2>${renderValue(m.contexte)}`;
+  if (m.contexte) body += `<div class="enbref"><div class="lbl">Contexte</div>${renderValue(m.contexte)}</div>`;
   if (m.attentes && m.attentes.length) body += `<h2>Attentes</h2>${renderValue(m.attentes)}`;
   if (m.notes && m.notes.length) body += `<h2>Notes</h2>${renderValue(m.notes)}`;
   if (m.auto && m.auto.points && m.auto.points.length) body += `<h2>Points appris (analyse automatique)</h2>${renderValue(m.auto.points)}`;
