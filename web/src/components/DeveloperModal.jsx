@@ -86,17 +86,17 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     flagged: items.filter((i) => i.flagged).length,
   }), [items]);
 
-  // Jauges % : répartition des tickets du dév par état (part réelle, pas d'invention).
-  const gauges = useMemo(() => {
-    const t = g.total || 0;
-    const pc = (n) => (t ? Math.round((n / t) * 100) : 0);
+  // Charge ACTUELLE : on raisonne sur ce qui est OUVERT (en cours + en recette),
+  // pas sur le cumul historique des tickets pris — sinon tout état courant vaut ~1 %.
+  const openTotal = g.encours + g.recette;
+  const load = useMemo(() => {
+    const pc = (n) => (openTotal ? Math.round((n / openTotal) * 100) : 0);
     return [
       { k: "En cours", n: g.encours, pct: pc(g.encours), cls: "prog" },
       { k: "En recette", n: g.recette, pct: pc(g.recette), cls: "todo" },
-      { k: "Terminés", n: g.termine, pct: pc(g.termine), cls: "done" },
-      { k: "En retard", n: g.retard, pct: pc(g.retard), cls: "block" },
     ];
-  }, [g]);
+  }, [g, openTotal]);
+  const completion = g.total ? Math.round((g.termine / g.total) * 100) : 0;
 
   const topProjet = useMemo(() => {
     const c = {};
@@ -140,6 +140,46 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     items.forEach((i) => { if (DONE.includes(i.categorie)) { const k = ymKey(i.resolu || i.maj); if (idx[k]) idx[k].done += 1; } });
     return { arr, max: arr.reduce((m, x) => Math.max(m, x.done), 0) || 1 };
   }, [items]);
+
+  // Rendement — TOUT est déduit des dates Jira (création, résolution). Aucune invention.
+  const rendement = useMemo(() => {
+    const now = Date.now();
+    const doneItems = items.filter((i) => DONE.includes(i.categorie));
+    const parse = (iso) => { const t = new Date(iso).getTime(); return isNaN(t) ? null : t; };
+    const ageOf = (i) => { const t = parse(i.resolu || i.maj); return t == null ? null : (now - t) / 86400000; };
+    const within = (d) => doneItems.filter((i) => { const a = ageOf(i); return a != null && a >= 0 && a <= d; }).length;
+    const r30 = within(30), r90 = within(90);
+    const perWeek = r90 > 0 ? r90 / 13 : (r30 > 0 ? r30 / 4.345 : 0);
+    const sum6 = months.arr.reduce((s, m) => s + m.done, 0);
+    const perMonth = sum6 / 6;
+    const perWeekHabit = sum6 / 26.1;                                 // régime moyen sur 6 mois (/sem)
+    const ratioHabit = perWeekHabit > 0 ? Math.round((perWeek / perWeekHabit) * 100) : null;
+    const last3 = months.arr.slice(3).reduce((s, m) => s + m.done, 0);
+    const prev3 = months.arr.slice(0, 3).reduce((s, m) => s + m.done, 0);
+    const trendPct = prev3 === 0 ? (last3 > 0 ? 100 : 0) : Math.round(((last3 - prev3) / prev3) * 100);
+    const open = g.encours + g.recette;
+    const etaWeeks = perWeek > 0 ? Math.ceil(open / perWeek) : null;
+    // délai de traitement (création → résolution) sur les résolus récents (180 j), repli sur tous
+    const leadOf = (i) => { const c = parse(i.cree), r = parse(i.resolu || i.maj); return (c && r && r >= c) ? (r - c) / 86400000 : null; };
+    const leadAll = doneItems.map(leadOf).filter((x) => x != null);
+    const leadRecent = doneItems.filter((i) => { const a = ageOf(i); return a != null && a <= 180; }).map(leadOf).filter((x) => x != null);
+    const lead = leadRecent.length >= 3 ? leadRecent : leadAll;
+    const med = (arr) => { if (!arr.length) return null; const s = arr.slice().sort((a, b) => a - b); const m = Math.floor(s.length / 2); return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+    const medLead = med(lead) != null ? Math.round(med(lead)) : null;
+    const avgLead = lead.length ? Math.round(lead.reduce((a, b) => a + b, 0) / lead.length) : null;
+    // plus ancien ticket encore ouvert
+    const openItems = items.filter((i) => ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie));
+    const ages = openItems.map((i) => { const t = parse(i.statutDepuis || i.maj); return t == null ? null : (now - t) / 86400000; }).filter((x) => x != null);
+    const oldestOpen = ages.length ? Math.round(Math.max(...ages)) : null;
+    // sparkline hebdo (12 semaines)
+    const startWeek = (ts) => { const x = new Date(ts); const wd = (x.getDay() + 6) % 7; x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - wd); return x.getTime(); };
+    const thisMon = startWeek(now);
+    const weeks = [];
+    for (let k = 11; k >= 0; k--) weeks.push({ t: thisMon - k * 7 * 86400000, n: 0 });
+    doneItems.forEach((i) => { const t = parse(i.resolu || i.maj); if (t == null) return; for (let j = weeks.length - 1; j >= 0; j--) { if (t >= weeks[j].t) { weeks[j].n++; break; } } });
+    const wMax = weeks.reduce((m, w) => Math.max(m, w.n), 0) || 1;
+    return { r30, r90, perWeek: Math.round(perWeek * 10) / 10, perWeekHabit: Math.round(perWeekHabit * 10) / 10, ratioHabit, sum6, perMonth: Math.round(perMonth * 10) / 10, trendPct, open, etaWeeks, medLead, avgLead, oldestOpen, retard: g.retard, weeks, wMax, hasDone: doneItems.length > 0 };
+  }, [items, months, g]);
 
   const per = useMemo(() => {
     const range = periodRange(period);
@@ -244,25 +284,117 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
             </div>
           )}
 
-          <div className="dev-stats">
-            {[["pris", "Tickets pris", g.total, ""], ["done", "Terminés", g.termine, "done"], ["encours", "En cours", g.encours, "prog"], ["recette", "En recette", g.recette, "todo"], ["retard", "En retard", g.retard, "block"], ["flag", "🚩 Flaggés", g.flagged, "flagged"]].map(([id, label, val, cls]) => (
-              <button key={id} className={`dstat ${cls} ${filter === id ? "on" : ""}`} onClick={() => setFilter(id)} title={`Afficher : ${label}`}>
-                <div className="v">{val}</div><div className="l">{label}</div>
-              </button>
-            ))}
+          {/* RENDEMENT — tout est déduit des dates Jira (création, résolution) */}
+          <div className="dev-yield">
+            <div className="dl-head">
+              <span className="dl-title">Rendement</span>
+              <span className="dl-meta">déduit des dates Jira (création, résolution) — aucune saisie manuelle</span>
+            </div>
+            {!rendement.hasDone ? (
+              <div className="dl-empty">Pas encore de ticket terminé sur la période — rendement non calculable.</div>
+            ) : (
+              <>
+                <div className="dy-main">
+                  <div className="dy-fig">
+                    <span className="dy-num">{rendement.perWeek}</span>
+                    <span className="dy-unit">terminés / semaine</span>
+                    <span className="dy-note">moyenne sur {rendement.r90 > 0 ? "90" : "30"} derniers jours</span>
+                  </div>
+                  {rendement.ratioHabit != null && (
+                    <div className={`dy-habit ${rendement.ratioHabit >= 105 ? "up" : rendement.ratioHabit <= 95 ? "down" : ""}`}>
+                      <span className="dh-n">{rendement.ratioHabit}%</span>
+                      <small>de son rythme habituel<br />(moy. 6 mois : {rendement.perWeekHabit}/sem)</small>
+                    </div>
+                  )}
+                  <div className={`dy-trend ${rendement.trendPct > 0 ? "up" : rendement.trendPct < 0 ? "down" : ""}`}>
+                    <span>{rendement.trendPct > 0 ? "▲" : rendement.trendPct < 0 ? "▼" : "▬"} {Math.abs(rendement.trendPct)}%</span>
+                    <small>3 mois vs 3 préc.</small>
+                  </div>
+                  <div className="dy-spark" role="img" aria-label="Terminés par semaine, 12 dernières semaines">
+                    {rendement.weeks.map((w, idx) => (
+                      <span key={idx} className="dy-sp-bar" style={{ height: `${Math.max(6, Math.round((w.n / rendement.wMax) * 100))}%`, opacity: w.n ? 1 : 0.32 }} title={`${w.n} terminé(s)`} />
+                    ))}
+                  </div>
+                </div>
+                <div className="dy-grid">
+                  <div className="dy-cell"><span className="dc-v">{rendement.open > 0 ? (rendement.etaWeeks != null ? `~${rendement.etaWeeks} sem.` : "—") : "0"}</span><span className="dc-l">écoulement de la pile{rendement.open ? ` · ${rendement.open} ouvert(s)` : ""}</span></div>
+                  <div className="dy-cell"><span className="dc-v">{rendement.medLead != null ? `${rendement.medLead} j` : "—"}</span><span className="dc-l">délai médian (création → résolu)</span></div>
+                  <div className="dy-cell"><span className="dc-v">{rendement.avgLead != null ? `${rendement.avgLead} j` : "—"}</span><span className="dc-l">délai moyen</span></div>
+                  <div className={`dy-cell ${rendement.oldestOpen != null && rendement.oldestOpen > 30 ? "warn" : ""}`}><span className="dc-v">{rendement.oldestOpen != null ? `${rendement.oldestOpen} j` : "—"}</span><span className="dc-l">plus ancien en cours</span></div>
+                  <div className="dy-cell"><span className="dc-v">{rendement.r30}</span><span className="dc-l">résolus · 30 j</span></div>
+                  <div className="dy-cell"><span className="dc-v">{rendement.r90}</span><span className="dc-l">résolus · 90 j</span></div>
+                  <div className="dy-cell"><span className="dc-v">{rendement.sum6}</span><span className="dc-l">6 mois · ~{rendement.perMonth}/mois</span></div>
+                  <div className={`dy-cell ${rendement.retard ? "warn" : ""}`}><span className="dc-v">{rendement.retard}</span><span className="dc-l">en retard</span></div>
+                </div>
+              </>
+            )}
           </div>
 
-          <div className="dev-gauges" title="Part des tickets du développeur par état — se met à jour à chaque synchro.">
-            {gauges.map((x) => (
-              <div className="dg" key={x.k}>
-                <div className="dg-top"><span>{x.k}</span><b>{x.pct}%</b></div>
-                <div className="dg-bar"><span className={`dg-fill ${x.cls}`} style={{ width: `${x.pct}%` }} /></div>
-                <div className="dg-sub">{x.n} ticket{x.n > 1 ? "s" : ""}{g.total ? ` / ${g.total}` : ""}</div>
-              </div>
-            ))}
+          {/* EN DIRECT — sur quoi il travaille en ce moment (tickets ouverts + activité Jira réelle) */}
+          <div className="dev-live">
+            <div className="dl-head">
+              <span className="dl-title"><span className="live-dot" />En ce moment</span>
+              <span className="dl-meta">{activeItems.length} ticket{activeItems.length > 1 ? "s" : ""} ouvert{activeItems.length > 1 ? "s" : ""}{!workConfigured ? " · connecte Jira pour l'activité" : ""}</span>
+            </div>
+            {activeItems.length === 0 ? (
+              <div className="dl-empty">Rien en cours ni en recette pour l'instant.</div>
+            ) : (
+              <ul className="dlive-list">
+                {activeItems.slice(0, 5).map((i) => {
+                  const w = work[i.cle];
+                  const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
+                  let badge;
+                  if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
+                  else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
+                  else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
+                  else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
+                  else badge = <span className="wk wk-off">pas de saisie récente</span>;
+                  return (
+                    <li key={i.cle} onClick={() => onTicket && onTicket(i)} role="button" tabIndex={0} title="Ouvrir le ticket">
+                      <span className="k">{i.cle}</span>
+                      <span className="dlive-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{i.statutDepuis ? <span className="tis"> · depuis {agoTxt(i.statutDepuis)}</span> : null}</span>
+                      <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>
+                      {badge}
+                    </li>
+                  );
+                })}
+                {activeItems.length > 5 ? <li className="dlive-more" onClick={() => setFilter("encours")} role="button">+ {activeItems.length - 5} autre(s) — voir la liste complète ↓</li> : null}
+              </ul>
+            )}
           </div>
 
-          <div className="dev-sec-h">{FLABEL[filter]} ({filtered.length})</div>
+          {/* CHARGE ACTUELLE — proportion de ce qui est OUVERT (pas le cumul all-time) */}
+          <div className="dev-load">
+            <div className="dl-head">
+              <span className="dl-title">Charge actuelle</span>
+              <span className="dl-meta">{openTotal} ouvert{openTotal > 1 ? "s" : ""}{g.retard ? ` · ${g.retard} en retard` : ""} · achèvement {completion}% <span className="dl-meta-sub">({g.termine}/{g.total} pris)</span></span>
+            </div>
+            {openTotal === 0 ? (
+              <div className="dl-empty">Aucun ticket ouvert — rien sur la pile en ce moment.</div>
+            ) : (
+              <>
+                <div className="dl-stack" role="img" aria-label="Répartition de la charge ouverte">
+                  {load.map((s) => s.n ? <span key={s.k} className={`dl-seg ${s.cls}`} style={{ width: `${s.pct}%` }} title={`${s.k} : ${s.n} (${s.pct}% de l'ouvert)`} /> : null)}
+                </div>
+                <div className="dl-legend">
+                  {load.map((s) => (
+                    <span className="dl-lg" key={s.k}>
+                      <i className={`dl-dot ${s.cls}`} />{s.k} <b>{s.n}</b> <span className="dl-lg-pct">{s.pct}%</span>
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <span>Tickets</span>
+            <div className="filters" style={{ margin: 0 }}>
+              {[["encours", "En cours", g.encours], ["recette", "En recette", g.recette], ["done", "Terminés", g.termine], ["retard", "En retard", g.retard], ["flag", "🚩", g.flagged], ["pris", "Tous", g.total]].map(([id, label, val]) => (
+                <button key={id} className={`fbtn ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>{label} <span className="fbtn-n">{val}</span></button>
+              ))}
+            </div>
+          </div>
           {filtered.length === 0 ? (
             <div className="empty">Aucun ticket dans cette catégorie.</div>
           ) : (

@@ -14,16 +14,19 @@
 
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
- --navy:#1D1D1B; --indigo:#3B2E8C; --indigo-d:#2E2470;
- --gold:#F2C316; --gold-l:#F2C316; --gold-wash:#FDF6D6; --gold-line:#F0E2A6; --gold-ink:#7A5E12;
- --magenta:#E91E63; --m-wash:#FCE7EE;
- --lav:#F4F2FB; --lav-2:#E9E5F7;
- --bg:#FBFBFC; --card:#FFFFFF; --ink:#1D1D1B; --ink-soft:#46424E; --muted:#8B8894;
- --line:#ECEAF2; --line-2:#DFDBEE; --green:#2F7D4F; --red:#9A3B3B;
- --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
- --sh-sm:0 1px 2px rgba(40,36,80,.05);
- --sh-md:0 8px 24px -14px rgba(40,36,80,.20);
- --sh-lg:0 30px 70px -28px rgba(40,36,80,.30);
+ --navy:#2c2945; --indigo:#3a3658; --indigo-d:#2c2945;
+ --purple:#6e5cc4; --purple-strong:#5a48b0;
+ --gold:#A8884E; --gold-l:#A8884E; --gold-wash:#f7f0e4; --gold-line:#e6d9bf; --gold-ink:#6b5525;
+ --magenta:#6e5cc4; --m-wash:#F5F2FC;
+ --lav:#F5F2FC; --lav-2:#EAE6F7;
+ --bg:#f4f3f8; --card:#ffffff; --ink:#2a2937; --ink-soft:#3d3b4d; --muted:#565273;
+ --line:#e7e5f1; --line-2:#d9d3ee; --green:#1f8a5f; --red:#c0392b;
+ --hd-grad:linear-gradient(135deg,#2c2945,#3a3658 55%,#46426c);
+ --wire-grad:linear-gradient(90deg,#fc6f28 0%,#ff8a2a 20%,#fe9424 40%,#e7b293 62%,#bfc4ea 82%,#cbdcff 100%);
+ --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+ --sh-sm:0 1px 3px rgba(38,35,64,.06);
+ --sh-md:0 8px 28px rgba(38,35,64,.09);
+ --sh-lg:0 18px 50px rgba(38,35,64,.16);
  --r-lg:20px; --r-md:16px; --r-sm:11px;
  --stick:56px;
 }
@@ -46,6 +49,9 @@ button{font:inherit;cursor:pointer}
 .top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.3) blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:22px;padding:11px 28px}
 .top .logo{height:26px}
 .top .appname{font-family:'Poppins';font-weight:600;color:var(--navy);font-size:14.5px;border-left:1px solid var(--line-2);padding-left:18px;cursor:pointer;letter-spacing:-.01em}
+.top .appname .fly{background:var(--wire-grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.top .appname .sh{font-size:.72em;font-weight:600;color:var(--muted);letter-spacing:.02em}
+.top .appname .fly{font-weight:800}
 .search{flex:1;max-width:540px;position:relative;margin:0 auto}
 .search input{width:100%;border:1px solid var(--line-2);background:#fff;border-radius:12px;padding:10px 16px 10px 42px;font:inherit;font-size:14px;color:var(--ink);transition:.16s}
 .search input::placeholder{color:#AAA5C4}
@@ -381,90 +387,45 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .pv-card-x p{margin:0;font-size:12.5px;line-height:1.6;color:#4a4668;max-height:190px;overflow:auto;word-break:break-word}
 .pv-card-note{padding:12px 20px 16px;font-size:12px;line-height:1.5;color:var(--muted,#6E6A86);border-top:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC)}
 .pv-load{display:flex;align-items:center;justify-content:center;min-height:180px;color:var(--muted,#6E6A86);font-size:13px;font-weight:600;border:1px solid var(--filet,#E2DEF0);border-radius:14px;background:var(--lav,#F5F2FC)}
+/* ---------- dashboard (transposé cp|WIRE) ---------- */
+.dash-hd{background:var(--hd-grad);border-radius:var(--r-lg);padding:26px 30px 24px;position:relative;overflow:hidden;box-shadow:var(--sh-md)}
+.dash-hd:before{content:"";position:absolute;inset:0;background:radial-gradient(600px 220px at 85% -30%,rgba(255,255,255,.10),transparent 70%);pointer-events:none}
+.dash-hd .ey{font-family:'Poppins';font-weight:600;letter-spacing:2.4px;text-transform:uppercase;font-size:10.5px;color:rgba(255,255,255,.6);position:relative}
+.dash-hd h1{font-family:'Poppins';font-weight:700;text-transform:uppercase;letter-spacing:.09em;font-size:23px;color:#fff;margin:9px 0 0;line-height:1.15;position:relative}
+.dash-hd .dbrand{font-family:'Poppins';font-weight:800;font-size:20px;line-height:1;letter-spacing:.01em;position:relative;margin-bottom:10px}
+.dash-hd .dbrand .sh{font-size:.6em;font-weight:600;color:rgba(255,255,255,.62);letter-spacing:.03em;vertical-align:baseline}
+.dash-hd .dbrand .fly{background:var(--wire-grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
+.dash-hd .sub{color:rgba(255,255,255,.74);font-size:13.5px;margin-top:8px;max-width:580px;position:relative}
+.dkpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-top:22px;position:relative}
+.dkpi{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:13px;padding:13px 15px}
+.dkpi .lbl{font-family:'Poppins';font-weight:600;font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:rgba(255,255,255,.66)}
+.dkpi .val{font-family:'Poppins';font-weight:800;font-size:27px;line-height:1.05;margin-top:5px;color:#fff}
+.dkpi.c1 .val{color:#a8c8ff}.dkpi.c2 .val{color:#a6e7c8}.dkpi.c3 .val{color:#ffd5a8}.dkpi.c4 .val{color:#d9ccff}
+.dpanel{background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);box-shadow:var(--sh-sm);padding:18px 20px;margin-top:18px}
+.dpanel .ph{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.dpanel .ph h2{font-family:'Poppins';font-weight:700;font-size:16px;color:var(--ink);margin:0;display:flex;align-items:center;gap:9px}
+.dpanel .ph .sq{width:9px;height:9px;border-radius:2px;background:var(--gold)}
+.dpanel .ph .live{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:600}
+.dpanel .ph .live i{width:7px;height:7px;border-radius:50%;background:var(--green);animation:dblink 1.6s infinite}
+@keyframes dblink{50%{opacity:.35}}
+.dfeed{display:flex;flex-direction:column}
+.dfeed .fr{display:grid;grid-template-columns:78px 1fr auto;gap:12px;align-items:center;padding:9px 2px;border-top:1px solid var(--line)}
+.dfeed .fr:first-child{border-top:0}
+.dfeed .fr .ago{font-family:var(--mono);font-size:11px;color:var(--muted)}
+.dfeed .fr .act{font-size:13px;color:var(--ink-soft);min-width:0}
+.dfeed .fr .act b{font-weight:600;color:var(--ink)}
+.dfeed .fr .dst{font-family:var(--mono);font-size:11px;color:var(--indigo);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
+.dfeed .fnone{color:var(--muted);font-size:13px;padding:12px 0}
+.dpanel .pmore{display:inline-block;margin-top:12px;font-size:12.5px;color:var(--indigo);font-weight:600;cursor:pointer}
+.dpanel .pmore:hover{text-decoration:underline}
 
-/* ===================== THÈME SOMBRE — style armonie landing ===================== */
-:root{
- --navy:#eef1fb; --indigo:#9d8dff; --indigo-d:#8b7bf0;
- --ink:#eef1fb; --ink-soft:#c7cce6; --muted:#9aa3c7;
- --bg:#131832; --card:#1a2040;
- --lav:rgba(255,255,255,.05); --lav-2:rgba(255,255,255,.09);
- --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.17);
- --magenta:#ff5c9d; --m-wash:rgba(255,92,157,.14); --green:#3ddc97;
- --gold:#F2C316; --gold-wash:rgba(242,195,22,.14); --gold-line:rgba(242,195,22,.35); --gold-ink:#F2C316;
- --sh-sm:0 1px 2px rgba(0,0,0,.3); --sh-md:0 14px 34px -16px rgba(0,0,0,.55); --sh-lg:0 34px 80px -28px rgba(0,0,0,.65);
-}
-html,body{background:radial-gradient(1200px 620px at 18% -12%,#2a3160 0%,transparent 60%),linear-gradient(160deg,#1a2142,#141a35 45%,#0f1329);background-attachment:fixed;color:var(--ink)}
-.mockbar{background:rgba(255,255,255,.05);color:var(--ink-soft);border-bottom:1px solid var(--line)}
-.top{background:rgba(16,20,42,.78);border-bottom:1px solid var(--line)}
-.search input{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
-.search input::placeholder{color:#8b93b8}
-.backbtn{background:rgba(255,255,255,.05);border:1px solid var(--line-2);color:var(--ink-soft)}
-.backbtn:hover{background:rgba(255,255,255,.10)}
-#sfver{background:rgba(255,255,255,.06)!important;border-color:var(--line-2)!important;color:var(--muted)!important}
-*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border:2px solid transparent}
-*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.24)}
-/* hero + mot en dégradé */
-.hero{background:transparent;border:0;box-shadow:none;padding:8px 0 0}
-.hero h1 .g{background:linear-gradient(90deg,#5aa8ff,#37d0c4);-webkit-background-clip:text;background-clip:text;color:transparent}
-.kpi .n{background:linear-gradient(90deg,#5aa8ff,#37d0c4);-webkit-background-clip:text;background-clip:text;color:transparent}
-/* encarts cliquables */
-.tile,.ccard,.pchip{background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border:1px solid var(--line)}
-.tile:hover,.ccard:hover,.pchip:hover{border-color:var(--line-2);box-shadow:var(--sh-md)}
-.tile .ic{background:rgba(255,255,255,.08)}
-.eyebrow{color:#bcd0ff}
-.navi.active{background:linear-gradient(135deg,#6b5ce0,#8b7bf0);color:#fff}
-.navi:hover{background:rgba(255,255,255,.06)}
-/* tableaux */
-.tbl{background:rgba(255,255,255,.03);border:1px solid var(--line)}
-.tbl thead th{background:rgba(255,255,255,.06);color:var(--ink-soft)}
-.tbl tbody td{border-bottom:1px solid var(--line)}
-.tbl tbody tr:hover{background:rgba(255,255,255,.05)}
-.tbl .path,.tbl .name .nm{color:var(--ink-soft)}
-.tag{background:rgba(255,255,255,.08);color:#c9c0ff}
-.tag.t{background:rgba(255,255,255,.06);color:var(--ink-soft)}
-.tag.x{background:var(--gold-wash);color:var(--gold)}
-.more{background:rgba(255,255,255,.06);border:1px solid var(--line-2);color:var(--ink)}
-.more:hover{background:rgba(255,255,255,.10)}
-.empty{background:rgba(255,255,255,.03);border:1px dashed var(--line-2);color:var(--muted)}
-/* dépôt */
-.dz{background:rgba(255,255,255,.03);border:2px dashed var(--line-2)}
-.dz.drag{background:rgba(157,141,255,.14);border-color:var(--indigo)}
-.dzbadge.ok{background:rgba(61,220,151,.14);color:var(--green)}
-/* modales / tiroirs / viewer / menus */
-#modal .mback,.vwrap{background:rgba(6,9,22,.62);backdrop-filter:blur(3px)}
-#modal .mcard,.mcard,.dropdown,.vwin,.sheet .sc{background:#1a2040;border:1px solid var(--line);color:var(--ink);box-shadow:var(--sh-lg)}
-#modal .mx,.icobtn{background:rgba(255,255,255,.06);border-color:var(--line-2)}
-.sheet .fld,.sheet textarea.fld{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
-.sheet .chip{background:rgba(255,255,255,.06);color:var(--ink-soft)}
-.sheet .opt{border-color:var(--line-2)}
-.vbar{background:rgba(255,255,255,.05);border-bottom:1px solid var(--line);color:var(--ink)}
-.dropdown .di{border-top:1px solid var(--line)}
-.dropdown .di:hover{background:rgba(255,255,255,.05)}
-.pv-card,.pv-load{border-color:var(--line-2)!important;background:rgba(255,255,255,.04)!important;color:var(--ink-soft)!important}
-.pv-card-x p{color:var(--ink-soft)!important}
-/* --- correctifs audit design (surfaces claires oubliées) --- */
-.filters select,.filters .fsearch{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
-.filters select option{background:#1a2040;color:var(--ink)}
-.prof{background:rgba(255,255,255,.05);border-color:var(--line-2)}
-.prof:hover{background:rgba(255,255,255,.09)}
-.badge.contrat{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--gold-line)}
-.sheet .pbtn.sec{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--line-2)}
-#loader .lcard{background:#1a2040;color:var(--ink)}
-.tile .cnt{color:var(--ink)}
-.mact4 .mbtn,#modal .mact4 .mbtn{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--line-2)}
-.mact4 .mbtn:hover,#modal .mact4 .mbtn:hover{background:var(--indigo);color:#fff;border-color:var(--indigo)}
-.mopen .mbtn.open,#modal .mopen .mbtn.open{background:var(--indigo);color:#fff;border-color:var(--indigo)}
-#confirm .mcard{background:#1a2040;border:1px solid var(--line);color:var(--ink);box-shadow:var(--sh-lg)}
-#confirm .mback{background:rgba(6,9,22,.6);backdrop-filter:blur(3px)}
-#confirm .csec{border-color:var(--line)}
-#confirm .clist,#confirm .crow{border-color:var(--line)}
 </style>
 </head>
 <body>
 <div class="mockbar"><span class="pt"></span><span>Catalogue — noms &amp; métadonnées des 14 333 documents · <b>dépose</b> ou <b>connecte</b> pour les fichiers réels</span></div>
 <div class="top">
   <button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/')">← cp|WIRE</button>
-  <span class="appname" onclick="go('')">ShareFly</span>
+  <span class="appname" onclick="go('')"><span class="sh">sh|</span><span class="fly">FLY</span></span>
   <span id="sfver" title="Version en ligne" style="font:600 11px Inter,sans-serif;color:var(--muted,#6E6A86);background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-radius:20px;padding:2px 9px;margin-right:8px"></span>
   <a class="backbtn" href="/sharefly/docs-cpwire.html" title="Tous les documents produits par cp|WIRE" style="margin-right:0">Docs cp|WIRE</a>
   <a class="backbtn" href="/sharefly/analyse.html" title="Analyse cp|WIRE du catalogue" style="margin-right:0">Analyse cp|WIRE</a>
@@ -740,7 +701,7 @@ function cpwireUrl(d){
 }
 async function openFile(d){
   if(!d)return;
-  // document cp|WIRE hébergé (fiche, mémoire, CR) -> LECTEUR INTÉGRÉ à ShareFly
+  // document cp|WIRE hébergé (fiche, mémoire, CR) -> LECTEUR INTÉGRÉ à sh|FLY
   {const cu=cpwireUrl(d);if(cu){openInApp(cu,d.n);return;}}
   // fichier déposé dans ce navigateur -> lecteur intégré
   if(d._added){
@@ -756,7 +717,7 @@ async function openFile(d){
     return;
   }
   // référence SharePoint : si la connexion est active, on rapatrie le fichier
-  // DANS le lecteur intégré de ShareFly (aucun renvoi externe).
+  // DANS le lecteur intégré de sh|FLY (aucun renvoi externe).
   if(window.SHAREFLY_SP_CONNECTED){
     openInApp('/api/sharefly/spfile?name='+encodeURIComponent(baseName(d.n)), d.n);
     return;
@@ -766,7 +727,7 @@ async function openFile(d){
   const rows=[['Client',cl],['Catégorie',d.k||'—'],['Type',d.x||'—'],['Emplacement',d.p||'—']]
     .map((r,i,a)=>`<div style="display:flex;font-size:12.5px;${i<a.length-1?'border-bottom:1px solid var(--filet,#E2DEF0)':''}"><span style="width:34%;background:var(--lav,#F5F2FC);color:var(--indigo,#3B2E8C);font-weight:600;padding:7px 12px">${esc(r[0])}</span><span style="padding:7px 12px">${esc(String(r[1]))}</span></div>`).join('');
   sheet(`<h4>Référence SharePoint</h4>
-    <p class="sub">« ${esc(baseName(d.n))} » est une <b>référence</b> du catalogue SharePoint. Son contenu n'est pas encore rapatrié dans ShareFly.</p>
+    <p class="sub">« ${esc(baseName(d.n))} » est une <b>référence</b> du catalogue SharePoint. Son contenu n'est pas encore rapatrié dans sh|FLY.</p>
     <div style="margin:10px 0;border:1px solid var(--filet,#E2DEF0);border-radius:10px;overflow:hidden">${rows}</div>
     <p class="sub">Importe le fichier depuis ton poste (ou un .zip SharePoint) : il sera <b>rangé automatiquement au même endroit</b> que cette référence.</p>
     <div class="row2" style="margin-top:14px"><button class="pbtn" data-x="imp">Importer ce fichier</button><button class="pbtn sec" data-x="ok">Fermer</button></div>`,
@@ -785,7 +746,7 @@ function importForReference(ref){
   };
   inp.click();
 }
-// Lecteur de document INTÉGRÉ à ShareFly (aucun renvoi externe).
+// Lecteur de document INTÉGRÉ à sh|FLY (aucun renvoi externe).
 function openInApp(url,title){
   let v=document.getElementById('vwrap');
   if(!v){
@@ -1057,7 +1018,7 @@ function openRoles(){
 }
 /* journal des mouvements (vue) */
 function movNorm(m){
-  if(m&&m.act){return {t:m.t,src:'cp|WIRE',action:(m.act==='sync-catalogue'?'Alimentation catalogue':m.act),doc:m.detail||'',dest:(m.clients?m.clients+' client(s) mis à jour':'Catalogue ShareFly')};}
+  if(m&&m.act){return {t:m.t,src:'cp|WIRE',action:(m.act==='sync-catalogue'?'Alimentation catalogue':m.act),doc:m.detail||'',dest:(m.clients?m.clients+' client(s) mis à jour':'Catalogue sh|FLY')};}
   return {t:m.t,src:(m&&m.who==='cp|WIRE')?'cp|WIRE':'Nicolas Durand',action:(m&&m.a)||'—',doc:(m&&m.n)||'—',dest:(m&&m.s)||'—'};
 }
 function journalRows(){
@@ -1070,6 +1031,13 @@ function journalRows(){
       `<td><span class="eng"><span class="dot ${isCp?'projet':'assist'}"></span>${esc(r.src)}</span></td></tr>`;}).join('');
 }
 function bindJournalRows(){$('#view').querySelectorAll('tr[data-jn]').forEach(tr=>{tr.onclick=()=>{const nm=tr.dataset.jn;if(!nm)return;const doc=allDocs().find(x=>x.n===nm)||window.ADDED.find(x=>x.n===nm);if(doc)openDoc(doc);};});}
+function dashFeedRows(limit){
+  const rows=MOV.slice().sort((a,b)=>(b.t||0)-(a.t||0)).slice(0,limit||8);
+  if(!rows.length) return '<div class="fnone">Aucun mouvement pour l\'instant. Les dépôts, rangements et alimentations automatiques du catalogue apparaîtront ici, en direct.</div>';
+  return rows.map(m=>{const r=movNorm(m);return `<div class="fr" data-jn="${esc(m.n||'')}"><span class="ago">${relTime(r.t)}</span><span class="act"><b>${esc(r.action)}</b>${r.doc?' · '+esc(baseName(r.doc)):''}</span><span class="dst" title="${esc(r.dest)}">${esc(r.dest)||'—'}</span></div>`;}).join('');
+}
+function bindDashFeed(){const f=$('#dfeed');if(!f)return;f.querySelectorAll('.fr[data-jn]').forEach(el=>{if(!el.dataset.jn)return;el.style.cursor='pointer';el.onclick=()=>{const doc=allDocs().find(x=>x.n===el.dataset.jn)||window.ADDED.find(x=>x.n===el.dataset.jn);if(doc)openDoc(doc);};});}
+function refreshDashFeed(){const f=$('#dfeed');if(!f)return;const sig=MOV.length+'|'+((MOV[0]||{}).t||0);if(f.dataset.sig===sig)return;f.dataset.sig=sig;f.innerHTML=dashFeedRows(8);bindDashFeed();}
 function renderJournal(){
   buildSide('journal');MOV_SEEN=Date.now();try{localStorage.setItem(SEEN_KEY,String(MOV_SEEN));}catch(_){}updateBell();
   $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Mouvements en direct</span></div>
@@ -1198,21 +1166,17 @@ function renderHome(){
       <li><b>Revue de portefeuille</b> : bouton « <b>⇩ Revue de portefeuille</b> » ci-dessous — synthèse par client à la charte.</li>
       <li><b>Recherche</b> : plusieurs mots, sans accents, sur le nom, le client, la catégorie, l'emplacement, le type et l'année.</li></ul></div>`;}}catch(_){}
   $('#view').innerHTML=`
-    <div class="hero">
-      <div class="ey">Espace de delivery · TMA &amp; Projets</div>
-      <h1>Tout le delivery,<br><span class="g">rangé</span> par client.</h1>
-      <p>Un point d'entrée unique vers les dossiers clients, le pilotage et les ressources. La recherche et les vues filtrées remplacent la navigation au clic.</p>
-      <div class="kpi">
-        <div><div class="n mono">${STATS.clients}</div><div class="l">clients actifs</div></div>
-        <div class="sepv"></div>
-        <div><div class="n mono">${fmt(STATS.elements)}</div><div class="l">éléments</div></div>
-        <div class="sepv"></div>
-        <div><div class="n mono">${fmt(totalDocs)}</div><div class="l">documents</div></div>
-        <div class="sepv"></div>
-        <div><div class="n mono">9</div><div class="l">catégories / client</div></div>
-      </div>
-      <div class="pboard">${board}</div>
+    <div class="dash-hd">
+      <div class="dbrand"><span class="sh">sh|</span><span class="fly">FLY</span></div>
+      <h1>Espace de delivery</h1>
+      <div class="sub">Catalogue documentaire, mouvements en temps réel et accès direct aux dossiers clients.</div>
     </div>
+    <div class="dpanel">
+      <div class="ph"><h2><span class="sq"></span>Mouvements en direct</h2><span class="live"><i></i>en direct</span></div>
+      <div class="dfeed" id="dfeed">${dashFeedRows(8)}</div>
+      <span class="pmore" id="dmore">Voir tous les mouvements →</span>
+    </div>
+    <div class="sec"><div class="eyebrow">Accès rapide</div><h2>Clients</h2><div class="sub">Un seul dossier par client — triés par volume.</div><div class="pboard">${board}</div></div>
     ${newsCard}
     ${cpwSec}
     <div class="sec"><div class="eyebrow">Espaces</div><h2>Où aller</h2><div class="sub">Huit espaces, des droits adaptés à chacun.</div><div class="tiles">${tiles}</div></div>
@@ -1221,6 +1185,11 @@ function renderHome(){
   const ph=$('#cpwpipe'); if(ph){ph.querySelectorAll('tbody tr').forEach(tr=>{tr.onclick=()=>openDoc(cpw[+tr.dataset.i]);});}
   {const rv=$('#cpwrevue');if(rv)rv.onclick=()=>{try{const blob=new Blob([chartPortfolio()],{type:'text/html'});openInApp(URL.createObjectURL(blob),'Revue de portefeuille');}catch(e){toast('Génération impossible : '+(e.message||e));}};}
   {const wx=$('#wnx');if(wx)wx.onclick=()=>{try{localStorage.setItem('armonie_sf_news','v403');}catch(_){}const w=$('#whatsnew');if(w)w.remove();};}
+  bindDashFeed();
+  {const dm=$('#dmore');if(dm)dm.onclick=()=>{location.hash='#/journal';};}
+  {const f=$('#dfeed');if(f)f.dataset.sig=MOV.length+'|'+((MOV[0]||{}).t||0);}
+  clearInterval(window._dashT);
+  window._dashT=setInterval(()=>{const h=location.hash||'';if(h!=='#/'&&h!==''&&h!=='#'){return;}if(document.querySelector('#modal.show,.sheet.show,.vwrap.on'))return;refreshDashFeed();},4000);
 }
 
 function renderClients(){

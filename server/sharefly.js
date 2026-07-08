@@ -207,7 +207,7 @@ router.get("/sharefly/config.js", (_req, res) => {
   const mode = process.env.SHAREFLY_SP_MODE || "search"; // "search" (robuste, par nom) ou "path" (lien direct)
   const spc = sharepoint.isConfigured();
   res.type("application/javascript")
-    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v407";`);
+    .send(`window.SHAREFLY_SP_BASE=${JSON.stringify(sp)};window.SHAREFLY_CPWIRE_BASE=${JSON.stringify(cp)};window.SHAREFLY_SP_MODE=${JSON.stringify(mode)};window.SHAREFLY_SP_CONNECTED=${spc ? "true" : "false"};window.SHAREFLY_VER="v412";`);
 });
 
 /* --- Loader synchrone du catalogue pour la page ShareFly ---
