@@ -388,7 +388,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 <div class="mockbar"><span class="pt"></span><span>Catalogue — noms &amp; métadonnées des 14 333 documents · <b>dépose</b> ou <b>connecte</b> pour les fichiers réels</span></div>
 <div class="top">
   <button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/')">← cp|WIRE</button>
-  <img class="logo" src="" id="logo" alt="armonie">
   <span class="appname" onclick="go('')">ShareFly</span>
   <span id="sfver" title="Version en ligne" style="font:600 11px Inter,sans-serif;color:var(--muted,#6E6A86);background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-radius:20px;padding:2px 9px;margin-right:8px"></span>
   <a class="backbtn" href="/sharefly/docs-cpwire.html" title="Tous les documents produits par cp|WIRE" style="margin-right:0">Docs cp|WIRE</a>
@@ -471,7 +470,7 @@ async function syncPoll(){
 }
 function syncPushMov(entry){if(!SYNC.on||typeof fetch!=='function')return;try{fetch(SYNC.base+'/mov',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(entry)});}catch(e){}}
 function syncPushRoles(R){if(!SYNC.on||typeof fetch!=='function')return;try{fetch(SYNC.base+'/roles',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(R)});}catch(e){}}
-document.getElementById('logo').src=window.LOGO;
+/* logo retiré */
 
 const I={
  home:'<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/></svg>',
@@ -543,7 +542,7 @@ function buildSide(active){
   h+=navItem('home','Accueil','','home',active==='home');
   h+=navItem('clients','Clients',CLIENTS.length,'clients',active==='clients');
   h+=navItem('depot','Dépôt','','depot',active==='depot');
-  h+=navItem('journal','Journal',MOV.length||'','journal',active==='journal');
+  h+=navItem('journal','Mouvements',MOV.length||'','journal',active==='journal');
   h+='<div class="navlbl">Espaces</div>';
   SPACES.filter(s=>s.key!=='clients').forEach(s=>{
     h+=navItem('espace/'+s.key,s.name,s.count,s.key,active===s.key);
@@ -981,14 +980,35 @@ function openRoles(){
   });
 }
 /* journal des mouvements (vue) */
+function movNorm(m){
+  if(m&&m.act){return {t:m.t,src:'cp|WIRE',action:(m.act==='sync-catalogue'?'Alimentation catalogue':m.act),doc:m.detail||'',dest:(m.clients?m.clients+' client(s) mis à jour':'Catalogue ShareFly')};}
+  return {t:m.t,src:(m&&m.who==='cp|WIRE')?'cp|WIRE':'Nicolas Durand',action:(m&&m.a)||'—',doc:(m&&m.n)||'—',dest:(m&&m.s)||'—'};
+}
+function journalRows(){
+  return MOV.map(m=>{const r=movNorm(m);const isCp=r.src==='cp|WIRE';
+    return `<tr data-jn="${esc(m.n||'')}" style="cursor:pointer">`+
+      `<td class="mono" style="color:var(--muted);white-space:nowrap">${relTime(r.t)}</td>`+
+      `<td><span class="tag">${esc(r.action)}</span></td>`+
+      `<td><div class="name">${I.doc}<span class="nm" title="${esc(r.doc)}">${esc(baseName(r.doc))||'—'}</span></div></td>`+
+      `<td>${esc(r.dest)||'—'}</td>`+
+      `<td><span class="eng"><span class="dot ${isCp?'projet':'assist'}"></span>${esc(r.src)}</span></td></tr>`;}).join('');
+}
+function bindJournalRows(){$('#view').querySelectorAll('tr[data-jn]').forEach(tr=>{tr.onclick=()=>{const nm=tr.dataset.jn;if(!nm)return;const doc=allDocs().find(x=>x.n===nm)||window.ADDED.find(x=>x.n===nm);if(doc)openDoc(doc);};});}
 function renderJournal(){
   buildSide('journal');MOV_SEEN=Date.now();try{localStorage.setItem(SEEN_KEY,String(MOV_SEEN));}catch(_){}updateBell();
-  const rows=MOV.map(m=>`<tr data-jn="${esc(m.n||'')}" style="cursor:pointer"><td class="mono" style="color:var(--muted);white-space:nowrap">${relTime(m.t)}</td><td><span class="avatar" style="width:24px;height:24px;border-radius:7px;font-size:9px;display:inline-flex">${esc(m.who)}</span></td><td><b style="font-family:'Poppins';font-weight:600;color:var(--navy)">${esc(m.a)}</b></td><td>${esc(baseName(m.n))||'—'}</td><td>${esc(m.s)||'—'}</td></tr>`).join('');
-  $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Journal des mouvements</span></div>
-    <div class="eyebrow">Traçabilité</div><h2 class="poppins" style="font-size:20px;color:var(--navy);font-weight:700">Journal des mouvements</h2>
-    <div class="sub" style="color:var(--muted)">Chaque dépôt, classement, modification, export ou attribution de rôle est enregistré. Rien ne se perd.</div>
-    <div style="margin-top:16px">${MOV.length?`<table class="tbl"><thead><tr><th>Quand</th><th>Qui</th><th>Action</th><th>Objet</th><th>Section</th></tr></thead><tbody>${rows}</tbody></table>`:'<div class="empty">Aucun mouvement pour l\'instant. Dépose un fichier pour commencer.</div>'}</div>`;
-  $('#view').querySelectorAll('tr[data-jn]').forEach(tr=>{tr.onclick=()=>{const nm=tr.dataset.jn;if(!nm)return;const doc=allDocs().find(x=>x.n===nm)||window.ADDED.find(x=>x.n===nm);if(doc)openDoc(doc);else toast('Document non trouvé dans le catalogue');};});
+  $('#view').innerHTML=`<div class="bc"><a href="#/">ARMONIE Delivery</a><span class="sep">›</span><span class="cur">Mouvements en direct</span></div>
+    <div class="eyebrow">Traçabilité</div><h2 class="poppins" style="font-size:20px;color:var(--navy);font-weight:700;display:flex;align-items:center;gap:10px">Mouvements en direct <span style="font:600 10px Inter,sans-serif;color:#2F7D4F;background:#EAF6EF;border:1px solid #BFE3CC;border-radius:20px;padding:2px 9px;display:inline-flex;align-items:center;gap:5px"><span style="width:7px;height:7px;border-radius:50%;background:#2F7D4F;display:inline-block"></span>en direct</span></h2>
+    <div class="sub" style="color:var(--muted)">Chaque dépôt, classement et alimentation cp|WIRE en temps réel — quoi, où ça va, pour quel client. Rien ne se perd.</div>
+    <div style="margin-top:16px" id="jwrap">${MOV.length?`<table class="tbl"><thead><tr><th>Quand</th><th>Action</th><th>Document</th><th>Destination / Client</th><th>Source</th></tr></thead><tbody id="jbody">${journalRows()}</tbody></table>`:'<div class="empty">Aucun mouvement pour l\'instant. Dépose un fichier ou génère un CR pour commencer.</div>'}</div>`;
+  bindJournalRows();
+  clearInterval(window._movT);
+  window._movT=setInterval(()=>{
+    if(!(location.hash||'').includes('journal')){clearInterval(window._movT);return;}
+    if(document.querySelector('#modal.show,#sheet.show')||(document.getElementById('vwrap')&&document.getElementById('vwrap').classList.contains('on')))return;
+    const tb=document.getElementById('jbody');
+    if(tb){tb.innerHTML=journalRows();bindJournalRows();}
+    else if(MOV.length){renderJournal();}
+  },4000);
 }
 /* cloche + menu profil */
 function menuEl(id){let el=document.getElementById(id);if(!el){el=document.createElement('div');el.id=id;el.className='dropdown';document.body.appendChild(el);}return el;}
@@ -1401,7 +1421,7 @@ async function processFiles(fileList,opts){
     if(opts.classify){const c=opts.classify;if(c.ci>=0){doc.ci=c.ci;doc.client=(CLIENTS[c.ci]&&CLIENTS[c.ci].name)||c.client||doc.client;}if(c.k)doc.k=c.k;if(c.sp)doc.sp=c.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;if(c.refKey)doc._refKey=c.refKey;doc._where='référence';}
     else{const ref=findReference(doc.n);if(ref){if(ref.ci>=0){doc.ci=ref.ci;doc.client=(CLIENTS[ref.ci]&&CLIENTS[ref.ci].name)||ref.client||doc.client;}if(ref.k)doc.k=ref.k;if(ref.sp)doc.sp=ref.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;doc._refKey=refKeyOf(ref);doc._where='référence';}}
     try{const blob=new Blob([a.u8]);BLOBS[doc._id]=URL.createObjectURL(blob);doc._stored=await idbPut(doc._id,blob);}catch(_){}
-    window.ADDED.unshift(doc);results.push(doc);logMove('Dépôt',doc.n,doc.client||'À trier');
+    window.ADDED.unshift(doc);results.push(doc);logMove('Dépôt',doc.n,(doc.client||'À trier')+(doc.k?' · '+doc.k:''));
   }
   saveAdded();closeLoader();
   if((location.hash||'').replace(/^#\/?/,'').startsWith('depot'))renderDepot();
