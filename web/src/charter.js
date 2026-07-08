@@ -195,10 +195,21 @@ export function charterCss() {
 
 // Assemble le document complet. footerText = ligne du pied courant.
 export function charterDoc({ lang = "fr", docTitle = "", extraCss = "", coverHtml = "", bodyHtml = "", footerText = "" }) {
+  // Pied + numérotation dans les BOÎTES DE MARGE @page : espace réservé par le
+  // moteur → plus aucune collision avec le corps (l'ancien position:fixed passait
+  // sous le texte). counter(pages) donne le total (rendu serveur WeasyPrint).
+  const footCss = String(footerText || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  const pageCss = `
+  @page { size:A4 portrait; margin:16mm 15mm 20mm;
+    @bottom-left { content:"${footCss}"; font-family:Inter,Arial,sans-serif; font-size:8px; letter-spacing:.14em; text-transform:uppercase; color:${C.muted}; }
+    @bottom-right { content:"Armonie Group \\00B7 " counter(page) " / " counter(pages); font-family:Inter,Arial,sans-serif; font-size:8px; letter-spacing:.14em; text-transform:uppercase; color:${C.muted}; }
+  }
+  @page cover { margin:0; @bottom-left{content:none} @bottom-right{content:none} }
+  .ch-cover{ page:cover; }
+  `;
   return `<!doctype html><html lang="${lang}"><head><meta charset="utf-8"><title>${esc(docTitle)}</title>
-  <style>${charterCss()}${extraCss}</style></head><body>
+  <style>${charterCss()}${extraCss}${pageCss}</style></head><body>
   ${coverHtml}
-  ${footerText ? `<div class="ch-runfoot"><span>${footerText}</span><span>Armonie Group</span></div>` : ""}
   <div class="ch-body">${bodyHtml}</div>
   </body></html>`;
 }
