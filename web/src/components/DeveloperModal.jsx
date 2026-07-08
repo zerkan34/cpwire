@@ -52,14 +52,17 @@ function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime
 function agoTxt(iso) { const d = daysSince(iso); if (d === null) return ""; if (d <= 0) return "aujourd'hui"; if (d === 1) return "hier"; if (d < 30) return `il y a ${d} j`; const m = Math.floor(d / 30); return `il y a ${m} mois`; }
 function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 
-export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, deleted = false, onDelete, onRestore }) {
+export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, onRefresh, deleted = false, onDelete, onRestore }) {
   const [period, setPeriod] = useState("tout");
   const [filter, setFilter] = useState("encours");
   const [copied, setCopied] = useState(false);
   const [sortBy, setSortBy] = useState({ k: "date", dir: "desc" });
+  const [reloadKey, setReloadKey] = useState(0);
+  const [refreshedAt, setRefreshedAt] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
   // Tick « live » : rafraîchit les durées relatives (depuis X) sans rechargement.
   const [, setNow] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 45000); return () => clearInterval(t); }, []);
+  useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30000); return () => clearInterval(t); }, []);
   const ro = useReadOnly();
   useModalBack(onClose);
 
@@ -120,18 +123,26 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
   const [work, setWork] = useState({});         // { cle: {heuresDev, depuisAssigne, derniereActivite, ...} }
   const [workLoading, setWorkLoading] = useState(false);
   const [workConfigured, setWorkConfigured] = useState(true);
+  // Reset de l'activité au changement de développeur uniquement (évite le clignotement à chaque synchro).
+  useEffect(() => { setWork({}); setWorkConfigured(true); setRefreshedAt(null); }, [devName]);
+  // Chargement / rafraîchissement silencieux de l'activité : re-tourne à chaque synchro (activeItems change) et sur ↻.
   useEffect(() => {
     let alive = true;
-    setWork({}); setWorkConfigured(true);
     const keys = activeItems.slice(0, 10).map((i) => i.cle);
-    if (!keys.length) return;
+    if (!keys.length) { setRefreshedAt(Date.now()); return; }
     setWorkLoading(true);
     fetchDevWork(devName, keys)
-      .then((r) => { if (!alive) return; setWorkConfigured(r.configured !== false); const m = {}; (r.items || []).forEach((it) => { m[it.cle] = it; }); setWork(m); })
+      .then((r) => { if (!alive) return; setWorkConfigured(r.configured !== false); const m = {}; (r.items || []).forEach((it) => { m[it.cle] = it; }); setWork(m); setRefreshedAt(Date.now()); })
       .catch(() => { if (alive) setWorkConfigured(true); })
       .finally(() => { if (alive) setWorkLoading(false); });
     return () => { alive = false; };
-  }, [devName, activeItems]);
+  }, [devName, activeItems, reloadKey]);
+  // Actualiser maintenant : resynchronise les tickets (app) puis recharge l'activité.
+  const refreshNow = () => {
+    if (refreshing) return;
+    setReloadKey((k) => k + 1);
+    if (onRefresh) { setRefreshing(true); Promise.resolve(onRefresh()).catch(() => {}).finally(() => setRefreshing(false)); }
+  };
 
   const months = useMemo(() => {
     const now = new Date(); const arr = [];
@@ -169,8 +180,9 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     const avgLead = lead.length ? Math.round(lead.reduce((a, b) => a + b, 0) / lead.length) : null;
     // plus ancien ticket encore ouvert
     const openItems = items.filter((i) => ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie));
-    const ages = openItems.map((i) => { const t = parse(i.statutDepuis || i.maj); return t == null ? null : (now - t) / 86400000; }).filter((x) => x != null);
-    const oldestOpen = ages.length ? Math.round(Math.max(...ages)) : null;
+    let oldestOpenItem = null, oldestAge = -1;
+    openItems.forEach((i) => { const t = parse(i.statutDepuis || i.maj); if (t == null) return; const a = (now - t) / 86400000; if (a > oldestAge) { oldestAge = a; oldestOpenItem = i; } });
+    const oldestOpen = oldestAge >= 0 ? Math.round(oldestAge) : null;
     // sparkline hebdo (12 semaines)
     const startWeek = (ts) => { const x = new Date(ts); const wd = (x.getDay() + 6) % 7; x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - wd); return x.getTime(); };
     const thisMon = startWeek(now);
@@ -178,7 +190,7 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
     for (let k = 11; k >= 0; k--) weeks.push({ t: thisMon - k * 7 * 86400000, n: 0 });
     doneItems.forEach((i) => { const t = parse(i.resolu || i.maj); if (t == null) return; for (let j = weeks.length - 1; j >= 0; j--) { if (t >= weeks[j].t) { weeks[j].n++; break; } } });
     const wMax = weeks.reduce((m, w) => Math.max(m, w.n), 0) || 1;
-    return { r30, r90, perWeek: Math.round(perWeek * 10) / 10, perWeekHabit: Math.round(perWeekHabit * 10) / 10, ratioHabit, sum6, perMonth: Math.round(perMonth * 10) / 10, trendPct, open, etaWeeks, medLead, avgLead, oldestOpen, retard: g.retard, weeks, wMax, hasDone: doneItems.length > 0 };
+    return { r30, r90, perWeek: Math.round(perWeek * 10) / 10, perWeekHabit: Math.round(perWeekHabit * 10) / 10, ratioHabit, sum6, perMonth: Math.round(perMonth * 10) / 10, trendPct, open, etaWeeks, medLead, avgLead, oldestOpen, oldestOpenItem, retard: g.retard, weeks, wMax, hasDone: doneItems.length > 0 };
   }, [items, months, g]);
 
   const per = useMemo(() => {
@@ -317,14 +329,38 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
                   </div>
                 </div>
                 <div className="dy-grid">
-                  <div className="dy-cell"><span className="dc-v">{rendement.open > 0 ? (rendement.etaWeeks != null ? `~${rendement.etaWeeks} sem.` : "—") : "0"}</span><span className="dc-l">écoulement de la pile{rendement.open ? ` · ${rendement.open} ouvert(s)` : ""}</span></div>
-                  <div className="dy-cell"><span className="dc-v">{rendement.medLead != null ? `${rendement.medLead} j` : "—"}</span><span className="dc-l">délai médian (création → résolu)</span></div>
-                  <div className="dy-cell"><span className="dc-v">{rendement.avgLead != null ? `${rendement.avgLead} j` : "—"}</span><span className="dc-l">délai moyen</span></div>
-                  <div className={`dy-cell ${rendement.oldestOpen != null && rendement.oldestOpen > 30 ? "warn" : ""}`}><span className="dc-v">{rendement.oldestOpen != null ? `${rendement.oldestOpen} j` : "—"}</span><span className="dc-l">plus ancien en cours</span></div>
-                  <div className="dy-cell"><span className="dc-v">{rendement.r30}</span><span className="dc-l">résolus · 30 j</span></div>
-                  <div className="dy-cell"><span className="dc-v">{rendement.r90}</span><span className="dc-l">résolus · 90 j</span></div>
-                  <div className="dy-cell"><span className="dc-v">{rendement.sum6}</span><span className="dc-l">6 mois · ~{rendement.perMonth}/mois</span></div>
-                  <div className={`dy-cell ${rendement.retard ? "warn" : ""}`}><span className="dc-v">{rendement.retard}</span><span className="dc-l">en retard</span></div>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("encours")} title="Voir les tickets ouverts">
+                    <span className="dc-v">{rendement.open > 0 ? (rendement.etaWeeks != null ? `~${rendement.etaWeeks} sem.` : "—") : "0"}</span>
+                    <span className="dc-l">écoulement de la pile{rendement.open ? ` · ${rendement.open} ouvert(s)` : ""}</span>
+                  </button>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("done")} title="Voir les tickets terminés">
+                    <span className="dc-v">{rendement.medLead != null ? `${rendement.medLead} j` : "—"}</span>
+                    <span className="dc-l">délai médian · création → résolu</span>
+                  </button>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("done")} title="Voir les tickets terminés">
+                    <span className="dc-v">{rendement.avgLead != null ? `${rendement.avgLead} j` : "—"}</span>
+                    <span className="dc-l">délai moyen</span>
+                  </button>
+                  <button type="button" className={`dy-cell ${rendement.oldestOpen != null && rendement.oldestOpen > 30 ? "warn" : ""}`} onClick={() => rendement.oldestOpenItem && onTicket && onTicket(rendement.oldestOpenItem)} title="Ouvrir ce ticket">
+                    <span className="dc-v">{rendement.oldestOpen != null ? `${rendement.oldestOpen} j` : "—"}</span>
+                    <span className="dc-l">plus ancien en cours{rendement.oldestOpenItem ? ` · ${rendement.oldestOpenItem.cle}` : ""}</span>
+                  </button>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("done")} title="Voir les terminés">
+                    <span className="dc-v">{rendement.r30}</span>
+                    <span className="dc-l">résolus · 30 j</span>
+                  </button>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("done")} title="Voir les terminés">
+                    <span className="dc-v">{rendement.r90}</span>
+                    <span className="dc-l">résolus · 90 j</span>
+                  </button>
+                  <button type="button" className="dy-cell" onClick={() => setFilter("done")} title="Voir les terminés">
+                    <span className="dc-v">{rendement.sum6}</span>
+                    <span className="dc-l">6 mois · ~{rendement.perMonth}/mois</span>
+                  </button>
+                  <button type="button" className={`dy-cell ${rendement.retard ? "warn" : ""}`} onClick={() => setFilter("retard")} title="Voir les tickets en retard">
+                    <span className="dc-v">{rendement.retard}</span>
+                    <span className="dc-l">en retard</span>
+                  </button>
                 </div>
               </>
             )}
@@ -387,108 +423,131 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
             )}
           </div>
 
+          {/* MOUVEMENTS EN LIVE — activité récente du dev, triée par dernière mise à jour Jira */}
           <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span>Tickets</span>
+            <span className="dl-title" style={{ fontSize: 15 }}><span className="live-dot" style={{ marginRight: 8 }} />Mouvements en live</span>
             <div className="filters" style={{ margin: 0 }}>
               {[["encours", "En cours", g.encours], ["recette", "En recette", g.recette], ["done", "Terminés", g.termine], ["retard", "En retard", g.retard], ["flag", "🚩", g.flagged], ["pris", "Tous", g.total]].map(([id, label, val]) => (
                 <button key={id} className={`fbtn ${filter === id ? "active" : ""}`} onClick={() => setFilter(id)}>{label} <span className="fbtn-n">{val}</span></button>
               ))}
             </div>
+            <span className="dl-meta mv-sync" style={{ marginLeft: "auto" }}>
+              {filtered.length} ticket{filtered.length > 1 ? "s" : ""}
+              {refreshedAt ? <> · actualisé à {new Date(refreshedAt).toLocaleTimeString("fr-FR")}</> : null}
+              <button type="button" className={`mv-refresh ${refreshing || workLoading ? "spin" : ""}`} onClick={refreshNow} title="Actualiser maintenant (resynchronise les tickets)">↻</button>
+            </span>
           </div>
           {filtered.length === 0 ? (
             <div className="empty">Aucun ticket dans cette catégorie.</div>
           ) : (
-            <table className="cpw-tbl fiche-tbl work-tbl">
-              <thead><tr>
-                {th("cle", "Clé", "c-cle")}{th("resume", "Résumé", "c-res")}{th("statut", "Statut", "c-stat")}
-                {showWork
-                  ? <>{th("heures", "Heures (lui)", "c-h")}<th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></>
-                  : th("date", "Date", "c-date")}
-              </tr></thead>
-              <tbody>
-                {sorted.slice(0, 200).map((i) => {
-                  const w = work[i.cle];
-                  const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
-                  let badge;
-                  if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
-                  else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
-                  else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
-                  else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
-                  else badge = <span className="wk wk-off">aucune saisie de temps</span>;
-                  return (
-                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                      <td className="c-cle"><span className="k">{i.cle}</span></td>
-                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{(ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie)) && i.statutDepuis ? <span className="tis" title={`Dans « ${i.statutJira || i.statut} » depuis le ${fr(i.statutDepuis)}`}>· depuis {agoTxt(i.statutDepuis)}</span> : null}</td>
-                      <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
-                      {showWork
-                        ? <>
-                            <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
-                            <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
-                            <td className="c-act">{badge}</td>
-                          </>
-                        : <td className="c-date">{fr(i.resolu || i.maj)}</td>}
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+            <ul className="mv-list">
+              {filtered.slice(0, 25).map((i) => {
+                const rec = daysSince(i.maj);
+                const live = rec !== null && rec <= 2;
+                return (
+                  <li key={i.cle} onClick={() => onTicket && onTicket(i)} role="button" tabIndex={0} title="Ouvrir le ticket">
+                    <span className="mv-when">{i.maj ? agoTxt(i.maj) : "—"}</span>
+                    <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>
+                    <span className="k mv-key">{i.cle}</span>
+                    <span className="mv-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}{(ACTIVE.includes(i.categorie) || WAIT.includes(i.categorie)) && i.statutDepuis ? <span className="tis"> · dans ce statut depuis {agoTxt(i.statutDepuis)}</span> : null}</span>
+                    {live ? <span className="mv-live" title="Activité de moins de 48 h" /> : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
-          {filtered.length > 200 && <p className="hint">+ {filtered.length - 200} autre(s)…</p>}
-          {showWork && !workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
-          {showWork && workConfigured && filtered.length > 0 && (
-            <p className="hint" style={{ marginTop: 6 }}>
-              « Heures (lui) » = temps qu'<b>il</b> a saisi sur le ticket dans Jira. « Pris le » = dernière fois où le ticket lui a été assigné. « Travaille dessus ? » se base sur sa dernière saisie de temps : <b>actif</b> = activité de moins de 10 jours. Sans saisie de temps dans Jira, impossible de le confirmer.
-            </p>
-          )}
+          {filtered.length > 25 && <p className="hint">+ {filtered.length - 25} autre(s) — affine avec les filtres ci-dessus.</p>}
 
-          <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <span>Activité —</span>
-            <div className="filters" style={{ margin: 0 }}>
-              {PERIODS.map((p) => (
-                <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
-              ))}
+          {/* À TRAVAILLER — détail (heures & activité Jira), repliable */}
+          <details className="dev-fold">
+            <summary>À travailler — détail (heures &amp; activité Jira) <span className="fold-n">{activeItems.length}</span></summary>
+            <div className="dev-fold-bd">
+              {activeItems.length === 0 ? (
+                <div className="empty">Aucun ticket en cours ni en recette.</div>
+              ) : (
+                <table className="cpw-tbl fiche-tbl work-tbl">
+                  <thead><tr><th className="c-cle">Clé</th><th className="c-res">Résumé</th><th className="c-stat">Statut</th><th className="c-h">Heures (lui)</th><th className="c-since">Pris le</th><th className="c-act">Travaille dessus ?</th></tr></thead>
+                  <tbody>
+                    {activeItems.map((i) => {
+                      const w = work[i.cle];
+                      const dA = w && w.derniereActivite ? daysSince(w.derniereActivite) : null;
+                      let badge;
+                      if (workLoading && !w) badge = <span className="wk wk-load">…</span>;
+                      else if (dA !== null && dA <= 10) badge = <span className="wk wk-on">● actif · {agoTxt(w.derniereActivite)}</span>;
+                      else if (dA !== null) badge = <span className="wk wk-warn">● {agoTxt(w.derniereActivite)}</span>;
+                      else if (w && w.heuresDevSec > 0) badge = <span className="wk wk-warn">saisie (date inconnue)</span>;
+                      else badge = <span className="wk wk-off">aucune saisie de temps</span>;
+                      return (
+                        <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                          <td className="c-cle"><span className="k">{i.cle}</span></td>
+                          <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                          <td className="c-stat"><span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span></td>
+                          <td className="c-h">{w && w.heuresDevSec > 0 ? <b>{w.heuresDev}</b> : "—"}</td>
+                          <td className="c-since">{w && w.depuisAssigne ? <span title={fr(w.depuisAssigne)}>{agoTxt(w.depuisAssigne)}</span> : "—"}</td>
+                          <td className="c-act">{badge}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+              {!workConfigured && <p className="hint">Connecte Jira pour voir les heures et l'historique d'assignation.</p>}
+              {workConfigured && activeItems.length > 0 && <p className="hint" style={{ marginTop: 6 }}>« Heures (lui) » = temps qu'<b>il</b> a saisi dans Jira. « Pris le » = dernière assignation. « Travaille dessus ? » : <b>actif</b> = saisie de moins de 10 jours.</p>}
             </div>
+          </details>
+
+          <div className="dev-actions">
+            <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
+            {!ro && !deleted && <button className="btn-line sm" style={{ color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
           </div>
 
-          <p className="period-sum">
-            <b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)
-            {!ro && !deleted && <button className="btn-line sm" style={{ marginLeft: 10, color: "var(--red)", borderColor: "#f0c7cb" }} onClick={askDelete}>Supprimer la fiche</button>}
-          </p>
-          <ExportBar buildHtml={buildDevHtml} filename={`fiche-${devName}.html`} subject={`Fiche développeur — ${devName}`} />
-
-          {per.projets.length > 0 ? (
-            <table className="cpw-tbl proj-tbl">
-              <thead><tr><th>Projet</th><th>Tickets travaillés</th><th>Terminés</th></tr></thead>
-              <tbody>
-                {per.projets.map((p) => (
-                  <tr key={p.dossier}><td><span className="tag">{p.dossier}</span></td><td><b>{p.touched}</b></td><td>{p.done || "—"}</td></tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <div className="empty">Aucune activité sur cette période.</div>
-          )}
-
-          {per.list.length > 0 && (
-            <>
-              <div className="dev-sec-h">Ce qu'il a fait ({per.list.length})</div>
-              <table className="cpw-tbl fiche-tbl">
-                <thead><tr><th className="c-cle">Clé</th><th className="c-proj">Projet</th><th className="c-res">Résumé</th><th className="c-date">Date</th><th className="c-stat">Statut</th></tr></thead>
-                <tbody>
-                  {per.list.slice(0, 200).map((i) => (
-                    <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
-                      <td className="c-cle"><span className="k">{i.cle}</span></td>
-                      <td className="c-proj"><span className="tag">{i.dossier}</span></td>
-                      <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
-                      <td className="c-date">{fr(i.maj)}</td>
-                      <td className="c-stat">{per.doneInPeriod(i) ? <span className="pill done">terminé</span> : <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>}</td>
-                    </tr>
+          {/* CE QU'IL A FAIT — par période, repliable */}
+          <details className="dev-fold">
+            <summary>Ce qu'il a fait — par période <span className="fold-n">{per.touched}</span></summary>
+            <div className="dev-fold-bd">
+              <div className="dev-sec-h" style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 4 }}>
+                <span>Période —</span>
+                <div className="filters" style={{ margin: 0 }}>
+                  {PERIODS.map((p) => (
+                    <button key={p.id} className={`fbtn ${period === p.id ? "active" : ""}`} onClick={() => setPeriod(p.id)}>{p.label}</button>
                   ))}
-                </tbody>
-              </table>
-              {per.list.length > 200 && <p className="hint">+ {per.list.length - 200} autre(s)…</p>}
-            </>
-          )}
+                </div>
+              </div>
+              <p className="period-sum"><b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)</p>
+              {per.projets.length > 0 ? (
+                <table className="cpw-tbl proj-tbl">
+                  <thead><tr><th>Projet</th><th>Tickets travaillés</th><th>Terminés</th></tr></thead>
+                  <tbody>
+                    {per.projets.map((p) => (
+                      <tr key={p.dossier}><td><span className="tag">{p.dossier}</span></td><td><b>{p.touched}</b></td><td>{p.done || "—"}</td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <div className="empty">Aucune activité sur cette période.</div>
+              )}
+              {per.list.length > 0 && (
+                <>
+                  <div className="dev-sec-h">Détail ({per.list.length})</div>
+                  <table className="cpw-tbl fiche-tbl">
+                    <thead><tr><th className="c-cle">Clé</th><th className="c-proj">Projet</th><th className="c-res">Résumé</th><th className="c-date">Date</th><th className="c-stat">Statut</th></tr></thead>
+                    <tbody>
+                      {per.list.slice(0, 200).map((i) => (
+                        <tr key={i.cle} onClick={() => onTicket && onTicket(i)}>
+                          <td className="c-cle"><span className="k">{i.cle}</span></td>
+                          <td className="c-proj"><span className="tag">{i.dossier}</span></td>
+                          <td className="c-res">{i.resume}{i.flagged ? <span className="flag"> 🚩</span> : null}</td>
+                          <td className="c-date">{fr(i.maj)}</td>
+                          <td className="c-stat">{per.doneInPeriod(i) ? <span className="pill done">terminé</span> : <span className={`pill ${PILL[i.statut] || "todo"}`}>{i.statutJira || i.statut}</span>}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {per.list.length > 200 && <p className="hint">+ {per.list.length - 200} autre(s)…</p>}
+                </>
+              )}
+            </div>
+          </details>
 
           <div className="dev-sec-h">Tendance — terminés par mois (6 derniers mois)</div>
           <div className="month-chart">

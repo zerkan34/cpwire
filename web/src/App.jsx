@@ -478,7 +478,7 @@ export default function App() {
   // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
   useEffect(() => {
     if (!authed) return;
-    const id = setInterval(() => { load(true, false, true); }, 60000);
+    const id = setInterval(() => { load(true, false, true); }, 40000);
     return () => clearInterval(id);
   }, [authed, load]);
 
@@ -743,7 +743,7 @@ export default function App() {
       {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v412"
+            build="stable-v415"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -837,6 +837,7 @@ export default function App() {
           <DeveloperModal devName={devFiche} allIssues={issues}
             deleted={deletedDevs.includes(devFiche)}
             onDelete={() => removeDev(devFiche)} onRestore={() => restoreDev(devFiche)}
+            onRefresh={() => load(true, false, true)}
             onClose={() => setDevFiche(null)} onTicket={setTicket} />
         </Suspense>
       )}
