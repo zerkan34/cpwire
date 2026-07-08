@@ -382,6 +382,82 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .pv-card-note{padding:12px 20px 16px;font-size:12px;line-height:1.5;color:var(--muted,#6E6A86);border-top:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC)}
 .pv-load{display:flex;align-items:center;justify-content:center;min-height:180px;color:var(--muted,#6E6A86);font-size:13px;font-weight:600;border:1px solid var(--filet,#E2DEF0);border-radius:14px;background:var(--lav,#F5F2FC)}
 
+/* ===================== THÈME SOMBRE — style armonie landing ===================== */
+:root{
+ --navy:#eef1fb; --indigo:#9d8dff; --indigo-d:#8b7bf0;
+ --ink:#eef1fb; --ink-soft:#c7cce6; --muted:#9aa3c7;
+ --bg:#131832; --card:#1a2040;
+ --lav:rgba(255,255,255,.05); --lav-2:rgba(255,255,255,.09);
+ --line:rgba(255,255,255,.10); --line-2:rgba(255,255,255,.17);
+ --magenta:#ff5c9d; --m-wash:rgba(255,92,157,.14); --green:#3ddc97;
+ --gold:#F2C316; --gold-wash:rgba(242,195,22,.14); --gold-line:rgba(242,195,22,.35); --gold-ink:#F2C316;
+ --sh-sm:0 1px 2px rgba(0,0,0,.3); --sh-md:0 14px 34px -16px rgba(0,0,0,.55); --sh-lg:0 34px 80px -28px rgba(0,0,0,.65);
+}
+html,body{background:radial-gradient(1200px 620px at 18% -12%,#2a3160 0%,transparent 60%),linear-gradient(160deg,#1a2142,#141a35 45%,#0f1329);background-attachment:fixed;color:var(--ink)}
+.mockbar{background:rgba(255,255,255,.05);color:var(--ink-soft);border-bottom:1px solid var(--line)}
+.top{background:rgba(16,20,42,.78);border-bottom:1px solid var(--line)}
+.search input{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
+.search input::placeholder{color:#8b93b8}
+.backbtn{background:rgba(255,255,255,.05);border:1px solid var(--line-2);color:var(--ink-soft)}
+.backbtn:hover{background:rgba(255,255,255,.10)}
+#sfver{background:rgba(255,255,255,.06)!important;border-color:var(--line-2)!important;color:var(--muted)!important}
+*::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border:2px solid transparent}
+*::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.24)}
+/* hero + mot en dégradé */
+.hero{background:transparent;border:0;box-shadow:none;padding:8px 0 0}
+.hero h1 .g{background:linear-gradient(90deg,#5aa8ff,#37d0c4);-webkit-background-clip:text;background-clip:text;color:transparent}
+.kpi .n{background:linear-gradient(90deg,#5aa8ff,#37d0c4);-webkit-background-clip:text;background-clip:text;color:transparent}
+/* encarts cliquables */
+.tile,.ccard,.pchip{background:linear-gradient(160deg,rgba(255,255,255,.055),rgba(255,255,255,.02));border:1px solid var(--line)}
+.tile:hover,.ccard:hover,.pchip:hover{border-color:var(--line-2);box-shadow:var(--sh-md)}
+.tile .ic{background:rgba(255,255,255,.08)}
+.eyebrow{color:#bcd0ff}
+.navi.active{background:linear-gradient(135deg,#6b5ce0,#8b7bf0);color:#fff}
+.navi:hover{background:rgba(255,255,255,.06)}
+/* tableaux */
+.tbl{background:rgba(255,255,255,.03);border:1px solid var(--line)}
+.tbl thead th{background:rgba(255,255,255,.06);color:var(--ink-soft)}
+.tbl tbody td{border-bottom:1px solid var(--line)}
+.tbl tbody tr:hover{background:rgba(255,255,255,.05)}
+.tbl .path,.tbl .name .nm{color:var(--ink-soft)}
+.tag{background:rgba(255,255,255,.08);color:#c9c0ff}
+.tag.t{background:rgba(255,255,255,.06);color:var(--ink-soft)}
+.tag.x{background:var(--gold-wash);color:var(--gold)}
+.more{background:rgba(255,255,255,.06);border:1px solid var(--line-2);color:var(--ink)}
+.more:hover{background:rgba(255,255,255,.10)}
+.empty{background:rgba(255,255,255,.03);border:1px dashed var(--line-2);color:var(--muted)}
+/* dépôt */
+.dz{background:rgba(255,255,255,.03);border:2px dashed var(--line-2)}
+.dz.drag{background:rgba(157,141,255,.14);border-color:var(--indigo)}
+.dzbadge.ok{background:rgba(61,220,151,.14);color:var(--green)}
+/* modales / tiroirs / viewer / menus */
+#modal .mback,.vwrap{background:rgba(6,9,22,.62);backdrop-filter:blur(3px)}
+#modal .mcard,.mcard,.dropdown,.vwin,.sheet .sc{background:#1a2040;border:1px solid var(--line);color:var(--ink);box-shadow:var(--sh-lg)}
+#modal .mx,.icobtn{background:rgba(255,255,255,.06);border-color:var(--line-2)}
+.sheet .fld,.sheet textarea.fld{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
+.sheet .chip{background:rgba(255,255,255,.06);color:var(--ink-soft)}
+.sheet .opt{border-color:var(--line-2)}
+.vbar{background:rgba(255,255,255,.05);border-bottom:1px solid var(--line);color:var(--ink)}
+.dropdown .di{border-top:1px solid var(--line)}
+.dropdown .di:hover{background:rgba(255,255,255,.05)}
+.pv-card,.pv-load{border-color:var(--line-2)!important;background:rgba(255,255,255,.04)!important;color:var(--ink-soft)!important}
+.pv-card-x p{color:var(--ink-soft)!important}
+/* --- correctifs audit design (surfaces claires oubliées) --- */
+.filters select,.filters .fsearch{background:rgba(255,255,255,.06);border-color:var(--line-2);color:var(--ink)}
+.filters select option{background:#1a2040;color:var(--ink)}
+.prof{background:rgba(255,255,255,.05);border-color:var(--line-2)}
+.prof:hover{background:rgba(255,255,255,.09)}
+.badge.contrat{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--gold-line)}
+.sheet .pbtn.sec{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--line-2)}
+#loader .lcard{background:#1a2040;color:var(--ink)}
+.tile .cnt{color:var(--ink)}
+.mact4 .mbtn,#modal .mact4 .mbtn{background:rgba(255,255,255,.06);color:var(--ink-soft);border-color:var(--line-2)}
+.mact4 .mbtn:hover,#modal .mact4 .mbtn:hover{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+.mopen .mbtn.open,#modal .mopen .mbtn.open{background:var(--indigo);color:#fff;border-color:var(--indigo)}
+#confirm .mcard{background:#1a2040;border:1px solid var(--line);color:var(--ink);box-shadow:var(--sh-lg)}
+#confirm .mback{background:rgba(6,9,22,.6);backdrop-filter:blur(3px)}
+#confirm .csec{border-color:var(--line)}
+#confirm .clist,#confirm .crow{border-color:var(--line)}
 </style>
 </head>
 <body>
@@ -1124,7 +1200,7 @@ function renderHome(){
   $('#view').innerHTML=`
     <div class="hero">
       <div class="ey">Espace de delivery · TMA &amp; Projets</div>
-      <h1>Tout le delivery,<br>rangé par client.</h1>
+      <h1>Tout le delivery,<br><span class="g">rangé</span> par client.</h1>
       <p>Un point d'entrée unique vers les dossiers clients, le pilotage et les ressources. La recherche et les vues filtrées remplacent la navigation au clic.</p>
       <div class="kpi">
         <div><div class="n mono">${STATS.clients}</div><div class="l">clients actifs</div></div>
