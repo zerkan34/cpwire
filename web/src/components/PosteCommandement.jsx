@@ -5,6 +5,7 @@ import CopilotDot from "./CopilotDot.jsx";
 import ActivityFeed from "./ActivityFeed.jsx";
 import skyMp4 from "../assets/cockpit-fly.mp4";
 import skyPoster from "../assets/cockpit-fly-poster.jpg";
+import NatachaIntro from "./NatachaIntro.jsx";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
 // Un seul écran, une seule mécanique : la PORTÉE (Tout / Client / Projet / TMA)
@@ -225,6 +226,9 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
         </video>
         <div className="pc2-sky-veil" />
       </div>
+
+      {/* Intro d'accueil : Natacha apparaît, fait un clin d'œil, puis disparaît */}
+      <NatachaIntro />
 
       {/* barre de PORTÉE */}
       <div className="pc2-scope">
