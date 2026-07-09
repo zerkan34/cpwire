@@ -108,7 +108,7 @@ export default function ImportSources({ onClose, onApplied }) {
   );
 
   return (
-    <div className="overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+    <div className="overlay imp-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="modal imp-modal" role="dialog" aria-label="Import sources">
         <div className="modal-hd">
           <div className="k">Import sources</div>

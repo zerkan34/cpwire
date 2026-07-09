@@ -258,6 +258,16 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .modal-back:hover { background: rgba(255,255,255,.3); transform: translateX(-2px); }
 .modal-back:active { transform: translateX(-2px) scale(.94); }
 .modal-bd { padding: 22px 24px; overflow-y: auto; }
+
+/* Pop-up « Import sources » : ancré EN HAUT (au-dessus du header), compact, sans décalage de conteneur.
+   .overlay est déjà position:fixed (z-index 3600) → il ne pousse aucun contenu. */
+.imp-overlay { align-items: flex-start; padding-top: 8px; }
+.imp-overlay .imp-modal { max-width: 560px; max-height: 88vh; }
+.imp-overlay .imp-modal .modal-hd { padding: 13px 20px 14px 46px; }
+.imp-overlay .imp-modal .modal-hd h3 { font-size: 16.5px; }
+.imp-overlay .imp-modal .modal-hd .k { font-size: 11px; }
+.imp-overlay .imp-modal .modal-hd .x { top: 12px; }
+.imp-overlay .imp-modal .modal-bd { padding: 16px 18px; }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 16px; }
 .meta-grid .cell .l { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .meta-grid .cell .v { font-size: 14px; color: var(--ink); margin-top: 2px; }
@@ -2371,8 +2381,9 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .hdr::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); z-index: 2; }
 .eyebrow { font-family: "JetBrains Mono", monospace; font-weight: 600; letter-spacing: .14em; color: var(--gold); }
 /* transition de page élégante */
-.page-anim { animation: page-in .3s cubic-bezier(.2,.7,.2,1); }
-@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+/* conteneurs FIXES : fondu seul, aucune translation/mouvement */
+.page-anim { animation: page-in .25s ease; }
+@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
 
 /* ===== v114 : segmentation 360°, alignement activité, bouton carte, en-tête client restructuré ===== */
 /* Liste "Activité récente" : colonnes alignées (clé | résumé | statut | dev·date) */
@@ -5359,8 +5370,15 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* --- Fond « flight-deck » : vidéo cockpit (Higgsfield) en boucle plein écran --- */
 /* .pc2 reste en flux normal (PAS de stacking context) pour ne pas emprisonner le ciel */
 .pc2--deck { position:relative; }
-/* le contenu du poste reste au-dessus du ciel */
-.pc2--deck > *:not(.pc2-sky) { position:relative; z-index:1; }
+/* le contenu du poste reste au-dessus du ciel (on exclut .nti, surimpression fixed) */
+.pc2--deck > *:not(.pc2-sky):not(.nti) { position:relative; z-index:1; }
+/* Deux calques ciel superposés : calme (dessous) + warp (dessus, opacité 0).
+   Clic maintenu hors conteneur → le warp apparaît en fondu (accélération, ease-in) + léger zoom ;
+   relâchement → retour au calme (décélération, ease-out). Transitions CSS pures = zéro glitch. */
+.pc2-sky-vid { transition: transform .7s cubic-bezier(.16,1,.3,1); will-change: transform, opacity; }
+.pc2-sky-vid--warp { opacity: 0; transition: opacity .7s cubic-bezier(.16,1,.3,1); } /* décélération au retour */
+.pc2--boost .pc2-sky-vid { transform: scale(1.06); transition: transform .5s cubic-bezier(.66,0,.86,0); }
+.pc2--boost .pc2-sky-vid--warp { opacity: 1; transition: opacity .45s cubic-bezier(.66,0,.86,0); } /* accélération */
 /* z-index négatif : le ciel passe DERRIÈRE tout le contenu de l'app
    (header, barre d'outils, onglets, cartes) et ne masque plus rien */
 .pc2-sky { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
@@ -5384,6 +5402,14 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc2--deck .pc2-chip { background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
 .pc2--deck .pc2-scope-lbl { color:#F4E4B8; text-shadow:0 1px 3px rgba(20,18,45,.5); }
 .pc2--deck .pc2-menu { background:#fff; } /* menu déroulant opaque */
+/* légende du ticker (Lecture : hausse/baisse…) : pill verre foncé + texte clair, bien lisible sur le ciel */
+.pc2--deck .pc2-tk-legend { margin-top:10px; padding:9px 14px; gap:16px; border-radius:12px;
+  background:rgba(20,18,45,.62); border:1px solid rgba(255,255,255,.16);
+  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
+  box-shadow:0 8px 22px rgba(20,18,45,.32); }
+.pc2--deck .pc2-tk-legend .lg,
+.pc2--deck .pc2-tk-legend .lg b { color:#EDEBFA; }
+.pc2--deck .pc2-tk-legend > .lg:first-child { color:#F4E4B8; font-weight:700; letter-spacing:.04em; }
 @media (prefers-reduced-motion: reduce) {
   .pc2-sky-vid { display:none; } /* on fige sur le poster (fond de .pc2-sky) */
 }
