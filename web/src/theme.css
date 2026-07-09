@@ -5355,6 +5355,35 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===== Poste de commandement (accueil unifié) ===== */
 .pc2 { display:flex; flex-direction:column; gap:14px; }
+
+/* --- Fond « flight-deck » : vidéo cockpit (Higgsfield) en boucle plein écran --- */
+.pc2--deck { position:relative; z-index:0; }
+/* tout le contenu du poste passe au-dessus du ciel */
+.pc2--deck > *:not(.pc2-sky) { position:relative; z-index:1; }
+.pc2-sky { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
+  background-size:cover; background-position:center; background-repeat:no-repeat; }
+.pc2-sky-vid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+/* voile de lisibilité : assombrit doucement le ciel et ancre les cartes */
+.pc2-sky-veil { position:absolute; inset:0;
+  background:
+    linear-gradient(180deg, rgba(20,18,45,.32) 0%, rgba(20,18,45,.14) 34%, rgba(20,18,45,.44) 100%),
+    radial-gradient(120% 80% at 50% 28%, rgba(20,18,45,0) 42%, rgba(20,18,45,.34) 100%);
+}
+/* cartes « instruments » en verre au-dessus du ciel */
+.pc2--deck .pc2-card {
+  background:rgba(255,255,255,.82);
+  -webkit-backdrop-filter:blur(10px) saturate(1.05);
+  backdrop-filter:blur(10px) saturate(1.05);
+  border-color:rgba(255,255,255,.6);
+  box-shadow:0 10px 30px rgba(20,18,45,.28);
+}
+/* chips de portée + libellé lisibles sur le ciel */
+.pc2--deck .pc2-chip { background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
+.pc2--deck .pc2-scope-lbl { color:#F4E4B8; text-shadow:0 1px 3px rgba(20,18,45,.5); }
+.pc2--deck .pc2-menu { background:#fff; } /* menu déroulant opaque */
+@media (prefers-reduced-motion: reduce) {
+  .pc2-sky-vid { display:none; } /* on fige sur le poster (fond de .pc2-sky) */
+}
 .pc2-scope { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .pc2-scope-lbl { font-family:"Poppins"; font-weight:800; font-size:11px; letter-spacing:2px; color:var(--gold); margin-right:6px; }
 .pc2-chip { border:1px solid var(--line); background:#fff; color:var(--grey); font-family:"Inter"; font-weight:600; font-size:12.5px; padding:7px 14px; border-radius:16px; cursor:pointer; }
