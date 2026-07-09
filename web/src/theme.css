@@ -261,8 +261,9 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 
 /* Pop-up « Import sources » : ancré EN HAUT (au-dessus du header), compact, sans décalage de conteneur.
    .overlay est déjà position:fixed (z-index 3600) → il ne pousse aucun contenu. */
-.imp-overlay { align-items: flex-start; padding-top: 8px; }
-.imp-overlay .imp-modal { max-width: 560px; max-height: 88vh; }
+.imp-overlay { align-items: flex-start; padding-top: 6px; }
+/* margin:0 auto annule le margin:auto de .modal qui recentrait verticalement (→ collé en haut, au-dessus du header) */
+.imp-overlay .imp-modal { margin: 0 auto; max-width: 560px; max-height: 92vh; }
 .imp-overlay .imp-modal .modal-hd { padding: 13px 20px 14px 46px; }
 .imp-overlay .imp-modal .modal-hd h3 { font-size: 16.5px; }
 .imp-overlay .imp-modal .modal-hd .k { font-size: 11px; }
