@@ -5363,19 +5363,19 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc2-sky { position:fixed; inset:0; z-index:0; overflow:hidden; pointer-events:none;
   background-size:cover; background-position:center; background-repeat:no-repeat; }
 .pc2-sky-vid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-/* voile de lisibilité : assombrit doucement le ciel et ancre les cartes */
+/* voile de lisibilité : assombrit le ciel, adoucit le soleil, ancre les cartes */
 .pc2-sky-veil { position:absolute; inset:0;
   background:
-    linear-gradient(180deg, rgba(20,18,45,.32) 0%, rgba(20,18,45,.14) 34%, rgba(20,18,45,.44) 100%),
-    radial-gradient(120% 80% at 50% 28%, rgba(20,18,45,0) 42%, rgba(20,18,45,.34) 100%);
+    linear-gradient(180deg, rgba(20,18,45,.42) 0%, rgba(20,18,45,.26) 40%, rgba(20,18,45,.52) 100%),
+    radial-gradient(130% 90% at 50% 22%, rgba(20,18,45,0) 34%, rgba(20,18,45,.40) 100%);
 }
-/* cartes « instruments » en verre au-dessus du ciel */
+/* cartes « instruments » en verre — assez denses pour rester nettes sur le ciel */
 .pc2--deck .pc2-card {
-  background:rgba(255,255,255,.82);
-  -webkit-backdrop-filter:blur(10px) saturate(1.05);
-  backdrop-filter:blur(10px) saturate(1.05);
-  border-color:rgba(255,255,255,.6);
-  box-shadow:0 10px 30px rgba(20,18,45,.28);
+  background:rgba(255,255,255,.94);
+  -webkit-backdrop-filter:blur(5px) saturate(1.02);
+  backdrop-filter:blur(5px) saturate(1.02);
+  border-color:rgba(255,255,255,.7);
+  box-shadow:0 10px 30px rgba(20,18,45,.30);
 }
 /* chips de portée + libellé lisibles sur le ciel */
 .pc2--deck .pc2-chip { background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }

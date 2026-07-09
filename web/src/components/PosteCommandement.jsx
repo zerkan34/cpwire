@@ -4,7 +4,6 @@ import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
 import ActivityFeed from "./ActivityFeed.jsx";
 import skyMp4 from "../assets/cockpit-fly.mp4";
-import skyWebm from "../assets/cockpit-fly.webm";
 import skyPoster from "../assets/cockpit-fly-poster.jpg";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
@@ -221,8 +220,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
     <div className="pc2 pc2--deck">
       {/* Fond « flight-deck » — vidéo Higgsfield en boucle, plein écran, sous le contenu */}
       <div className="pc2-sky" aria-hidden="true" style={{ backgroundImage: `url(${skyPoster})` }}>
-        <video className="pc2-sky-vid" autoPlay muted loop playsInline preload="metadata" poster={skyPoster}>
-          <source src={skyWebm} type="video/webm" />
+        <video className="pc2-sky-vid" autoPlay muted loop playsInline preload="auto" poster={skyPoster}>
           <source src={skyMp4} type="video/mp4" />
         </video>
         <div className="pc2-sky-veil" />
