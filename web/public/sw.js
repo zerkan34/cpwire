@@ -71,7 +71,7 @@ self.addEventListener("fetch", (e) => {
   e.respondWith(
     caches.match(req).then((hit) =>
       hit || fetch(req).then((r) => {
-        if (r.ok) { const c = r.clone(); caches.open(CACHE).then((cc) => cc.put(req, c)); }
+        if (r.ok && !url.search) { const c = r.clone(); caches.open(CACHE).then((cc) => cc.put(req, c)); }
         return r;
       })
     )
