@@ -29,10 +29,23 @@ const DIR_LABEL = {
   right: "stable mais actif", left: "à l'arrêt", none: "tendance inconnue",
 };
 const dir4 = (x) => {
-  if (!x || x.varDone == null) return "none";
-  if (x.varDone > 0) return "up";
-  if (x.varDone < 0) return "down";
-  return (x.volume || 0) > 0 ? "right" : "left";
+  if (!x) return "none";
+  // 1) variation réelle si dispo (avancement +/-)
+  if (x.varDone != null) {
+    if (x.varDone > 0) return "up";
+    if (x.varDone < 0) return "down";
+    return (x.volume || 0) > 0 ? "right" : "left";
+  }
+  // 2) sinon, tendance « bourse » via la sparkline (dernier vs premier point)
+  const s = x.spark;
+  if (Array.isArray(s) && s.length >= 2) {
+    const a = Number(s[0]), b = Number(s[s.length - 1]);
+    if (b > a) return "up";
+    if (b < a) return "down";
+    return "right"; // stable
+  }
+  // 3) dernier recours : niveau de l'indice (>0 = stable actif, sinon à l'arrêt)
+  return (x.value || 0) > 0 ? "right" : "none";
 };
 // « depuis X » : temps écoulé dans le statut courant.
 const sinceTxt = (d) => {
