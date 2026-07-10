@@ -153,6 +153,20 @@ function PrepReunion({ issues }) {
           <label>Notes (l'IA structure l'ordre du jour à partir de ça)</label>
           <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Points à aborder, questions, décisions attendues…" />
         </div>
+        <div className="field">
+          <label>Participants — qui inviter (ajoute les personnes dès maintenant)</label>
+          {participants.map((p, idx) => (
+            <div className="part-row" key={idx}>
+              <select className="fselect" value={p.person} onChange={(e) => setPart(idx, "person", e.target.value)}>
+                <option value="">— personne —</option>
+                {TEAM.map((t) => <option key={t.name} value={t.name}>{t.name} — {t.role}</option>)}
+              </select>
+              <input type="text" value={p.topic} onChange={(e) => setPart(idx, "topic", e.target.value)} placeholder="Sujet / responsabilité (optionnel)" />
+              <button className="part-del" title="Retirer" onClick={() => delPart(idx)}>×</button>
+            </div>
+          ))}
+          <button className="btn-line sm" onClick={addPart}>+ Ajouter une personne</button>
+        </div>
         <div className="row-actions">
           <button className="btn-solid" onClick={generate} disabled={busy}>
             {busy ? "Génération…" : (data ? "↻ Régénérer le contexte (IA)" : "✨ Préparer avec l'IA")}
@@ -167,21 +181,6 @@ function PrepReunion({ issues }) {
             <div className="field">
               <label>Commentaire / contexte (après les statistiques)</label>
               <textarea className="ta" value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Ton mot de contexte pour la réunion…" />
-            </div>
-
-            <div className="field">
-              <label>Participants &amp; répartition (qui s'occupe de quoi)</label>
-              {participants.map((p, idx) => (
-                <div className="part-row" key={idx}>
-                  <select className="fselect" value={p.person} onChange={(e) => setPart(idx, "person", e.target.value)}>
-                    <option value="">— personne —</option>
-                    {TEAM.map((t) => <option key={t.name} value={t.name}>{t.name} — {t.role}</option>)}
-                  </select>
-                  <input type="text" value={p.topic} onChange={(e) => setPart(idx, "topic", e.target.value)} placeholder="Sujet / responsabilité" />
-                  <button className="part-del" title="Retirer" onClick={() => delPart(idx)}>×</button>
-                </div>
-              ))}
-              <button className="btn-line sm" onClick={addPart}>+ Ajouter une personne</button>
             </div>
 
             {data.deliverables && data.deliverables.length > 0 && (
