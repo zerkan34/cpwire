@@ -117,7 +117,8 @@ Navigation en 4 espaces : Pilotage, Explorateur, Atelier, ShareFly, plus Signaux
 - Point du soir, Digest, Recap quotidien : relevés et point du soir composé automatiquement.
 - Signaux / Santé / SLA : surface d'alerte unique (score de risque, cohérence, SLA opérationnel, journal des signaux). Radar des échéances.
 - CRA (temps par personne/projet, import Excel), Développeurs (charge/heures/tickets), Charge & capacité (WIP, surcharge).
-- Réunions (CR de réunion, audio transcrit, images lues par l'IA), Historique (journal des livrables produits/poussés).
+- Réunions (Atelier) — DEUX modes. « Préparation » : cp|WIRE assemble le contexte depuis Jira (point, qui travaille dessus, livrables, frictions) ; on choisit un client + un sujet, on ajoute des PARTICIPANTS pris dans l'équipe Armonie (avec leur sujet/responsabilité), on ajuste l'ordre du jour, puis on exporte en PDF / e-mail à la charte. « Compte rendu » : à partir de notes, d'un audio transcrit et d'images lues par l'IA. ⚠ IMPORTANT — cet écran NE crée PAS de réunion Teams, N'affiche PAS les disponibilités (dispo/occupé) Microsoft 365, NE génère NI lien Teams NI rappel Outlook : c'est un préparateur d'ordre du jour et de CR, pas un planificateur d'agenda. (Une intégration Microsoft 365 pour les disponibilités serait à connecter séparément.)
+- Historique (journal des livrables produits/poussés).
 - Assistant Natacha, analyse IA d'un point bloquant au clic, détail d'un ticket (explication IA, rapport→Jira, changement de statut).
 - Connaissance / Historique d'apprentissage (édition de la mémoire), Import de sources (Excel/CSV/Word/PPTX/PDF/JSON, capitalisation après validation).
 - Référentiel programmes IBM i (annuaire programmes × tickets), fiche client 360, GANTT / Planning à la charte, explorateur SharePoint, ShareFly (catalogue documentaire).
