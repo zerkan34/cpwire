@@ -2,7 +2,7 @@
 // Objectif : appli installable (PWA), rapide, avec MISE À JOUR CONTRÔLÉE (un
 // bouton « Actualiser » dans l'app au lieu d'un vidage de cache manuel) — et
 // SANS jamais mettre en cache les données Jira (/api passe toujours par le réseau).
-const CACHE = "cpwire-shell-v30";
+const CACHE = "cpwire-shell-v31";
 const PRECACHE = ["/", "/manifest.webmanifest", "/icons/icon-192.png", "/icons/icon-512.png", "/icons/maskable-512.png"];
 
 // --- Push en arrière-plan (appli fermée, quand le backend Web Push sera branché) ---

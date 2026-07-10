@@ -669,7 +669,7 @@ export default function App() {
     <ReadOnlyContext.Provider value={readOnly}>
     <div className={`wrap tab-${tab}${pwaAccueil ? " pwahome" : ""}`}>
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
-        loading={loading} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
+        loading={loading} apiError={error} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
         role={role} presence={presence} onPresence={() => setTab("admin")}
         query={query} onQuery={setQuery}

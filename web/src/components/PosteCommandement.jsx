@@ -311,28 +311,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
           ) : <span className="pc2-tk-empty">Aucune cote sur cette portée.</span>}
         </div>
       </div>
-      <div className="pc2-tk-legend">
-        <span className="lg">Lecture :</span>
-        <span className="lg d-up"><span className="tri" /><b>hausse</b> (avancement)</span>
-        <span className="lg d-down"><span className="tri" /><b>baisse</b> (régression)</span>
-        <span className="lg d-right"><span className="tri" /><b>stable</b> mais actif</span>
-        <span className="lg d-left"><span className="tri" /><b>à l'arrêt</b></span>
-      </div>
-
-      <div className="pc2-kpis">
-        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
-          <b>{agg.pct}%</b><span>Indice — {single ? scope.value : "portefeuille"}</span>
-          {idxVar != null && <em className={idxVar >= 0 ? "up" : "down"}>{idxVar >= 0 ? "▲" : "▼"} {sign(idxVar)}</em>}
-        </button>
-        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
-          <b>{agg.enRetard}</b><span>En retard (SLA à surveiller)</span>
-          <em className={agg.enRetard ? "down" : "up"}>{agg.enRetard ? "à traiter" : "sain"}</em>
-        </button>
-        <button className="pc2-kpi" onClick={() => goTo && goTo("explorateur", "")}>
-          <b>{agg.afaire}</b><span>À faire / en attente</span>
-          <em className="flat">{agg.retours} retour{agg.retours > 1 ? "s" : ""}</em>
-        </button>
-      </div>
+      {/* Légende « Lecture » et cartes KPI retirées à la demande — accueil épuré */}
 
       <div className="pc2-grid">
         {/* colonne gauche : camembert + barres */}

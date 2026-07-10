@@ -14,7 +14,7 @@ export default function NatachaIntro() {
     if (PLAYED) { setShow(false); return; }
     setShow(true);
     const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const hold = reduce ? 1500 : 2900;
+    const hold = reduce ? 2600 : 5200;
     const t1 = setTimeout(() => setLeaving(true), hold);
     const t2 = setTimeout(() => { PLAYED = true; setShow(false); }, hold + 560);
     return () => { clearTimeout(t1); clearTimeout(t2); };

@@ -29,7 +29,7 @@ function timeAgo(ts) {
 }
 const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
-export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onOpen360, onDev, onBurger, tab, pageLabel, onKpi, activeKpi }) {
+export default function Header({ kpis, source, generatedAt, syncedAt, loading, apiError, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onOpen360, onDev, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);
   const unread = notifs.filter((n) => !n.read).length;
 
@@ -143,10 +143,13 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, m
     </div>
   );
 
+  // Voyant de santé API : diode verte qui clignote (connecté / données à jour),
+  // rouge qui clignote si le dernier refresh a échoué. Un clic force une actualisation.
   const refresh = (
-    <button className={`hdr-ic refresh ${loading ? "spin" : ""}`} onClick={onRefresh} disabled={loading}
-      title={loading ? `Actualisation… ${Math.round(prog)}%` : "Actualiser depuis Jira"} aria-label="Actualiser">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-2.64-6.36"/><path d="M21 3v6h-6"/></svg>
+    <button className={`hdr-led ${apiError ? "err" : "ok"} ${loading ? "busy" : ""}`} onClick={onRefresh} disabled={loading}
+      title={apiError ? `Connexion API en échec — cliquer pour réessayer` : (loading ? "Actualisation…" : "Connecté — cliquer pour actualiser")}
+      aria-label={apiError ? "API en échec" : "API connectée"}>
+      <span className="led-dot" />
     </button>
   );
 
