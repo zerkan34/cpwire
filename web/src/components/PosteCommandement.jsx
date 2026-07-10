@@ -103,18 +103,21 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
-    const CONTAINERS = ".pc2-card,.pc2-scope,.pc2-tk,.pc2-tk-legend,.pc2-kpis,.pc2-kpi,button,a,input,select,textarea,label,.pc2-menu,.nti-card,svg";
+    // On écoute sur TOUT le document (pas seulement .pc2) : « le vide » = le ciel
+    // autour des cartes, qui est hors de .pc2. On ne déclenche PAS sur un conteneur,
+    // un contrôle, un modal/overlay.
+    const CONTAINERS = ".pc2-card,.pc2-scope,.pc2-tk,.pc2-kpis,.pc2-kpi,button,a,input,select,textarea,label,.pc2-menu,.nti-card,.cwa-overlay,.cwa-panel,.overlay,.modal,.notif-panel,.drawer,svg";
     const isBg = (t) => !(t && t.closest && t.closest(CONTAINERS));
     const boost = (e) => { if (e.type === "mousedown" && e.button) return; if (isBg(e.target)) root.classList.add("pc2--boost"); };
     const relax = () => root.classList.remove("pc2--boost");
-    root.addEventListener("mousedown", boost);
-    root.addEventListener("touchstart", boost, { passive: true });
+    document.addEventListener("mousedown", boost);
+    document.addEventListener("touchstart", boost, { passive: true });
     window.addEventListener("mouseup", relax);
     window.addEventListener("touchend", relax);
     window.addEventListener("blur", relax);
     return () => {
-      root.removeEventListener("mousedown", boost);
-      root.removeEventListener("touchstart", boost);
+      document.removeEventListener("mousedown", boost);
+      document.removeEventListener("touchstart", boost);
       window.removeEventListener("mouseup", relax);
       window.removeEventListener("touchend", relax);
       window.removeEventListener("blur", relax);
