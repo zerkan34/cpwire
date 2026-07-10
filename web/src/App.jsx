@@ -400,6 +400,16 @@ export default function App() {
 
   // Charge les fiches 360 dès le démarrage (indépendamment du portefeuille).
   useEffect(() => { fetchProjets().then(setProjetsData).catch(() => {}); }, []);
+  // Natacha : clic sur une source (ticket) → ouvre la fiche du ticket.
+  useEffect(() => {
+    const onOpenTicket = (e) => {
+      const cle = e.detail && e.detail.cle; if (!cle) return;
+      const it = (issues || []).find((x) => x.cle === cle);
+      if (it) setTicket(it);
+    };
+    window.addEventListener("cpwire-open-ticket", onOpenTicket);
+    return () => window.removeEventListener("cpwire-open-ticket", onOpenTicket);
+  }, [issues]);
 
   // Bannière d'import : visible au démarrage puis s'efface.
   useEffect(() => {

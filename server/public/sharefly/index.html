@@ -49,6 +49,14 @@ button{font:inherit;cursor:pointer}
 /* ---------- topbar ---------- */
 .top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.3) blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:22px;padding:11px 28px}
 .top .logo{height:26px}
+/* Mouvements / journal : lignes cliquables avec affordance bien visible */
+.tbl tr[data-jn]{transition:background .12s ease}
+.tbl tr[data-jn]:hover{background:var(--lav)}
+.tbl tr[data-jn] .nm{color:var(--indigo);font-weight:600}
+.tbl tr[data-jn]:hover .nm{text-decoration:underline}
+.fr[data-jn]{border-radius:8px;transition:background .12s ease}
+.fr[data-jn]:hover{background:var(--lav)}
+.fr[data-jn]:hover .act b{text-decoration:underline}
 .top .appname{font-family:'Poppins';font-weight:600;color:var(--navy);font-size:14.5px;border-left:1px solid var(--line-2);padding-left:18px;cursor:pointer;letter-spacing:-.01em}
 .top .appname .fly{background:var(--wire-grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
 .top .appname .sh{font-size:.72em;font-weight:600;color:var(--muted);letter-spacing:.02em}
@@ -1085,8 +1093,18 @@ function initTopbar(){
   updateBell();
 }
 
+// Un doc est « prévisualisable » s'il s'ouvre VRAIMENT : fichier déposé (blob) d'un type
+// rendu, ou document cp|WIRE hébergé (fiche/mémoire). Les simples références (sans fichier)
+// sont masquées à la demande.
+function isPreviewable(d){
+  if(!d) return false;
+  if(cpwireUrl(d)) return true;
+  if(d._added){ const ex=(extOf(d.n)||'').toLowerCase(); return ['pdf','html','htm','png','jpg','jpeg','gif','webp','bmp','svg'].includes(ex); }
+  return false;
+}
 function mountDocs(host, baseList, opts){
   opts=opts||{};
+  baseList=(baseList||[]).filter(isPreviewable);   // afficher UNIQUEMENT les prévisualisables
   const years=uniq(baseList,'y'), types=[...new Set(baseList.map(d=>d.x))].sort();
   const cats=opts.cats? [...new Set(baseList.map(d=>d.k).filter(Boolean))].sort() : null;
   const engs=opts.eng? ['Assistance','Projet'] : null;

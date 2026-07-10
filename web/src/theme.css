@@ -327,6 +327,18 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .nhero-go { flex:none; border:0; cursor:pointer; width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:var(--gold,#A88B4B); color:#241f10; }
 .nhero-go:hover { filter:brightness(1.07); }
 @media (prefers-reduced-motion: reduce) { .nhero-ava, .nhero-wink { animation:none !important; } .nhero-wink { opacity:0 !important; } }
+
+/* ===== Natacha en MODALE CENTRALE (au lieu du panneau à droite) ===== */
+.cwa-overlay { position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center; padding:24px;
+  background:rgba(20,18,45,.55); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); animation:cwa-ov-in .2s ease; }
+.cwa-overlay .cwa-panel { position:relative !important; inset:auto !important; right:auto !important; left:auto !important;
+  top:auto !important; bottom:auto !important; margin:0 !important;
+  width:min(720px,96vw); height:min(82vh,820px); max-height:90vh; border-radius:20px; box-shadow:0 30px 80px rgba(20,18,45,.5); }
+.cwa-overlay .cwa-panel.maxed { width:min(1100px,96vw); height:92vh; max-height:94vh; }
+@keyframes cwa-ov-in { from{opacity:0} to{opacity:1} }
+/* sources (tickets) cliquables */
+.cwa-chip.clk { cursor:pointer; border:0; font:inherit; }
+.cwa-chip.clk:hover { filter:brightness(1.08); text-decoration:underline; }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 16px; }
 .meta-grid .cell .l { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .meta-grid .cell .v { font-size: 14px; color: var(--ink); margin-top: 2px; }
