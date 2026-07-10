@@ -5446,10 +5446,10 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 /* Deux calques ciel superposés : calme (dessous) + warp (dessus, opacité 0).
    Clic maintenu hors conteneur → le warp apparaît en fondu (accélération, ease-in) + léger zoom ;
    relâchement → retour au calme (décélération, ease-out). Transitions CSS pures = zéro glitch. */
-.pc2-sky-vid { transition: transform .7s cubic-bezier(.16,1,.3,1); will-change: transform, opacity; }
-.pc2-sky-vid--warp { opacity: 0; transition: opacity .7s cubic-bezier(.16,1,.3,1); } /* décélération au retour */
-.pc2--boost .pc2-sky-vid { transform: scale(1.06); transition: transform .5s cubic-bezier(.66,0,.86,0); }
-.pc2--boost .pc2-sky-vid--warp { opacity: 1; transition: opacity .45s cubic-bezier(.66,0,.86,0); } /* accélération */
+.pc2-sky-vid { transition: transform .85s cubic-bezier(.22,1,.36,1); will-change: transform, opacity; backface-visibility:hidden; }
+.pc2-sky-vid--warp { opacity: 0; transition: opacity .85s cubic-bezier(.22,1,.36,1); } /* décélération douce au relâchement */
+.pc2--boost .pc2-sky-vid { transform: scale(1.08); transition: transform .6s cubic-bezier(.5,0,.9,.35); }   /* accélération */
+.pc2--boost .pc2-sky-vid--warp { opacity: 1; transition: opacity .55s cubic-bezier(.5,0,.9,.35); }
 /* z-index négatif : le ciel passe DERRIÈRE tout le contenu de l'app
    (header, barre d'outils, onglets, cartes) et ne masque plus rien */
 .pc2-sky { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
