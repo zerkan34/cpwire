@@ -154,13 +154,11 @@ function PrepReunion({ issues }) {
           <textarea className="ta" value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Points à aborder, questions, décisions attendues…" />
         </div>
         <div className="field">
-          <label>Participants — qui inviter (ajoute les personnes dès maintenant)</label>
+          <label>Participants — équipe Armonie <b>ou n'importe quel nom</b> (contact client, personne non listée)</label>
+          <datalist id="team-people">{TEAM.map((t) => <option key={t.name} value={t.name}>{t.role}</option>)}</datalist>
           {participants.map((p, idx) => (
             <div className="part-row" key={idx}>
-              <select className="fselect" value={p.person} onChange={(e) => setPart(idx, "person", e.target.value)}>
-                <option value="">— personne —</option>
-                {TEAM.map((t) => <option key={t.name} value={t.name}>{t.name} — {t.role}</option>)}
-              </select>
+              <input className="fselect" list="team-people" value={p.person} onChange={(e) => setPart(idx, "person", e.target.value)} placeholder="Nom (tape pour filtrer, ou saisis un nom libre)" />
               <input type="text" value={p.topic} onChange={(e) => setPart(idx, "topic", e.target.value)} placeholder="Sujet / responsabilité (optionnel)" />
               <button className="part-del" title="Retirer" onClick={() => delPart(idx)}>×</button>
             </div>
