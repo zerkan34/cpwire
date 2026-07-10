@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
 import MasterWarning from "./MasterWarning.jsx";
+import NatachaHero from "./NatachaHero.jsx";
 import { computeBlockers } from "../blockers.js";
 
 function Kpi({ lbl, val, cls, onClick, active }) {
@@ -248,6 +249,9 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, a
           )}
         </div>
       </div>
+
+      {/* Natacha en grand + recherche IA — sur l'accueil (cockpit) uniquement */}
+      {tab === "cockpit" && <NatachaHero />}
 
       {/* Titre + fraîcheur des données */}
       <div className="hdr-headline" data-tauri-drag-region>

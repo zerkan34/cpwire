@@ -681,7 +681,6 @@ export default function App() {
 
       {role === "owner" ? (
         <div className="owner-bar">
-          {greet && <span className="greet-inline">{greet}</span>}
           {persistent !== null && (
             <span className={`mem-badge ${persistent ? "ok" : "warn"}`}
               title={persistent
@@ -706,12 +705,7 @@ export default function App() {
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification.</div>
       ) : null}
 
-      {diagBannerOn && diag && diag.projetsSansTicket?.length > 0 && (
-        <div className="banner import-warning import-fade">
-          Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
-          <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
-        </div>
-      )}
+      {/* Bandeau d'info d'import retiré à la demande */}
 
       <div className="tabs">
         {visibleTabs.map((t) => (
@@ -778,6 +772,7 @@ export default function App() {
             onTicket={setTicket}
             onDev={setDevFiche}
             goTo={(t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }}
+            greet={greet}
           />
         )
       )}
@@ -918,22 +913,7 @@ export default function App() {
         <div className="drawer-foot">cp|WIRE — Armonie Group</div>
       </aside>
 
-      {showGreetPop && greet && (
-        <div className="greet-veil" onClick={() => setShowGreetPop(false)}>
-          <div className="greet-card" onClick={(e) => e.stopPropagation()}>
-            <div className="greet-top" />
-            <div className="greet-hd">
-              <div className="greet-logo">armo<i>n</i>ie<small>notos <i>phl</i>soft</small></div>
-              <button className="greet-x" onClick={() => setShowGreetPop(false)} aria-label="Fermer">×</button>
-            </div>
-            <div className="greet-bd">
-              <div className="greet-wave">👋</div>
-              <div className="greet-msg">{greet}</div>
-              <div className="greet-sub">Bon pilotage sur cp|WIRE.</div>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Popup de bienvenue retiré — c'est Natacha qui accueille (intro animée + clin d'œil) */}
       {importOpen && (
         <Suspense fallback={null}>
           <ImportSources onClose={() => setImportOpen(false)} onApplied={() => load(true)} />

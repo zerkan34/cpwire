@@ -14,14 +14,15 @@
 
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
- --navy:#2c2945; --indigo:#3a3658; --indigo-d:#2c2945;
- --purple:#6e5cc4; --purple-strong:#5a48b0;
- --gold:#A8884E; --gold-l:#A8884E; --gold-wash:#f7f0e4; --gold-line:#e6d9bf; --gold-ink:#6b5525;
- --magenta:#6e5cc4; --m-wash:#F5F2FC;
+ /* Palette CHARTE ARMONIE (navy/indigo/or/lavande) — coeur du design shFLY */
+ --navy:#2E2A5D; --indigo:#4B3F8F; --indigo-d:#231F4A;
+ --purple:#4B3F8F; --purple-strong:#3a2f6e;
+ --gold:#A88B4B; --gold-l:#BFA168; --gold-wash:#f7f0e4; --gold-line:#e6d9bf; --gold-ink:#6b5525;
+ --magenta:#4B3F8F; --m-wash:#F5F2FC;
  --lav:#F5F2FC; --lav-2:#EAE6F7;
- --bg:#f4f3f8; --card:#ffffff; --ink:#2a2937; --ink-soft:#3d3b4d; --muted:#565273;
- --line:#e7e5f1; --line-2:#d9d3ee; --green:#1f8a5f; --red:#c0392b;
- --hd-grad:linear-gradient(135deg,#2c2945,#3a3658 55%,#46426c);
+ --bg:#f4f3f8; --card:#ffffff; --ink:#1F1B33; --ink-soft:#3d3b4d; --muted:#6E6A86;
+ --line:#E2DEF0; --line-2:#d9d3ee; --green:#2F7D4F; --red:#C2691A;
+ --hd-grad:linear-gradient(135deg,#2E2A5D,#4B3F8F 55%,#5a4ba0);
  --wire-grad:linear-gradient(90deg,#fc6f28 0%,#ff8a2a 20%,#fe9424 40%,#e7b293 62%,#bfc4ea 82%,#cbdcff 100%);
  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
  --sh-sm:0 1px 3px rgba(38,35,64,.06);
@@ -639,6 +640,10 @@ async function openDoc(d){
   m.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>docAction(b.dataset.a,d,m));
   renderPreviewAsync(d,ex,m.querySelector('#mprev'));
 }
+// Corrige le type MIME d'un blob selon l'extension : un PDF stocké sans type
+// s'affichait en TEXTE BRUT dans l'iframe/embed. On le ré-emballe au bon type.
+function mimeByName(name){const ex=(extOf(name)||'').toLowerCase();return {pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',svg:'image/svg+xml',html:'text/html',htm:'text/html',txt:'text/plain',csv:'text/csv',json:'application/json'}[ex]||'';}
+function blobUrlTyped(b,name){try{const t=mimeByName(name);if(t&&b&&b.type!==t){b=new Blob([b],{type:t});}}catch(_){}return URL.createObjectURL(b);}
 // charge le vrai fichier (blob) depuis le stockage et l'affiche rendu (PDF/image/html)
 async function renderPreviewAsync(d,ex,box){
   if(!box||!d._added)return;
@@ -646,7 +651,7 @@ async function renderPreviewAsync(d,ex,box){
   const IMG=['png','jpg','jpeg','gif','webp','bmp','svg'];
   if(!(ex==='pdf'||ex==='html'||ex==='htm'||IMG.includes(ex)))return; // Office & co : on garde la carte
   let u=BLOBS[d._id];
-  if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+  if(!u){try{const b=await idbGet(d._id);if(b){u=blobUrlTyped(b,d.n);BLOBS[d._id]=u;}}catch(_){}}
   if(!u&&d._text&&(ex==='html'||ex==='htm')){try{u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));BLOBS[d._id]=u;}catch(_){}}
   if(!u){box.innerHTML=previewCard(d,ex,"Le fichier réel n'est pas disponible sur ce poste. Réimporte-le pour l'aperçu, ou clique <b>Ouvrir le document</b>.");return;}
   if(IMG.includes(ex))box.innerHTML=`<img class="pv-img" src="${u}" alt="">`;
@@ -706,7 +711,7 @@ async function openFile(d){
   // fichier déposé dans ce navigateur -> lecteur intégré
   if(d._added){
     let u=BLOBS[d._id];
-    if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+    if(!u){try{const b=await idbGet(d._id);if(b){u=blobUrlTyped(b,d.n);BLOBS[d._id]=u;}}catch(_){}}
     if(!u && d._text && ['html','htm'].includes(extOf(d.n))){u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));}
     if(u){openInApp(u,d.n);return;}
     toast('Fichier brut absent de ce poste');return;

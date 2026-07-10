@@ -53,7 +53,7 @@ function ring(cx, cy, rO, rI, a0, a1) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${rO} ${rO} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${xi1.toFixed(2)} ${yi1.toFixed(2)} A${rI} ${rI} 0 ${lg} 0 ${xi0.toFixed(2)} ${yi0.toFixed(2)} Z`;
 }
 
-export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo }) {
+export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo, greet }) {
   const [scope, setScope] = useState({ type: "all", value: null });
   const [pick, setPick] = useState("");          // "client" → dropdown ouvert
   const [q, setQ] = useState(null);
@@ -257,8 +257,8 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
         <div className="pc2-sky-veil" />
       </div>
 
-      {/* Intro d'accueil : Natacha apparaît, fait un clin d'œil, puis disparaît */}
-      <NatachaIntro />
+      {/* Intro d'accueil : Natacha apparaît, dit le bonjour, fait un clin d'œil, puis disparaît */}
+      <NatachaIntro greet={greet} />
 
       {/* barre de PORTÉE */}
       <div className="pc2-scope">

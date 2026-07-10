@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
+import natachaWink from "../assets/natacha-wink.png";
 
 // Intro d'accueil : Natacha apparaît quand la home s'affiche, fait un clin d'œil,
 // puis disparaît. Ne joue QU'UNE fois par chargement de l'app.
 // PLAYED n'est passé à true qu'À LA FIN de l'anim → robuste au double-montage de React.StrictMode (dev).
 let PLAYED = false;
 
-export default function NatachaIntro() {
+export default function NatachaIntro({ greet }) {
   const [show, setShow] = useState(!PLAYED);
   const [leaving, setLeaving] = useState(false);
 
@@ -27,12 +28,12 @@ export default function NatachaIntro() {
       <div className="nti-card">
         <div className="nti-ava">
           <img src={PILOT_DATA_URI} alt="" draggable="false" />
-          <span className="nti-lid" />
+          <img className="nti-wink" src={natachaWink} alt="" aria-hidden="true" draggable="false" />
           <span className="nti-spark" />
         </div>
         <div className="nti-bubble">
           <b>Natacha</b>
-          <span>Bienvenue à bord — prêt au décollage&nbsp;😉</span>
+          <span>{greet ? greet : "Bienvenue à bord"} — prêt au décollage&nbsp;😉</span>
         </div>
       </div>
     </div>

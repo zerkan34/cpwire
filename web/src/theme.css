@@ -63,6 +63,19 @@ a { color: inherit; }
   content: ""; position: absolute; right: -70px; top: -70px; width: 240px; height: 240px;
   border-radius: 50%; background: radial-gradient(circle, rgba(199, 161, 74, 0.2), transparent 70%);
 }
+/* Header TRANSPARENT sur l'accueil : le fond cockpit animé transparaît derrière,
+   le contenu reste lisible (ombres de texte ; les contrôles ont déjà un fond verre). */
+.hdr.is-dash { background: linear-gradient(180deg, rgba(20,18,45,.48) 0%, rgba(20,18,45,.22) 100%);
+  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); box-shadow: none; }
+.hdr.is-dash:before { display: none; }
+.hdr.is-dash .hdr-title,
+.hdr.is-dash .hdr-tagline,
+.hdr.is-dash .eyebrow,
+.hdr.is-dash .src,
+.hdr.is-dash .progress > span,
+.hdr.is-dash .progress > b { text-shadow: 0 1px 3px rgba(20,18,45,.6), 0 0 2px rgba(20,18,45,.45); }
+.hdr.is-dash .progress .bar { background: rgba(255,255,255,.22); box-shadow: 0 1px 4px rgba(20,18,45,.4); }
+.hdr.is-dash .hdr-logo { filter: drop-shadow(0 2px 4px rgba(20,18,45,.5)); }
 .hdr-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; position: relative; }
 .eyebrow { display: block; width: 100%; text-align: right; font-weight: 700; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
 .hdr h1 { font-family: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 22px; color: #fff; margin: 10px 0 0; line-height: 1.15; }
@@ -280,6 +293,27 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 @keyframes led-ok { 0%,100%{opacity:1; box-shadow:0 0 7px 1px rgba(55,214,122,.85);} 50%{opacity:.35; box-shadow:0 0 2px 0 rgba(55,214,122,.25);} }
 @keyframes led-err { 0%,100%{opacity:1; box-shadow:0 0 8px 2px rgba(255,77,79,.95);} 50%{opacity:.3; box-shadow:0 0 2px 0 rgba(255,77,79,.25);} }
 @media (prefers-reduced-motion: reduce) { .hdr-led .led-dot { animation:none !important; } }
+
+/* ===== Natacha en grand dans le header + recherche IA ===== */
+.nhero { display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px 0 6px; }
+.nhero-ava { position:relative; width:118px; height:118px; border-radius:50%; overflow:hidden; flex:none; padding:0; cursor:pointer;
+  border:3px solid var(--gold,#A88B4B); box-shadow:0 8px 24px rgba(20,18,45,.4), inset 0 0 0 2px rgba(255,255,255,.4);
+  background:linear-gradient(180deg,#dfeaf7,#c9d6ea); animation:nhero-idle 7s ease-in-out infinite; }
+.nhero-ava img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; }
+.nhero-wink { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
+  animation:nhero-wink 7s ease-in-out infinite; }
+@keyframes nhero-idle { 0%,100%{transform:rotate(0) scale(1);} 22%{transform:rotate(-3deg) scale(1.015);} 52%{transform:rotate(2.5deg) scale(1.02);} 78%{transform:rotate(-1deg) scale(1.005);} }
+@keyframes nhero-wink { 0%,85%,100%{opacity:0;} 89%{opacity:1;} 92%{opacity:1;} 96%{opacity:0;} }
+.nhero-search { position:relative; display:flex; align-items:center; width:min(560px,92%);
+  background:rgba(255,255,255,.96); border:1px solid rgba(255,255,255,.6); border-radius:14px;
+  box-shadow:0 8px 22px rgba(20,18,45,.28); padding:0 6px 0 36px; height:44px; }
+.nhero-search-ic { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted,#6E6A86); display:flex; }
+.nhero-search input { flex:1; min-width:0; border:0; background:transparent; outline:none; font-size:14px; color:var(--ink,#1F1B33); height:100%; }
+.nhero-search input::placeholder { color:#9a95b3; }
+.nhero-clear { border:0; background:transparent; color:var(--muted,#6E6A86); font-size:20px; line-height:1; cursor:pointer; padding:0 6px; }
+.nhero-go { flex:none; border:0; cursor:pointer; width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:var(--gold,#A88B4B); color:#241f10; }
+.nhero-go:hover { filter:brightness(1.07); }
+@media (prefers-reduced-motion: reduce) { .nhero-ava, .nhero-wink { animation:none !important; } .nhero-wink { opacity:0 !important; } }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 16px; }
 .meta-grid .cell .l { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .meta-grid .cell .v { font-size: 14px; color: var(--ink); margin-top: 2px; }
@@ -5446,10 +5480,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .nti-ava img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; }
 
 /* paupière : volet teinté peau qui se ferme puis rouvre au-dessus de l'œil droit (côté spectateur) */
-.nti-lid { position:absolute; left:53.6%; top:48.9%; width:10%; height:5.8%;
-  border-radius:52% 52% 48% 48% / 80% 80% 40% 40%; transform-origin:top center; transform:scaleY(0);
-  background:linear-gradient(180deg,#f7c489 0%,#efb578 55%,#e2a86e 100%);
-  box-shadow:inset 0 -1.5px 0 rgba(74,45,24,.6);
+.nti-wink { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
   animation:nti-wink 4.6s ease .95s both; }
 /* étincelle près de l'œil au moment du clin d'œil */
 .nti-spark { position:absolute; left:64%; top:50%; width:12px; height:12px;
@@ -5467,11 +5498,9 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 @keyframes nti-in { 0%{opacity:0; transform:translateY(26px) scale(.9);} 100%{opacity:1; transform:translateY(0) scale(1);} }
 @keyframes nti-out { 0%{opacity:1; transform:translateY(0) scale(1);} 100%{opacity:0; transform:translateY(14px) scale(.96);} }
 @keyframes nti-wink {
-  0%{transform:scaleY(0);}
-  7%{transform:scaleY(1);} 13%{transform:scaleY(1);} 20%{transform:scaleY(0);}   /* clin d'œil 1 */
-  48%{transform:scaleY(0);}
-  55%{transform:scaleY(1);} 61%{transform:scaleY(1);} 68%{transform:scaleY(0);}  /* clin d'œil 2 */
-  100%{transform:scaleY(0);}
+  0%,5%{opacity:0;} 8%{opacity:1;} 13%{opacity:1;} 17%{opacity:0;}   /* clin d'œil 1 */
+  50%{opacity:0;} 54%{opacity:1;} 59%{opacity:1;} 63%{opacity:0;}    /* clin d'œil 2 */
+  100%{opacity:0;}
 }
 @keyframes nti-tilt { 0%,100%{transform:rotate(0);} 20%{transform:rotate(-4deg);} 40%{transform:rotate(-1deg);} }
 @keyframes nti-spark { 0%,10%{transform:translate(-50%,-50%) scale(0); opacity:0;} 22%{transform:translate(-50%,-50%) scale(1); opacity:1;} 46%{transform:translate(-50%,-50%) scale(.2); opacity:0;} 100%{opacity:0;} }
@@ -5479,7 +5508,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 @media (prefers-reduced-motion: reduce) {
   .nti-card { animation:nti-fade .3s ease both; }
   .nti--leave .nti-card { animation:nti-fade-out .3s ease both; }
-  .nti-lid, .nti-spark, .nti-ava { animation:none !important; }
+  .nti-wink, .nti-spark, .nti-ava { animation:none !important; } .nti-wink { opacity:0 !important; }
 }
 @keyframes nti-fade { from{opacity:0;} to{opacity:1;} }
 @keyframes nti-fade-out { from{opacity:1;} to{opacity:0;} }
