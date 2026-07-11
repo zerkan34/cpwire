@@ -444,6 +444,7 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
     <input id="q" placeholder="Rechercher dans 14 333 documents…" autocomplete="off">
   </div>
   <div class="tools">
+    <button class="icobtn nat-btn" id="natbtn" type="button" title="Demander à Natacha" aria-label="Demander à Natacha"><img src="/sharefly/natacha.png" alt="Natacha"></button>
     <button class="icobtn" id="bell" type="button" title="Notifications" aria-label="Notifications">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="ndot" id="belldot" hidden></span>
@@ -466,6 +467,74 @@ window.SPACES=[{"key": "clients", "name": "Clients", "desc": "15 clients · un d
 </script>
 <script src="/sharefly/config.js"></script>
 <script src="/sharefly/catalogue.js"></script>
+<!-- ===== Natacha dans ShareFly (branchée sur /api/assistant de cp|WIRE) ===== -->
+<style id="nat-css">
+.nat-btn{padding:3px !important}
+.nat-btn img{width:28px;height:28px;border-radius:50%;object-fit:cover;border:2px solid var(--gold,#A88B4B);display:block}
+#natwrap{position:fixed;inset:0;z-index:6000;display:none;align-items:center;justify-content:center;background:rgba(20,18,45,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+#natwrap.on{display:flex}
+.nat-panel{width:min(680px,95vw);height:min(80vh,760px);background:var(--card,#fff);border-radius:18px;box-shadow:0 30px 80px rgba(20,18,45,.5);display:flex;flex-direction:column;overflow:hidden}
+.nat-hd{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--hd-grad,linear-gradient(135deg,#2E2A5D,#4B3F8F));color:#fff}
+.nat-hd img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold,#A88B4B)}
+.nat-hd b{font-family:Poppins,sans-serif;font-size:15px;display:block}
+.nat-hd .s{font-size:11.5px;opacity:.82}
+.nat-hd .x{margin-left:auto;background:none;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1}
+.nat-body{flex:1;overflow:auto;padding:16px;background:var(--lav,#F5F2FC)}
+.nat-msg{margin:0 0 12px;max-width:88%;clear:both}
+.nat-msg.u{float:right}.nat-msg.a{float:left}
+.nat-msg .b{padding:11px 14px;font-size:13.5px;line-height:1.5}
+.nat-msg.u .b{background:var(--navy,#2E2A5D);color:#fff;border-radius:14px 14px 4px 14px}
+.nat-msg.a .b{background:#fff;border:1px solid var(--filet,#E2DEF0);border-radius:14px 14px 14px 4px;color:var(--ink,#1F1B33)}
+.nat-msg.a .b h2,.nat-msg.a .b h3{font-family:Poppins,sans-serif;color:var(--navy,#2E2A5D);font-size:14px;margin:8px 0 4px}
+.nat-msg.a .b p{margin:5px 0}.nat-msg.a .b ul{margin:5px 0 5px 18px}
+.nat-msg.a .b table.data{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0}
+.nat-msg.a .b table.data th{background:var(--navy,#2E2A5D);color:#fff;text-align:left;padding:5px 8px}
+.nat-msg.a .b table.data td{border-bottom:1px solid var(--filet,#E2DEF0);padding:5px 8px}
+.nat-msg.a .b .tk{font-family:ui-monospace,monospace;color:var(--indigo,#4B3F8F);font-weight:600}
+.nat-msg.a .b .who{font-weight:600}
+.nat-msg.a .b .pill{font-size:10.5px;border-radius:20px;padding:1px 8px;border:1px solid var(--filet,#E2DEF0)}
+.nat-in{display:flex;gap:8px;padding:12px;border-top:1px solid var(--filet,#E2DEF0);background:#fff}
+.nat-in input{flex:1;border:1px solid var(--filet,#E2DEF0);border-radius:12px;padding:10px 14px;font-size:14px;outline:none}
+.nat-in button{border:0;background:var(--gold,#A88B4B);color:#241f10;border-radius:12px;padding:0 16px;cursor:pointer;font-weight:700;font-size:15px}
+.nat-typing{color:var(--muted,#6E6A86);font-style:italic}
+</style>
+<script>
+(function(){
+  var msgs=[];
+  function el(id){return document.getElementById(id);}
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function ensure(){
+    if(el('natwrap'))return;
+    var w=document.createElement('div');w.id='natwrap';
+    w.innerHTML='<div class="nat-panel"><div class="nat-hd"><img src="/sharefly/natacha.png" alt=""><div><b>Natacha</b><span class="s">Votre hotesse - cp|WIRE</span></div><button class="x" id="natx" aria-label="Fermer">✕</button></div><div class="nat-body" id="natbody"><div class="nat-msg a"><div class="b">Bonjour Nicolas ! Pose-moi ta question - portefeuille, ticket, dossier, programme... je reponds a partir des vraies donnees cp|WIRE.</div></div></div><div class="nat-in"><input id="natq" placeholder="Pose ta question a Natacha..." autocomplete="off"><button id="natsend" aria-label="Envoyer">➤</button></div></div>';
+    document.body.appendChild(w);
+    w.addEventListener('mousedown',function(e){if(e.target===w)close();});
+    el('natx').onclick=close;el('natsend').onclick=send;
+    el('natq').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});
+  }
+  function open(){ensure();el('natwrap').classList.add('on');setTimeout(function(){var i=el('natq');if(i)i.focus();},60);}
+  function close(){var w=el('natwrap');if(w)w.classList.remove('on');}
+  function bubble(role,content,raw){
+    var b=el('natbody');var d=document.createElement('div');d.className='nat-msg '+(role==='u'?'u':'a');
+    d.innerHTML='<div class="b">'+(raw?content:esc(content))+'</div>';b.appendChild(d);b.scrollTop=b.scrollHeight;return d;
+  }
+  function send(){
+    var i=el('natq');var q=(i.value||'').trim();if(!q)return;i.value='';
+    bubble('u',q,false);msgs.push({role:'user',content:q});
+    var t=bubble('a','<span class="nat-typing">Natacha reflechit...</span>',true);
+    var tok='';try{tok=localStorage.getItem('cpwire_token')||'';}catch(_){}
+    fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json','x-access-token':tok},body:JSON.stringify({question:q,history:msgs.slice(-16)})})
+      .then(function(r){return r.json();})
+      .then(function(d){
+        if(d&&d.answer){t.querySelector('.b').innerHTML=d.answer;msgs.push({role:'assistant',content:String(d.answer).replace(/<[^>]+>/g,' ')});}
+        else{t.querySelector('.b').textContent='Indisponible : '+((d&&d.error)||'reponse vide');}
+        var b=el('natbody');b.scrollTop=b.scrollHeight;
+      })
+      .catch(function(e){t.querySelector('.b').textContent='Erreur : '+(e.message||e);});
+  }
+  document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#natbtn');if(b){e.preventDefault();open();}});
+})();
+</script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
