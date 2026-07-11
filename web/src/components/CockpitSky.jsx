@@ -12,7 +12,7 @@ export default function CockpitSky() {
     const el = ref.current;
     if (!el) return;
     // On ne déclenche PAS sur un conteneur, un contrôle, un tableau, un onglet, une modale…
-    const CONTAINERS = ".pc2-card,.card,.panel,.pc2-scope,.pc2-tk,.pc2-kpis,.pc2-kpi,.tabs,.subtabs,.owner-bar,.hdr-controls,.hdr-top,button,a,input,select,textarea,label,table,.modal,.overlay,.cwa-overlay,.cwa-panel,.notif-panel,.drawer,.nti-card,.pc2-menu,svg";
+    const CONTAINERS = ".pc2-card,.card,.panel,.login-card,.pc2-scope,.pc2-tk,.pc2-kpis,.pc2-kpi,.tabs,.subtabs,.owner-bar,.hdr-controls,.hdr-top,button,a,input,select,textarea,label,table,.modal,.overlay,.cwa-overlay,.cwa-panel,.notif-panel,.drawer,.nti-card,.pc2-menu,svg";
     const isBg = (t) => !(t && t.closest && t.closest(CONTAINERS));
     const boost = (e) => { if (e.type === "mousedown" && e.button) return; if (isBg(e.target)) el.classList.add("boost"); };
     const relax = () => el.classList.remove("boost");
