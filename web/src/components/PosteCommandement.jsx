@@ -3,9 +3,6 @@ import { fetchQuotes, fetchPortfolioMonthly, fetchDeadlines } from "../api.js";
 import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
 import ActivityFeed from "./ActivityFeed.jsx";
-import skyMp4 from "../assets/cockpit-fly.mp4";
-import warpMp4 from "../assets/cockpit-warp.mp4";
-import skyPoster from "../assets/cockpit-fly-poster.jpg";
 import NatachaIntro from "./NatachaIntro.jsx";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
@@ -77,8 +74,6 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
   const [radar, setRadar] = useState([]);
   const prev = useRef({});
   const timers = useRef([]);
-  const rootRef = useRef(null);
-  const vidRef = useRef(null);
 
   useEffect(() => { fetchPortfolioMonthly().then((r) => setMonthly(r.months || [])).catch(() => setMonthly([])); }, []);
   useEffect(() => { fetchDeadlines().then((r) => setRadar((r && r.radar) || [])).catch(() => setRadar([])); }, []);
@@ -98,31 +93,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
   }, []);
   useEffect(() => { load(); const iv = setInterval(load, REFRESH_MS); return () => { clearInterval(iv); timers.current.forEach(clearTimeout); }; }, [load]);
 
-  // Clic maintenu HORS conteneur → crossfade vers le WARP (accélération) ;
-  // relâchement → retour au ciel calme (décélération). 100% transitions CSS eased : aucun glitch.
-  useEffect(() => {
-    const root = rootRef.current;
-    if (!root) return;
-    // On écoute sur TOUT le document (pas seulement .pc2) : « le vide » = le ciel
-    // autour des cartes, qui est hors de .pc2. On ne déclenche PAS sur un conteneur,
-    // un contrôle, un modal/overlay.
-    const CONTAINERS = ".pc2-card,.pc2-scope,.pc2-tk,.pc2-kpis,.pc2-kpi,button,a,input,select,textarea,label,.pc2-menu,.nti-card,.cwa-overlay,.cwa-panel,.overlay,.modal,.notif-panel,.drawer,svg";
-    const isBg = (t) => !(t && t.closest && t.closest(CONTAINERS));
-    const boost = (e) => { if (e.type === "mousedown" && e.button) return; if (isBg(e.target)) root.classList.add("pc2--boost"); };
-    const relax = () => root.classList.remove("pc2--boost");
-    document.addEventListener("mousedown", boost);
-    document.addEventListener("touchstart", boost, { passive: true });
-    window.addEventListener("mouseup", relax);
-    window.addEventListener("touchend", relax);
-    window.addEventListener("blur", relax);
-    return () => {
-      document.removeEventListener("mousedown", boost);
-      document.removeEventListener("touchstart", boost);
-      window.removeEventListener("mouseup", relax);
-      window.removeEventListener("touchend", relax);
-      window.removeEventListener("blur", relax);
-    };
-  }, []);
+  // (Fond cockpit + warp au clic gérés globalement par <CockpitSky/> au niveau de l'app.)
 
   const byD = facts?.byDossier || {};
   const dossiers = useMemo(() => Object.keys(byD), [byD]);
@@ -260,18 +231,8 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
   let ang = -Math.PI / 2;
 
   return (
-    <div className="pc2 pc2--deck" ref={rootRef}>
-      {/* Fond « flight-deck » — vidéo Higgsfield en boucle, plein écran, sous le contenu */}
-      <div className="pc2-sky" aria-hidden="true" style={{ backgroundImage: `url(${skyPoster})` }}>
-        <video ref={vidRef} className="pc2-sky-vid" autoPlay muted loop playsInline preload="auto" poster={skyPoster}>
-          <source src={skyMp4} type="video/mp4" />
-        </video>
-        {/* Calque WARP : joue en boucle sous opacité 0, apparaît en fondu au clic maintenu (accélération) */}
-        <video className="pc2-sky-vid pc2-sky-vid--warp" autoPlay muted loop playsInline preload="auto">
-          <source src={warpMp4} type="video/mp4" />
-        </video>
-        <div className="pc2-sky-veil" />
-      </div>
+    <div className="pc2 pc2--deck">
+      {/* Fond cockpit + warp au clic : gérés globalement par <CockpitSky/> (niveau app). */}
 
       {/* Intro d'accueil : Natacha apparaît, dit le bonjour, fait un clin d'œil, puis disparaît */}
       <NatachaIntro greet={greet} />

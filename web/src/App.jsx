@@ -7,6 +7,7 @@ import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Home from "./components/Home.jsx";
 import PosteCommandement from "./components/PosteCommandement.jsx";
+import CockpitSky from "./components/CockpitSky.jsx";
 import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
@@ -678,6 +679,7 @@ export default function App() {
   return (
     <ReadOnlyContext.Provider value={readOnly}>
     <div className={`wrap tab-${tab}${pwaAccueil ? " pwahome" : ""}`}>
+      <CockpitSky />
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
         loading={loading} apiError={error} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
         onLogout={() => { clearToken(); setAuthed(false); }}

@@ -65,17 +65,17 @@ a { color: inherit; }
 }
 /* Header TRANSPARENT sur l'accueil : le fond cockpit animé transparaît derrière,
    le contenu reste lisible (ombres de texte ; les contrôles ont déjà un fond verre). */
-.hdr.is-dash { background: linear-gradient(180deg, rgba(20,18,45,.48) 0%, rgba(20,18,45,.22) 100%);
+.hdr { background: linear-gradient(180deg, rgba(20,18,45,.48) 0%, rgba(20,18,45,.22) 100%);
   -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); box-shadow: none; }
-.hdr.is-dash:before { display: none; }
-.hdr.is-dash .hdr-title,
-.hdr.is-dash .hdr-tagline,
-.hdr.is-dash .eyebrow,
-.hdr.is-dash .src,
-.hdr.is-dash .progress > span,
-.hdr.is-dash .progress > b { text-shadow: 0 1px 3px rgba(20,18,45,.6), 0 0 2px rgba(20,18,45,.45); }
-.hdr.is-dash .progress .bar { background: rgba(255,255,255,.22); box-shadow: 0 1px 4px rgba(20,18,45,.4); }
-.hdr.is-dash .hdr-logo { filter: drop-shadow(0 2px 4px rgba(20,18,45,.5)); }
+.hdr:before { display: none; }
+.hdr .hdr-title,
+.hdr .hdr-tagline,
+.hdr .eyebrow,
+.hdr .src,
+.hdr .progress > span,
+.hdr .progress > b { text-shadow: 0 1px 3px rgba(20,18,45,.6), 0 0 2px rgba(20,18,45,.45); }
+.hdr .progress .bar { background: rgba(255,255,255,.22); box-shadow: 0 1px 4px rgba(20,18,45,.4); }
+.hdr .hdr-logo { filter: drop-shadow(0 2px 4px rgba(20,18,45,.5)); }
 .hdr-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; position: relative; }
 .eyebrow { display: block; width: 100%; text-align: right; font-weight: 700; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
 .hdr h1 { font-family: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 22px; color: #fff; margin: 10px 0 0; line-height: 1.15; }
@@ -5440,6 +5440,19 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* --- Fond « flight-deck » : vidéo cockpit (Higgsfield) en boucle plein écran --- */
 /* .pc2 reste en flux normal (PAS de stacking context) pour ne pas emprisonner le ciel */
+/* ===== Fond cockpit GLOBAL (derrière TOUTES les pages) ===== */
+.cockpit-sky { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
+  background-size:cover; background-position:center; background-repeat:no-repeat; }
+.csky-vid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
+  transition: transform .85s cubic-bezier(.22,1,.36,1); will-change:transform,opacity; backface-visibility:hidden; }
+.csky-warp { opacity:0; transition: opacity .85s cubic-bezier(.22,1,.36,1); }        /* décélération au relâchement */
+.cockpit-sky.boost .csky-vid { transform: scale(1.08); transition: transform .6s cubic-bezier(.5,0,.9,.35); }   /* accélération */
+.cockpit-sky.boost .csky-warp { opacity:1; transition: opacity .55s cubic-bezier(.5,0,.9,.35); }
+.csky-veil { position:absolute; inset:0; background:
+  linear-gradient(180deg, rgba(20,18,45,.40) 0%, rgba(20,18,45,.24) 40%, rgba(20,18,45,.50) 100%),
+  radial-gradient(130% 90% at 50% 22%, rgba(20,18,45,0) 34%, rgba(20,18,45,.38) 100%); }
+@media (prefers-reduced-motion: reduce){ .csky-vid { display:none; } }
+
 .pc2--deck { position:relative; }
 /* le contenu du poste reste au-dessus du ciel (on exclut .nti, surimpression fixed) */
 .pc2--deck > *:not(.pc2-sky):not(.nti) { position:relative; z-index:1; }
