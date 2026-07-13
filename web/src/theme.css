@@ -315,7 +315,7 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
   84%{transform:rotate(-1.6deg) translateY(-1px) scale(1.01);}
 }
 /* double clignement rapide (naturel) une fois par cycle */
-@keyframes nhero-wink { 0%,53%,100%{opacity:0;} 55.5%{opacity:1;} 58%{opacity:0;} 61%{opacity:1;} 63.5%{opacity:0;} }
+@keyframes nhero-wink { 0%,54%,100%{opacity:0;} 54.8%{opacity:1;} 55.6%{opacity:1;} 56.4%{opacity:0;} 58%{opacity:0;} 58.8%{opacity:1;} 59.6%{opacity:1;} 60.4%{opacity:0;} }
 @keyframes nhero-shine { 0%,72%{transform:translateX(-130%);} 84%{transform:translateX(130%);} 100%{transform:translateX(130%);} }
 .nhero-search { position:relative; display:flex; align-items:center; width:min(560px,92%);
   background:rgba(255,255,255,.96); border:1px solid rgba(255,255,255,.6); border-radius:14px;
@@ -5470,7 +5470,7 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .login-brand img { height:26px; width:auto; }
 .login-go { width:100%; padding:12px; margin-top:6px; }
 @keyframes login-nat-idle { 0%,100%{transform:rotate(0) scale(1);} 25%{transform:rotate(-3deg) scale(1.02);} 55%{transform:rotate(2deg) scale(1.01);} }
-@keyframes login-nat-wink { 0%,58%,100%{opacity:0;} 61%{opacity:1;} 64%{opacity:0;} 67%{opacity:1;} 70%{opacity:0;} }
+@keyframes login-nat-wink { 0%,58%,100%{opacity:0;} 58.9%{opacity:1;} 59.7%{opacity:1;} 60.6%{opacity:0;} 62%{opacity:0;} 62.9%{opacity:1;} 63.7%{opacity:1;} 64.6%{opacity:0;} }
 @media (prefers-reduced-motion: reduce){ .login-nat-ava,.login-nat-wink{ animation:none !important; } .login-nat-wink{ opacity:0 !important; } }
 
 .pc2--deck { position:relative; }
@@ -5556,8 +5556,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 @keyframes nti-in { 0%{opacity:0; transform:translateY(26px) scale(.9);} 100%{opacity:1; transform:translateY(0) scale(1);} }
 @keyframes nti-out { 0%{opacity:1; transform:translateY(0) scale(1);} 100%{opacity:0; transform:translateY(14px) scale(.96);} }
 @keyframes nti-wink {
-  0%,5%{opacity:0;} 8%{opacity:1;} 13%{opacity:1;} 17%{opacity:0;}   /* clin d'œil 1 */
-  50%{opacity:0;} 54%{opacity:1;} 59%{opacity:1;} 63%{opacity:0;}    /* clin d'œil 2 */
+  0%,6%{opacity:0;} 7.5%{opacity:1;} 9%{opacity:1;} 10.5%{opacity:0;}   /* clin d'œil 1 (vif) */
+  16%{opacity:0;} 17.5%{opacity:1;} 19%{opacity:1;} 20.5%{opacity:0;}   /* clin d'œil 2 */
   100%{opacity:0;}
 }
 @keyframes nti-tilt { 0%,100%{transform:rotate(0);} 20%{transform:rotate(-4deg);} 40%{transform:rotate(-1deg);} }
