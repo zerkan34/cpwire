@@ -221,11 +221,7 @@ export default function Header({ kpis, source, generatedAt, syncedAt, loading, a
         </span>
         <div className="hdr-controls">
           <MasterWarning points={blockers} onOpenTicket={onOpenTicket} onOpen360={onOpen360} onDev={onDev} />
-          <button className="hdr-pilot" type="button" onClick={() => window.dispatchEvent(new Event("cpwire-pilot"))}
-            title="Votre hôtesse Natacha — poser une question" aria-label="Ouvrir l'hôtesse Natacha">
-            <span className="hdr-pilot-av"><img src={PILOT_DATA_URI} alt="Hôtesse Natacha" /></span>
-            <span className="hdr-pilot-dot" aria-hidden="true" />
-          </button>
+          {/* Petite Natacha du header retirée (doublon avec la grande NatachaHero) */}
           {search}
           {role === "owner" && onPresence && (
             <button className={`hdr-ic pres ${presence.length ? "on" : ""}`} onClick={onPresence}
