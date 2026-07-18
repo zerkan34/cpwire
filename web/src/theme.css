@@ -63,19 +63,6 @@ a { color: inherit; }
   content: ""; position: absolute; right: -70px; top: -70px; width: 240px; height: 240px;
   border-radius: 50%; background: radial-gradient(circle, rgba(199, 161, 74, 0.2), transparent 70%);
 }
-/* Header TRANSPARENT sur l'accueil : le fond cockpit animé transparaît derrière,
-   le contenu reste lisible (ombres de texte ; les contrôles ont déjà un fond verre). */
-.hdr { background: linear-gradient(180deg, rgba(20,18,45,.48) 0%, rgba(20,18,45,.22) 100%);
-  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); box-shadow: none; }
-.hdr:before { display: none; }
-.hdr .hdr-title,
-.hdr .hdr-tagline,
-.hdr .eyebrow,
-.hdr .src,
-.hdr .progress > span,
-.hdr .progress > b { text-shadow: 0 1px 3px rgba(20,18,45,.6), 0 0 2px rgba(20,18,45,.45); }
-.hdr .progress .bar { background: rgba(255,255,255,.22); box-shadow: 0 1px 4px rgba(20,18,45,.4); }
-.hdr .hdr-logo { filter: drop-shadow(0 2px 4px rgba(20,18,45,.5)); }
 .hdr-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; position: relative; }
 .eyebrow { display: block; width: 100%; text-align: right; font-weight: 700; font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--gold); }
 .hdr h1 { font-family: inherit; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; font-size: 22px; color: #fff; margin: 10px 0 0; line-height: 1.15; }
@@ -271,74 +258,6 @@ tr.mine td:first-child { box-shadow: inset 3px 0 0 var(--gold); }
 .modal-back:hover { background: rgba(255,255,255,.3); transform: translateX(-2px); }
 .modal-back:active { transform: translateX(-2px) scale(.94); }
 .modal-bd { padding: 22px 24px; overflow-y: auto; }
-
-/* Pop-up « Import sources » : ancré EN HAUT (au-dessus du header), compact, sans décalage de conteneur.
-   .overlay est déjà position:fixed (z-index 3600) → il ne pousse aucun contenu. */
-.imp-overlay { align-items: flex-start !important; padding-top: 6px; }
-/* align-self + margin-top:0 !important : le modal se colle EN HAUT quoi qu'il arrive (annule le margin:auto de .modal) */
-.imp-overlay .imp-modal { align-self: flex-start !important; margin: 0 auto !important; max-width: 540px; max-height: 90vh; }
-.imp-overlay .imp-modal .modal-hd { padding: 13px 20px 14px 46px; }
-.imp-overlay .imp-modal .modal-hd h3 { font-size: 16.5px; }
-.imp-overlay .imp-modal .modal-hd .k { font-size: 11px; }
-.imp-overlay .imp-modal .modal-hd .x { top: 12px; }
-.imp-overlay .imp-modal .modal-bd { padding: 16px 18px; }
-
-/* Voyant de santé API dans le header : diode verte clignotante (OK) / rouge clignotante (échec) */
-.hdr-led { border:0; background:transparent; cursor:pointer; padding:8px; display:inline-flex; align-items:center; justify-content:center; }
-.hdr-led:disabled { cursor:default; }
-.hdr-led .led-dot { width:12px; height:12px; border-radius:50%; display:block; background:#7a8; }
-.hdr-led.ok .led-dot { background:#37d67a; animation:led-ok 1.7s ease-in-out infinite; }
-.hdr-led.err .led-dot { background:#ff4d4f; animation:led-err .8s ease-in-out infinite; }
-.hdr-led.busy .led-dot { animation-duration:.6s; }
-@keyframes led-ok { 0%,100%{opacity:1; box-shadow:0 0 7px 1px rgba(55,214,122,.85);} 50%{opacity:.35; box-shadow:0 0 2px 0 rgba(55,214,122,.25);} }
-@keyframes led-err { 0%,100%{opacity:1; box-shadow:0 0 8px 2px rgba(255,77,79,.95);} 50%{opacity:.3; box-shadow:0 0 2px 0 rgba(255,77,79,.25);} }
-@media (prefers-reduced-motion: reduce) { .hdr-led .led-dot { animation:none !important; } }
-
-/* ===== Natacha en grand dans le header + recherche IA ===== */
-.nhero { display:flex; flex-direction:column; align-items:center; gap:12px; padding:8px 0 6px; }
-.nhero-ava { position:relative; width:118px; height:118px; border-radius:50%; overflow:hidden; flex:none; padding:0; cursor:pointer;
-  border:3px solid var(--gold,#A88B4B); box-shadow:0 8px 24px rgba(20,18,45,.4), inset 0 0 0 2px rgba(255,255,255,.4);
-  background:linear-gradient(180deg,#dfeaf7,#c9d6ea); animation:nhero-idle 9s ease-in-out infinite; }
-.nhero-ava img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; }
-.nhero-wink { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
-  animation:nhero-wink 9s ease-in-out infinite; }
-/* reflet lumineux qui balaie l'avatar (effet premium, périodique) */
-.nhero-ava::after { content:""; position:absolute; inset:0; border-radius:50%; pointer-events:none; z-index:2;
-  background:linear-gradient(115deg, transparent 42%, rgba(255,255,255,.42) 50%, transparent 58%);
-  transform:translateX(-130%); animation:nhero-shine 9s ease-in-out infinite; }
-@keyframes nhero-idle {
-  0%,100%{transform:rotate(0deg) translateY(0) scale(1);}
-  14%{transform:rotate(-3.5deg) translateY(-1px) scale(1.015);}
-  30%{transform:rotate(-1deg) translateY(0) scale(1.006);}
-  50%{transform:rotate(2.6deg) translateY(-1.5px) scale(1.02);}
-  68%{transform:rotate(.4deg) translateY(0) scale(1.006);}
-  84%{transform:rotate(-1.6deg) translateY(-1px) scale(1.01);}
-}
-/* double clignement rapide (naturel) une fois par cycle */
-@keyframes nhero-wink { 0%,54%,100%{opacity:0;} 54.8%{opacity:1;} 55.6%{opacity:1;} 56.4%{opacity:0;} 58%{opacity:0;} 58.8%{opacity:1;} 59.6%{opacity:1;} 60.4%{opacity:0;} }
-@keyframes nhero-shine { 0%,72%{transform:translateX(-130%);} 84%{transform:translateX(130%);} 100%{transform:translateX(130%);} }
-.nhero-search { position:relative; display:flex; align-items:center; width:min(560px,92%);
-  background:rgba(255,255,255,.96); border:1px solid rgba(255,255,255,.6); border-radius:14px;
-  box-shadow:0 8px 22px rgba(20,18,45,.28); padding:0 6px 0 36px; height:44px; }
-.nhero-search-ic { position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted,#6E6A86); display:flex; }
-.nhero-search input { flex:1; min-width:0; border:0; background:transparent; outline:none; font-size:14px; color:var(--ink,#1F1B33); height:100%; }
-.nhero-search input::placeholder { color:#9a95b3; }
-.nhero-clear { border:0; background:transparent; color:var(--muted,#6E6A86); font-size:20px; line-height:1; cursor:pointer; padding:0 6px; }
-.nhero-go { flex:none; border:0; cursor:pointer; width:34px; height:34px; border-radius:10px; display:inline-flex; align-items:center; justify-content:center; background:var(--gold,#A88B4B); color:#241f10; }
-.nhero-go:hover { filter:brightness(1.07); }
-@media (prefers-reduced-motion: reduce) { .nhero-ava, .nhero-wink { animation:none !important; } .nhero-wink { opacity:0 !important; } }
-
-/* ===== Natacha en MODALE CENTRALE (au lieu du panneau à droite) ===== */
-.cwa-overlay { position:fixed; inset:0; z-index:3000; display:flex; align-items:center; justify-content:center; padding:24px;
-  background:rgba(20,18,45,.55); -webkit-backdrop-filter:blur(3px); backdrop-filter:blur(3px); animation:cwa-ov-in .2s ease; }
-.cwa-overlay .cwa-panel { position:relative !important; inset:auto !important; right:auto !important; left:auto !important;
-  top:auto !important; bottom:auto !important; margin:0 !important;
-  width:min(720px,96vw); height:min(82vh,820px); max-height:90vh; border-radius:20px; box-shadow:0 30px 80px rgba(20,18,45,.5); }
-.cwa-overlay .cwa-panel.maxed { width:min(1100px,96vw); height:92vh; max-height:94vh; }
-@keyframes cwa-ov-in { from{opacity:0} to{opacity:1} }
-/* sources (tickets) cliquables */
-.cwa-chip.clk { cursor:pointer; border:0; font:inherit; }
-.cwa-chip.clk:hover { filter:brightness(1.08); text-decoration:underline; }
 .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 18px; margin-bottom: 16px; }
 .meta-grid .cell .l { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; }
 .meta-grid .cell .v { font-size: 14px; color: var(--ink); margin-top: 2px; }
@@ -2448,13 +2367,12 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 
 /* ===== v113 : header au style des sous-headers (trame + barre dorée + eyebrow mono) ===== */
-.hdr { background: radial-gradient(rgba(255,255,255,.06) 1px, transparent 1.5px) 0 0 / 18px 18px, linear-gradient(180deg, rgba(20,18,45,.50) 0%, rgba(20,18,45,.24) 100%); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px); box-shadow: none; }
+.hdr { background: radial-gradient(rgba(255,255,255,.12) 1px, transparent 1.5px) 0 0 / 18px 18px, var(--hd-logo); }
 .hdr::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: linear-gradient(90deg, var(--gold), #e7cd86 55%, var(--gold)); z-index: 2; }
 .eyebrow { font-family: "JetBrains Mono", monospace; font-weight: 600; letter-spacing: .14em; color: var(--gold); }
 /* transition de page élégante */
-/* conteneurs FIXES : fondu seul, aucune translation/mouvement */
-.page-anim { animation: page-in .25s ease; }
-@keyframes page-in { from { opacity: 0; } to { opacity: 1; } }
+.page-anim { animation: page-in .3s cubic-bezier(.2,.7,.2,1); }
+@keyframes page-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
 
 /* ===== v114 : segmentation 360°, alignement activité, bouton carte, en-tête client restructuré ===== */
 /* Liste "Activité récente" : colonnes alignées (clé | résumé | statut | dev·date) */
@@ -5437,139 +5355,6 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 
 /* ===== Poste de commandement (accueil unifié) ===== */
 .pc2 { display:flex; flex-direction:column; gap:14px; }
-
-/* --- Fond « flight-deck » : vidéo cockpit (Higgsfield) en boucle plein écran --- */
-/* .pc2 reste en flux normal (PAS de stacking context) pour ne pas emprisonner le ciel */
-/* ===== Fond cockpit GLOBAL (derrière TOUTES les pages) ===== */
-.cockpit-sky { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
-  background-size:cover; background-position:center; background-repeat:no-repeat; }
-.csky-vid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover;
-  transition: transform .85s cubic-bezier(.22,1,.36,1); will-change:transform,opacity; backface-visibility:hidden; }
-.csky-warp { opacity:0; transition: opacity .85s cubic-bezier(.22,1,.36,1); }        /* décélération au relâchement */
-.cockpit-sky.boost .csky-vid { transform: scale(1.08); transition: transform .6s cubic-bezier(.5,0,.9,.35); }   /* accélération */
-.cockpit-sky.boost .csky-warp { opacity:1; transition: opacity .55s cubic-bezier(.5,0,.9,.35); }
-.csky-veil { position:absolute; inset:0; background:
-  linear-gradient(180deg, rgba(20,18,45,.40) 0%, rgba(20,18,45,.24) 40%, rgba(20,18,45,.50) 100%),
-  radial-gradient(130% 90% at 50% 22%, rgba(20,18,45,0) 34%, rgba(20,18,45,.38) 100%); }
-@media (prefers-reduced-motion: reduce){ .csky-vid { display:none; } }
-
-/* ===== Page de login — refonte cockpit + accueil Natacha ===== */
-.login-screen.login-sky { background: transparent !important; }
-.login-screen.login-sky .login-card { position:relative; z-index:1; max-width:410px;
-  background: rgba(255,255,255,.90); -webkit-backdrop-filter: blur(10px) saturate(1.05); backdrop-filter: blur(10px) saturate(1.05);
-  border:1px solid rgba(255,255,255,.7); box-shadow:0 30px 80px rgba(20,18,45,.45); }
-.login-nat { display:flex; align-items:center; gap:14px; margin-bottom:16px; padding-bottom:16px; border-bottom:1px solid var(--line,#E2DEF0); }
-.login-nat-ava { position:relative; width:66px; height:66px; border-radius:50%; overflow:hidden; flex:none;
-  border:3px solid var(--gold,#A88B4B); box-shadow:0 6px 18px rgba(20,18,45,.3);
-  background:linear-gradient(180deg,#dfeaf7,#c9d6ea); animation:login-nat-idle 8s ease-in-out infinite; }
-.login-nat-ava img { width:100%; height:100%; object-fit:cover; display:block; }
-.login-nat-wink { position:absolute; inset:0; opacity:0; animation:login-nat-wink 8s ease-in-out infinite; }
-.login-nat-hello b { display:block; font-family:"Poppins",inherit; font-weight:800; font-size:15px; color:var(--navy,#2E2A5D); line-height:1.2; }
-.login-nat-hello span { display:block; font-size:12.5px; color:var(--muted,#6E6A86); margin-top:3px; }
-.login-brand { text-align:center; margin:2px 0; }
-.login-brand img { height:26px; width:auto; }
-.login-go { width:100%; padding:12px; margin-top:6px; }
-@keyframes login-nat-idle { 0%,100%{transform:rotate(0) scale(1);} 25%{transform:rotate(-3deg) scale(1.02);} 55%{transform:rotate(2deg) scale(1.01);} }
-@keyframes login-nat-wink { 0%,58%,100%{opacity:0;} 58.9%{opacity:1;} 59.7%{opacity:1;} 60.6%{opacity:0;} 62%{opacity:0;} 62.9%{opacity:1;} 63.7%{opacity:1;} 64.6%{opacity:0;} }
-@media (prefers-reduced-motion: reduce){ .login-nat-ava,.login-nat-wink{ animation:none !important; } .login-nat-wink{ opacity:0 !important; } }
-
-.pc2--deck { position:relative; }
-/* le contenu du poste reste au-dessus du ciel (on exclut .nti, surimpression fixed) */
-.pc2--deck > *:not(.pc2-sky):not(.nti) { position:relative; z-index:1; }
-/* Deux calques ciel superposés : calme (dessous) + warp (dessus, opacité 0).
-   Clic maintenu hors conteneur → le warp apparaît en fondu (accélération, ease-in) + léger zoom ;
-   relâchement → retour au calme (décélération, ease-out). Transitions CSS pures = zéro glitch. */
-.pc2-sky-vid { transition: transform .85s cubic-bezier(.22,1,.36,1); will-change: transform, opacity; backface-visibility:hidden; }
-.pc2-sky-vid--warp { opacity: 0; transition: opacity .85s cubic-bezier(.22,1,.36,1); } /* décélération douce au relâchement */
-.pc2--boost .pc2-sky-vid { transform: scale(1.08); transition: transform .6s cubic-bezier(.5,0,.9,.35); }   /* accélération */
-.pc2--boost .pc2-sky-vid--warp { opacity: 1; transition: opacity .55s cubic-bezier(.5,0,.9,.35); }
-/* z-index négatif : le ciel passe DERRIÈRE tout le contenu de l'app
-   (header, barre d'outils, onglets, cartes) et ne masque plus rien */
-.pc2-sky { position:fixed; inset:0; z-index:-1; overflow:hidden; pointer-events:none;
-  background-size:cover; background-position:center; background-repeat:no-repeat; }
-.pc2-sky-vid { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
-/* voile de lisibilité : assombrit le ciel, adoucit le soleil, ancre les cartes */
-.pc2-sky-veil { position:absolute; inset:0;
-  background:
-    linear-gradient(180deg, rgba(20,18,45,.42) 0%, rgba(20,18,45,.26) 40%, rgba(20,18,45,.52) 100%),
-    radial-gradient(130% 90% at 50% 22%, rgba(20,18,45,0) 34%, rgba(20,18,45,.40) 100%);
-}
-/* cartes « instruments » en verre — assez denses pour rester nettes sur le ciel */
-.pc2--deck .pc2-card {
-  background:rgba(255,255,255,.94);
-  -webkit-backdrop-filter:blur(5px) saturate(1.02);
-  backdrop-filter:blur(5px) saturate(1.02);
-  border-color:rgba(255,255,255,.7);
-  box-shadow:0 10px 30px rgba(20,18,45,.30);
-}
-/* chips de portée + libellé lisibles sur le ciel */
-.pc2--deck .pc2-chip { background:rgba(255,255,255,.88); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); }
-.pc2--deck .pc2-scope-lbl { color:#F4E4B8; text-shadow:0 1px 3px rgba(20,18,45,.5); }
-.pc2--deck .pc2-menu { background:#fff; } /* menu déroulant opaque */
-/* légende du ticker (Lecture : hausse/baisse…) : pill verre foncé + texte clair, bien lisible sur le ciel */
-.pc2--deck .pc2-tk-legend { margin-top:10px; padding:9px 14px; gap:16px; border-radius:12px;
-  background:rgba(20,18,45,.62); border:1px solid rgba(255,255,255,.16);
-  -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px);
-  box-shadow:0 8px 22px rgba(20,18,45,.32); }
-.pc2--deck .pc2-tk-legend .lg,
-.pc2--deck .pc2-tk-legend .lg b { color:#EDEBFA; }
-.pc2--deck .pc2-tk-legend > .lg:first-child { color:#F4E4B8; font-weight:700; letter-spacing:.04em; }
-/* flèches (triangles) plus grosses et détachées, dans la légende ET le bandeau défilant */
-.pc2--deck .pc2-tk-legend .tri,
-.pc2--deck .pc2-tk-item .tri { transform: scale(1.4); filter: drop-shadow(0 1px 2px rgba(0,0,0,.55)); }
-@media (prefers-reduced-motion: reduce) {
-  .pc2-sky-vid { display:none; } /* on fige sur le poster (fond de .pc2-sky) */
-}
-
-/* ===== Intro d'accueil Natacha (apparition + clin d'œil + sortie) ===== */
-.nti { position:fixed; inset:0; z-index:120; display:flex; align-items:center; justify-content:center; pointer-events:none; }
-.nti-card { display:flex; align-items:center; gap:16px; padding:16px 20px 16px 16px;
-  background:rgba(255,255,255,.93); border:1px solid rgba(255,255,255,.7); border-radius:20px;
-  box-shadow:0 24px 60px rgba(20,18,45,.38);
-  -webkit-backdrop-filter:blur(8px); backdrop-filter:blur(8px);
-  transform-origin:center bottom; animation:nti-in .5s cubic-bezier(.22,1.2,.36,1) both; }
-.nti--leave .nti-card { animation:nti-out .5s cubic-bezier(.4,0,1,1) both; }
-
-.nti-ava { position:relative; width:132px; height:132px; border-radius:50%; overflow:hidden; flex:none;
-  border:3px solid var(--gold,#A88B4B);
-  box-shadow:0 6px 20px rgba(20,18,45,.3), inset 0 0 0 2px rgba(255,255,255,.5);
-  background:linear-gradient(180deg,#dfeaf7,#c9d6ea);
-  animation:nti-tilt 1.6s ease .95s both; }
-.nti-ava img { width:100%; height:100%; object-fit:cover; display:block; user-select:none; }
-
-/* paupière : volet teinté peau qui se ferme puis rouvre au-dessus de l'œil droit (côté spectateur) */
-.nti-wink { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0;
-  animation:nti-wink 4.6s ease .95s both; }
-/* étincelle près de l'œil au moment du clin d'œil */
-.nti-spark { position:absolute; left:64%; top:50%; width:12px; height:12px;
-  transform:translate(-50%,-50%) scale(0);
-  background:radial-gradient(circle,#fff 0%,#ffe9a8 42%,rgba(255,233,168,0) 72%); border-radius:50%;
-  animation:nti-spark 1.6s ease 1.05s both; }
-.nti-spark::before, .nti-spark::after { content:""; position:absolute; inset:0; margin:auto; background:linear-gradient(#fff,#ffd972); }
-.nti-spark::before { width:2px; height:132%; left:50%; transform:translateX(-50%); }
-.nti-spark::after { height:2px; width:132%; top:50%; transform:translateY(-50%); }
-
-.nti-bubble { max-width:260px; }
-.nti-bubble b { display:block; font-family:"Poppins",inherit; font-weight:800; font-size:14px; color:var(--navy,#2E2A5D); }
-.nti-bubble span { display:block; margin-top:2px; font-size:13.5px; color:var(--ink,#1F1B33); line-height:1.35; }
-
-@keyframes nti-in { 0%{opacity:0; transform:translateY(26px) scale(.9);} 100%{opacity:1; transform:translateY(0) scale(1);} }
-@keyframes nti-out { 0%{opacity:1; transform:translateY(0) scale(1);} 100%{opacity:0; transform:translateY(14px) scale(.96);} }
-@keyframes nti-wink {
-  0%,6%{opacity:0;} 7.5%{opacity:1;} 9%{opacity:1;} 10.5%{opacity:0;}   /* clin d'œil 1 (vif) */
-  16%{opacity:0;} 17.5%{opacity:1;} 19%{opacity:1;} 20.5%{opacity:0;}   /* clin d'œil 2 */
-  100%{opacity:0;}
-}
-@keyframes nti-tilt { 0%,100%{transform:rotate(0);} 20%{transform:rotate(-4deg);} 40%{transform:rotate(-1deg);} }
-@keyframes nti-spark { 0%,10%{transform:translate(-50%,-50%) scale(0); opacity:0;} 22%{transform:translate(-50%,-50%) scale(1); opacity:1;} 46%{transform:translate(-50%,-50%) scale(.2); opacity:0;} 100%{opacity:0;} }
-
-@media (prefers-reduced-motion: reduce) {
-  .nti-card { animation:nti-fade .3s ease both; }
-  .nti--leave .nti-card { animation:nti-fade-out .3s ease both; }
-  .nti-wink, .nti-spark, .nti-ava { animation:none !important; } .nti-wink { opacity:0 !important; }
-}
-@keyframes nti-fade { from{opacity:0;} to{opacity:1;} }
-@keyframes nti-fade-out { from{opacity:1;} to{opacity:0;} }
 .pc2-scope { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
 .pc2-scope-lbl { font-family:"Poppins"; font-weight:800; font-size:11px; letter-spacing:2px; color:var(--gold); margin-right:6px; }
 .pc2-chip { border:1px solid var(--line); background:#fff; color:var(--grey); font-family:"Inter"; font-weight:600; font-size:12.5px; padding:7px 14px; border-radius:16px; cursor:pointer; }
@@ -5597,8 +5382,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .pc2-tk-item .tri { margin:0 7px; }
 .pc2-tk-item .d { font-weight:700; color:inherit; }
 .pc2-tk-item .d.val { font-weight:600; opacity:.8; }
-.d-up { color:#2FD07A; }
-.d-down { color:#FF5C5C; }
+.d-up { color:#7FD3A0; }
+.d-down { color:#E8909A; }
 .d-right { color:#E6C583; }
 .d-left { color:#9aa0ba; }
 .d-none { color:#9aa0ba; }

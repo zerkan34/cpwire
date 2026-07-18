@@ -1378,6 +1378,8 @@ app.post("/api/devs/restore", guard, writeGuard, (req, res) => {
 const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = process.env.WEB_DIST || path.join(__dirname2, "../web/dist");
 app.use(shareflyRouter); // /sharefly (page) + /api/sharefly/* (état partagé) — AVANT le fallback SPA
+// Atelier de flux Belmet ERP26 (page autonome interactive + livrables PDF/GANTT) — AVANT le fallback SPA.
+app.use("/flux", express.static(path.join(__dirname2, "public", "flux")));
 if (fs.existsSync(WEB_DIST)) {
   app.use(express.static(WEB_DIST));
   app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, "index.html")));

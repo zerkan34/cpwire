@@ -7,7 +7,6 @@ import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
 import Home from "./components/Home.jsx";
 import PosteCommandement from "./components/PosteCommandement.jsx";
-import CockpitSky from "./components/CockpitSky.jsx";
 import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
 import Filters from "./components/Filters.jsx";
@@ -52,6 +51,7 @@ const Meetings = lazy(() => import("./components/Meetings.jsx"));
 const CRA = lazy(() => import("./components/CRA.jsx"));
 const MobileRecap = lazy(() => import("./components/MobileRecap.jsx"));
 const ShareFly = lazy(() => import("./components/ShareFly.jsx"));
+const Flux = lazy(() => import("./components/Flux.jsx"));
 
 const escHtml = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 import InstallPWA from "./components/InstallPWA.jsx";
@@ -101,6 +101,7 @@ const TABS = [
   { id: "explorateur", label: "Explorateur" },
   { id: "atelier", label: "Atelier" },
   { id: "sharefly", label: "ShareFly", annex: true },
+  { id: "flux", label: "Atelier de flux", annex: true },
 ];
 
 // Sous-onglets internes à un onglet groupé. Le 1er est l'onglet par défaut à l'ouverture du groupe.
@@ -124,7 +125,7 @@ const SUBTABS = {
 const PRIMARY = ["cockpit", "explorateur", "atelier"];
 const SECONDARY = [];
 // Rôle "consultation" : onglets autorisés (aucun récap, aucune réunion ; la Mémoire est masquée dans Qualité).
-const CONSULT_TABS = ["cockpit", "explorateur", "atelier", "sharefly", "signaux"];
+const CONSULT_TABS = ["cockpit", "explorateur", "atelier", "sharefly", "flux", "signaux"];
 const ADMIN_TAB = { id: "admin", label: "Admin" };
 const TAB_SHORT = { cockpit: "Pilotage", explorateur: "Explorateur", atelier: "Atelier" };
 
@@ -401,16 +402,6 @@ export default function App() {
 
   // Charge les fiches 360 dès le démarrage (indépendamment du portefeuille).
   useEffect(() => { fetchProjets().then(setProjetsData).catch(() => {}); }, []);
-  // Natacha : clic sur une source (ticket) → ouvre la fiche du ticket.
-  useEffect(() => {
-    const onOpenTicket = (e) => {
-      const cle = e.detail && e.detail.cle; if (!cle) return;
-      const it = (issues || []).find((x) => x.cle === cle);
-      if (it) setTicket(it);
-    };
-    window.addEventListener("cpwire-open-ticket", onOpenTicket);
-    return () => window.removeEventListener("cpwire-open-ticket", onOpenTicket);
-  }, [issues]);
 
   // Bannière d'import : visible au démarrage puis s'efface.
   useEffect(() => {
@@ -679,9 +670,8 @@ export default function App() {
   return (
     <ReadOnlyContext.Provider value={readOnly}>
     <div className={`wrap tab-${tab}${pwaAccueil ? " pwahome" : ""}`}>
-      <CockpitSky />
       <Header kpis={data?.kpis} source={data?.source} generatedAt={data?.generatedAt} syncedAt={data?.syncedAt}
-        loading={loading} apiError={error} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
+        loading={loading} me={data?.me} onRefresh={() => load(true)} onReloadAll={() => load(false, true)}
         onLogout={() => { clearToken(); setAuthed(false); }}
         role={role} presence={presence} onPresence={() => setTab("admin")}
         query={query} onQuery={setQuery}
@@ -693,6 +683,7 @@ export default function App() {
 
       {role === "owner" ? (
         <div className="owner-bar">
+          {greet && <span className="greet-inline">{greet}</span>}
           {persistent !== null && (
             <span className={`mem-badge ${persistent ? "ok" : "warn"}`}
               title={persistent
@@ -717,7 +708,12 @@ export default function App() {
         <div className="ro-banner">👁 Mode lecture seule — accès invité. Consultation et export uniquement ; aucune modification.</div>
       ) : null}
 
-      {/* Bandeau d'info d'import retiré à la demande */}
+      {diagBannerOn && diag && diag.projetsSansTicket?.length > 0 && (
+        <div className="banner import-warning import-fade">
+          Import : {diag.totalImporte} tickets. ⚠ Projet(s) configuré(s) sans aucun ticket importé :
+          <b> {diag.projetsSansTicket.join(", ")}</b> — vérifie la clé du projet et tes droits d'accès dans Jira.
+        </div>
+      )}
 
       <div className="tabs">
         {visibleTabs.map((t) => (
@@ -749,7 +745,7 @@ export default function App() {
       {tab === "cockpit" && !["recette", "activite", "documents"].includes(sub) && (
         isMobile ? (
           <MobileHome
-            build="stable-v417"
+            build="stable-v418"
             source={data?.source || "Jira"}
             whenText={data?.generatedAt ? `Données Jira au ${new Date(data.generatedAt).toLocaleString("fr-FR")}` : ""}
             pct={data?.kpis?.avancement || 0}
@@ -784,7 +780,6 @@ export default function App() {
             onTicket={setTicket}
             onDev={setDevFiche}
             goTo={(t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }}
-            greet={greet}
           />
         )
       )}
@@ -833,6 +828,7 @@ export default function App() {
       {tab === "atelier" && sub === "hygiene" && <Hygiene issues={issues} onTicket={setTicket} />}
       {tab === "admin" && role === "owner" && <Admin />}
       {tab === "sharefly" && <ShareFly />}
+      {tab === "flux" && <Flux />}
 
       </Suspense>
       </div>
@@ -925,7 +921,22 @@ export default function App() {
         <div className="drawer-foot">cp|WIRE — Armonie Group</div>
       </aside>
 
-      {/* Popup de bienvenue retiré — c'est Natacha qui accueille (intro animée + clin d'œil) */}
+      {showGreetPop && greet && (
+        <div className="greet-veil" onClick={() => setShowGreetPop(false)}>
+          <div className="greet-card" onClick={(e) => e.stopPropagation()}>
+            <div className="greet-top" />
+            <div className="greet-hd">
+              <div className="greet-logo">armo<i>n</i>ie<small>notos <i>phl</i>soft</small></div>
+              <button className="greet-x" onClick={() => setShowGreetPop(false)} aria-label="Fermer">×</button>
+            </div>
+            <div className="greet-bd">
+              <div className="greet-wave">👋</div>
+              <div className="greet-msg">{greet}</div>
+              <div className="greet-sub">Bon pilotage sur cp|WIRE.</div>
+            </div>
+          </div>
+        </div>
+      )}
       {importOpen && (
         <Suspense fallback={null}>
           <ImportSources onClose={() => setImportOpen(false)} onApplied={() => load(true)} />

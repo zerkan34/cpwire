@@ -56,11 +56,9 @@ function richToHtml(text) {
 // Copilote ancré : réponses depuis les vraies données (chiffres point du soir, tickets,
 // référentiel, corpus, méthodologie). Glisser-déposer un fichier => analyse + import au corpus.
 export default function Assistant() {
-  const HIST_KEY = "cpwire_natacha_hist_v1";
   const [open, setOpen] = useState(false);
   const [maxed, setMaxed] = useState(false);
-  // Mémoire persistante : l'historique est rechargé au démarrage et jamais oublié.
-  const [msgs, setMsgs] = useState(() => { try { return JSON.parse(localStorage.getItem(HIST_KEY) || "[]") || []; } catch { return []; } });
+  const [msgs, setMsgs] = useState([]);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [drag, setDrag] = useState(false);
@@ -83,8 +81,6 @@ export default function Assistant() {
   };
 
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ behavior: "smooth" }); }, [msgs, busy, open]);
-  // Sauvegarde persistante de la conversation (mémoire longue, aucun oubli).
-  useEffect(() => { try { localStorage.setItem(HIST_KEY, JSON.stringify(msgs.slice(-300))); } catch { /* quota */ } }, [msgs]);
   useEffect(() => {
     const onPilot = () => setOpen((o) => !o);
     const onTicket = (e) => {
@@ -116,7 +112,7 @@ export default function Assistant() {
     if (typeof forced !== "string") setQ("");
     const history = msgs
       .filter((m) => !m.error && m.text)
-      .slice(-16)
+      .slice(-8)
       .map((m) => ({ role: m.role === "user" ? "user" : "assistant", content: m.text }));
     push({ role: "user", text });
     setBusy(true);
@@ -163,7 +159,6 @@ export default function Assistant() {
 
   const onKey = (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } };
   const onDrop = (e) => { e.preventDefault(); setDrag(false); const f = e.dataTransfer.files && e.dataTransfer.files[0]; if (f) handleFile(f); };
-  const clearHist = () => { if (window.confirm("Effacer tout l'historique de Natacha ? (elle repart de zéro)")) { setMsgs([]); try { localStorage.removeItem(HIST_KEY); } catch { /* */ } } };
 
   const exportConv = () => {
     if (!msgs.length) return;
@@ -205,9 +200,7 @@ export default function Assistant() {
   return (
     <>
       {open && (
-        <div className="cwa-overlay" onMouseDown={(e) => { if (e.target === e.currentTarget) setOpen(false); }}>
         <div className={`cwa-panel ${maxed ? "maxed" : ""}`} role="dialog" aria-label="Hôtesse Natacha — cp|WIRE"
-          onMouseDown={(e) => e.stopPropagation()}
           onDragOver={(e) => { e.preventDefault(); setDrag(true); }}
           onDragLeave={(e) => { if (e.currentTarget === e.target) setDrag(false); }}
           onDrop={onDrop}>
@@ -219,7 +212,6 @@ export default function Assistant() {
             </div>
             <button className="cwa-hd-ic" onClick={() => setMaxed((m) => !m)} title={maxed ? "Réduire" : "Agrandir (plein écran)"} aria-label="Agrandir / réduire">{maxed ? "🗗" : "⤢"}</button>
             <button className="cwa-hd-ic" onClick={exportConv} disabled={!msgs.length} title="Exporter en PDF (charte Armonie, portrait)" aria-label="Exporter">⤓</button>
-            <button className="cwa-hd-ic" onClick={clearHist} disabled={!msgs.length} title="Effacer l'historique" aria-label="Effacer l'historique">🗑</button>
             <button className="cwa-hd-x" onClick={() => setOpen(false)} aria-label="Fermer">✕</button>
           </div>
 
@@ -243,7 +235,7 @@ export default function Assistant() {
                 {m.role === "ai" && m.sources && m.sources.tickets && m.sources.tickets.length > 0 && (
                   <div className="cwa-src">
                     <span className="cwa-src-l">Sources :</span>
-                    {m.sources.tickets.slice(0, 12).map((k) => <button key={k} className="cwa-chip clk" onClick={() => window.dispatchEvent(new CustomEvent("cpwire-open-ticket", { detail: { cle: k } }))} title={`Ouvrir ${k}`}>{k}</button>)}
+                    {m.sources.tickets.slice(0, 12).map((k) => <span key={k} className="cwa-chip">{k}</span>)}
                     {m.sources.tickets.length > 12 ? <span className="cwa-more">+{m.sources.tickets.length - 12}</span> : null}
                   </div>
                 )}
@@ -274,7 +266,6 @@ export default function Assistant() {
             <textarea ref={taRef} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} rows={1} placeholder="Pose ta question…" />
             <button className="cwa-send" onClick={send} disabled={busy || !q.trim()} aria-label="Envoyer">➤</button>
           </div>
-        </div>
         </div>
       )}
     </>

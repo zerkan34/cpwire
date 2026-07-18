@@ -87,7 +87,7 @@ export default function InstallPWA() {
 
   useEffect(() => {
     injectCss();
-    const onUpd = () => { setUpdateReady(true); setUpdateHidden(false); };
+    const onUpd = () => setUpdateReady(true);
     const onInstallable = () => setInstallable(true);
     const onInstalled = () => { setInstallable(false); try { localStorage.setItem(HIDE_KEY, String(Date.now())); } catch {} };
     const onOnline = () => setOffline(false);
@@ -125,8 +125,8 @@ export default function InstallPWA() {
       {updateReady && !updateHidden && (
         <div className="pwa-update" role="status">
           <span className="dot" />
-          <span className="tx">Nouvelle version disponible<small>Cliquez pour mettre à jour — vos données sont conservées.</small></span>
-          <button className="go" onClick={() => applyUpdate()}>Mettre à jour</button>
+          <span className="tx">Nouvelle version disponible<small>Actualisez pour en profiter — vos données sont conservées.</small></span>
+          <button className="go" onClick={() => applyUpdate()}>Actualiser</button>
           <button className="x" aria-label="Plus tard" title="Plus tard" onClick={() => setUpdateHidden(true)}>×</button>
         </div>
       )}

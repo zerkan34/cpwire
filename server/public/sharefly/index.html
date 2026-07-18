@@ -14,15 +14,14 @@
 
 *{margin:0;padding:0;box-sizing:border-box}
 :root{
- /* Palette CHARTE ARMONIE (navy/indigo/or/lavande) — coeur du design shFLY */
- --navy:#2E2A5D; --indigo:#4B3F8F; --indigo-d:#231F4A;
- --purple:#4B3F8F; --purple-strong:#3a2f6e;
- --gold:#A88B4B; --gold-l:#BFA168; --gold-wash:#f7f0e4; --gold-line:#e6d9bf; --gold-ink:#6b5525;
- --magenta:#4B3F8F; --m-wash:#F5F2FC;
+ --navy:#2c2945; --indigo:#3a3658; --indigo-d:#2c2945;
+ --purple:#6e5cc4; --purple-strong:#5a48b0;
+ --gold:#A8884E; --gold-l:#A8884E; --gold-wash:#f7f0e4; --gold-line:#e6d9bf; --gold-ink:#6b5525;
+ --magenta:#6e5cc4; --m-wash:#F5F2FC;
  --lav:#F5F2FC; --lav-2:#EAE6F7;
- --bg:#f4f3f8; --card:#ffffff; --ink:#1F1B33; --ink-soft:#3d3b4d; --muted:#6E6A86;
- --line:#E2DEF0; --line-2:#d9d3ee; --green:#2F7D4F; --red:#C2691A;
- --hd-grad:linear-gradient(135deg,#2E2A5D,#4B3F8F 55%,#5a4ba0);
+ --bg:#f4f3f8; --card:#ffffff; --ink:#2a2937; --ink-soft:#3d3b4d; --muted:#565273;
+ --line:#e7e5f1; --line-2:#d9d3ee; --green:#1f8a5f; --red:#c0392b;
+ --hd-grad:linear-gradient(135deg,#2c2945,#3a3658 55%,#46426c);
  --wire-grad:linear-gradient(90deg,#fc6f28 0%,#ff8a2a 20%,#fe9424 40%,#e7b293 62%,#bfc4ea 82%,#cbdcff 100%);
  --mono:"JetBrains Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace;
  --sh-sm:0 1px 3px rgba(38,35,64,.06);
@@ -49,14 +48,6 @@ button{font:inherit;cursor:pointer}
 /* ---------- topbar ---------- */
 .top{position:sticky;top:0;z-index:40;background:rgba(255,255,255,.82);backdrop-filter:saturate(1.3) blur(12px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:22px;padding:11px 28px}
 .top .logo{height:26px}
-/* Mouvements / journal : lignes cliquables avec affordance bien visible */
-.tbl tr[data-jn]{transition:background .12s ease}
-.tbl tr[data-jn]:hover{background:var(--lav)}
-.tbl tr[data-jn] .nm{color:var(--indigo);font-weight:600}
-.tbl tr[data-jn]:hover .nm{text-decoration:underline}
-.fr[data-jn]{border-radius:8px;transition:background .12s ease}
-.fr[data-jn]:hover{background:var(--lav)}
-.fr[data-jn]:hover .act b{text-decoration:underline}
 .top .appname{font-family:'Poppins';font-weight:600;color:var(--navy);font-size:14.5px;border-left:1px solid var(--line-2);padding-left:18px;cursor:pointer;letter-spacing:-.01em}
 .top .appname .fly{background:var(--wire-grad);-webkit-background-clip:text;background-clip:text;color:transparent;font-weight:800}
 .top .appname .sh{font-size:.72em;font-weight:600;color:var(--muted);letter-spacing:.02em}
@@ -111,8 +102,7 @@ button{font:inherit;cursor:pointer}
 
 /* ---------- sections ---------- */
 .sec{margin-top:46px}
-.eyebrow{font-family:'Poppins';font-weight:700;letter-spacing:2.4px;text-transform:uppercase;font-size:10.5px;color:var(--gold);margin-bottom:8px;display:flex;align-items:center;gap:10px}
-.eyebrow::before{content:"";width:10px;height:10px;border-radius:2px;background:var(--gold);flex:none}
+.eyebrow{font-family:'Poppins';font-weight:600;letter-spacing:2.4px;text-transform:uppercase;font-size:10.5px;color:var(--indigo);margin-bottom:8px;display:flex;align-items:center;gap:12px}
 .eyebrow::after{content:"";height:1px;flex:1;background:linear-gradient(90deg,var(--gold-line),transparent)}
 .sec h2{font-family:'Poppins';font-weight:700;font-size:20px;color:var(--navy);letter-spacing:-.015em}
 .sec .sub{color:var(--muted);font-size:14px;margin-top:4px}
@@ -187,7 +177,7 @@ button{font:inherit;cursor:pointer}
 
 /* ---------- tableau clair ---------- */
 .tbl{width:100%;border-collapse:separate;border-spacing:0;background:var(--card);border:1px solid var(--line);border-radius:var(--r-md);overflow:hidden;font-size:13.5px;box-shadow:var(--sh-sm)}
-.tbl thead th{background:var(--navy);color:#fff;font-family:'Poppins';font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:13px 18px;border-bottom:none}
+.tbl thead th{background:var(--indigo);color:#fff;font-family:'Poppins';font-weight:600;font-size:11px;letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:13px 18px;border-bottom:none}
 .tbl tbody td{padding:13px 18px;border-bottom:1px solid var(--line);vertical-align:middle}
 .tbl tbody tr{cursor:pointer;transition:.1s background}
 .tbl tbody tr:last-child td{border-bottom:none}
@@ -435,7 +425,8 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 <div class="mockbar"><span class="pt"></span><span>Catalogue — noms &amp; métadonnées des 14 333 documents · <b>dépose</b> ou <b>connecte</b> pour les fichiers réels</span></div>
 <div class="top">
   <button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||'/')">← cp|WIRE</button>
-    <span id="sfver" title="Version en ligne" style="font:600 11px Inter,sans-serif;color:var(--muted,#6E6A86);background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-radius:20px;padding:2px 9px;margin-right:8px"></span>
+  <span class="appname" onclick="go('')"><span class="sh">sh|</span><span class="fly">FLY</span></span>
+  <span id="sfver" title="Version en ligne" style="font:600 11px Inter,sans-serif;color:var(--muted,#6E6A86);background:var(--lav,#F5F2FC);border:1px solid var(--filet,#E2DEF0);border-radius:20px;padding:2px 9px;margin-right:8px"></span>
   <a class="backbtn" href="/sharefly/docs-cpwire.html" title="Tous les documents produits par cp|WIRE" style="margin-right:0">Docs cp|WIRE</a>
   <a class="backbtn" href="/sharefly/analyse.html" title="Analyse cp|WIRE du catalogue" style="margin-right:0">Analyse cp|WIRE</a>
   <div class="search">
@@ -443,7 +434,6 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
     <input id="q" placeholder="Rechercher dans 14 333 documents…" autocomplete="off">
   </div>
   <div class="tools">
-    <button class="nat-btn" id="natbtn" type="button" title="Demander à Natacha" aria-label="Demander à Natacha"><span class="nat-ava"><img src="/sharefly/natacha.png" alt="Natacha"><img class="nat-ava-wink" src="/sharefly/natacha-wink.png" alt="" aria-hidden="true"></span></button>
     <button class="icobtn" id="bell" type="button" title="Notifications" aria-label="Notifications">
       <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
       <span class="ndot" id="belldot" hidden></span>
@@ -466,80 +456,6 @@ window.SPACES=[{"key": "clients", "name": "Clients", "desc": "15 clients · un d
 </script>
 <script src="/sharefly/config.js"></script>
 <script src="/sharefly/catalogue.js"></script>
-<!-- ===== Natacha dans ShareFly (branchée sur /api/assistant de cp|WIRE) ===== -->
-<style id="nat-css">
-.nat-btn{position:fixed;top:60px;right:24px;z-index:55;background:none;border:0;padding:0;cursor:pointer;display:inline-flex;align-items:center}
-.nat-ava{position:relative;width:118px;height:118px;border-radius:50%;overflow:hidden;display:block;flex:none;border:3px solid var(--gold,#A88B4B);box-shadow:0 10px 28px rgba(20,18,45,.4),inset 0 0 0 2px rgba(255,255,255,.45);background:linear-gradient(180deg,#dfeaf7,#c9d6ea);animation:natbob 7s ease-in-out infinite}
-@media(max-width:820px){.nat-btn{top:auto;bottom:78px;right:16px}.nat-ava{width:76px;height:76px}}
-.nat-ava img{width:100%;height:100%;object-fit:cover;display:block}
-.nat-ava-wink{position:absolute;inset:0;opacity:0;animation:natwink 6s ease-in-out infinite}
-@keyframes natbob{0%,100%{transform:rotate(0) scale(1)}25%{transform:rotate(-3deg) scale(1.03)}55%{transform:rotate(2deg) scale(1.01)}}
-@keyframes natwink{0%,60%,100%{opacity:0}61%{opacity:1}62%{opacity:1}63%{opacity:0}65%{opacity:0}66%{opacity:1}67%{opacity:1}68%{opacity:0}}
-@media (prefers-reduced-motion:reduce){.nat-ava,.nat-ava-wink{animation:none !important}.nat-ava-wink{opacity:0 !important}}
-#natwrap{position:fixed;inset:0;z-index:6000;display:none;align-items:center;justify-content:center;background:rgba(20,18,45,.5);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-#natwrap.on{display:flex}
-.nat-panel{width:min(680px,95vw);height:min(80vh,760px);background:var(--card,#fff);border-radius:18px;box-shadow:0 30px 80px rgba(20,18,45,.5);display:flex;flex-direction:column;overflow:hidden}
-.nat-hd{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--hd-grad,linear-gradient(135deg,#2E2A5D,#4B3F8F));color:#fff}
-.nat-hd img{width:40px;height:40px;border-radius:50%;object-fit:cover;border:2px solid var(--gold,#A88B4B)}
-.nat-hd b{font-family:Poppins,sans-serif;font-size:15px;display:block}
-.nat-hd .s{font-size:11.5px;opacity:.82}
-.nat-hd .x{margin-left:auto;background:none;border:0;color:#fff;font-size:20px;cursor:pointer;line-height:1}
-.nat-body{flex:1;overflow:auto;padding:16px;background:var(--lav,#F5F2FC)}
-.nat-msg{margin:0 0 12px;max-width:88%;clear:both}
-.nat-msg.u{float:right}.nat-msg.a{float:left}
-.nat-msg .b{padding:11px 14px;font-size:13.5px;line-height:1.5}
-.nat-msg.u .b{background:var(--navy,#2E2A5D);color:#fff;border-radius:14px 14px 4px 14px}
-.nat-msg.a .b{background:#fff;border:1px solid var(--filet,#E2DEF0);border-radius:14px 14px 14px 4px;color:var(--ink,#1F1B33)}
-.nat-msg.a .b h2,.nat-msg.a .b h3{font-family:Poppins,sans-serif;color:var(--navy,#2E2A5D);font-size:14px;margin:8px 0 4px}
-.nat-msg.a .b p{margin:5px 0}.nat-msg.a .b ul{margin:5px 0 5px 18px}
-.nat-msg.a .b table.data{border-collapse:collapse;width:100%;font-size:12.5px;margin:6px 0}
-.nat-msg.a .b table.data th{background:var(--navy,#2E2A5D);color:#fff;text-align:left;padding:5px 8px}
-.nat-msg.a .b table.data td{border-bottom:1px solid var(--filet,#E2DEF0);padding:5px 8px}
-.nat-msg.a .b .tk{font-family:ui-monospace,monospace;color:var(--indigo,#4B3F8F);font-weight:600}
-.nat-msg.a .b .who{font-weight:600}
-.nat-msg.a .b .pill{font-size:10.5px;border-radius:20px;padding:1px 8px;border:1px solid var(--filet,#E2DEF0)}
-.nat-in{display:flex;gap:8px;padding:12px;border-top:1px solid var(--filet,#E2DEF0);background:#fff}
-.nat-in input{flex:1;border:1px solid var(--filet,#E2DEF0);border-radius:12px;padding:10px 14px;font-size:14px;outline:none}
-.nat-in button{border:0;background:var(--gold,#A88B4B);color:#241f10;border-radius:12px;padding:0 16px;cursor:pointer;font-weight:700;font-size:15px}
-.nat-typing{color:var(--muted,#6E6A86);font-style:italic}
-</style>
-<script>
-(function(){
-  var msgs=[];
-  function el(id){return document.getElementById(id);}
-  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
-  function ensure(){
-    if(el('natwrap'))return;
-    var w=document.createElement('div');w.id='natwrap';
-    w.innerHTML='<div class="nat-panel"><div class="nat-hd"><img src="/sharefly/natacha.png" alt=""><div><b>Natacha</b><span class="s">Votre hotesse - cp|WIRE</span></div><button class="x" id="natx" aria-label="Fermer">✕</button></div><div class="nat-body" id="natbody"><div class="nat-msg a"><div class="b">Bonjour Nicolas ! Pose-moi ta question - portefeuille, ticket, dossier, programme... je reponds a partir des vraies donnees cp|WIRE.</div></div></div><div class="nat-in"><input id="natq" placeholder="Pose ta question a Natacha..." autocomplete="off"><button id="natsend" aria-label="Envoyer">➤</button></div></div>';
-    document.body.appendChild(w);
-    w.addEventListener('mousedown',function(e){if(e.target===w)close();});
-    el('natx').onclick=close;el('natsend').onclick=send;
-    el('natq').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();send();}});
-  }
-  function open(){ensure();el('natwrap').classList.add('on');setTimeout(function(){var i=el('natq');if(i)i.focus();},60);}
-  function close(){var w=el('natwrap');if(w)w.classList.remove('on');}
-  function bubble(role,content,raw){
-    var b=el('natbody');var d=document.createElement('div');d.className='nat-msg '+(role==='u'?'u':'a');
-    d.innerHTML='<div class="b">'+(raw?content:esc(content))+'</div>';b.appendChild(d);b.scrollTop=b.scrollHeight;return d;
-  }
-  function send(){
-    var i=el('natq');var q=(i.value||'').trim();if(!q)return;i.value='';
-    bubble('u',q,false);msgs.push({role:'user',content:q});
-    var t=bubble('a','<span class="nat-typing">Natacha reflechit...</span>',true);
-    var tok='';try{tok=localStorage.getItem('cpwire_token')||'';}catch(_){}
-    fetch('/api/assistant',{method:'POST',headers:{'Content-Type':'application/json','x-access-token':tok},body:JSON.stringify({question:q,history:msgs.slice(-16)})})
-      .then(function(r){return r.json();})
-      .then(function(d){
-        if(d&&d.answer){t.querySelector('.b').innerHTML=d.answer;msgs.push({role:'assistant',content:String(d.answer).replace(/<[^>]+>/g,' ')});}
-        else{t.querySelector('.b').textContent='Indisponible : '+((d&&d.error)||'reponse vide');}
-        var b=el('natbody');b.scrollTop=b.scrollHeight;
-      })
-      .catch(function(e){t.querySelector('.b').textContent='Erreur : '+(e.message||e);});
-  }
-  document.addEventListener('click',function(e){var b=e.target.closest&&e.target.closest('#natbtn');if(b){e.preventDefault();open();}});
-})();
-</script>
 <script>
 const $=s=>document.querySelector(s);
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -723,10 +639,6 @@ async function openDoc(d){
   m.querySelectorAll('.mbtn').forEach(b=>b.onclick=()=>docAction(b.dataset.a,d,m));
   renderPreviewAsync(d,ex,m.querySelector('#mprev'));
 }
-// Corrige le type MIME d'un blob selon l'extension : un PDF stocké sans type
-// s'affichait en TEXTE BRUT dans l'iframe/embed. On le ré-emballe au bon type.
-function mimeByName(name){const ex=(extOf(name)||'').toLowerCase();return {pdf:'application/pdf',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',bmp:'image/bmp',svg:'image/svg+xml',html:'text/html',htm:'text/html',txt:'text/plain',csv:'text/csv',json:'application/json'}[ex]||'';}
-function blobUrlTyped(b,name){try{const t=mimeByName(name);if(t&&b&&b.type!==t){b=new Blob([b],{type:t});}}catch(_){}return URL.createObjectURL(b);}
 // charge le vrai fichier (blob) depuis le stockage et l'affiche rendu (PDF/image/html)
 async function renderPreviewAsync(d,ex,box){
   if(!box||!d._added)return;
@@ -734,7 +646,7 @@ async function renderPreviewAsync(d,ex,box){
   const IMG=['png','jpg','jpeg','gif','webp','bmp','svg'];
   if(!(ex==='pdf'||ex==='html'||ex==='htm'||IMG.includes(ex)))return; // Office & co : on garde la carte
   let u=BLOBS[d._id];
-  if(!u){try{const b=await idbGet(d._id);if(b){u=blobUrlTyped(b,d.n);BLOBS[d._id]=u;}}catch(_){}}
+  if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
   if(!u&&d._text&&(ex==='html'||ex==='htm')){try{u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));BLOBS[d._id]=u;}catch(_){}}
   if(!u){box.innerHTML=previewCard(d,ex,"Le fichier réel n'est pas disponible sur ce poste. Réimporte-le pour l'aperçu, ou clique <b>Ouvrir le document</b>.");return;}
   if(IMG.includes(ex))box.innerHTML=`<img class="pv-img" src="${u}" alt="">`;
@@ -794,7 +706,7 @@ async function openFile(d){
   // fichier déposé dans ce navigateur -> lecteur intégré
   if(d._added){
     let u=BLOBS[d._id];
-    if(!u){try{const b=await idbGet(d._id);if(b){u=blobUrlTyped(b,d.n);BLOBS[d._id]=u;}}catch(_){}}
+    if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
     if(!u && d._text && ['html','htm'].includes(extOf(d.n))){u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));}
     if(u){openInApp(u,d.n);return;}
     toast('Fichier brut absent de ce poste');return;
@@ -1168,18 +1080,8 @@ function initTopbar(){
   updateBell();
 }
 
-// Un doc est « prévisualisable » s'il s'ouvre VRAIMENT : fichier déposé (blob) d'un type
-// rendu, ou document cp|WIRE hébergé (fiche/mémoire). Les simples références (sans fichier)
-// sont masquées à la demande.
-function isPreviewable(d){
-  if(!d) return false;
-  if(cpwireUrl(d)) return true;
-  if(d._added){ const ex=(extOf(d.n)||'').toLowerCase(); return ['pdf','html','htm','png','jpg','jpeg','gif','webp','bmp','svg'].includes(ex); }
-  return false;
-}
 function mountDocs(host, baseList, opts){
   opts=opts||{};
-  baseList=(baseList||[]).filter(isPreviewable);   // afficher UNIQUEMENT les prévisualisables
   const years=uniq(baseList,'y'), types=[...new Set(baseList.map(d=>d.x))].sort();
   const cats=opts.cats? [...new Set(baseList.map(d=>d.k).filter(Boolean))].sort() : null;
   const engs=opts.eng? ['Assistance','Projet'] : null;

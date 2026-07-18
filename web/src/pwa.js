@@ -86,43 +86,10 @@ export function registerPwa() {
         });
       });
 
-      // Vérifie SOUVENT (60 s) + au retour sur l'onglet/app → la MAJ est proposée
-      // rapidement, sans relancer l'application.
+      // Vérifie régulièrement (toutes les 30 min) et au retour sur l'app.
       const check = () => { try { _reg && _reg.update(); } catch { /* ignoré */ } };
-      setInterval(check, 60 * 1000);
+      setInterval(check, 30 * 60 * 1000);
       window.addEventListener("focus", check);
-      window.addEventListener("online", check);
-      document.addEventListener("visibilitychange", () => { if (!document.hidden) check(); });
     } catch { /* SW indisponible : l'app fonctionne quand même */ }
   });
-
-  // Filet de sécurité : détecte AUSSI un nouveau déploiement même si le service
-  // worker n'a pas changé (nouveau bundle hashé dans index.html) → propose la MAJ.
-  startVersionWatch();
-}
-
-// --- Détection de nouvelle version déployée (poll du bundle principal hashé) ---
-let _buildRef = null;
-async function fetchBuildRef() {
-  try {
-    const r = await fetch("/?v=" + Date.now(), { cache: "no-store" });
-    if (!r.ok) return null;
-    const html = await r.text();
-    const m = html.match(/\/assets\/[A-Za-z0-9_.-]*index[A-Za-z0-9_.-]*\.js/) || html.match(/\/assets\/[A-Za-z0-9_.-]+\.js/);
-    return m ? m[0] : null;
-  } catch { return null; }
-}
-async function versionCheck() {
-  const ref = await fetchBuildRef();
-  if (!ref) return;
-  if (_buildRef == null) { _buildRef = ref; return; }          // référence initiale
-  if (ref !== _buildRef) { _buildRef = ref; window.dispatchEvent(new CustomEvent("pwa:updateready")); }
-}
-function startVersionWatch() {
-  if (typeof window === "undefined") return;
-  versionCheck();
-  setInterval(versionCheck, 60 * 1000);
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) versionCheck(); });
-  window.addEventListener("focus", versionCheck);
-  window.addEventListener("online", versionCheck);
 }

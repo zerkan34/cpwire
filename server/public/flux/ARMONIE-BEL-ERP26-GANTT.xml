@@ -1,0 +1,632 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+<SaveVersion>14</SaveVersion>
+<Name>ARMONIE-BEL-ERP26-GANTT.xml</Name>
+<Title>Belmet · ERP 2026 · GANTT</Title>
+<CompanyName>Armonie Group</CompanyName>
+<Author>Nicolas Durand</Author>
+<ScheduleFromStart>1</ScheduleFromStart>
+<WeekStartDay>1</WeekStartDay>
+<CurrencySymbol>€</CurrencySymbol>
+<CurrencyCode>EUR</CurrencyCode>
+<CurrencyDigits>2</CurrencyDigits>
+<DefaultTaskType>0</DefaultTaskType>
+<NewTasksAreManual>1</NewTasksAreManual>
+<DurationFormat>7</DurationFormat>
+<WorkFormat>2</WorkFormat>
+<FiscalYearStart>0</FiscalYearStart>
+<DefaultTaskEVMethod>0</DefaultTaskEVMethod>
+<StartDate>2026-06-01T08:00:00</StartDate>
+<FinishDate>2027-09-10T17:00:00</FinishDate>
+<CalendarUID>1</CalendarUID>
+<DefaultStartTime>08:00:00</DefaultStartTime>
+<DefaultFinishTime>17:00:00</DefaultFinishTime>
+<MinutesPerDay>480</MinutesPerDay>
+<MinutesPerWeek>2400</MinutesPerWeek>
+<DaysPerMonth>20</DaysPerMonth>
+<Calendars>
+<Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar>
+<WeekDays><WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay><WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay><WeekDay><DayType>3</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay><WeekDay><DayType>4</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay><WeekDay><DayType>5</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay><WeekDay><DayType>6</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime><WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay><WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay></WeekDays></Calendar>
+</Calendars>
+<Tasks>
+  <Task>
+    <UID>1</UID><ID>1</ID>
+    <Name>Belmet · ERP 2026</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>1</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2027-09-10T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2027-09-10T17:00:00</ManualFinish>
+    <Duration>PT3728H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>2</UID><ID>2</ID>
+    <Name>PHASE 0 · Réalisé</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>2</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>3</UID><ID>3</ID>
+    <Name>Recette en bac à sable (avant migration) · Léo Charrier</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>4</UID><ID>4</ID>
+    <Name>Migration V6R1 → V7R5 en production · Lionel · 22/11/2025</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>5</UID><ID>5</ID>
+    <Name>Travaux post-migration · jusqu'à déc. 2025</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>6</UID><ID>6</ID>
+    <Name>Cahier des charges v1 · reçu</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>7</UID><ID>7</ID>
+    <Name>MVP de la solution cible · N. Durand · validé par le DSI</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-06-01T08:00:00</Start><Finish>2026-06-28T17:00:00</Finish>
+    <ManualStart>2026-06-01T08:00:00</ManualStart><ManualFinish>2026-06-28T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>100</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>8</UID><ID>8</ID>
+    <Name>PHASE 1 · Cadrage &amp; conception</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>2</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2026-07-01T08:00:00</Start><Finish>2026-11-25T17:00:00</Finish>
+    <ManualStart>2026-07-01T08:00:00</ManualStart><ManualFinish>2026-11-25T17:00:00</ManualFinish>
+    <Duration>PT1176H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>9</UID><ID>9</ID>
+    <Name>Cahier des charges définitif</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-07-01T08:00:00</Start><Finish>2026-08-13T17:00:00</Finish>
+    <ManualStart>2026-07-01T08:00:00</ManualStart><ManualFinish>2026-08-13T17:00:00</ManualFinish>
+    <Duration>PT344H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>10</UID><ID>10</ID>
+    <Name>Structuration de l'équipe de développement · N. Durand</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-07-01T08:00:00</Start><Finish>2026-08-20T17:00:00</Finish>
+    <ManualStart>2026-07-01T08:00:00</ManualStart><ManualFinish>2026-08-20T17:00:00</ManualFinish>
+    <Duration>PT400H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>11</UID><ID>11</ID>
+    <Name>Diagramme de flux informatiques / métiers</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-07-17T08:00:00</Start><Finish>2026-09-07T17:00:00</Finish>
+    <ManualStart>2026-07-17T08:00:00</ManualStart><ManualFinish>2026-09-07T17:00:00</ManualFinish>
+    <Duration>PT416H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>12</UID><ID>12</ID>
+    <Name>Mise en place des espaces de travail de l’équipe · Thomas Pruvost</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-07-17T08:00:00</Start><Finish>2026-09-13T17:00:00</Finish>
+    <ManualStart>2026-07-17T08:00:00</ManualStart><ManualFinish>2026-09-13T17:00:00</ManualFinish>
+    <Duration>PT464H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>13</UID><ID>13</ID>
+    <Name>CC définitif (bloquant)</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2026-08-13T08:00:00</Start><Finish>2026-08-13T17:00:00</Finish>
+    <ManualStart>2026-08-13T08:00:00</ManualStart><ManualFinish>2026-08-13T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>14</UID><ID>14</ID>
+    <Name>Description globale des process</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-08-26T08:00:00</Start><Finish>2026-10-20T17:00:00</Finish>
+    <ManualStart>2026-08-26T08:00:00</ManualStart><ManualFinish>2026-10-20T17:00:00</ManualFinish>
+    <Duration>PT440H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>15</UID><ID>15</ID>
+    <Name>Construction du modèle de données</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-10-07T08:00:00</Start><Finish>2026-11-25T17:00:00</Finish>
+    <ManualStart>2026-10-07T08:00:00</ManualStart><ManualFinish>2026-11-25T17:00:00</ManualFinish>
+    <Duration>PT392H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>16</UID><ID>16</ID>
+    <Name>PHASE 2 · Maquette &amp; validation client</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>2</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2026-10-26T08:00:00</Start><Finish>2027-01-17T17:00:00</Finish>
+    <ManualStart>2026-10-26T08:00:00</ManualStart><ManualFinish>2027-01-17T17:00:00</ManualFinish>
+    <Duration>PT664H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>17</UID><ID>17</ID>
+    <Name>Back · API domaines prioritaires (référentiels, achat, vente)</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-10-26T08:00:00</Start><Finish>2026-12-13T17:00:00</Finish>
+    <ManualStart>2026-10-26T08:00:00</ManualStart><ManualFinish>2026-12-13T17:00:00</ManualFinish>
+    <Duration>PT384H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>18</UID><ID>18</ID>
+    <Name>Front · petites maquettes par domaine</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-11-07T08:00:00</Start><Finish>2026-12-29T17:00:00</Finish>
+    <ManualStart>2026-11-07T08:00:00</ManualStart><ManualFinish>2026-12-29T17:00:00</ManualFinish>
+    <Duration>PT416H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>19</UID><ID>19</ID>
+    <Name>Maquettes · fin décembre</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2026-12-29T08:00:00</Start><Finish>2026-12-29T17:00:00</Finish>
+    <ManualStart>2026-12-29T08:00:00</ManualStart><ManualFinish>2026-12-29T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>20</UID><ID>20</ID>
+    <Name>Validation client des maquettes · alignement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2026-12-29T08:00:00</Start><Finish>2027-01-17T17:00:00</Finish>
+    <ManualStart>2026-12-29T08:00:00</ManualStart><ManualFinish>2027-01-17T17:00:00</ManualFinish>
+    <Duration>PT152H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>21</UID><ID>21</ID>
+    <Name>Validation client · janvier</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2027-01-13T08:00:00</Start><Finish>2027-01-13T17:00:00</Finish>
+    <ManualStart>2027-01-13T08:00:00</ManualStart><ManualFinish>2027-01-13T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>22</UID><ID>22</ID>
+    <Name>PHASE 3 · Développement &amp; recette (par lots)</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>2</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2027-01-17T08:00:00</Start><Finish>2027-07-13T17:00:00</Finish>
+    <ManualStart>2027-01-17T08:00:00</ManualStart><ManualFinish>2027-07-13T17:00:00</ManualFinish>
+    <Duration>PT1416H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>23</UID><ID>23</ID>
+    <Name>Lot 1 · Socle &amp; référentiels · développement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-01-17T08:00:00</Start><Finish>2027-03-17T17:00:00</Finish>
+    <ManualStart>2027-01-17T08:00:00</ManualStart><ManualFinish>2027-03-17T17:00:00</ManualFinish>
+    <Duration>PT472H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>24</UID><ID>24</ID>
+    <Name>Lot 1 · Socle · recette + correctifs</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-03-17T08:00:00</Start><Finish>2027-04-13T17:00:00</Finish>
+    <ManualStart>2027-03-17T08:00:00</ManualStart><ManualFinish>2027-04-13T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>25</UID><ID>25</ID>
+    <Name>Lot 2 · Achats &amp; stock · développement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-03-20T08:00:00</Start><Finish>2027-05-20T17:00:00</Finish>
+    <ManualStart>2027-03-20T08:00:00</ManualStart><ManualFinish>2027-05-20T17:00:00</ManualFinish>
+    <Duration>PT488H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>26</UID><ID>26</ID>
+    <Name>Lot 3 · Vente &amp; commerce · développement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-03-20T08:00:00</Start><Finish>2027-05-20T17:00:00</Finish>
+    <ManualStart>2027-03-20T08:00:00</ManualStart><ManualFinish>2027-05-20T17:00:00</ManualFinish>
+    <Duration>PT488H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>27</UID><ID>27</ID>
+    <Name>Lot 4 · Qualité · développement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-05-17T08:00:00</Start><Finish>2027-06-19T17:00:00</Finish>
+    <ManualStart>2027-05-17T08:00:00</ManualStart><ManualFinish>2027-06-19T17:00:00</ManualFinish>
+    <Duration>PT264H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>28</UID><ID>28</ID>
+    <Name>Lot 5 · Interfaces · développement</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-05-17T08:00:00</Start><Finish>2027-06-19T17:00:00</Finish>
+    <ManualStart>2027-05-17T08:00:00</ManualStart><ManualFinish>2027-06-19T17:00:00</ManualFinish>
+    <Duration>PT264H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>29</UID><ID>29</ID>
+    <Name>Lot 2 · Achats &amp; stock · recette + correctifs</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-05-20T08:00:00</Start><Finish>2027-06-16T17:00:00</Finish>
+    <ManualStart>2027-05-20T08:00:00</ManualStart><ManualFinish>2027-06-16T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>30</UID><ID>30</ID>
+    <Name>Lot 3 · Vente &amp; commerce · recette + correctifs</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-05-20T08:00:00</Start><Finish>2027-06-16T17:00:00</Finish>
+    <ManualStart>2027-05-20T08:00:00</ManualStart><ManualFinish>2027-06-16T17:00:00</ManualFinish>
+    <Duration>PT216H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>31</UID><ID>31</ID>
+    <Name>Lot 4 · Qualité · recette + correctifs</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-06-19T08:00:00</Start><Finish>2027-07-13T17:00:00</Finish>
+    <ManualStart>2027-06-19T08:00:00</ManualStart><ManualFinish>2027-07-13T17:00:00</ManualFinish>
+    <Duration>PT192H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>32</UID><ID>32</ID>
+    <Name>Lot 5 · Interfaces · recette + correctifs</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-06-19T08:00:00</Start><Finish>2027-07-13T17:00:00</Finish>
+    <ManualStart>2027-06-19T08:00:00</ManualStart><ManualFinish>2027-07-13T17:00:00</ManualFinish>
+    <Duration>PT192H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>33</UID><ID>33</ID>
+    <Name>PHASE 4 · Mise en service</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>2</OutlineLevel>
+    <Summary>1</Summary><Milestone>0</Milestone>
+    <Start>2027-05-17T08:00:00</Start><Finish>2027-09-10T17:00:00</Finish>
+    <ManualStart>2027-05-17T08:00:00</ManualStart><ManualFinish>2027-09-10T17:00:00</ManualFinish>
+    <Duration>PT928H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>34</UID><ID>34</ID>
+    <Name>Objectif direction · mi-mai 2027 (cible)</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2027-05-17T08:00:00</Start><Finish>2027-05-17T17:00:00</Finish>
+    <ManualStart>2027-05-17T08:00:00</ManualStart><ManualFinish>2027-05-17T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>35</UID><ID>35</ID>
+    <Name>Reprise des données métier · équipe + client</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-06-01T08:00:00</Start><Finish>2027-07-07T17:00:00</Finish>
+    <ManualStart>2027-06-01T08:00:00</ManualStart><ManualFinish>2027-07-07T17:00:00</ManualFinish>
+    <Duration>PT288H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>36</UID><ID>36</ID>
+    <Name>Formation &amp; conduite du changement · métiers</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-06-25T08:00:00</Start><Finish>2027-07-29T17:00:00</Finish>
+    <ManualStart>2027-06-25T08:00:00</ManualStart><ManualFinish>2027-07-29T17:00:00</ManualFinish>
+    <Duration>PT272H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>37</UID><ID>37</ID>
+    <Name>Test de charge · 100 utilisateurs, 5h-20h, page &lt; 2 s</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-07-07T08:00:00</Start><Finish>2027-08-10T17:00:00</Finish>
+    <ManualStart>2027-07-07T08:00:00</ManualStart><ManualFinish>2027-08-10T17:00:00</ManualFinish>
+    <Duration>PT272H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>38</UID><ID>38</ID>
+    <Name>Correctifs &amp; stabilisation avant bascule</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-07-13T08:00:00</Start><Finish>2027-08-13T17:00:00</Finish>
+    <ManualStart>2027-07-13T08:00:00</ManualStart><ManualFinish>2027-08-13T17:00:00</ManualFinish>
+    <Duration>PT248H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>39</UID><ID>39</ID>
+    <Name>Tests de sécurité · SSO AD/Entra, RBAC, RGPD, journalisation</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-07-23T08:00:00</Start><Finish>2027-08-13T17:00:00</Finish>
+    <ManualStart>2027-07-23T08:00:00</ManualStart><ManualFinish>2027-08-13T17:00:00</ManualFinish>
+    <Duration>PT168H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>40</UID><ID>40</ID>
+    <Name>Charge &amp; sécurité validées (bloquant)</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2027-08-13T08:00:00</Start><Finish>2027-08-13T17:00:00</Finish>
+    <ManualStart>2027-08-13T08:00:00</ManualStart><ManualFinish>2027-08-13T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>41</UID><ID>41</ID>
+    <Name>Mise en production (go-live) · équipe + client</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>0</Milestone>
+    <Start>2027-08-20T08:00:00</Start><Finish>2027-09-10T17:00:00</Finish>
+    <ManualStart>2027-08-20T08:00:00</ManualStart><ManualFinish>2027-09-10T17:00:00</ManualFinish>
+    <Duration>PT168H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+  <Task>
+    <UID>42</UID><ID>42</ID>
+    <Name>Mise en service · été 2027</Name>
+    <Active>1</Active><Manual>1</Manual>
+    <Type>0</Type>
+    <OutlineLevel>3</OutlineLevel>
+    <Summary>0</Summary><Milestone>1</Milestone>
+    <Start>2027-09-01T08:00:00</Start><Finish>2027-09-01T17:00:00</Finish>
+    <ManualStart>2027-09-01T08:00:00</ManualStart><ManualFinish>2027-09-01T17:00:00</ManualFinish>
+    <Duration>PT0H0M0S</Duration><DurationFormat>7</DurationFormat>
+    <PercentComplete>0</PercentComplete>
+  </Task>
+
+</Tasks>
+<Resources>
+  <Resource><UID>0</UID><ID>0</ID><Name>Non affecté</Name><Type>1</Type></Resource>
+  <Resource><UID>1</UID><ID>1</ID><Name>Nicolas Durand</Name><Type>1</Type><Group>Chef de projet MOE</Group></Resource>
+  <Resource><UID>2</UID><ID>2</ID><Name>Lionel Kieffer</Name><Type>1</Type><Group>Lead développement IBM i</Group></Resource>
+  <Resource><UID>3</UID><ID>3</ID><Name>Léo Charrier</Name><Type>1</Type><Group>Développeur</Group></Resource>
+  <Resource><UID>4</UID><ID>4</ID><Name>Équipe développement</Name><Type>1</Type><Group>Léo Charrier · Léo Gualano · Adrien Quillère (lead : Lionel Kieffer)</Group></Resource>
+  <Resource><UID>5</UID><ID>5</ID><Name>Frédéric Dantz</Name><Type>1</Type><Group>Analyse fonctionnelle</Group></Resource>
+  <Resource><UID>6</UID><ID>6</ID><Name>Thomas Pruvost</Name><Type>1</Type><Group>Infrastructure / AIME</Group></Resource>
+  <Resource><UID>7</UID><ID>7</ID><Name>Équipe métiers</Name><Type>1</Type><Group>Métiers / recette</Group></Resource>
+  <Resource><UID>8</UID><ID>8</ID><Name>Client</Name><Type>1</Type><Group>Validation / recette</Group></Resource>
+</Resources>
+<Assignments>
+  <Assignment><UID>1</UID><TaskUID>3</TaskUID><ResourceUID>3</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>2</UID><TaskUID>4</TaskUID><ResourceUID>2</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>3</UID><TaskUID>5</TaskUID><ResourceUID>2</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>4</UID><TaskUID>6</TaskUID><ResourceUID>8</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>5</UID><TaskUID>7</TaskUID><ResourceUID>1</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>6</UID><TaskUID>9</TaskUID><ResourceUID>8</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>7</UID><TaskUID>9</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>8</UID><TaskUID>10</TaskUID><ResourceUID>1</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>9</UID><TaskUID>11</TaskUID><ResourceUID>5</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>10</UID><TaskUID>11</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>11</UID><TaskUID>12</TaskUID><ResourceUID>6</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>12</UID><TaskUID>14</TaskUID><ResourceUID>5</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>13</UID><TaskUID>14</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>14</UID><TaskUID>15</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>15</UID><TaskUID>17</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>16</UID><TaskUID>18</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>17</UID><TaskUID>20</TaskUID><ResourceUID>8</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>18</UID><TaskUID>23</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>19</UID><TaskUID>24</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>20</UID><TaskUID>24</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>21</UID><TaskUID>25</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>22</UID><TaskUID>26</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>23</UID><TaskUID>27</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>24</UID><TaskUID>28</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>25</UID><TaskUID>29</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>26</UID><TaskUID>29</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>27</UID><TaskUID>30</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>28</UID><TaskUID>30</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>29</UID><TaskUID>31</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>30</UID><TaskUID>31</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>31</UID><TaskUID>32</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>32</UID><TaskUID>32</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>33</UID><TaskUID>35</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>34</UID><TaskUID>35</TaskUID><ResourceUID>8</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>35</UID><TaskUID>36</TaskUID><ResourceUID>7</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>36</UID><TaskUID>37</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>37</UID><TaskUID>38</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>38</UID><TaskUID>39</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>39</UID><TaskUID>41</TaskUID><ResourceUID>4</ResourceUID><Units>1.00</Units></Assignment>
+  <Assignment><UID>40</UID><TaskUID>41</TaskUID><ResourceUID>8</ResourceUID><Units>1.00</Units></Assignment>
+</Assignments>
+</Project>

@@ -17,7 +17,7 @@ const AI_BASE_URL = (process.env.AI_BASE_URL || "").replace(/\/$/, ""); // ex. h
 function modelFor(name) {
   switch (name) {
     case "Qwen": return "qwen-plus";
-    case "Anthropic": return "claude-sonnet-5";
+    case "Anthropic": return "claude-sonnet-4-6";
     case "Mistral": return "mistral-small-latest";
     case "Groq": return "llama-3.3-70b-versatile";
     default: return "gpt-4o-mini";
@@ -26,8 +26,8 @@ function modelFor(name) {
 // Liste ordonnée des fournisseurs disponibles : Qwen → Anthropic → Mistral → Groq → générique.
 function providers() {
   const list = [];
-  if (ANTHROPIC_KEY) list.push({ name: "Anthropic", kind: "anthropic" });   // Claude EN PRIORITÉ (Natacha au niveau max, réponses « comme Claude »)
   if (QWEN_KEY) list.push({ name: "Qwen", kind: "openai", base: QWEN_BASE, key: QWEN_KEY });
+  if (ANTHROPIC_KEY) list.push({ name: "Anthropic", kind: "anthropic" });
   if (MISTRAL_KEY) list.push({ name: "Mistral", kind: "openai", base: "https://api.mistral.ai/v1", key: MISTRAL_KEY });
   if (GROQ_KEY) list.push({ name: "Groq", kind: "openai", base: "https://api.groq.com/openai/v1", key: GROQ_KEY });
   if (AI_API_KEY && AI_BASE_URL) list.push({ name: "Custom", kind: "openai", base: AI_BASE_URL, key: AI_API_KEY });

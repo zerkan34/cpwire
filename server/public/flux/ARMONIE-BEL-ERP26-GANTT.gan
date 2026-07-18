@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="Belmet · ERP 2026" company="Armonie Group" webLink="" view-date="2026-06-01" view-index="0" gantt-divider-location="360" resource-divider-location="360" version="3.3" locale="fr_FR">
+    <description>GANTT projet Belmet ERP 2026 · NOTOS / PHL Soft · aligné sur le GANTT interactif</description>
+    <view zooming-state="default:2" id="gantt-chart">
+        <field id="tpd3" name="Nom" width="300" order="0"/><field id="tpd4" name="Date de début" width="85" order="1"/><field id="tpd5" name="Date de fin" width="85" order="2"/>
+    </view>
+    <view id="resource-table"><field id="0" name="Nom" width="200" order="0"/><field id="1" name="Rôle / composition" width="260" order="1"/></view>
+    <calendars><day-types><day-type id="0"/><day-type id="1"/><default-week id="1" name="default" sun="0" mon="0" tue="0" wed="0" thu="0" fri="0" sat="0"/><only-show-weekends value="false"/><overriden-day-types/><days/></day-types></calendars>
+    <tasks empty-milestones="true">
+        <taskproperties>
+            <taskproperty id="tpd0" name="type" type="default" valuetype="icon"/>
+            <taskproperty id="tpd1" name="priority" type="default" valuetype="icon"/>
+            <taskproperty id="tpd2" name="info" type="default" valuetype="icon"/>
+            <taskproperty id="tpd3" name="name" type="default" valuetype="text"/>
+            <taskproperty id="tpd4" name="begindate" type="default" valuetype="date"/>
+            <taskproperty id="tpd5" name="enddate" type="default" valuetype="date"/>
+            <taskproperty id="tpd6" name="duration" type="default" valuetype="int"/>
+            <taskproperty id="tpd7" name="completion" type="default" valuetype="int"/>
+            <taskproperty id="tpd8" name="coordinator" type="default" valuetype="text"/>
+            <taskproperty id="tpd9" name="predecessorsr" type="default" valuetype="text"/>
+        </taskproperties>
+            <task id="0" name="PHASE 0 · Réalisé" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true">
+                <task id="1" name="Recette en bac à sable (avant migration) · Léo Charrier" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true"/>
+                <task id="2" name="Migration V6R1 → V7R5 en production · Lionel · 22/11/2025" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true"/>
+                <task id="3" name="Travaux post-migration · jusqu'à déc. 2025" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true"/>
+                <task id="4" name="Cahier des charges v1 · reçu" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true"/>
+                <task id="5" name="MVP de la solution cible · N. Durand · validé par le DSI" color="#1d1d1b" meeting="false" start="2026-06-01" duration="27" complete="100" expand="true"/>
+            </task>
+            <task id="6" name="PHASE 1 · Cadrage &amp; conception" color="#3b2e8c" meeting="false" start="2026-07-01" duration="147" complete="0" expand="true">
+                <task id="7" name="Cahier des charges définitif" color="#c9c4e0" meeting="false" start="2026-07-01" duration="43" complete="0" expand="true"/>
+                <task id="8" name="Structuration de l'équipe de développement · N. Durand" color="#c9c4e0" meeting="false" start="2026-07-01" duration="50" complete="0" expand="true"/>
+                <task id="9" name="Diagramme de flux informatiques / métiers" color="#c9c4e0" meeting="false" start="2026-07-17" duration="52" complete="0" expand="true"/>
+                <task id="10" name="Mise en place des espaces de travail de l’équipe · Thomas Pruvost" color="#c9c4e0" meeting="false" start="2026-07-17" duration="58" complete="0" expand="true"/>
+                <task id="11" name="CC définitif (bloquant)" color="#e91e63" meeting="true" start="2026-08-13" duration="0" complete="0" expand="true"/>
+                <task id="12" name="Description globale des process" color="#c9c4e0" meeting="false" start="2026-08-26" duration="55" complete="0" expand="true"/>
+                <task id="13" name="Construction du modèle de données" color="#c9c4e0" meeting="false" start="2026-10-07" duration="49" complete="0" expand="true"/>
+            </task>
+            <task id="14" name="PHASE 2 · Maquette &amp; validation client" color="#f2c316" meeting="false" start="2026-10-26" duration="83" complete="0" expand="true">
+                <task id="15" name="Back · API domaines prioritaires (référentiels, achat, vente)" color="#c4c0dc" meeting="false" start="2026-10-26" duration="48" complete="0" expand="true"/>
+                <task id="16" name="Front · petites maquettes par domaine" color="#f2c316" meeting="false" start="2026-11-07" duration="52" complete="0" expand="true"/>
+                <task id="17" name="Maquettes · fin décembre" color="#3b2e8c" meeting="true" start="2026-12-29" duration="0" complete="0" expand="true"/>
+                <task id="18" name="Validation client des maquettes · alignement" color="#c9c4e0" meeting="false" start="2026-12-29" duration="19" complete="0" expand="true"/>
+                <task id="19" name="Validation client · janvier" color="#e91e63" meeting="true" start="2027-01-13" duration="0" complete="0" expand="true"/>
+            </task>
+            <task id="20" name="PHASE 3 · Développement &amp; recette (par lots)" color="#c4c0dc" meeting="false" start="2027-01-17" duration="177" complete="0" expand="true">
+                <task id="21" name="Lot 1 · Socle &amp; référentiels · développement" color="#c4c0dc" meeting="false" start="2027-01-17" duration="59" complete="0" expand="true"/>
+                <task id="22" name="Lot 1 · Socle · recette + correctifs" color="#3b2e8c" meeting="false" start="2027-03-17" duration="27" complete="0" expand="true"/>
+                <task id="23" name="Lot 2 · Achats &amp; stock · développement" color="#c4c0dc" meeting="false" start="2027-03-20" duration="61" complete="0" expand="true"/>
+                <task id="24" name="Lot 3 · Vente &amp; commerce · développement" color="#c4c0dc" meeting="false" start="2027-03-20" duration="61" complete="0" expand="true"/>
+                <task id="25" name="Lot 4 · Qualité · développement" color="#c4c0dc" meeting="false" start="2027-05-17" duration="33" complete="0" expand="true"/>
+                <task id="26" name="Lot 5 · Interfaces · développement" color="#c4c0dc" meeting="false" start="2027-05-17" duration="33" complete="0" expand="true"/>
+                <task id="27" name="Lot 2 · Achats &amp; stock · recette + correctifs" color="#3b2e8c" meeting="false" start="2027-05-20" duration="27" complete="0" expand="true"/>
+                <task id="28" name="Lot 3 · Vente &amp; commerce · recette + correctifs" color="#3b2e8c" meeting="false" start="2027-05-20" duration="27" complete="0" expand="true"/>
+                <task id="29" name="Lot 4 · Qualité · recette + correctifs" color="#3b2e8c" meeting="false" start="2027-06-19" duration="24" complete="0" expand="true"/>
+                <task id="30" name="Lot 5 · Interfaces · recette + correctifs" color="#3b2e8c" meeting="false" start="2027-06-19" duration="24" complete="0" expand="true"/>
+            </task>
+            <task id="31" name="PHASE 4 · Mise en service" color="#2f7d4f" meeting="false" start="2027-05-17" duration="116" complete="0" expand="true">
+                <task id="32" name="Objectif direction · mi-mai 2027 (cible)" color="#e91e63" meeting="true" start="2027-05-17" duration="0" complete="0" expand="true"/>
+                <task id="33" name="Reprise des données métier · équipe + client" color="#c9c4e0" meeting="false" start="2027-06-01" duration="36" complete="0" expand="true"/>
+                <task id="34" name="Formation &amp; conduite du changement · métiers" color="#c9c4e0" meeting="false" start="2027-06-25" duration="34" complete="0" expand="true"/>
+                <task id="35" name="Test de charge · 100 utilisateurs, 5h-20h, page &lt; 2 s" color="#c9c4e0" meeting="false" start="2027-07-07" duration="34" complete="0" expand="true"/>
+                <task id="36" name="Correctifs &amp; stabilisation avant bascule" color="#c9c4e0" meeting="false" start="2027-07-13" duration="31" complete="0" expand="true"/>
+                <task id="37" name="Tests de sécurité · SSO AD/Entra, RBAC, RGPD, journalisation" color="#c9c4e0" meeting="false" start="2027-07-23" duration="21" complete="0" expand="true"/>
+                <task id="38" name="Charge &amp; sécurité validées (bloquant)" color="#e91e63" meeting="true" start="2027-08-13" duration="0" complete="0" expand="true"/>
+                <task id="39" name="Mise en production (go-live) · équipe + client" color="#e91e63" meeting="false" start="2027-08-20" duration="21" complete="0" expand="true"/>
+                <task id="40" name="Mise en service · été 2027" color="#e91e63" meeting="true" start="2027-09-01" duration="0" complete="0" expand="true"/>
+            </task>
+    </tasks>
+    <resources>
+        <resource id="0" name="Nicolas Durand" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Chef de projet MOE"/></resource>
+        <resource id="1" name="Lionel Kieffer" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Lead développement IBM i"/></resource>
+        <resource id="2" name="Léo Charrier" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Développeur"/></resource>
+        <resource id="3" name="Équipe développement" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Léo Charrier · Léo Gualano · Adrien Quillère (lead : Lionel Kieffer)"/></resource>
+        <resource id="4" name="Frédéric Dantz" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Analyse fonctionnelle"/></resource>
+        <resource id="5" name="Thomas Pruvost" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Infrastructure / AIME"/></resource>
+        <resource id="6" name="Équipe métiers" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Métiers / recette"/></resource>
+        <resource id="7" name="Client" function="Default:0" contacts="" phone=""><rate name="rate1" value="0.0"/><custom-property definition-id="tpc0" value="Validation / recette"/></resource>
+    </resources>
+    <resource-custom-property-definitions><custom-property-definition id="tpc0" name="Rôle / composition" type="text" default-value=""/></resource-custom-property-definitions>
+    <allocations>
+        <allocation task-id="1" resource-id="2" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="2" resource-id="1" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="3" resource-id="1" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="4" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="5" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="7" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="7" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="8" resource-id="0" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="9" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="9" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="10" resource-id="5" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="12" resource-id="4" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="12" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="13" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="15" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="16" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="18" resource-id="7" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="21" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="22" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="22" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="23" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="24" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="25" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="26" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="27" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="27" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="28" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="28" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="29" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="29" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="30" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="30" resource-id="6" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="33" resource-id="6" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="33" resource-id="7" function="Default:0" responsible="false" load="100.0"/>
+        <allocation task-id="34" resource-id="6" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="35" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="36" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="37" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="39" resource-id="3" function="Default:0" responsible="true" load="100.0"/>
+        <allocation task-id="39" resource-id="7" function="Default:0" responsible="false" load="100.0"/>
+    </allocations>
+    <vacations/>
+    <roles roleset-name="Default"/>
+</project>

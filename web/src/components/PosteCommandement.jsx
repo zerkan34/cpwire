@@ -3,7 +3,6 @@ import { fetchQuotes, fetchPortfolioMonthly, fetchDeadlines } from "../api.js";
 import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
 import ActivityFeed from "./ActivityFeed.jsx";
-import NatachaIntro from "./NatachaIntro.jsx";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
 // Un seul écran, une seule mécanique : la PORTÉE (Tout / Client / Projet / TMA)
@@ -26,23 +25,10 @@ const DIR_LABEL = {
   right: "stable mais actif", left: "à l'arrêt", none: "tendance inconnue",
 };
 const dir4 = (x) => {
-  if (!x) return "none";
-  // 1) variation réelle si dispo (avancement +/-)
-  if (x.varDone != null) {
-    if (x.varDone > 0) return "up";
-    if (x.varDone < 0) return "down";
-    return (x.volume || 0) > 0 ? "right" : "left";
-  }
-  // 2) sinon, tendance « bourse » via la sparkline (dernier vs premier point)
-  const s = x.spark;
-  if (Array.isArray(s) && s.length >= 2) {
-    const a = Number(s[0]), b = Number(s[s.length - 1]);
-    if (b > a) return "up";
-    if (b < a) return "down";
-    return "right"; // stable
-  }
-  // 3) dernier recours : niveau de l'indice (>0 = stable actif, sinon à l'arrêt)
-  return (x.value || 0) > 0 ? "right" : "none";
+  if (!x || x.varDone == null) return "none";
+  if (x.varDone > 0) return "up";
+  if (x.varDone < 0) return "down";
+  return (x.volume || 0) > 0 ? "right" : "left";
 };
 // « depuis X » : temps écoulé dans le statut courant.
 const sinceTxt = (d) => {
@@ -63,7 +49,7 @@ function ring(cx, cy, rO, rI, a0, a1) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${rO} ${rO} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${xi1.toFixed(2)} ${yi1.toFixed(2)} A${rI} ${rI} 0 ${lg} 0 ${xi0.toFixed(2)} ${yi0.toFixed(2)} Z`;
 }
 
-export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo, greet }) {
+export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo }) {
   const [scope, setScope] = useState({ type: "all", value: null });
   const [pick, setPick] = useState("");          // "client" → dropdown ouvert
   const [q, setQ] = useState(null);
@@ -92,8 +78,6 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
     } catch { /* silencieux : le reste de la page vit sur facts */ }
   }, []);
   useEffect(() => { load(); const iv = setInterval(load, REFRESH_MS); return () => { clearInterval(iv); timers.current.forEach(clearTimeout); }; }, [load]);
-
-  // (Fond cockpit + warp au clic gérés globalement par <CockpitSky/> au niveau de l'app.)
 
   const byD = facts?.byDossier || {};
   const dossiers = useMemo(() => Object.keys(byD), [byD]);
@@ -231,12 +215,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
   let ang = -Math.PI / 2;
 
   return (
-    <div className="pc2 pc2--deck">
-      {/* Fond cockpit + warp au clic : gérés globalement par <CockpitSky/> (niveau app). */}
-
-      {/* Intro d'accueil : Natacha apparaît, dit le bonjour, fait un clin d'œil, puis disparaît */}
-      <NatachaIntro greet={greet} />
-
+    <div className="pc2">
       {/* barre de PORTÉE */}
       <div className="pc2-scope">
         <span className="pc2-scope-lbl">PORTÉE</span>
@@ -288,7 +267,28 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
           ) : <span className="pc2-tk-empty">Aucune cote sur cette portée.</span>}
         </div>
       </div>
-      {/* Légende « Lecture » et cartes KPI retirées à la demande — accueil épuré */}
+      <div className="pc2-tk-legend">
+        <span className="lg">Lecture :</span>
+        <span className="lg d-up"><span className="tri" /><b>hausse</b> (avancement)</span>
+        <span className="lg d-down"><span className="tri" /><b>baisse</b> (régression)</span>
+        <span className="lg d-right"><span className="tri" /><b>stable</b> mais actif</span>
+        <span className="lg d-left"><span className="tri" /><b>à l'arrêt</b></span>
+      </div>
+
+      <div className="pc2-kpis">
+        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
+          <b>{agg.pct}%</b><span>Indice — {single ? scope.value : "portefeuille"}</span>
+          {idxVar != null && <em className={idxVar >= 0 ? "up" : "down"}>{idxVar >= 0 ? "▲" : "▼"} {sign(idxVar)}</em>}
+        </button>
+        <button className="pc2-kpi" onClick={() => goTo && goTo("signaux", "")}>
+          <b>{agg.enRetard}</b><span>En retard (SLA à surveiller)</span>
+          <em className={agg.enRetard ? "down" : "up"}>{agg.enRetard ? "à traiter" : "sain"}</em>
+        </button>
+        <button className="pc2-kpi" onClick={() => goTo && goTo("explorateur", "")}>
+          <b>{agg.afaire}</b><span>À faire / en attente</span>
+          <em className="flat">{agg.retours} retour{agg.retours > 1 ? "s" : ""}</em>
+        </button>
+      </div>
 
       <div className="pc2-grid">
         {/* colonne gauche : camembert + barres */}
@@ -427,7 +427,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
                   )}
                 </li>
               ))}
-              {!whoWhat.length && <li className="pc2-leg-empty">Personne n'est actif sur cette portée.</li>}
+              {!whoWhat.length && <li className="pc2-leg-empty">Personne d'actif sur cette portée.</li>}
             </ul>
           </div>
         </div>
