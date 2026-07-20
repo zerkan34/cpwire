@@ -476,7 +476,7 @@ app.get("/api/activite", guard, async (_req, res) => {
           dossier: iss.dossier || "Autre", resume: iss.resume || "", statut: iss.statut || "",
           from: t.from || "", to: t.to || "", fromCat, toCat, regression: isReg(fromCat, toCat),
           who: (t.who && t.who !== "—") ? t.who : "", dev: devOf(iss),
-          at: t.date || null,
+          at: t.date || null, cree: iss.cree || null,
         });
       }
     }

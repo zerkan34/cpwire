@@ -513,10 +513,11 @@ export default function DeveloperModal({ devName, allIssues = [], onClose, onTic
                   ))}
                 </div>
               </div>
-              <p className="period-sum"><b>{periodLabel}</b> : <b>{per.touched}</b> ticket(s) travaillé(s) · <b>{per.done}</b> terminé(s) · sur <b>{per.projets.length}</b> projet(s)</p>
+              <p className="period-sum"><b>{periodLabel}</b> — <b>{per.done}</b> terminé(s) · <b>{per.touched}</b> avec activité · sur <b>{per.projets.length}</b> projet(s)</p>
+              <p className="hint" style={{ marginTop: -4 }}>« Avec activité » = tickets dont la dernière mise à jour Jira tombe dans la période — cela peut inclure des changements faits par d'autres sur des tickets où il est contributeur, donc ce volume dépasse ce qu'il a personnellement terminé. « Terminé » = résolu dans la période. Le <b>rendement</b> plus haut compte les résolutions : c'est normal qu'il soit inférieur au volume d'activité.</p>
               {per.projets.length > 0 ? (
                 <table className="cpw-tbl proj-tbl">
-                  <thead><tr><th>Projet</th><th>Tickets travaillés</th><th>Terminés</th></tr></thead>
+                  <thead><tr><th>Projet</th><th>Avec activité</th><th>Terminés</th></tr></thead>
                   <tbody>
                     {per.projets.map((p) => (
                       <tr key={p.dossier}><td><span className="tag">{p.dossier}</span></td><td><b>{p.touched}</b></td><td>{p.done || "—"}</td></tr>

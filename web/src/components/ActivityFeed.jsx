@@ -25,6 +25,23 @@ function coarse(s) {
   return "none";
 }
 
+// Durée de traitement (création → résolution), formatée court. null si incohérent.
+function durTxt(a, b) {
+  if (!a || !b) return null;
+  const ms = new Date(b).getTime() - new Date(a).getTime();
+  if (isNaN(ms) || ms < 0) return null;
+  const min = Math.round(ms / 60000);
+  if (min < 60) return `${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `${h} h`;
+  const j = Math.round(h / 24);
+  if (j < 30) return `${j} j`;
+  const mo = Math.round(j / 30);
+  if (mo < 12) return `${mo} mois`;
+  return `${(j / 365).toFixed(1)} an(s)`;
+}
+function frDate(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
+
 // Mini-courbe (sparkline) SVG pour le pouls d'un client.
 function Sparkline({ data = [], w = 108, h = 24 }) {
   if (!data.length) return <span className="af-spark-empty">—</span>;
@@ -286,13 +303,14 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
                   const rid = `${e.cle}-${e.at}-${idx}`;
                   const iss = byKey[e.cle];
                   const on = openRows.has(rid);
+                  const lead = (e.kind === "transition" && coarse(e.to) === "done") ? durTxt(e.cree, e.at) : null;
                   return (
                   <li className={`af-ev af-ev-${e.kind} ${e.regression ? "af-ev-reg" : ""} ${isNew(e.at) ? "af-ev-new" : ""}${freshCls(e.cle, e.regression)}`} key={rid}>
                     <span className="af-h">{hhmm(e.at)}</span>
                     <Cli d={e.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(e.cle)} title="Ouvrir le ticket">{e.cle}</button>
                     <StatusChips from={e.from} to={e.to} statut={e.statut} kind={e.kind} regression={e.regression} />
-                    <span className="af-t" title={e.resume}>{e.resume || "—"}</span>
+                    <span className="af-t" title={e.resume}><span className="af-t-txt">{e.resume || "—"}</span>{lead ? <span className="af-lead" title={`Créé le ${frDate(e.cree)} → terminé aujourd'hui`}>réalisé en {lead}</span> : null}</span>
                     <span className="af-who">
                       {(e.who || e.dev)
                         ? <>{e.who ? <>par <b>{e.who}</b></> : null}{e.dev && e.dev !== e.who ? <span className="af-dev"> · dév. {e.dev}</span> : null}</>

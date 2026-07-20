@@ -4879,6 +4879,9 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
 .af-st-todo { color: var(--amber); background: var(--amber-bg); border-color: rgba(176,116,35,.28); }
 .af-new { background: var(--gold); color: #fff; font-size: 10px; font-weight: 800; padding: 2px 8px; border-radius: 6px; letter-spacing: .03em; }
 .af-t { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.af-lead { font-size: 11px; color: var(--green); font-weight: 700; background: rgba(31,138,95,.10); border: 1px solid rgba(31,138,95,.24); border-radius: 999px; padding: 1px 8px; white-space: nowrap; flex: none; }
+.af-ev > .af-t { display: flex; align-items: center; gap: 6px; overflow: hidden; }
+.af-t-txt { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .af-who { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .af-who b { color: var(--ink); font-weight: 700; }
 .af-who-none { color: var(--line); }
@@ -4897,6 +4900,8 @@ html.is-desktop body { background: rgba(244, 243, 248, 0.10) !important; }
   .af-cli { justify-self: start; }
   .af-move { grid-column: 2; }
   .af-t { grid-column: 2; white-space: normal; }
+  .af-ev > .af-t { flex-wrap: wrap; }
+  .af-t-txt { white-space: normal; }
   .af-who { grid-column: 2; }
 }
 @media (prefers-color-scheme: dark) {
