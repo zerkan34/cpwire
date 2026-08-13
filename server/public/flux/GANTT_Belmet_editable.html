@@ -270,9 +270,13 @@ button.danger:hover{border-color:var(--mag)}
 .task:hover .timeline{background:linear-gradient(90deg,rgba(245,242,252,.5),rgba(245,242,252,0) 60%)}
 .tab{transition:color .15s ease, border-color .15s ease}
 .meta span{transition:box-shadow .15s ease}
+.backbtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--filet,#E2DEF0);background:var(--lav,#F5F2FC);color:var(--violet,#3B2E8C);font-family:inherit;font-weight:600;font-size:13px;padding:7px 12px;border-radius:10px;cursor:pointer;margin-right:12px;white-space:nowrap;text-decoration:none}
+.backbtn:hover{background:var(--violet,#3B2E8C);color:#fff;border-color:var(--violet,#3B2E8C)}
+.retourbar{display:flex;align-items:center;gap:10px;padding:10px 0 14px}
 </style>
 </head>
 <body>
+<div class="retourbar"><button class="backbtn" type="button" title="Retour cp|WIRE" onclick="(window.top||window).location.href=(window.SHAREFLY_CPWIRE_BASE||window.CPWIRE_BASE||'/')">← cp|WIRE</button><a class="backbtn" href="./" title="Revenir à l'Atelier de flux">‹ Atelier de flux</a></div>
 <div class="gradbar"></div>
 <div class="page">
 <div class="mast">
