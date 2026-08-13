@@ -3,9 +3,11 @@
 // mouvement depuis longtemps, probablement obsolètes) sont EXCLUS, comme dans le voyant.
 
 import { computeBlockers } from "./blockers.js";
-import { cover, section, chapter, kpiBand, charterDoc } from "./charter.js";
+import { cover, section, chapter, kpiBand, charterDoc, C} from "./charter.js";
 
-const NAVY = "#2E2A5D", INDIGO = "#4B3F8F", GOLD = "#A8884E", INK = "#1F1B33";
+// Palette : source unique. Ces quatre constantes étaient figées sur l'ancienne charte,
+// et l'or y était même écrit #A8884E, une nuance de plus que nulle part ailleurs.
+const NAVY = C.navy, INDIGO = C.indigo, GOLD = C.gold, INK = C.ink;
 const MUTED = "#6E6A86", SOFT = "#F5F2FC", LINE = "#e7e5f1", RED = "#C0392B", AMBER = "#C2691A";
 const OBSOLETE_DAYS = 180;
 

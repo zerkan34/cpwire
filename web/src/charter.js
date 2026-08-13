@@ -2,7 +2,7 @@
 //  charter.js — CHARTE GRAPHIQUE UNIQUE pour TOUS les exports PDF de cp|WIRE.
 //  Alignée À L'IDENTIQUE sur le skill « armonie-design » (CR AUTOMSI) :
 //   polices Poppins/Inter EMBARQUÉES (woff2 base64, fidèles même en rendu serveur
-//   WeasyPrint sans réseau), palette exacte (navy/indigo/or #A88B4B/lavande/filet
+//   WeasyPrint sans réseau), palette exacte issue de shared/armonie-palette.js
 //   #E2DEF0), couverture à barre dégradée, kicker doré + titre navy, tableaux à
 //   coins arrondis en-tête navy + zébrage lavande + ligne Total, pied signataires.
 //  Tout export DOIT passer par charterDoc() pour rester identique partout.
@@ -102,7 +102,9 @@ export function charterCss() {
     background:#fff;background-image:${VERGE};color:${C.ink};
     margin:0;padding:16mm 12mm 16mm;page-break-after:always}
   .ch-cover::before{content:"";position:absolute;top:0;left:0;right:0;height:5mm;
-    background:linear-gradient(90deg,${C.navy},${C.indigo} 55%,${C.gold})}
+    /* Dégradé de couverture de la charte : NOIR puis VIOLET puis JAUNE.
+       (Avant : navy puis indigo puis or, sur l'ancienne charte périmée.) */
+    background:linear-gradient(90deg,${C.ink},${C.navy} 55%,${C.gold})}
   .ch-cover-top{display:flex;justify-content:space-between;align-items:flex-start}
   .ch-kicker{font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;color:${C.gold};font-weight:700;text-align:right;max-width:60mm}
   .ch-cover-mid{margin-top:42mm;text-align:center}
@@ -115,7 +117,7 @@ export function charterCss() {
   .ch-pill{display:inline-block;border:1px solid ${C.gold};color:${C.gold};font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;font-weight:700;padding:6px 13px;border-radius:20px}
   .ch-cover-cols{display:flex;gap:24px;margin:28px auto 0;align-items:stretch;justify-content:center;max-width:150mm;text-align:left}
   .ch-enbref{flex:1;background:${C.soft};border-left:3px solid ${C.gold};border-radius:0 8px 8px 0;padding:16px 20px}
-  .ch-enbref-l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:${C.indigo};font-weight:700}
+  .ch-enbref-l{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:${C.navy};font-weight:700}
   .ch-enbref p{margin:8px 0 0;font-size:12px;line-height:1.6;color:${C.ink}}
   .ch-callout{width:52mm;background:${C.navy};border-radius:10px;padding:16px 18px;display:flex;flex-direction:column;justify-content:center}
   .ch-callout b{font-size:46px;font-weight:800;line-height:.95;color:#fff}
@@ -138,11 +140,11 @@ export function charterCss() {
   .ch-kpi{display:flex;flex-wrap:wrap;gap:30px;padding:16px 4px 16px;border-top:2px solid ${C.gold};border-bottom:1px solid ${C.line};margin:0 0 16px}
   .ch-kpi-i{font-size:9.5px;color:${C.muted};text-transform:uppercase;letter-spacing:.08em;font-weight:600}
   .ch-kpi-i b{display:block;font-size:30px;font-weight:800;line-height:1;margin-bottom:4px;color:${C.navy}}
-  .ch-kpi-i.cri b{color:${C.red}} .ch-kpi-i.maj b{color:${C.amber}} .ch-kpi-i.idg b{color:${C.indigo}}
+  .ch-kpi-i.cri b{color:${C.red}} .ch-kpi-i.maj b{color:${C.amber}} .ch-kpi-i.idg b{color:${C.navy}}
 
   /* Légende */
   .ch-legend{background:${C.soft};border:1px solid ${C.line};border-radius:9px;padding:12px 16px;margin:0 0 18px}
-  .ch-legend .lt{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.indigo};font-weight:700;margin-bottom:7px}
+  .ch-legend .lt{font-size:9.5px;letter-spacing:.2em;text-transform:uppercase;color:${C.navy};font-weight:700;margin-bottom:7px}
   .ch-legend .row{display:flex;gap:9px;align-items:baseline;font-size:10.5px;color:${C.ink};margin:4px 0}
   .ch-legend .k{display:inline-block;min-width:64px;font-weight:800;font-size:8px;letter-spacing:.5px;color:#fff;padding:3px 7px;border-radius:5px;text-align:center}
   .ch-legend .k.c{background:${C.red}} .ch-legend .k.m{background:${C.amber}} .ch-legend .k.d{background:${C.indigo}}

@@ -11,14 +11,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ARMONIE_PALETTE as P } from "../shared/armonie-palette.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FONTS = path.join(HERE, "pdf", "fonts");
 
+// Palette : source unique (shared/armonie-palette.js). Elle était recopiée ici, et
+// portait donc encore l'ancienne charte navy/indigo/or après sa mise à jour.
 const C = {
-  navy: "#2E2A5D", indigo: "#4B3F8F", gold: "#A88B4B", goldLt: "#BFA168",
-  lav: "#F5F2FC", ink: "#1F1B33", grey: "#6E6A86", line: "#E2DEF0",
-  green: "#2F7D4F", orange: "#C2691A",
+  navy: P.navy, indigo: P.indigo, gold: P.gold, goldLt: P.gold2,
+  lav: P.soft, ink: P.ink, grey: P.muted, line: P.line,
+  green: P.green, orange: P.amber,
 };
 
 let _fontCss = null;
