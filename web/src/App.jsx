@@ -48,6 +48,7 @@ const Developers = lazy(() => import("./components/Developers.jsx"));
 const EnCours = lazy(() => import("./components/EnCours.jsx"));
 const Recap = lazy(() => import("./components/Recap.jsx"));
 const Meetings = lazy(() => import("./components/Meetings.jsx"));
+const Reunion = lazy(() => import("./components/Reunion.jsx"));
 const CRA = lazy(() => import("./components/CRA.jsx"));
 const MobileRecap = lazy(() => import("./components/MobileRecap.jsx"));
 const ShareFly = lazy(() => import("./components/ShareFly.jsx"));
@@ -116,6 +117,7 @@ const SUBTABS = {
     { id: "planning", label: "Planning" },
     { id: "cra", label: "CRA" },
     { id: "reunions", label: "Réunions" },
+    { id: "transcription", label: "Transcription" },
     { id: "reference", label: "Référence" },
     { id: "hygiene", label: "Qualité" },
   ],
@@ -133,7 +135,7 @@ const TAB_SHORT = { cockpit: "Pilotage", explorateur: "Explorateur", atelier: "A
 function subsForRole(groupId, role) {
   const subs = SUBTABS[groupId] || [];
   if (role === "owner") return subs;
-  const hidden = new Set(["memoire", "recap", "morning", "reunions", "cra"]);
+  const hidden = new Set(["memoire", "recap", "morning", "reunions", "transcription", "cra"]);
   return subs.filter((s) => !hidden.has(s.id));
 }
 
@@ -814,6 +816,7 @@ export default function App() {
         </>
       )}
       {tab === "atelier" && sub === "reunions" && <Meetings issues={issues} />}
+      {tab === "atelier" && sub === "transcription" && (<><PageHero k="Atelier" title="Transcription de réunion" sub="Capte le son de ton ordinateur pendant une réunion Teams, transcrit au fil de l'eau et produit le compte rendu." /><Reunion /></>)}
       {tab === "atelier" && sub === "cra" && (<><PageHero k="Atelier" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "atelier" && sub === "gantt" && (<><PageHero k="Atelier" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}
       {tab === "atelier" && sub === "planning" && (<><PageHero k="Atelier" title="Planning" sub="Importe un planning fourni : cp|WIRE l'analyse et le réaffiche à la charte." /><Planning /></>)}

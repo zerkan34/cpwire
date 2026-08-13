@@ -47,6 +47,7 @@ import { buildCharge } from "./charge.js";
 import { buildDossierCrHtml } from "./crArmonie.js";
 import { buildQuotes } from "./quotes.js";
 import { analyticsRouter } from "./routes/analytics.js";
+import { reunionRouter } from "./routes/reunion.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
@@ -1389,6 +1390,9 @@ if (fs.existsSync(WEB_DIST)) {
 // Route /api/* inconnue : JSON propre (et non la page HTML générique d'Express), pour que
 // le front (qui s'attend toujours à du JSON côté API) ne tombe jamais sur un échec de parsing
 // confus si un chemin est mal orthographié ou une route supprimée par erreur.
+// Module Réunion : transcription du son de l'ordinateur (Teams) et compte rendu.
+app.use(reunionRouter({ guard, aiLimiter }));
+
 app.use("/api", (req, res) => res.status(404).json({ error: `Route inconnue : ${req.method} ${req.originalUrl}` }));
 
 // Filet de sécurité global : toute erreur qui aurait échappé au try/catch d'une route
