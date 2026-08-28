@@ -1,4 +1,6 @@
 import React, { useMemo, useState } from "react";
+import { daysSince } from "../lib/commun.js";
+import { CAT_LABEL } from "../groups.js";
 import CopilotDot from "./CopilotDot.jsx";
 import { buildAnalyseDoc } from "../refDoc.js";
 import { printHtml, downloadHtml } from "../utils.js";
@@ -16,11 +18,6 @@ const RECETTE_CLI = new Set(["recetteClient", "attenteClient"]);
 const RECETTE_ALL = new Set(["recetteClient", "recetteArmonie", "attenteClient"]);
 const RETOUR = new Set(["retourTest", "retourProd"]);
 
-const CAT_LABEL = {
-  afaire: "À faire", encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
-  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "En attente client",
-  miseEnProd: "Mise en prod", termine: "Terminé", annule: "Annulé",
-};
 const CAT_ORDER = ["afaire", "encours", "retourTest", "retourProd", "recetteArmonie", "recetteClient", "attenteClient", "miseEnProd", "termine", "annule"];
 const CAT_COLOR = {
   afaire: "#8a86a6", encours: "#3a3658", retourTest: "#C0392B", retourProd: "#C0392B",
@@ -28,7 +25,6 @@ const CAT_COLOR = {
   miseEnProd: "#1f8a5f", termine: "#1f8a5f", annule: "#b8b5c9",
 };
 
-const daysSince = (iso) => { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : Math.floor((Date.now() - d.getTime()) / 86400000); };
 const moy = (arr) => (arr.length ? Math.round(arr.reduce((a, b) => a + b, 0) / arr.length) : 0);
 const monday = (iso) => { const x = new Date(iso); if (isNaN(x)) return null; const day = (x.getDay() + 6) % 7; x.setHours(0, 0, 0, 0); x.setDate(x.getDate() - day); return x; };
 const prioBucket = (p) => {

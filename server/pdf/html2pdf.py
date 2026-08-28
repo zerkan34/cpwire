@@ -5,12 +5,14 @@
 # téléchargeable, au lieu d'ouvrir la boîte d'impression du navigateur.
 import sys
 from weasyprint import HTML
+from safe_fetch import safe_url_fetcher
 
 def main():
     if len(sys.argv) < 2:
         sys.stderr.write("usage: html2pdf.py <out.pdf>\n"); sys.exit(2)
     html = sys.stdin.buffer.read().decode("utf-8", errors="replace")
-    HTML(string=html).write_pdf(sys.argv[1])
+    # url_fetcher : interdit file:// et les URL distantes (lecture de fichiers, SSRF).
+    HTML(string=html, url_fetcher=safe_url_fetcher).write_pdf(sys.argv[1])
 
 if __name__ == "__main__":
     main()

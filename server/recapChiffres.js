@@ -10,7 +10,10 @@
 import { buildDoc } from "./docgen.js";
 import { categoryFromStatus, CATEGORY_LABEL } from "./config.js";
 
-const esc = (s) =>
+// Échappement d'ATTRIBUT : contrairement à escHtml() du socle partagé, celui-ci
+// échappe aussi les guillemets, indispensable pour insérer une valeur dans un
+// attribut HTML. Ce n'est donc pas un doublon : il fait strictement plus.
+const escAttr = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
 const devOf = (iss) => {
@@ -38,9 +41,9 @@ const isOpen = (c) => c !== "termine" && c !== "miseEnProd" && c !== "annule";
 
 // Mention « qui a fait quoi » sur une ligne de ticket : basculé par X · dév. Y.
 const credit = (m) => {
-  if (m.dev && m.dev === m.who) return `réalisé et basculé par <span class="who">${esc(m.who)}</span>`;
-  const base = `basculé par <span class="who">${esc(m.who)}</span>`;
-  return m.dev ? `${base} · <span class="cr-meta">dév. ${esc(m.dev)}</span>` : base;
+  if (m.dev && m.dev === m.who) return `réalisé et basculé par <span class="who">${escAttr(m.who)}</span>`;
+  const base = `basculé par <span class="who">${escAttr(m.who)}</span>`;
+  return m.dev ? `${base} · <span class="cr-meta">dév. ${escAttr(m.dev)}</span>` : base;
 };
 
 export function buildRecapChiffres(issues, trItems = [], opts = {}) {
@@ -69,7 +72,7 @@ export function buildRecapChiffres(issues, trItems = [], opts = {}) {
   }
 
   if (!moved.length) {
-    const body = `<p class="cr-none">Aucun mouvement de ticket enregistré dans Jira pour le ${esc(dayFR)}.</p>`;
+    const body = `<p class="cr-none">Aucun mouvement de ticket enregistré dans Jira pour le ${escAttr(dayFR)}.</p>`;
     return buildDoc({
       kicker: "Récap du jour", title: "Récap du jour — mouvements",
       subtitle: `Activité Jira du ${dayFR}`, cartouche: [["Date", dayFR], ["Établi par", "Nicolas Durand"]],
@@ -92,14 +95,14 @@ export function buildRecapChiffres(issues, trItems = [], opts = {}) {
     if (a.recC) bits.push(`${a.recC} en recette client`);
     if (a.recA) bits.push(`${a.recA} en recette Armonie`);
     const detail = bits.length ? ` <span class="cr-meta">(${bits.join(", ")})</span>` : "";
-    return `<li><span class="who">${esc(a.who)}</span> — ${a.n} ticket${a.n > 1 ? "s" : ""} basculé${a.n > 1 ? "s" : ""}${detail}</li>`;
+    return `<li><span class="who">${escAttr(a.who)}</span> — ${a.n} ticket${a.n > 1 ? "s" : ""} basculé${a.n > 1 ? "s" : ""}${detail}</li>`;
   }).join("");
 
   // 2b) DÉVELOPPEURS CONCERNÉS (dev d'origine des tickets ayant bougé) — le travail réel.
   const perDev = {};
   for (const m of moved) { if (!m.dev) continue; (perDev[m.dev] ||= { dev: m.dev, n: 0 }).n++; }
   const devRows = Object.values(perDev).sort((x, y) => y.n - x.n).map((a) =>
-    `<li><span class="who">${esc(a.dev)}</span> — ${a.n} ticket${a.n > 1 ? "s" : ""} concerné${a.n > 1 ? "s" : ""} par un mouvement</li>`
+    `<li><span class="who">${escAttr(a.dev)}</span> — ${a.n} ticket${a.n > 1 ? "s" : ""} concerné${a.n > 1 ? "s" : ""} par un mouvement</li>`
   ).join("");
   const devBlock = devRows
     ? `<h2>Développeurs concernés</h2><p class="cr-scope">Auteur d'origine des tickets ayant bougé (le travail réalisé, indépendamment de qui a effectué la transition).</p><ul class="cr-list">${devRows}</ul>`
@@ -120,12 +123,12 @@ export function buildRecapChiffres(issues, trItems = [], opts = {}) {
       const arr = groups[cat];
       if (!arr || !arr.length) continue;
       const lis = arr.map((m) =>
-        `<li><span class="tk">${esc(m.cle)}</span> ${esc(m.resume)} — ${credit(m)}${m.flagged ? ' <span class="pill block">🚩</span>' : ""}</li>`
+        `<li><span class="tk">${escAttr(m.cle)}</span> ${escAttr(m.resume)} — ${credit(m)}${m.flagged ? ' <span class="pill block">🚩</span>' : ""}</li>`
       ).join("");
       inner += `<h3 class="cr-perim">${LAND_LABEL[cat]} (${arr.length})</h3><ul class="cr-list">${lis}</ul>`;
     }
     const reste = openByD[d] || 0;
-    return `<h2>${esc(d)} — ${movedCount} mouvement${movedCount > 1 ? "s" : ""}</h2>${inner}` +
+    return `<h2>${escAttr(d)} — ${movedCount} mouvement${movedCount > 1 ? "s" : ""}</h2>${inner}` +
       `<p class="cr-meta" style="margin-top:6px">Reste ouvert sur le dossier : ${reste} ticket${reste > 1 ? "s" : ""}.</p>`;
   }).join("");
 
@@ -133,12 +136,12 @@ export function buildRecapChiffres(issues, trItems = [], opts = {}) {
   const attention = moved.filter((m) => m.flagged || m.enRetard);
   const attHtml = attention.length
     ? `<ul class="cr-list">${attention.map((m) =>
-        `<li><span class="tk">${esc(m.cle)}</span> ${esc(m.resume)} — ${m.flagged ? "🚩 signalé" : ""}${m.flagged && m.enRetard ? " · " : ""}${m.enRetard ? "⏰ en retard" : ""} <span class="cr-meta">(${esc(m.dossier)}${m.dev ? " · dév. " + esc(m.dev) : ""})</span></li>`
+        `<li><span class="tk">${escAttr(m.cle)}</span> ${escAttr(m.resume)} — ${m.flagged ? "🚩 signalé" : ""}${m.flagged && m.enRetard ? " · " : ""}${m.enRetard ? "⏰ en retard" : ""} <span class="cr-meta">(${escAttr(m.dossier)}${m.dev ? " · dév. " + escAttr(m.dev) : ""})</span></li>`
       ).join("")}</ul>`
     : `<p class="cr-none">Aucun ticket signalé ou en retard parmi les mouvements du jour.</p>`;
 
   const nbTransf = Object.keys(perWho).length;
-  const summary = `<p class="cr-scope">${moved.length} ticket${moved.length > 1 ? "s ont" : " a"} bougé le ${esc(dayFR)}.${opts.capped ? " (volume élevé : liste plafonnée aux tickets les plus récents)" : ""}</p>`;
+  const summary = `<p class="cr-scope">${moved.length} ticket${moved.length > 1 ? "s ont" : " a"} bougé le ${escAttr(dayFR)}.${opts.capped ? " (volume élevé : liste plafonnée aux tickets les plus récents)" : ""}</p>`;
 
   const body =
     summary +
@@ -148,7 +151,7 @@ export function buildRecapChiffres(issues, trItems = [], opts = {}) {
     devBlock +
     `<div class="eyebrow">Mouvements par dossier</div>` + dossierBlocks +
     `<h2>Points d'attention</h2>${attHtml}` +
-    `<div class="indic" style="margin-top:20px"><span class="hint">Mouvements = transitions de statut Jira datées du ${esc(dayFR)}. Chaque ticket est compté une fois, là où il a atterri. « Basculé par » = qui a fait la transition ; « dév. » = développeur d'origine (assigné). Aucune interprétation.</span></div>`;
+    `<div class="indic" style="margin-top:20px"><span class="hint">Mouvements = transitions de statut Jira datées du ${escAttr(dayFR)}. Chaque ticket est compté une fois, là où il a atterri. « Basculé par » = qui a fait la transition ; « dév. » = développeur d'origine (assigné). Aucune interprétation.</span></div>`;
 
   return buildDoc({
     kicker: "Récap du jour",

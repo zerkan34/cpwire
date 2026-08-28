@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fetchSla } from "../api.js";
 import QuickActions from "./QuickActions.jsx";
+import { cle } from "../lib/commun.js";
 
 // Alerte SLA en direct — tickets ouverts qui DÉPASSENT ou APPROCHENT (> 80 %) la cible GTR.
 // Donnée RÉELLE : cibles GTR de server/sla.json croisées avec l'âge depuis création (calcul serveur
 // buildSlaReport). Zéro invention — « à risque » = seuil explicite de 80 % de la cible.
 
-const norm = (s) => String(s || "").trim();
 const nowHM = () => { const d = new Date(); const p = (n) => String(n).padStart(2, "0"); return `${p(d.getHours())}:${p(d.getMinutes())}`; };
 const fmtH = (h) => { if (h == null) return "—"; const x = Math.round(h); return x >= 48 ? `${Math.round(h / 24)} j` : `${x} h`; };
 const bkCls = (b) => ({ P1: "p1", P2: "p2", P3: "p3", P4: "p4" }[b] || "p3");
@@ -56,8 +56,8 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
   const gtiOver = gtiAll.filter((a) => a.state === "over");
   const global = payload?.global;
 
-  const clients = useMemo(() => [...new Set(alerts.map((a) => norm(a.dossier)).filter((d) => d && d !== "—"))].sort(), [alerts]);
-  const inClient = (d) => client === "Tous" || norm(d) === client;
+  const clients = useMemo(() => [...new Set(alerts.map((a) => cle(a.dossier)).filter((d) => d && d !== "—"))].sort(), [alerts]);
+  const inClient = (d) => client === "Tous" || cle(d) === client;
   const okOld = (a) => !hideOld || !isDormant(a.cle);
   const shownOver = over.filter((a) => inClient(a.dossier) && okOld(a));
   const shownRisk = risk.filter((a) => inClient(a.dossier) && okOld(a));
@@ -78,8 +78,8 @@ export default function SlaAlert({ issues = [], onTicket, onClient, changedKeys 
       <li className={`af-ev sla-ev sla-ev-${a.state}${changedKeys && changedKeys.has && changedKeys.has(a.cle) ? " is-fresh is-fresh-down" : ""}`}>
         <span className={`sla-bk sla-bk-${bkCls(a.bucket)}`} title={`Priorité ${a.priorite || a.bucket}`}>{a.bucket}</span>
         {onClient
-          ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(a.dossier)} title="Ouvrir la fiche client">{norm(a.dossier) || "—"}</button>
-          : <span className="af-cli">{norm(a.dossier) || "—"}</span>}
+          ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(a.dossier)} title="Ouvrir la fiche client">{cle(a.dossier) || "—"}</button>
+          : <span className="af-cli">{cle(a.dossier) || "—"}</span>}
         <button type="button" className="af-cle" onClick={() => openTicket(a.cle)} title="Ouvrir le ticket">{a.cle}</button>
         <span className={`pill ${a.statut === "Terminé" ? "done" : a.statut === "En cours" ? "prog" : a.statut === "Bloqué" ? "block" : "todo"}`}>{a.statut}</span>
         <span className="af-t" title={a.resume}>{a.resume || "—"}</span>

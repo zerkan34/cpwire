@@ -3,6 +3,7 @@ import { fetchQuotes, fetchPortfolioMonthly, fetchDeadlines } from "../api.js";
 import Sparkline from "./Sparkline.jsx";
 import CopilotDot from "./CopilotDot.jsx";
 import ActivityFeed from "./ActivityFeed.jsx";
+import { cle } from "../lib/commun.js";
 
 // Poste de commandement — l'accueil UNIFIÉ de cp|WIRE.
 // Un seul écran, une seule mécanique : la PORTÉE (Tout / Client / Projet / TMA)
@@ -13,7 +14,6 @@ import ActivityFeed from "./ActivityFeed.jsx";
 const REFRESH_MS = 45000;
 const C = { navy: "var(--ink)", indigo: "var(--purple)", gold: "var(--gold)", goldlt: "#c9b17a", mauve: "var(--purple-strong)", rose: "var(--blue)", grey: "var(--muted)", green: "var(--green)", orange: "var(--orange)", red: "var(--red)" };
 const PAL = ["var(--purple)", "var(--indigo)", "var(--gold)", "var(--orange)", "var(--blue)", "var(--purple-strong)", "var(--green)", "var(--muted)"];
-const norm = (s) => String(s || "").trim();
 const sign = (n) => (n == null ? "" : n > 0 ? `+${n}` : `${n}`);
 const engOf = (v) => (v instanceof Set ? [...v] : Array.isArray(v) ? v : []);
 const isTMA = (arr) => arr.some((e) => /tma/i.test(e));
@@ -49,7 +49,7 @@ function ring(cx, cy, rO, rI, a0, a1) {
   return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${rO} ${rO} 0 ${lg} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} L${xi1.toFixed(2)} ${yi1.toFixed(2)} A${rI} ${rI} 0 ${lg} 0 ${xi0.toFixed(2)} ${yi0.toFixed(2)} Z`;
 }
 
-export default function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo }) {
+function PosteCommandement({ facts, issues = [], changedKeys, engagement = {}, onClient, onTicket, onDev, goTo }) {
   const [scope, setScope] = useState({ type: "all", value: null });
   const [pick, setPick] = useState("");          // "client" → dropdown ouvert
   const [q, setQ] = useState(null);
@@ -84,7 +84,7 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
 
   const inScope = useCallback((d) => {
     if (scope.type === "all") return true;
-    if (scope.type === "client") return norm(d) === norm(scope.value);
+    if (scope.type === "client") return cle(d) === cle(scope.value);
     if (scope.type === "tma") return isTMA(engOf(engagement[d]));
     if (scope.type === "projet") return isProjet(engOf(engagement[d]));
     return true;
@@ -435,3 +435,8 @@ export default function PosteCommandement({ facts, issues = [], changedKeys, eng
     </div>
   );
 }
+
+// Mémoïsé : ce composant est l'un des plus lourds de l'app et ses props sont stables
+// (facts et issues mémoïsés côté racine, rappels en useCallback). Sans cela, il se
+// re-rendait à chaque frappe de recherche et à chaque changement d'état de la racine.
+export default React.memo(PosteCommandement);

@@ -4,6 +4,7 @@
 
 import { computeBlockers } from "./blockers.js";
 import { cover, section, chapter, kpiBand, charterDoc, C} from "./charter.js";
+import { esc } from "./utils.js";
 
 // Palette : source unique. Ces quatre constantes étaient figées sur l'ancienne charte,
 // et l'or y était même écrit #A8884E, une nuance de plus que nulle part ailleurs.
@@ -11,7 +12,6 @@ const NAVY = C.navy, INDIGO = C.indigo, GOLD = C.gold, INK = C.ink;
 const MUTED = "#6E6A86", SOFT = "#F5F2FC", LINE = "#e7e5f1", RED = "#C0392B", AMBER = "#C2691A";
 const OBSOLETE_DAYS = 180;
 
-function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
 function fmtD(iso) { if (!iso) return "—"; const d = new Date(iso); return isNaN(d) ? "—" : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }); }
 function joursOuvres(iso, now = new Date()) {
   if (!iso) return 0; const d = new Date(iso); if (isNaN(d)) return 0;

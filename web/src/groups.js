@@ -41,3 +41,7 @@ export const CLOS = ["termine", "miseEnProd", "annule"];
 
 // Helper : compte les tickets d'un tableau dont la catégorie est dans `group`.
 export const countIn = (items, group) => items.reduce((n, i) => n + (group.includes(i.categorie) ? 1 : 0), 0);
+
+// Correspondance statut -> classe de pastille. Elle était recopiée à l'identique dans
+// sept composants ; une seule définition suffit, ici, avec le reste des familles.
+export const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };

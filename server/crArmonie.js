@@ -12,6 +12,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ARMONIE_PALETTE as P } from "../shared/armonie-palette.js";
+import { escHtml } from "../shared/texte.js";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const FONTS = path.join(HERE, "pdf", "fonts");
@@ -41,7 +42,6 @@ function fontFaces() {
   return _fontCss;
 }
 
-const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 const N = (v) => (v == null || v === "" ? "—" : v);
 
 // Logo typographique (jamais une image) : « armo[n doré]ie » sur fond clair.
@@ -58,18 +58,18 @@ function coverEnBref(data) {
   ];
   return `<div class="enbref">
     <div class="enbref-t">En bref</div>
-    <table class="enbref-tb">${rows.map(([k, v]) => `<tr><td class="k">${esc(k)}</td><td class="v">${esc(v)}</td></tr>`).join("")}</table>
+    <table class="enbref-tb">${rows.map(([k, v]) => `<tr><td class="k">${escHtml(k)}</td><td class="v">${escHtml(v)}</td></tr>`).join("")}</table>
   </div>`;
 }
 
 function secHead(kicker, titre, sous) {
-  return `<div class="sec"><span class="sqr"></span><span class="kick">${esc(kicker)}</span>
-    <div class="sec-t">${esc(titre)}</div>${sous ? `<div class="sec-s">${esc(sous)}</div>` : ""}</div>`;
+  return `<div class="sec"><span class="sqr"></span><span class="kick">${escHtml(kicker)}</span>
+    <div class="sec-t">${escHtml(titre)}</div>${sous ? `<div class="sec-s">${escHtml(sous)}</div>` : ""}</div>`;
 }
 
 function tableCats(cats) {
   if (!cats.length) return `<p class="muted">Aucune donnée de répartition disponible.</p>`;
-  const body = cats.map((c, i) => `<tr class="${i % 2 ? "alt" : ""}"><td>${esc(c.label)}</td><td class="num">${c.n}</td></tr>`).join("");
+  const body = cats.map((c, i) => `<tr class="${i % 2 ? "alt" : ""}"><td>${escHtml(c.label)}</td><td class="num">${c.n}</td></tr>`).join("");
   const total = cats.reduce((s, c) => s + c.n, 0);
   return `<table class="dt"><thead><tr><th>Catégorie</th><th class="num">Tickets</th></tr></thead>
     <tbody>${body}<tr class="tot"><td>Total suivi</td><td class="num">${total}</td></tr></tbody></table>`;
@@ -79,20 +79,20 @@ function listAttention(data) {
   const parts = [];
   if (data.sla.over.length) {
     parts.push(`<div class="blk"><div class="blk-h">SLA (résolution) dépassé — ${data.sla.over.length}</div><ul class="ul">${
-      data.sla.over.slice(0, 10).map((a) => `<li><b>${esc(a.cle)}</b> — ${esc(a.resume || "")} <span class="tag tag-r">+${Math.round(a.depassementH || 0)} h</span></li>`).join("")}</ul></div>`);
+      data.sla.over.slice(0, 10).map((a) => `<li><b>${escHtml(a.cle)}</b> — ${escHtml(a.resume || "")} <span class="tag tag-r">+${Math.round(a.depassementH || 0)} h</span></li>`).join("")}</ul></div>`);
   }
   if (data.sla.gtiOver && data.sla.gtiOver.length) {
     parts.push(`<div class="blk"><div class="blk-h">Prise en charge (GTI) dépassée — ${data.sla.gtiOver.length}</div><ul class="ul">${
-      data.sla.gtiOver.slice(0, 8).map((a) => `<li><b>${esc(a.cle)}</b> — ${esc(a.resume || "")}</li>`).join("")}</ul></div>`);
+      data.sla.gtiOver.slice(0, 8).map((a) => `<li><b>${escHtml(a.cle)}</b> — ${escHtml(a.resume || "")}</li>`).join("")}</ul></div>`);
   }
   if (data.attention.figes.length) {
     parts.push(`<div class="blk"><div class="blk-h">Tickets figés (≥ 30 j) — ${data.attention.figes.length}</div><ul class="ul">${
-      data.attention.figes.slice(0, 10).map((f) => `<li><b>${esc(f.cle)}</b> — ${esc(f.resume || "")} <span class="tag">${f.jours} j</span></li>`).join("")}</ul></div>`);
+      data.attention.figes.slice(0, 10).map((f) => `<li><b>${escHtml(f.cle)}</b> — ${escHtml(f.resume || "")} <span class="tag">${f.jours} j</span></li>`).join("")}</ul></div>`);
   }
   for (const ic of data.attention.incoherences) {
     if (!ic.items.length) continue;
-    parts.push(`<div class="blk"><div class="blk-h">${esc(ic.label)} — ${ic.items.length}</div><ul class="ul">${
-      ic.items.slice(0, 10).map((it) => `<li><b>${esc(it.cle || "—")}</b> — ${esc(it.detail || "")}</li>`).join("")}</ul></div>`);
+    parts.push(`<div class="blk"><div class="blk-h">${escHtml(ic.label)} — ${ic.items.length}</div><ul class="ul">${
+      ic.items.slice(0, 10).map((it) => `<li><b>${escHtml(it.cle || "—")}</b> — ${escHtml(it.detail || "")}</li>`).join("")}</ul></div>`);
   }
   if (!parts.length) return `<div class="esc"><div class="esc-l">Aucun point d'attention</div>Aucune régression, aucun dépassement, aucun ticket figé sur ce dossier à date. Situation saine.</div>`;
   return parts.join("");
@@ -103,7 +103,7 @@ function listEcheances(ech) {
   return `<div class="tl">${ech.slice(0, 12).map((e) => {
     const col = e.statut === "retard" ? C.orange : C.gold;
     const j = e.jours == null ? "—" : e.jours < 0 ? `en retard de ${-e.jours} j` : e.jours === 0 ? "aujourd'hui" : `dans ${e.jours} j`;
-    return `<div class="tl-i"><span class="tl-d" style="color:${col}">${esc(j)}</span><span class="tl-m" style="background:${col}"></span><span class="tl-l">${esc(e.label)}</span></div>`;
+    return `<div class="tl-i"><span class="tl-d" style="color:${col}">${escHtml(j)}</span><span class="tl-m" style="background:${col}"></span><span class="tl-l">${escHtml(e.label)}</span></div>`;
   }).join("")}</div>`;
 }
 
@@ -111,10 +111,10 @@ function riskBlock(risk) {
   if (!risk) return "";
   const col = risk.niveau === "critique" ? C.orange : risk.niveau === "élevé" ? C.gold : C.green;
   const fact = risk.facteurs && risk.facteurs.length
-    ? `<ul class="ul">${risk.facteurs.map((f) => `<li>${f.n} ${esc(f.label)}${f.detail ? ` <span class="muted">(${esc(f.detail)})</span>` : ""}</li>`).join("")}</ul>`
+    ? `<ul class="ul">${risk.facteurs.map((f) => `<li>${f.n} ${escHtml(f.label)}${f.detail ? ` <span class="muted">(${escHtml(f.detail)})</span>` : ""}</li>`).join("")}</ul>`
     : `<p class="muted">Aucun facteur de risque actif.</p>`;
   return `<div class="risk"><div class="risk-badge" style="background:${col}">${risk.score}<small>/100</small></div>
-    <div class="risk-b"><div class="risk-n">Niveau ${esc(risk.niveau)}</div>${fact}</div></div>`;
+    <div class="risk-b"><div class="risk-n">Niveau ${escHtml(risk.niveau)}</div>${fact}</div></div>`;
 }
 
 // Camembert 3D SANS couture blanche — portage fidèle du helper donut() du skill
@@ -148,14 +148,14 @@ function donut3d(segs, totalLabel) {
   const [rx0, ry0] = P(0), [rx1, ry1] = P(180);
   const rim = `<path d="M${rx0.toFixed(2)} ${ry0.toFixed(2)} A${rx} ${ry} 0 0 1 ${rx1.toFixed(2)} ${ry1.toFixed(2)}" fill="none" stroke="#000000" stroke-opacity="0.13" stroke-width="0.8"/>`;
   const svg = `<svg viewBox="0 6 150 106" width="150" height="106" xmlns="http://www.w3.org/2000/svg">${defs}${shadow}${side.join("")}${top.join("")}${rim}${lab.join("")}</svg>`;
-  const legend = segs.map((s) => `<tr><td class="lc"><span class="sw" style="background:${s.top}"></span>${esc(s.label)}</td><td class="lv">${s.v}</td><td class="lp">${Math.round(s.v / tot * 100)}&nbsp;%</td></tr>`).join("");
-  return `<div class="donut">${svg}<div class="ptot">${esc(totalLabel || (tot + " tickets"))}</div><table class="leg">${legend}</table></div>`;
+  const legend = segs.map((s) => `<tr><td class="lc"><span class="sw" style="background:${s.top}"></span>${escHtml(s.label)}</td><td class="lv">${s.v}</td><td class="lp">${Math.round(s.v / tot * 100)}&nbsp;%</td></tr>`).join("");
+  return `<div class="donut">${svg}<div class="ptot">${escHtml(totalLabel || (tot + " tickets"))}</div><table class="leg">${legend}</table></div>`;
 }
 
 // Frise verticale (pilule lavande, filet doré ; pivot navy) — helper flow() du skill.
 function flowFrise(nodes) {
   const out = ['<div class="flow">'];
-  nodes.forEach((n, i) => { if (i > 0) out.push('<div class="cn"></div>'); out.push(`<div class="nd${n.key ? " key" : ""}">${esc(n.label)}</div>`); });
+  nodes.forEach((n, i) => { if (i > 0) out.push('<div class="cn"></div>'); out.push(`<div class="nd${n.key ? " key" : ""}">${escHtml(n.label)}</div>`); });
   out.push("</div>");
   return out.join("");
 }
@@ -260,17 +260,17 @@ h1,h2,h3,.pf,.sec-t,.enbref-t{font-family:'Poppins',sans-serif;}
 
 <section class="cover">
   <div class="bar"></div>
-  <div class="cv-top">${logo()}<span class="cv-kick">${esc(data.client || "")} · ${esc(data.typeLabel || data.type || "Compte rendu")}</span></div>
+  <div class="cv-top">${logo()}<span class="cv-kick">${escHtml(data.client || "")} · ${escHtml(data.typeLabel || data.type || "Compte rendu")}</span></div>
   <div class="cv-mid">
-    <div class="cv-eyebrow">${esc(data.typeLabel || "Compte rendu")}</div>
-    <h1 class="cv-title">${esc(data.titre || `${data.typeLabel || "Compte rendu"} — ${data.client || ""}`)}</h1>
+    <div class="cv-eyebrow">${escHtml(data.typeLabel || "Compte rendu")}</div>
+    <h1 class="cv-title">${escHtml(data.titre || `${data.typeLabel || "Compte rendu"} — ${data.client || ""}`)}</h1>
     <div class="cv-rule"></div>
-    <div class="cv-sub">Situation au ${esc(d)} · établi à partir des données Jira du portefeuille.</div>
+    <div class="cv-sub">Situation au ${escHtml(d)} · établi à partir des données Jira du portefeuille.</div>
     <span class="pill">Document de travail</span>
     ${coverEnBref(data)}
   </div>
-  <div class="cv-foot"><b>Établi par Nicolas Durand — Chef de projet (MOE)</b><br>Armonie Group · ${esc(data.client || "")}</div>
-  <div class="cv-id">${esc(docId)}</div>
+  <div class="cv-foot"><b>Établi par Nicolas Durand — Chef de projet (MOE)</b><br>Armonie Group · ${escHtml(data.client || "")}</div>
+  <div class="cv-id">${escHtml(docId)}</div>
 </section>
 
 <section>
@@ -295,7 +295,7 @@ ${data.risk ? `<section>${secHead("Indicateur", "Score de risque du dossier", "C
   ${listEcheances(data.echeances)}
 </section>
 
-<div class="note">Document de travail généré par cp|WIRE le ${esc(d)} à partir des données Jira. Chaque chiffre est tracé à sa source ; en l'absence de donnée, la mention « — » est utilisée. Aucune valeur n'est estimée.</div>
+<div class="note">Document de travail généré par cp|WIRE le ${escHtml(d)} à partir des données Jira. Chaque chiffre est tracé à sa source ; en l'absence de donnée, la mention « — » est utilisée. Aucune valeur n'est estimée.</div>
 
 </body></html>`;
 }

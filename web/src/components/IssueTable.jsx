@@ -1,6 +1,6 @@
 import React, { useState } from "react";
+import { PILL } from "../groups.js";
 
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 const STATUT_ORDER = { Bloqué: 0, "À faire": 1, "En cours": 2, Terminé: 3 };
 
 function fmtDate(s) {

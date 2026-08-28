@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo } from "react";
 import { progResume } from "../ticket.js";
 import { pointBaseline } from "../api.js";
 import { charterDoc, cover } from "../charter.js";
-import { printHtml } from "../utils.js";
+import { printHtml, esc } from "../utils.js";
 
 // « Le point du soir » — reproduit le relevé quotidien par statut (mêmes libellés
 // que le mail de la direction), avec les écarts vs le dernier relevé d'un jour
@@ -102,7 +102,6 @@ export default function PointDuSoir({ dossier, cats, items = [], onTicket }) {
 
   // Export PDF à la charte Armonie (moteur standard : serveur WeasyPrint → navigateur → repli).
   const exportPdf = () => {
-    const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
     const dateStr = new Date().toLocaleDateString("fr-FR");
     const dossierLbl = dossier && dossier !== "Tous dossiers" ? dossier : "Tous dossiers";
     const periodLbl = { tout: "État actuel", jour: "Aujourd'hui", semaine: "7 jours", mois: "30 jours", annee: "1 an" }[period] || "État actuel";

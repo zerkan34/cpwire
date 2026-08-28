@@ -11,11 +11,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { cle } from "../shared/texte.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CSV_PATH = process.env.PROGRAMMES_CSV || path.join(__dirname, "programmes.csv");
 
-const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 // En-têtes acceptés (tolérant aux noms de colonnes de l'export Arcad / SQL).
 const FIELD_SYNONYMS = {
@@ -56,7 +56,7 @@ function buildCatalog(rows) {
   const colOf = {};
   for (const [field, syns] of Object.entries(FIELD_SYNONYMS)) {
     let idx = -1;
-    for (const s of syns) { idx = header.indexOf(norm(s)); if (idx >= 0) break; }
+    for (const s of syns) { idx = header.indexOf(cle(s)); if (idx >= 0) break; }
     colOf[field] = idx;
   }
   const map = new Map();
@@ -110,10 +110,10 @@ export function findProgram(title) {
   let guess = null;
   const words = raw.split(/\s+/);
   for (let i = 0; i < words.length; i++) {
-    if (VERBS.has(norm(words[i]).replace(/[^a-z0-9]/g, ""))) {
+    if (VERBS.has(cle(words[i]).replace(/[^a-z0-9]/g, ""))) {
       for (let j = i + 1; j < words.length; j++) {
         const nx = words[j].replace(/[^A-Za-z0-9_]/g, "");
-        if (nx.length >= 3 && /[A-Z0-9]/.test(nx) && !VERBS.has(norm(nx))) { guess = nx.toUpperCase(); break; }
+        if (nx.length >= 3 && /[A-Z0-9]/.test(nx) && !VERBS.has(cle(nx))) { guess = nx.toUpperCase(); break; }
       }
       break;
     }

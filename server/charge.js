@@ -1,3 +1,4 @@
+import { CLOS_SET as CLOSED } from "../shared/groupes.js";
 // charge.js — CHARGE & CAPACITÉ par développeur.
 // -----------------------------------------------------------------------------
 // La lecture qui manque à un chef de projet TMA pour arbitrer : qui porte quoi,
@@ -10,7 +11,6 @@
 
 const WIP_CATS = new Set(["encours", "retourTest", "recetteArmonie"]);
 const WAIT_CATS = new Set(["attenteClient", "recetteClient"]);
-const CLOSED = new Set(["termine", "miseEnProd", "annule"]);
 const CAT_LABEL = { encours: "En cours", retourTest: "Retour de test", recetteArmonie: "Recette Armonie", afaire: "À faire", attenteClient: "Attente client", recetteClient: "Recette client" };
 
 const ageDays = (d) => { if (!d) return null; const t = Date.parse(d); return isNaN(t) ? null : Math.floor((Date.now() - t) / 86400000); };

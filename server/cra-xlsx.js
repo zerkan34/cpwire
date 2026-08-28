@@ -2,16 +2,16 @@
 // Produit EXACTEMENT la même structure que le CRA Jira (byProject / byPerson),
 // pour que l'affichage et les exports existants fonctionnent sans changement.
 import * as XLSX from "xlsx";
+import { cle } from "../shared/texte.js";
 
 const fmtSeconds = (sec) => {
   const h = Math.floor(sec / 3600), m = Math.round((sec % 3600) / 60);
   return m ? `${h}h ${String(m).padStart(2, "0")}` : `${h}h`;
 };
-const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
 
 // Trouve l'en-tête dont le nom contient l'un des candidats (par ordre de préférence).
 function pickCol(headers, cands) {
-  for (const c of cands) { const h = headers.find((x) => norm(x).includes(c)); if (h) return h; }
+  for (const c of cands) { const h = headers.find((x) => cle(x).includes(c)); if (h) return h; }
   return null;
 }
 
@@ -33,7 +33,7 @@ function parseHours(v, unit, basis) {
 
 // Déduit un statut normalisé + done à partir d'un libellé libre.
 function statutFrom(raw) {
-  const n = norm(raw);
+  const n = cle(raw);
   if (!n) return { statut: "À faire", done: false, statutJira: "" };
   if (/(termin|fait|done|closed|resolu|clos|ferm|livr|fini|prod)/.test(n)) return { statut: "Terminé", done: true, statutJira: raw };
   if (/(bloqu|block|hold|attente|stand ?by)/.test(n)) return { statut: "Bloqué", done: false, statutJira: raw };
@@ -95,7 +95,7 @@ export function parseCraXlsx(buffer, { basis = 7 } = {}) {
   if (!cTime) {
     throw new Error(`Impossible de trouver une colonne de temps. Colonnes détectées : ${headers.join(", ")}. Ajoute une colonne « Temps » (ou « Heures », « Durée », « Jours »).`);
   }
-  const unit = /jour|day|\bj\b/.test(norm(cTime)) && !/heure|temps|^h$/.test(norm(cTime)) ? "days" : "hours";
+  const unit = /jour|day|\bj\b/.test(cle(cTime)) && !/heure|temps|^h$/.test(cle(cTime)) ? "days" : "hours";
 
   const personMap = {}; // who -> { who, seconds, projects:{dossier:{dossier,seconds,tickets:{cle:{...}}}} }
   const projectMap = {}; // dossier -> { dossier, seconds, persons:{who:sec}, tickets:{cle:{...}} }
@@ -105,7 +105,7 @@ export function parseCraXlsx(buffer, { basis = 7 } = {}) {
     const dossier = (cProj && String(row[cProj]).trim()) || "Sans projet";
     const who = (cWho && String(row[cWho]).trim()) || "Non précisé";
     // Ignore les lignes de total / sous-total / cumul d'un export tableur.
-    if (/^(total|totaux|sous.?total|cumul|somme)\b/.test(norm(dossier)) || /^(total|totaux)\b/.test(norm(who))) return;
+    if (/^(total|totaux|sous.?total|cumul|somme)\b/.test(cle(dossier)) || /^(total|totaux)\b/.test(cle(who))) return;
     const hours = parseHours(row[cTime], unit, basis);
     const seconds = Math.round(hours * 3600);
     const resume = (cSum && String(row[cSum]).trim()) || "";

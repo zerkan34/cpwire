@@ -48,6 +48,9 @@ import { buildDossierCrHtml } from "./crArmonie.js";
 import { buildQuotes } from "./quotes.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { reunionRouter } from "./routes/reunion.js";
+import { engagementsRouter } from "./routes/engagements.js";
+import { ganttsRouter } from "./routes/gantts.js";
+import { liste as listeEngagements } from "./engagements.js";
 import { parseCraXlsx } from "./cra-xlsx.js";
 import { sendMail, uploadToSharePoint, msConfigured, spConfigured, spListChildren, spPreviewUrl, spListItems, spListInfo } from "./microsoft.js";
 import { analyzeDocument, applyImport, listImports, getDataset, bufferToText, initImports } from "./import.js";
@@ -70,7 +73,7 @@ const DEFAULT_JQL = process.env.JQL || `project in (${PROJECTS.join(",")}) ORDER
 const ALLOW_DEMO = process.env.ALLOW_DEMO === "1";
 
 // ---- Authentification : voir auth-core.js (jetons, sessions persistées, guards) ----
-import { AUTH_ENABLED, sessions, initSessions, CONSULT_FORBIDDEN, guard, writeGuard } from "./auth-core.js";
+import { AUTH_ENABLED, sessions, initSessions, CONSULT_FORBIDDEN, guard, writeGuard, safeEqual } from "./auth-core.js";
 
 // Derrière le proxy Render : faire confiance au premier saut pour obtenir la vraie IP cliente
 // (nécessaire au plafond de tentatives de connexion ci-dessous).
@@ -83,7 +86,9 @@ const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || "").split(",").map((s) =
 app.use(cors({
   origin(origin, cb) {
     if (!origin) return cb(null, true);                  // same-origin, curl, sondes de santé
-    if (!ALLOWED_ORIGINS.length) return cb(null, true);  // liste vide -> permissif (pas de régression)
+    // Liste vide : permissif en développement (confort), mais REFUS en production.
+    // Sinon une variable d'environnement oubliée sur Render ouvrirait l'API à tout site.
+    if (!ALLOWED_ORIGINS.length) return cb(null, process.env.NODE_ENV !== "production");
     return cb(null, ALLOWED_ORIGINS.includes(origin));
   },
 }));
@@ -308,7 +313,12 @@ app.post("/api/blockers/since", guard, async (req, res) => {
     console.error("[POST /api/blockers/since]", err && err.message ? err.message : err); res.status(502).json({ error: String(err.message || err) }); }
 });
 
-app.get("/api/health", (_req, res) =>
+// Sonde publique : strictement le minimum. Le détail de configuration (intégrations
+// branchées, chemin de données) renseignait un attaquant sans lui demander de compte.
+app.get("/api/health", (_req, res) => res.json({ ok: true, app: "CPwire" }));
+
+// Détail réservé aux comptes authentifiés (c'est cette route que lit l'interface).
+app.get("/api/health/detail", guard, (_req, res) =>
   res.json({ ok: true, app: "CPwire", authEnabled: AUTH_ENABLED, jiraConfigured: isConfigured(),
     ai: aiAvailable(), stt: sttAvailable(), microsoft: msConfigured(), allowDemo: ALLOW_DEMO,
     persistent: isPersistent(), dataDir: dataDirInfo().dir }));
@@ -650,7 +660,7 @@ app.get("/api/projets/export", guard, exportLimiter, async (_req, res) => {
 // Rendu PDF SERVEUR à la charte exacte (WeasyPrint). Le client envoie les données
 // déjà préparées ({meta, clients}) ; on les passe à render.py qui produit le PDF.
 // Donne le rendu 1:1 du document de référence (couverture pleine, pied numéroté n/total).
-app.post("/api/export/pdf", guard, exportLimiter, async (req, res) => {
+app.post("/api/export/pdf", guard, writeGuard, exportLimiter, async (req, res) => {
   try {
     const { kind = "blockers", data, filename } = req.body || {};
     if (!data || typeof data !== "object") return res.status(400).json({ error: "Données manquantes." });
@@ -682,7 +692,7 @@ app.post("/api/export/pdf", guard, exportLimiter, async (req, res) => {
 });
 // Rendu PDF générique : reçoit un HTML autonome, renvoie un PDF téléchargeable
 // (remplace l'ouverture de la boîte d'impression pour les récaps, CR, etc.).
-app.post("/api/pdf/render", guard, exportLimiter, async (req, res) => {
+app.post("/api/pdf/render", guard, writeGuard, exportLimiter, async (req, res) => {
   try {
     const { html, filename } = req.body || {};
     if (!html || typeof html !== "string") return res.status(400).json({ error: "HTML manquant." });
@@ -1206,7 +1216,12 @@ export async function runDigest({ send = false, to = "" } = {}) {
   const slaReport = buildSlaReport(issues);
   const radar = buildDeadlineRadar(readDossiers(), readConnaissance());
   const recurrences = signalsStats(30).recurrences;
-  const digest = buildDigest({ pointDerived, slaReport, radar, recurrences });
+  // Le point du soir intègre désormais les engagements pris en séance : sans eux, il
+  // disait tout de Jira et rien de ce qui a été promis en réunion.
+  let engagementsDuJour = [];
+  try { engagementsDuJour = await listeEngagements({ ouverts: true }); }
+  catch (e) { console.error("[digest] engagements indisponibles :", e && e.message ? e.message : e); }
+  const digest = buildDigest({ pointDerived, slaReport, radar, recurrences, engagements: engagementsDuJour });
 
   const envoi = { demande: !!send };
   if (send) {
@@ -1237,9 +1252,11 @@ app.get("/api/digest", guard, async (req, res) => {
 app.post("/api/cron/digest", async (req, res) => {
   try {
     const secret = process.env.CRON_SECRET || "";
-    const given = req.get("x-cron-secret") || req.query.secret || "";
+    // En-tête uniquement : un secret passé en paramètre d'URL finit dans les journaux
+    // d'accès Render, l'historique du navigateur et l'en-tête Referer.
+    const given = req.get("x-cron-secret") || "";
     if (!secret) return res.status(503).json({ error: "CRON_SECRET non défini côté serveur." });
-    if (given !== secret) return res.status(401).json({ error: "Secret cron invalide." });
+    if (!safeEqual(given, secret)) return res.status(401).json({ error: "Secret cron invalide." });
     const out = await runDigest({ send: true, to: req.query.to || "" });
     res.json(out);
   } catch (err) {
@@ -1380,10 +1397,25 @@ const __dirname2 = path.dirname(fileURLToPath(import.meta.url));
 const WEB_DIST = process.env.WEB_DIST || path.join(__dirname2, "../web/dist");
 app.use(shareflyRouter); // /sharefly (page) + /api/sharefly/* (état partagé) — AVANT le fallback SPA
 // Atelier de flux Belmet ERP26 (page autonome interactive + livrables PDF/GANTT) — AVANT le fallback SPA.
-app.use("/flux", express.static(path.join(__dirname2, "public", "flux")));
+// L'Atelier de flux contient les livrables Belmet (dossier de cadrage, CR de comité,
+// GANTT). Il était servi en statique SANS authentification, comme ShareFly : n'importe
+// qui connaissant l'URL y accédait. Même garde que le reste de l'application.
+app.use("/flux", guard, express.static(path.join(__dirname2, "public", "flux")));
 if (fs.existsSync(WEB_DIST)) {
-  app.use(express.static(WEB_DIST));
-  app.get(/^(?!\/api).*/, (_req, res) => res.sendFile(path.join(WEB_DIST, "index.html")));
+  // Les bundles Vite portent un hachage dans leur nom : cachables longtemps sans risque.
+  // index.html, lui, ne doit JAMAIS être caché, sinon un déploiement passe inaperçu.
+  app.use(express.static(WEB_DIST, {
+    maxAge: "1y",
+    setHeaders(res, filePath) {
+      if (filePath.endsWith("index.html") || filePath.endsWith("sw.js")) {
+        res.setHeader("Cache-Control", "no-cache");
+      }
+    },
+  }));
+  app.get(/^(?!\/api).*/, (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache");
+    res.sendFile(path.join(WEB_DIST, "index.html"));
+  });
   console.log(`Interface servie depuis ${WEB_DIST}`);
 }
 
@@ -1392,6 +1424,10 @@ if (fs.existsSync(WEB_DIST)) {
 // confus si un chemin est mal orthographié ou une route supprimée par erreur.
 // Module Réunion : transcription du son de l'ordinateur (Teams) et compte rendu.
 app.use(reunionRouter({ guard, aiLimiter }));
+// Registre des engagements : actions et décisions prises en séance, suivies dans le temps.
+app.use(engagementsRouter({ guard, writeGuard }));
+// Plannings GANTT : partagés côté serveur, plus dans le navigateur d'une seule personne.
+app.use(ganttsRouter({ guard, writeGuard }));
 
 app.use("/api", (req, res) => res.status(404).json({ error: `Route inconnue : ${req.method} ${req.originalUrl}` }));
 

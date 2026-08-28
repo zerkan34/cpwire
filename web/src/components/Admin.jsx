@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
-import { adminInvite, fetchAdminUsers, removeAdminUser, adminConfirmUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply, fetchHealth } from "../api.js";
+import { adminInvite, fetchAdminUsers, removeAdminUser, adminConfirmUser, dolibarrStatus, dolibarrProbe, importAnalyze, importApply, fetchHealth, getToken } from "../api.js";
 
 const sinceLabel = (ts) => {
   if (!ts) return "jamais connecté";
@@ -12,6 +12,8 @@ const sinceLabel = (ts) => {
 };
 
 export default function Admin() {
+  const [expApercu, setExpApercu] = useState(null);   // récapitulatif avant téléchargement
+  const [expEtat, setExpEtat] = useState("");
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
@@ -136,6 +138,83 @@ export default function Admin() {
           {health.dataDir ? <p className="adm-status-dir">Données : <code>{health.dataDir}</code></p> : null}
         </div>
       )}
+
+      {/* Export complet : une passation, un audit ou une sauvegarde avant
+          manipulation risquée ne doivent pas exiger un accès à Render. */}
+      <div className="panel adm-export">
+        <h3>Exporter toutes les données</h3>
+        <p className="adm-sub">
+          Une archive ZIP contenant l&apos;intégralité des données de cp|WIRE : engagements,
+          réunions et leurs transcriptions, plannings, mémoire, dossiers, comptes.
+          En JSON brut, en CSV ouvrable dans Excel, et en fiches lisibles telles quelles.
+        </p>
+        <p className="adm-sub adm-export-note">
+          L&apos;archive ne contient <b>aucun secret ni mot de passe</b>, même haché. Elle contient
+          en revanche des comptes rendus et des données client : à traiter comme un document interne.
+        </p>
+
+        <div className="adm-export-btns">
+          <button type="button" className="btn" disabled={expEtat === "apercu"} onClick={async () => {
+            setExpEtat("apercu"); setExpApercu(null);
+            try {
+              const r = await fetch("/api/admin/export/apercu", { headers: { "x-access-token": getToken() } });
+              const d = await r.json();
+              if (!r.ok) throw new Error(d.error || `Erreur ${r.status}`);
+              setExpApercu(d);
+            } catch (e) { setExpApercu({ erreur: e.message }); }
+            finally { setExpEtat(""); }
+          }}>
+            {expEtat === "apercu" ? "Analyse…" : "Voir ce que contient l'export"}
+          </button>
+
+          <button type="button" className="btn primary" disabled={expEtat === "zip"} onClick={async () => {
+            setExpEtat("zip");
+            try {
+              // Le jeton voyage en en-tête : on ne peut donc pas se contenter d'un lien.
+              // On récupère l'archive puis on déclenche l'enregistrement.
+              const r = await fetch("/api/admin/export", { headers: { "x-access-token": getToken() } });
+              if (!r.ok) throw new Error(`Erreur ${r.status}`);
+              const blob = await r.blob();
+              const nom = (r.headers.get("content-disposition") || "").match(/filename="?([^"]+)"?/)?.[1]
+                || `cpwire-export-${new Date().toISOString().slice(0, 10)}.zip`;
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url; a.download = nom;
+              document.body.appendChild(a); a.click(); a.remove();
+              setTimeout(() => URL.revokeObjectURL(url), 30000);
+            } catch (e) { setExpApercu({ erreur: "Export impossible : " + e.message }); }
+            finally { setExpEtat(""); }
+          }}>
+            {expEtat === "zip" ? "Préparation de l'archive…" : "Télécharger l'archive ZIP"}
+          </button>
+        </div>
+
+        {expApercu && (expApercu.erreur ? (
+          <div className="adm-export-err">{expApercu.erreur}</div>
+        ) : (
+          <div className="adm-export-recap">
+            <div className="adm-export-tot">
+              {(expApercu.octets / 1024).toFixed(0)} Ko · {expApercu.fichiers} fichiers
+            </div>
+            <ul className="adm-export-list">
+              {Object.entries(expApercu.contenu || {}).sort().map(([k, n]) => (
+                <li key={k}><b>{k}</b><span>{n}</span></li>
+              ))}
+            </ul>
+            {expApercu.persistance && !expApercu.persistance.baseDurable && (
+              <p className="adm-export-warn">
+                Base durable inactive : cet export reflète le contenu du dossier de données,
+                qui peut être effacé au prochain redéploiement.
+              </p>
+            )}
+            {(expApercu.absents || []).length > 0 && (
+              <p className="adm-export-warn">
+                Non repris : {expApercu.absents.map((a) => a.chemin).join(", ")}.
+              </p>
+            )}
+          </div>
+        ))}
+      </div>
 
       <div className="panel adm-invite">
         <h3>Inviter quelqu'un</h3>

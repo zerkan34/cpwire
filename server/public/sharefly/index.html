@@ -646,7 +646,7 @@ async function renderPreviewAsync(d,ex,box){
   const IMG=['png','jpg','jpeg','gif','webp','bmp','svg'];
   if(!(ex==='pdf'||ex==='html'||ex==='htm'||IMG.includes(ex)))return; // Office & co : on garde la carte
   let u=BLOBS[d._id];
-  if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+  if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(withMime(b,d.n));BLOBS[d._id]=u;}}catch(_){}}
   if(!u&&d._text&&(ex==='html'||ex==='htm')){try{u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));BLOBS[d._id]=u;}catch(_){}}
   if(!u){box.innerHTML=previewCard(d,ex,"Le fichier réel n'est pas disponible sur ce poste. Réimporte-le pour l'aperçu, ou clique <b>Ouvrir le document</b>.");return;}
   if(IMG.includes(ex))box.innerHTML=`<img class="pv-img" src="${u}" alt="">`;
@@ -706,9 +706,9 @@ async function openFile(d){
   // fichier déposé dans ce navigateur -> lecteur intégré
   if(d._added){
     let u=BLOBS[d._id];
-    if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(b);BLOBS[d._id]=u;}}catch(_){}}
+    if(!u){try{const b=await idbGet(d._id);if(b){u=URL.createObjectURL(withMime(b,d.n));BLOBS[d._id]=u;}}catch(_){}}
     if(!u && d._text && ['html','htm'].includes(extOf(d.n))){u=URL.createObjectURL(new Blob([d._text],{type:'text/html'}));}
-    if(u){openInApp(u,d.n);return;}
+    if(u){ouvrirDocument(u,d.n);return;}
     toast('Fichier brut absent de ce poste');return;
   }
   // synthèse cp|WIRE sans fichier (ex. « Imports — … ») : indicateur, pas un document
@@ -719,7 +719,7 @@ async function openFile(d){
   // référence SharePoint : si la connexion est active, on rapatrie le fichier
   // DANS le lecteur intégré de sh|FLY (aucun renvoi externe).
   if(window.SHAREFLY_SP_CONNECTED){
-    openInApp('/api/sharefly/spfile?name='+encodeURIComponent(baseName(d.n)), d.n);
+    ouvrirDocument('/api/sharefly/spfile?name='+encodeURIComponent(baseName(d.n)), d.n);
     return;
   }
   // sinon : contenu non rapatrié -> fiche « Référence SharePoint » avec import direct
@@ -747,6 +747,29 @@ function importForReference(ref){
   inp.click();
 }
 // Lecteur de document INTÉGRÉ à sh|FLY (aucun renvoi externe).
+// ---------------------------------------------------------------------------
+// Ouvrir un document : tout ne s'affiche PAS dans un navigateur.
+// Un .docx ou un .xlsx poussé dans une iframe donne du charabia ou un
+// téléchargement muet sans extension — c'est ce qui produisait les « fichiers
+// que je ne peux pas ouvrir ». On aiguille : ce que le navigateur sait rendre
+// va dans la visionneuse, le reste est enregistré avec son nom et son type,
+// pour être ouvert par Word ou Excel.
+const AFFICHABLE = ['pdf','html','htm','txt','md','csv','json','xml','log',
+                    'png','jpg','jpeg','gif','webp','bmp','svg'];
+async function ouvrirDocument(url, nom){
+  const ex = (String(nom||'').split('.').pop()||'').toLowerCase();
+  if (AFFICHABLE.includes(ex)) { openInApp(url, nom); return; }
+  try {
+    const blob = withMime(await (await fetch(url)).blob(), nom);
+    const ok = await saveBlob(blob, nom);
+    if (ok) toast('« ' + nom + " » enregistré : ouvre-le avec ton application habituelle.");
+  } catch (e) {
+    // Repli : téléchargement direct, mieux vaut ça qu'un bouton sans effet.
+    const a = document.createElement('a'); a.href = url; a.download = nom || 'document';
+    document.body.appendChild(a); a.click(); a.remove();
+  }
+}
+
 function openInApp(url,title){
   let v=document.getElementById('vwrap');
   if(!v){
@@ -792,6 +815,43 @@ function sheet(html,wire){let s=document.getElementById('sheet');if(!s){s=docume
 function dl(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;a.click();}
 /* enregistre un blob en laissant l'utilisateur CHOISIR l'emplacement (File System Access API),
    avec repli téléchargement classique. Retourne true si enregistré, false si annulé. */
+// ---------------------------------------------------------------------------
+// Type MIME d'après l'extension.
+// Pourquoi : les fichiers déposés étaient enregistrés en `new Blob([octets])`,
+// SANS type. Résultat, un PDF ou un Word téléchargé depuis ShareFly arrivait en
+// « application/octet-stream » ou sans type du tout : Windows ne savait plus avec
+// quoi l'ouvrir, et l'aperçu intégré affichait du charabia. Le contenu était bon,
+// c'est l'étiquette qui manquait.
+const MIME = {
+  pdf:'application/pdf',
+  doc:'application/msword',
+  docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xls:'application/vnd.ms-excel',
+  xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  xlsm:'application/vnd.ms-excel.sheet.macroEnabled.12',
+  ppt:'application/vnd.ms-powerpoint',
+  pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  odt:'application/vnd.oasis.opendocument.text',
+  ods:'application/vnd.oasis.opendocument.spreadsheet',
+  csv:'text/csv', txt:'text/plain', md:'text/markdown', log:'text/plain',
+  html:'text/html', htm:'text/html', xml:'application/xml', json:'application/json',
+  zip:'application/zip', rar:'application/vnd.rar', '7z':'application/x-7z-compressed',
+  png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif',
+  webp:'image/webp', svg:'image/svg+xml', bmp:'image/bmp', tif:'image/tiff', tiff:'image/tiff',
+  mp4:'video/mp4', webm:'video/webm', mp3:'audio/mpeg', wav:'audio/wav', m4a:'audio/mp4',
+  eml:'message/rfc822', msg:'application/vnd.ms-outlook',
+  gan:'application/xml', sql:'text/plain', rpg:'text/plain', rpgle:'text/plain', cbl:'text/plain',
+};
+function mimeOf(name){ return MIME[(String(name||'').split('.').pop()||'').toLowerCase()] || 'application/octet-stream'; }
+
+// Ré-étiquette un blob existant : les fichiers déjà stockés sans type sont
+// réparés à la volée, sans avoir à les redéposer.
+function withMime(blob, name){
+  const m = mimeOf(name);
+  if (blob && blob.type && blob.type !== 'application/octet-stream') return blob;
+  try { return new Blob([blob], { type:m }); } catch(_) { return blob; }
+}
+
 async function saveBlob(blob,name){
   try{
     if(window.showSaveFilePicker){
@@ -936,7 +996,7 @@ async function openEdit(d){
   sheet(`<h4>Modifier — ${esc(baseName(d.n))}</h4><p class="sub">Les modifications ne sont enregistrées que si tu valides.</p><textarea class="fld" id="edt"></textarea><div class="row2"><button class="pbtn sec" data-x="c">Annuler</button><button class="pbtn" data-x="s">Enregistrer</button></div>`,(s,close)=>{
     s.querySelector('#edt').value=txt;
     s.querySelector('[data-x="c"]').onclick=close;
-    s.querySelector('[data-x="s"]').onclick=async()=>{const v=s.querySelector('#edt').value;if(!confirm('Enregistrer les modifications de '+baseName(d.n)+' ?'))return;const blob=new Blob([v],{type:'text/plain'});try{BLOBS[d._id]=URL.createObjectURL(blob);await idbPut(d._id,blob);d._stored=true;}catch(_){}d._text=v.slice(0,8000);d.size=blob.size;saveAdded();logMove('Modification',d.n,d.client||'');close();toast('Modifications enregistrées');openDoc(d);};
+    s.querySelector('[data-x="s"]').onclick=async()=>{const v=s.querySelector('#edt').value;if(!confirm('Enregistrer les modifications de '+baseName(d.n)+' ?'))return;const blob=new Blob([v],{type:mimeOf(d.n)||'text/plain'}); /* garder le type d'origine, pas text/plain d'office */try{BLOBS[d._id]=URL.createObjectURL(blob);await idbPut(d._id,blob);d._stored=true;}catch(_){}d._text=v.slice(0,8000);d.size=blob.size;saveAdded();logMove('Modification',d.n,d.client||'');close();toast('Modifications enregistrées');openDoc(d);};
   });
 }
 /* classer un fichier "à classer" */
@@ -1086,7 +1146,12 @@ function mountDocs(host, baseList, opts){
   const cats=opts.cats? [...new Set(baseList.map(d=>d.k).filter(Boolean))].sort() : null;
   const engs=opts.eng? ['Assistance','Projet'] : null;
   let state={q:'',y:'',x:'',k:opts.k||'',e:''};
-  let shown=50;
+  // Affichage : 50 documents puis +100 par clic, c'était 107 clics pour parcourir
+  // les 10 683 archives. On monte le premier écran à 200, le pas à 500, et on
+  // ajoute « Tout afficher » : la table reste fluide jusqu'à plusieurs milliers de
+  // lignes, et au-delà l'utilisateur choisit en connaissance de cause.
+  const PREMIER = 200, PAS = 500;
+  let shown = PREMIER;
   const wrap=document.createElement('div');
   let fh='<div class="filters">';
   fh+=`<input class="fsearch" id="fq" placeholder="Filtrer par nom…">`;
@@ -1101,7 +1166,10 @@ function mountDocs(host, baseList, opts){
 
   function filtered(){
     return baseList.filter(d=>
-      (!state.q||d.n.toLowerCase().includes(state.q))&&
+      // La recherche ne portait que sur le nom du fichier. Or ce qu'on cherche est
+      // souvent dans le CHEMIN (« Bellion/2026/COPIL ») ou la catégorie. On élargit :
+      // un document introuvable est un document perdu.
+      (!state.q||(d.n+' '+(d.p||'')+' '+(d.k||'')+' '+(d.e||'')).toLowerCase().includes(state.q))&&
       (!state.y||String(d.y)===state.y)&&
       (!state.x||d.x===state.x)&&
       (!state.k||d.k===state.k)&&
@@ -1110,29 +1178,38 @@ function mountDocs(host, baseList, opts){
   function draw(){
     const list=filtered();
     const part=list.slice(0,shown);
-    let h=`<table class="tbl"><thead><tr><th>Nom</th>`+
+    let h=`<table class="tbl"><thead><tr><th>Nom</th><th>Dossier</th>`+
       (cats?'<th>Catégorie</th>':'')+(engs?'<th>Engagement</th>':'')+
       `<th>Type</th><th>Année</th></tr></thead><tbody>`;
     part.forEach(d=>{
       const ex=extOf(d.n),extlbl=ex?('.'+ex):'—';
-      h+=`<tr><td><div class="name">${I.doc}<span class="nm" title="${esc(d.n)}">${esc(baseName(d.n))}</span>${d._added?'<span class="dzbadge ok" style="margin-left:8px">ajouté</span>':''}</div><div class="path">${esc(d.p)}</div></td>`+
+      const dossier=(d.p||'').split('/').slice(0,-1).join(' / ');
+      h+=`<tr><td><div class="name">${I.doc}<span class="nm" title="${esc(d.n)}">${esc(baseName(d.n))}</span>${d._added?'<span class="dzbadge ok" style="margin-left:8px">ajouté</span>':''}</div><div class="path">${esc(d.p)}</div></td><td class="cdos" title="${esc(d.p||'')}">${esc(dossier||'—')}</td>`+
         (cats?`<td>${d.k?`<span class="tag">${esc(d.k)}</span>`:'—'}</td>`:'')+
         (engs?`<td>${engBadge(d.e)||'—'}</td>`:'')+
         `<td><span class="tag t" title="${esc(d.x)}"><i style="background:${typeColor(d.x)}"></i>${esc(extlbl)}</span><span class="tsub">${esc(d.x)}</span></td><td class="mono" style="color:var(--muted)">${d.y||'—'}</td></tr>`;
     });
     h+='</tbody></table>';
     if(list.length===0) h='<div class="empty">Aucun document ne correspond à ces filtres.</div>';
-    else if(list.length>shown) h+=`<button class="more" id="more">Afficher plus (${fmt(list.length-shown)} restants)</button>`;
+    else if(list.length>shown) h+=`<div class="morebar"><button class="more" id="more">Afficher ${fmt(Math.min(PAS,list.length-shown))} de plus</button>`+
+      `<button class="more alt" id="allrows">Tout afficher (${fmt(list.length)})</button></div>`;
     $('#tblhost').innerHTML=h;
     $('#fcount').textContent=fmt(list.length)+' document'+(list.length>1?'s':'');
-    const mb=$('#more'); if(mb) mb.onclick=()=>{shown+=100;draw();};
+    const mb=$('#more'); if(mb) mb.onclick=()=>{shown+=PAS;draw();};
+    const ta=$('#allrows'); if(ta) ta.onclick=()=>{
+      // Au-delà de 5 000 lignes, l'affichage prend plusieurs secondes et le
+      // navigateur peut se figer un instant. On prévient au lieu de laisser
+      // croire à un plantage.
+      if(list.length>5000 && !confirm(`Afficher ${fmt(list.length)} lignes d'un coup ? Cela peut figer la page quelques secondes.\n\nAstuce : filtrer par année, type ou catégorie est plus rapide.`)) return;
+      shown=list.length; draw();
+    };
     $('#tblhost').querySelectorAll('tbody tr').forEach((tr,ix)=>{tr.onclick=()=>openDoc(part[ix]);});
   }
   const fq=wrap.querySelector('#fq');
-  fq.oninput=()=>{state.q=fq.value.toLowerCase();shown=50;draw();};
-  ['fk','fe','fx','fy'].forEach(id=>{const el=wrap.querySelector('#'+id);if(el)el.onchange=()=>{state[id[1]]=el.value;shown=50;draw();};});
+  fq.oninput=()=>{state.q=fq.value.toLowerCase();shown=PREMIER;draw();};
+  ['fk','fe','fx','fy'].forEach(id=>{const el=wrap.querySelector('#'+id);if(el)el.onchange=()=>{state[id[1]]=el.value;shown=PREMIER;draw();};});
   if(wrap.querySelector('#fk')&&state.k)wrap.querySelector('#fk').value=state.k;
-  wrap.querySelector('#freset').onclick=()=>{state={q:'',y:'',x:'',k:'',e:''};shown=50;
+  wrap.querySelector('#freset').onclick=()=>{state={q:'',y:'',x:'',k:'',e:''};shown=PREMIER;
     wrap.querySelectorAll('select').forEach(s=>s.value='');fq.value='';draw();};
   draw();
 }
@@ -1465,7 +1542,7 @@ async function processFiles(fileList,opts){
     const doc=makeDoc(a.name,text,a.u8.length,a.fromZip);
     if(opts.classify){const c=opts.classify;if(c.ci>=0){doc.ci=c.ci;doc.client=(CLIENTS[c.ci]&&CLIENTS[c.ci].name)||c.client||doc.client;}if(c.k)doc.k=c.k;if(c.sp)doc.sp=c.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;if(c.refKey)doc._refKey=c.refKey;doc._where='référence';}
     else{const ref=findReference(doc.n);if(ref){if(ref.ci>=0){doc.ci=ref.ci;doc.client=(CLIENTS[ref.ci]&&CLIENTS[ref.ci].name)||ref.client||doc.client;}if(ref.k)doc.k=ref.k;if(ref.sp)doc.sp=ref.sp;doc.p=`CLIENTS/${doc.client||'—'}/${doc.k||'Divers'}/${baseName(doc.n)}`;doc._refKey=refKeyOf(ref);doc._where='référence';}}
-    try{const blob=new Blob([a.u8]);BLOBS[doc._id]=URL.createObjectURL(blob);doc._stored=await idbPut(doc._id,blob);}catch(_){}
+    try{const blob=new Blob([a.u8],{type:mimeOf(doc.n)});BLOBS[doc._id]=URL.createObjectURL(blob);doc._stored=await idbPut(doc._id,blob);}catch(_){}
     window.ADDED.unshift(doc);results.push(doc);logMove('Dépôt',doc.n,(doc.client||'À trier')+(doc.k?' · '+doc.k:''));
   }
   saveAdded();closeLoader();
@@ -1513,7 +1590,7 @@ function renderDepot(){
     $('#dztbl').querySelectorAll('.dzopen').forEach(el=>el.onclick=()=>{const doc=(window.ADDED||[]).find(x=>x._id===el.dataset.id);if(doc)openDoc(doc);});
     $('#dztbl').querySelectorAll('.dzlink').forEach(a=>a.onclick=async()=>{
       const id=a.dataset.id;
-      if(a.dataset.act==='open'){let u=BLOBS[id];if(!u){const b=await idbGet(id);if(b){u=URL.createObjectURL(b);BLOBS[id]=u;}}if(u)openInApp(u,((window.ADDED||[]).find(x=>x._id===id)||{}).n||'Document');else toast('Fichier non disponible sur ce navigateur (stockage binaire indisponible).');}
+      if(a.dataset.act==='open'){const nomDoc=((window.ADDED||[]).find(x=>x._id===id)||{}).n||'';let u=BLOBS[id];if(!u){const b=await idbGet(id);if(b){u=URL.createObjectURL(withMime(b,nomDoc));BLOBS[id]=u;}}if(u)ouvrirDocument(u,nomDoc||'Document');else toast('Fichier non disponible sur ce navigateur (stockage binaire indisponible).');}
       else{await idbDel(id);window.ADDED=window.ADDED.filter(x=>x._id!==id);saveAdded();draw();}
     });
   }

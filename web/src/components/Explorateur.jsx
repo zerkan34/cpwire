@@ -13,7 +13,7 @@ import Projets from "./Projets.jsx";
 const STATUTS = ["À faire", "En cours", "Bloqué", "Terminé"];
 const MODES = [["liste", "Liste"], ["flux", "Flux d'activité"], ["figes", "Figés"], ["projets", "Suivi projets"]];
 
-export default function Explorateur({ issues = [], facts, loading, externalQuery = "", onTicket, onDev, onClient, changedKeys }) {
+function Explorateur({ issues = [], facts, loading, externalQuery = "", onTicket, onDev, onClient, changedKeys }) {
   const [mode, setMode] = useState("liste");
   const [q, setQ] = useState(externalQuery || "");
   useEffect(() => { if (externalQuery != null) setQ(externalQuery); }, [externalQuery]);
@@ -79,3 +79,8 @@ export default function Explorateur({ issues = [], facts, loading, externalQuery
     </div>
   );
 }
+
+// Mémoïsé : ce composant est l'un des plus lourds de l'app et ses props sont stables
+// (facts et issues mémoïsés côté racine, rappels en useCallback). Sans cela, il se
+// re-rendait à chaque frappe de recherche et à chaque changement d'état de la racine.
+export default React.memo(Explorateur);

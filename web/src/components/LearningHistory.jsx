@@ -1,11 +1,11 @@
 import { useMemo, useState } from "react";
 import { buildSimpleDoc, printHtml, saveBlobAs } from "../utils.js";
+import { cle } from "../lib/commun.js";
 
 // Historique d'apprentissage — courbe de ce que cp|WIRE « connaît » dans le temps.
 // Source RÉELLE : dates Jira (cree = élément appris, maj = dernier mouvement) + couche IA (auto.at).
 // Aucune donnée inventée : si rien de daté, états vides.
 
-const norm = (s) => String(s || "").trim();
 const PAD = (n) => String(n).padStart(2, "0");
 const MONTHS = ["janv.", "févr.", "mars", "avr.", "mai", "juin", "juil.", "août", "sept.", "oct.", "nov.", "déc."];
 const WIN = { jour: 45, semaine: 26, mois: 24, annee: 12 };
@@ -52,10 +52,10 @@ export default function LearningHistory({ issues = [], k = null, onTicket, onDev
   const baseLabel = isMaj ? "mouvements" : "éléments";
 
   const clients = useMemo(
-    () => [...new Set(issues.map((i) => norm(i.dossier)).filter((d) => d && d !== "—"))].sort(),
+    () => [...new Set(issues.map((i) => cle(i.dossier)).filter((d) => d && d !== "—"))].sort(),
     [issues]
   );
-  const F = useMemo(() => (client === "Tous" ? issues : issues.filter((i) => norm(i.dossier) === client)), [issues, client]);
+  const F = useMemo(() => (client === "Tous" ? issues : issues.filter((i) => cle(i.dossier) === client)), [issues, client]);
 
   // Série : éléments bucketisés selon la base (cree = créés/appris · maj = mouvements),
   // cumul depuis l'origine, fenêtre = derniers WIN buckets.
@@ -272,7 +272,7 @@ export default function LearningHistory({ issues = [], k = null, onTicket, onDev
             {apprisAuj.map((i) => (
               <li key={i.cle}>
                 <span className="lh-today-h">{i[base] ? new Date(i[base]).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }) : ""}</span>
-                <span className="lh-today-cli">{norm(i.dossier) || "—"}</span>
+                <span className="lh-today-cli">{cle(i.dossier) || "—"}</span>
                 <button type="button" className="lh-link lh-today-cle" onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
                 <span className="lh-today-t">{i.resume}</span>
               </li>
@@ -314,7 +314,7 @@ export default function LearningHistory({ issues = [], k = null, onTicket, onDev
                 {sorted.slice(0, limit).map((i) => (
                   <div className="lh-tr" role="row" key={i.cle}>
                     <span className="lh-td lh-td-d">{i.cree ? fmtD(i.cree) : "—"}</span>
-                    <span className="lh-td"><span className="lh-cli">{norm(i.dossier) || "—"}</span></span>
+                    <span className="lh-td"><span className="lh-cli">{cle(i.dossier) || "—"}</span></span>
                     <span className="lh-td lh-td-cle">
                       <button type="button" className="lh-link" onClick={() => onTicket && onTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
                     </span>

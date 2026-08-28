@@ -9,6 +9,7 @@
 // ============================================================================
 import { ARMONIE_FONTS_CSS } from "../../shared/armonie-fonts.js";
 import { ARMONIE_PALETTE } from "../../shared/armonie-palette.js";
+import { esc } from "./utils.js";
 
 export const C = ARMONIE_PALETTE;
 
@@ -16,7 +17,9 @@ export const C = ARMONIE_PALETTE;
 // horizontales espacées), mélangée au blanc. À poser sur toute surface blanche.
 export const VERGE = "none"; // fond blanc net (le quadrillage ressortait en lignes mauves à l'impression)
 
-export function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;"); }
+// esc vient de utils.js (source unique) mais reste RÉEXPORTÉ ici : refDoc.js et
+// d'autres générateurs l'importaient depuis charter.js.
+export { esc };
 
 // Lockup logo « armo·n·ie / notos phl·soft » (texte fidèle : le « n » et « phl » en or).
 export function logoLockup({ light = false } = {}) {

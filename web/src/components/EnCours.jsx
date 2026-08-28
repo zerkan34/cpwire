@@ -1,13 +1,8 @@
 import React, { useMemo, useState } from "react";
 import { progResume } from "../ticket.js";
 
-import { VALIDES as DONE, ACTIFS as ACTIVE } from "../groups.js";
+import { VALIDES as DONE, ACTIFS as ACTIVE, CAT_LABEL, PILL } from "../groups.js";
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
-const CAT_LABEL = {
-  encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
-  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
-};
 const slug = (s) => "enc-" + String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
 const scrollToClient = (name) => { const el = document.getElementById(slug(name)); if (el) el.scrollIntoView({ behavior: "smooth", block: "start" }); };
 

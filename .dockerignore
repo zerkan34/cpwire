@@ -3,3 +3,14 @@ web/dist
 .git
 *.log
 .DS_Store
+
+# Le Dockerfile fait COPY . . : tout ce qui traîne part dans l'image.
+# On exclut ce qui n'a rien à faire dans un conteneur de production.
+*.zip
+src-tauri
+ui-ux-pro-max
+README*.md
+LISEZMOI*.txt
+MANIFESTE.txt
+INSTALLATION.md
+desktop.ini

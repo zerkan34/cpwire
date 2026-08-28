@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { fetchHistory, crForDate, crDailyForPeriod } from "../api.js";
-import { frDate, printHtml, buildSimpleDoc } from "../utils.js";
+import { frDate, printHtml, buildSimpleDoc, esc } from "../utils.js";
 import DocPreview from "./DocPreview.jsx";
 
 const LABELS = { cr_journalier: "CR journalier", cr_ecrit: "CR écrit", cr_date: "CR rédigé (IA)", cr_reunion: "CR réunion", prep_reunion: "Prépa réunion", brief_matin: "Récap du jour", cr_global: "Rapport global", cra_import: "Import CRA", ticket_push: "Mise à jour Jira", dev_delete: "Fiche dev masquée", dev_restore: "Fiche dev restaurée" };
-import { VALIDES as DONE, ACTIFS as ACTIVE } from "../groups.js";
+import { VALIDES as DONE, ACTIFS as ACTIVE, PILL } from "../groups.js";
 
 const PRESETS = [
   { id: "auj", label: "Aujourd'hui" },
@@ -48,8 +48,6 @@ function inRange(iso, range) {
   return true;
 }
 function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
 export default function History({ issues = [], canCR = true, onTicket, onDev, deletedDevs = [], inactiveDevs = [] }) {
   const [events, setEvents] = useState(null);

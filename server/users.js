@@ -9,15 +9,15 @@ import fs from "fs";
 import path from "path";
 import crypto from "crypto";
 import { dataDir } from "./paths.js";
+import { cleEmail } from "../shared/texte.js";
 
-const norm = (e) => String(e || "").trim().toLowerCase();
 const hashPw = (password, salt) => crypto.scryptSync(String(password), salt, 64).toString("hex");
 function tsafe(aHex, bHex) {
   try { const a = Buffer.from(aHex, "hex"), b = Buffer.from(bHex, "hex"); return a.length === b.length && crypto.timingSafeEqual(a, b); }
   catch { return false; }
 }
 function validate(email, password) {
-  const e = norm(email);
+  const e = cleEmail(email);
   if (!e || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)) throw new Error("Email invalide.");
   if (!password || String(password).length < 10) throw new Error("Mot de passe trop court (10 caractères minimum).");
   return e;
@@ -71,7 +71,7 @@ export async function listUsers() {
 }
 
 export async function findUser(email) {
-  const e = norm(email);
+  const e = cleEmail(email);
   const pool = await pg();
   if (pool) { const r = await pool.query("SELECT * FROM cpwire_users WHERE email = $1", [e]); return r.rows[0] || null; }
   return fread().find((u) => u.email === e) || null;
@@ -99,7 +99,7 @@ export async function createUser(email, password, role = "consultation", confirm
 
 // Marque un compte comme confirmé (clic sur le lien e-mail, ou validation par un administrateur).
 export async function setUserConfirmed(email) {
-  const e = norm(email);
+  const e = cleEmail(email);
   const pool = await pg();
   if (pool) { const r = await pool.query("UPDATE cpwire_users SET confirmed = true WHERE email = $1", [e]); return r.rowCount > 0; }
   const users = fread();
@@ -116,7 +116,7 @@ export async function verifyUser(email, password) {
 }
 
 export async function removeUser(email) {
-  const e = norm(email);
+  const e = cleEmail(email);
   const pool = await pg();
   if (pool) { await pool.query("DELETE FROM cpwire_users WHERE email = $1", [e]); return true; }
   fwrite(fread().filter((u) => u.email !== e));

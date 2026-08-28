@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { fetchCoherence, fetchProjections, fetchSignals } from "../api.js";
 import QuickActions from "./QuickActions.jsx";
+import { cle } from "../lib/commun.js";
 
 // Vue « Santé & signaux » de la Tour de contrôle. Trois briques, toutes ancrées
 // sur des données réelles : audit de cohérence (contradictions), projections
 // (rythme/tendance/ETA depuis l'historique), et journal des signaux (tendances).
 // Zéro invention : « — » quand la donnée manque.
 
-const norm = (s) => String(s || "").trim();
 const SIG_LBL = { regression: "Régression", sla: "SLA dépassé", stagnation: "Ticket figé", divergence: "Divergence de date" };
 const TREND = { "accélère": { t: "Accélère", c: "up" }, "stable": { t: "Stable", c: "" }, "décroche": { t: "Décroche", c: "down" }, "insuffisant": { t: "Historique insuffisant", c: "muted" } };
 
@@ -26,8 +26,8 @@ export default function Sante({ onTicket, onClient }) {
   }, []);
 
   const Cli = (d) => (onClient
-    ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{norm(d) || "—"}</button>
-    : <span className="af-cli">{norm(d) || "—"}</span>);
+    ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{cle(d) || "—"}</button>
+    : <span className="af-cli">{cle(d) || "—"}</span>);
   const Cle = (cle) => (cle ? <button type="button" className="af-cle" onClick={() => onTicket && onTicket({ cle })} title="Ouvrir le ticket">{cle}</button> : null);
 
   return (

@@ -15,6 +15,7 @@ import { knowledgeForPrompt, readConnaissance, piloteForPrompt, updatePilote, re
 import { signalsSummary } from "./signals.js";
 import { DOSSIERS } from "./config.js";
 import { fetchIssueDescription, fetchIssueActivity } from "./jira.js";
+import { cle } from "../shared/texte.js";
 
 // Les 7 statuts du point du soir (mêmes libellés / ordre) + le « hors point ».
 const TRACKED = [
@@ -30,7 +31,6 @@ const HORS = [["afaire", "à faire"], ["retourProd", "retour prod"], ["annule", 
 const ACTIFS = ["encours", "retourTest", "retourProd"];
 const RECETTE = ["recetteArmonie", "recetteClient", "attenteClient"];
 
-const norm = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 // Comptage par dossier — STRICTEMENT le même calcul que computeFacts (front) : on compte i.categorie.
 function factsByDossier(issues) {
@@ -52,23 +52,23 @@ function progResume(i) {
   const r = String(i.resume || "").trim();
   const t = String(i.prog && i.prog.text || "").trim();
   if (!t) return r;
-  if (norm(r).includes(norm(t))) return r;
+  if (cle(r).includes(cle(t))) return r;
   if (/\s[-–—:]\s\S/.test(r)) return r;
   return `${r} — ${t}`;
 }
 
 // --- Détection des intentions dans la question (dossiers, personnes, statuts, programmes, clés) ---
 function detect(question, issues) {
-  const q = norm(question);
+  const q = cle(question);
   const dossiers = [...new Set(issues.map((i) => i.dossier).filter(Boolean))];
   const people = [...new Set(issues.flatMap((i) => [i.dev, i.assigne]).filter((p) => p && p !== "Non assigné"))];
 
   const aliases = { belmet: "Bellion", bellion: "Bellion", erp26: "Bellion", "ds smith": "DS Smith", dssmith: "DS Smith" };
-  const hitDossiers = dossiers.filter((d) => q.includes(norm(d)));
+  const hitDossiers = dossiers.filter((d) => q.includes(cle(d)));
   for (const [al, d] of Object.entries(aliases)) if (q.includes(al) && dossiers.includes(d) && !hitDossiers.includes(d)) hitDossiers.push(d);
 
   const hitPeople = people.filter((p) => {
-    const np = norm(p);
+    const np = cle(p);
     if (q.includes(np)) return true;
     const first = np.split(/\s+/)[0];
     return first.length >= 4 && new RegExp(`\\b${first}\\b`).test(q);
@@ -106,7 +106,7 @@ function detect(question, issues) {
   }
 
   const keys = [...new Set((question.toUpperCase().match(/\b[A-Z]{2,6}-\d+\b/g) || []))];
-  const methodo = METHODO_KEYWORDS.some((k) => q.includes(norm(k)));
+  const methodo = METHODO_KEYWORDS.some((k) => q.includes(cle(k)));
 
   return { hitDossiers, hitPeople, flag, cats: [...cats], programs, keys, methodo };
 }
@@ -118,7 +118,7 @@ function selectTickets(issues, det) {
   if (det.hitDossiers.length) pool = pool.filter((i) => det.hitDossiers.includes(i.dossier));
   if (det.hitPeople.length) {
     const set = new Set(det.hitPeople.map(norm));
-    pool = pool.filter((i) => set.has(norm(i.dev)) || set.has(norm(i.assigne)));
+    pool = pool.filter((i) => set.has(cle(i.dev)) || set.has(cle(i.assigne)));
   }
   if (det.cats.length) pool = pool.filter((i) => det.cats.includes(i.categorie));
   if (det.flag === "enRetard") pool = pool.filter((i) => i.enRetard);
@@ -387,20 +387,20 @@ function dossierKeywordMap() {
   try {
     const k = readConnaissance();
     for (const [name, c] of Object.entries(k.clients || {})) {
-      add(name, norm(name));
-      for (const g of (c.glossaire || [])) for (const tok of norm(g.terme).split(/[^a-z0-9+]+/)) add(name, tok);
+      add(name, cle(name));
+      for (const g of (c.glossaire || [])) for (const tok of cle(g.terme).split(/[^a-z0-9+]+/)) add(name, tok);
     }
   } catch (e) { console.warn("[assistant:dossierKeywordMap] corpus indisponible, repli préfixes+noms:", e.message || e); /* corpus indisponible : on retombe sur les préfixes + noms */ }
-  for (const [prefix, name] of Object.entries(DOSSIERS || {})) { add(name, norm(name)); add(name, norm(prefix)); }
+  for (const [prefix, name] of Object.entries(DOSSIERS || {})) { add(name, cle(name)); add(name, cle(prefix)); }
   return map;
 }
 function guessDossier(filename, body, issues = []) {
-  const hay = norm(`${filename} ${String(body || "").slice(0, 6000)}`);
+  const hay = cle(`${filename} ${String(body || "").slice(0, 6000)}`);
   const map = dossierKeywordMap();
   const candidates = new Set([...Object.keys(map), ...issues.map((i) => i.dossier).filter(Boolean)]);
   let best = "", bestScore = 0;
   for (const d of candidates) {
-    const toks = map[d] || new Set([norm(d)]);
+    const toks = map[d] || new Set([cle(d)]);
     let score = 0;
     for (const tok of toks) if (tok && hay.includes(tok)) score++;
     if (score > bestScore) { bestScore = score; best = d; }

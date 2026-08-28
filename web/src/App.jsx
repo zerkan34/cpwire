@@ -1,25 +1,20 @@
-import React, { useEffect, useMemo, useState, useCallback, useRef, lazy, Suspense } from "react";
+import React, { useEffect, useMemo, useState, useCallback, useDeferredValue, useRef, lazy, Suspense } from "react";
 import { fetchPortfolio, fetchDossiers, getToken, clearToken, fetchDeletedDevs, deleteDevFiche, restoreDevFiche, fetchChangesSummary,
   getInviteFromUrl, stripInviteFromUrl, fetchSession, createInvite, fetchProjets, ping, fetchAdminUsers } from "./api.js";
 import { saveSnapshot, loadSnapshot } from "./snapshot.js";
 import { ReadOnlyContext } from "./readonly.js";
 import Login from "./components/Login.jsx";
 import Header from "./components/Header.jsx";
-import Home from "./components/Home.jsx";
 import PosteCommandement from "./components/PosteCommandement.jsx";
-import MissionControl from "./components/MissionControl.jsx";
 import { computeFacts } from "./facts.js";
-import Filters from "./components/Filters.jsx";
+import { famillesVisibles, orphelins, premierDe, libelleDans, familleDe } from "./lib/navigation.js";
 import IssueTable from "./components/IssueTable.jsx";
 import ActivityFeed from "./components/ActivityFeed.jsx";
 import StaleTickets from "./components/StaleTickets.jsx";
 import SlaAlert from "./components/SlaAlert.jsx";
-import DeadlineRadar from "./components/DeadlineRadar.jsx";
 import Sante from "./components/Sante.jsx";
-import Digest from "./components/Digest.jsx";
 import Charge from "./components/Charge.jsx";
 import GanttTool from "./components/GanttTool.jsx";
-import QuoteBoard from "./components/QuoteBoard.jsx";
 import ExportBar from "./components/ExportBar.jsx";
 
 // ---- Découpage du bundle (code-splitting) ----------------------------------
@@ -43,14 +38,13 @@ const TicketModal = lazy(() => import("./components/TicketModal.jsx"));
 const DossierModal = lazy(() => import("./components/DossierModal.jsx"));
 const Client360 = lazy(() => import("./components/Client360.jsx"));
 const DeveloperModal = lazy(() => import("./components/DeveloperModal.jsx"));
-const DailyRecap = lazy(() => import("./components/DailyRecap.jsx"));
 const Developers = lazy(() => import("./components/Developers.jsx"));
 const EnCours = lazy(() => import("./components/EnCours.jsx"));
 const Recap = lazy(() => import("./components/Recap.jsx"));
 const Meetings = lazy(() => import("./components/Meetings.jsx"));
 const Reunion = lazy(() => import("./components/Reunion.jsx"));
+const Engagements = lazy(() => import("./components/Engagements.jsx"));
 const CRA = lazy(() => import("./components/CRA.jsx"));
-const MobileRecap = lazy(() => import("./components/MobileRecap.jsx"));
 const ShareFly = lazy(() => import("./components/ShareFly.jsx"));
 const Flux = lazy(() => import("./components/Flux.jsx"));
 
@@ -97,6 +91,29 @@ function greetMessage(role, me) {
   const w = h < 12 ? "Bonjour" : h < 18 ? "Bonne après-midi" : "Bonsoir";
   return name ? `${w} ${name} !` : `${w} !`;
 }
+// Intervalle "poli" : il ne tourne QUE lorsque l'onglet est visible, et déclenche
+// un rattrapage immédiat au retour au premier plan. En PWA sur mobile, quatre
+// minuteurs qui tournaient en permanence consommaient batterie et données même
+// application fermée dans le tiroir, et faisaient travailler le serveur pour rien.
+function useIntervalleVisible(action, delaiMs, actif = true) {
+  const ref = useRef(action);
+  useEffect(() => { ref.current = action; }, [action]);
+  useEffect(() => {
+    if (!actif || !delaiMs) return undefined;
+    let id = null;
+    const visible = () => typeof document === "undefined" || document.visibilityState === "visible";
+    const demarrer = () => { if (id === null) id = setInterval(() => { try { ref.current(); } catch (e) { console.error("[intervalle]", e); } }, delaiMs); };
+    const arreter = () => { if (id !== null) { clearInterval(id); id = null; } };
+    const surChangement = () => {
+      if (visible()) { try { ref.current(); } catch (e) { console.error("[intervalle]", e); } demarrer(); }
+      else arreter();
+    };
+    if (visible()) demarrer();
+    document.addEventListener("visibilitychange", surChangement);
+    return () => { arreter(); document.removeEventListener("visibilitychange", surChangement); };
+  }, [delaiMs, actif]);
+}
+
 const TABS = [
   { id: "cockpit", label: "Pilotage" },
   { id: "explorateur", label: "Explorateur" },
@@ -118,6 +135,7 @@ const SUBTABS = {
     { id: "cra", label: "CRA" },
     { id: "reunions", label: "Réunions" },
     { id: "transcription", label: "Transcription" },
+    { id: "engagements", label: "Engagements" },
     { id: "reference", label: "Référence" },
     { id: "hygiene", label: "Qualité" },
   ],
@@ -135,7 +153,7 @@ const TAB_SHORT = { cockpit: "Pilotage", explorateur: "Explorateur", atelier: "A
 function subsForRole(groupId, role) {
   const subs = SUBTABS[groupId] || [];
   if (role === "owner") return subs;
-  const hidden = new Set(["memoire", "recap", "morning", "reunions", "transcription", "cra"]);
+  const hidden = new Set(["memoire", "recap", "morning", "reunions", "transcription", "engagements", "cra"]);
   return subs.filter((s) => !hidden.has(s.id));
 }
 
@@ -158,7 +176,6 @@ function NavIcon({ id }) {
     case "qualite": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
     case "comptesrendus": return (<svg viewBox="0 0 24 24" {...p}><path d="M6 3h9l4 4v14H6z" /><path d="M14 3v4h4" /><line x1="9" y1="12" x2="16" y2="12" /><line x1="9" y1="16" x2="16" y2="16" /></svg>);
     case "hygiene": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
-    case "qualite": return (<svg viewBox="0 0 24 24" {...p}><path d="M12 3l7 3v5c0 4.5-3 7.6-7 9-4-1.4-7-4.5-7-9V6l7-3z" /><path d="M9 12l2 2 4-4" /></svg>);
     case "memoire": return (<svg viewBox="0 0 24 24" {...p}><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z" /><path d="M19 17H6a2 2 0 0 0-2 2" /><line x1="8" y1="7" x2="15" y2="7" /></svg>);
     case "admin": return (<svg viewBox="0 0 24 24" {...p}><circle cx="12" cy="8" r="3.2" /><path d="M5.5 20c0-3.6 2.9-5.5 6.5-5.5s6.5 1.9 6.5 5.5" /><path d="M18 4l1 1.6L20.8 6l-1.3 1.2.3 1.8L18 8.1 16.2 9l.3-1.8L15.2 6l1.8-.4z" /></svg>);
     case "cadence": return (<svg viewBox="0 0 24 24" {...p}><path d="M3 12h3l2-6 4 14 3-9 2 4h4" /></svg>);
@@ -183,6 +200,7 @@ export default function App() {
   const [role, setRole] = useState("owner");
   const [presence, setPresence] = useState([]);       // (owner) comptes consultation actuellement en ligne
   const seenOnlineRef = useRef(null);                  // suivi pour détecter les nouvelles connexions
+  const pollRef = useRef(null);                        // sondage de présence, rappelé par l'intervalle visible
   const [invite] = useState(getInviteFromUrl());           // jeton d'invitation présent dans l'URL (le cas échéant)
   const [readOnly, setReadOnly] = useState(getToken().startsWith("g.")); // estimation immédiate, confirmée par /api/session
   const [tab, setTab] = useState("cockpit");
@@ -212,6 +230,12 @@ export default function App() {
   const [onlyMine, setOnlyMine] = useState(false);
   const [onlyFlagged, setOnlyFlagged] = useState(false);
   const [query, setQuery] = useState("");
+  // La recherche filtre ~4800 tickets : à chaque frappe, deux passes complètes sur la
+  // liste reconstruisaient une chaîne de recherche par ticket (mesuré à ~8 ms par passe
+  // et par frappe sur un poste, trois à cinq fois plus sur mobile). useDeferredValue
+  // laisse React afficher la frappe immédiatement et ne relancer le filtrage qu'une fois
+  // la saisie retombée : le champ ne colle plus, sans changer un seul résultat affiché.
+  const queryDiff = useDeferredValue(query);
   const [person, setPerson] = useState("Tous");
   const [priorite, setPriorite] = useState("Tous");
   const [changedKeys, setChangedKeys] = useState(null);
@@ -260,12 +284,19 @@ export default function App() {
   // Import sources : OneNote, Excel, fichier query/CSV… cp|WIRE lit la source,
   // montre ce qui a changé + un récap, puis met à jour sur validation (modale dédiée).
   const [importOpen, setImportOpen] = useState(false);
-  const [nowTick, setNowTick] = useState(Date.now());
-  useEffect(() => { const t = setInterval(() => setNowTick(Date.now()), 60000); return () => clearInterval(t); }, []);
-  const showDailyCr = useMemo(() => {
-    const d = new Date(nowTick); const day = d.getDay(); const mins = d.getHours() * 60 + d.getMinutes();
+  // Faut-il proposer le CR du soir ? Vrai du lundi au vendredi à partir de 17 h 30.
+  // Avant, un nowTick rafraîchi chaque minute re-rendait TOUT l'arbre soixante fois par
+  // heure pour recalculer ce seul booléen. On ne déclenche plus de rendu que lorsque la
+  // réponse change réellement, c'est à dire une à deux fois par jour.
+  const calcShowDailyCr = () => {
+    const d = new Date(); const day = d.getDay(); const mins = d.getHours() * 60 + d.getMinutes();
     return day >= 1 && day <= 5 && mins >= 17 * 60 + 30; // lun(1)→ven(5), ≥ 17:30
-  }, [nowTick]);
+  };
+  const [showDailyCr, setShowDailyCr] = useState(calcShowDailyCr);
+  useIntervalleVisible(() => {
+    const v = calcShowDailyCr();
+    setShowDailyCr((prev) => (prev === v ? prev : v)); // même valeur => aucun rendu
+  }, 60000, true);
 
   const showToast = useCallback((msg) => {
     setToast(msg);
@@ -442,9 +473,8 @@ export default function App() {
   useEffect(() => {
     if (!authed) return;
     ping().catch(() => {});
-    const id = setInterval(() => ping().catch(() => {}), 30000);
-    return () => clearInterval(id);
   }, [authed]);
+  useIntervalleVisible(() => { ping().catch(() => {}); }, 30000, authed);
 
   // (Owner) Présence des invités + alerte « quelqu'un vient de se connecter ».
   useEffect(() => {
@@ -471,20 +501,18 @@ export default function App() {
       } catch { /* admin indisponible : on ignore */ }
     };
     poll();
-    const id = setInterval(poll, 25000);
-    return () => { alive = false; clearInterval(id); };
+    pollRef.current = poll;
+    return () => { alive = false; pollRef.current = null; };
   }, [authed, role, showToast]);
+  useIntervalleVisible(() => { if (pollRef.current) pollRef.current(); }, 25000, authed);
 
   // La recherche filtre le Cockpit : si on tape depuis un autre onglet, on y bascule pour voir les résultats.
   useEffect(() => { if (query.trim()) { setTab("explorateur"); } /* eslint-disable-next-line */ }, [query]);
 
-  // Actualisation automatique EN CONTINU (toutes les 60 s), tant qu'on est connecté —
-  // incrémentale et silencieuse : ne récupère dans Jira que les tickets modifiés.
-  useEffect(() => {
-    if (!authed) return;
-    const id = setInterval(() => { load(true, false, true); }, 40000);
-    return () => clearInterval(id);
-  }, [authed, load]);
+  // Actualisation automatique toutes les 40 s tant qu'on est connecté ET que l'onglet
+  // est au premier plan : incrémentale et silencieuse (ne récupère dans Jira que les
+  // tickets modifiés). En arrière-plan, plus aucun appel ; au retour, rattrapage immédiat.
+  useIntervalleVisible(() => { load(true, false, true); }, 40000, authed);
 
   // Détection des nouveaux tickets flaggés -> notification.
   useEffect(() => {
@@ -538,7 +566,7 @@ export default function App() {
   }, [showToast]);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = queryDiff.trim().toLowerCase();
     return issues.filter((i) => {
       if (dossier !== "Tous" && i.dossier !== dossier) return false;
       if (statut !== "Tous" && i.statut !== statut) return false;
@@ -554,7 +582,7 @@ export default function App() {
       }
       return true;
     });
-  }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
+  }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, queryDiff]);
 
   // Libellé clair du filtre courant (titre d'export + en-tête du cockpit).
   const cockpitFilterLabel = useMemo(() => {
@@ -594,13 +622,17 @@ export default function App() {
   const can360 = useCallback((d) => c360Map.has(norm360(d)), [c360Map]);
   const open360 = useCallback((d) => { const c = c360Map.get(norm360(d)); if (c) setSel360(c); }, [c360Map]);
   // Ouvre la Fiche 360 si on a les données du client ; sinon repli sur la fiche dossier classique.
+  // Stable : recréée à chaque rendu, cette fonction annulait tout l'intérêt de React.memo
+  // sur le Poste de commandement, qui se re-rendait donc à chaque frappe et chaque toast.
+  const goTo = useCallback((t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }, []);
+
   const openClient = useCallback((d) => {
     const c = c360Map.get(norm360(d));
     if (c) setSel360(c); else setFiche({ nom: d });
   }, [c360Map]);
   // pour qu'un compteur ne contredise jamais le tableau (ex. plus de "26" alors que le tableau est vide).
   const counts = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = queryDiff.trim().toLowerCase();
     const workers = (i) => (i.contributors && i.contributors.length) ? i.contributors : [i.assigne || "Non assigné"];
     const hay = (i) => `${i.cle} ${i.resume} ${i.dossier} ${i.assigne || ""} ${i.dev || ""} ${workers(i).join(" ")} ${(i.labels || []).join(" ")} ${i.statut} ${i.statutJira || ""} ${i.priorite || ""}`.toLowerCase();
     const ok = (i, except) => {
@@ -631,7 +663,7 @@ export default function App() {
       mine: issues.filter((i) => ok(i, "mine") && i.mine).length,
       flagged: issues.filter((i) => ok(i, "flagged") && i.flagged).length,
     };
-  }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, query]);
+  }, [issues, dossier, statut, onlyLate, onlyMine, onlyFlagged, person, priorite, queryDiff]);
 
   const diag = data?.diagnostic;
   // L'accueil bascule sur l'écran natif MobileHome UNIQUEMENT sur petit écran (largeur),
@@ -725,13 +757,59 @@ export default function App() {
         ))}
       </div>
 
-      {subsForRole(tab, role).length > 1 && (
-        <div className="subtabs">
-          {subsForRole(tab, role).map((s) => (
-            <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>{s.label}{s.id === "activite" && changedKeys && changedKeys.size > 0 && sub !== "activite" && <span className="sub-badge">{changedKeys.size}</span>}</button>
-          ))}
-        </div>
-      )}
+      {/* Navigation de l'Atelier : familles d'abord, écrans ensuite.
+          Onze entrées en liste plate devenaient un tiroir fourre-tout, où le cycle
+          d'une réunion (préparer, transcrire, suivre) se retrouvait éclaté au milieu
+          de huit autres écrans sans rapport. */}
+      {(() => {
+        const permis = subsForRole(tab, role);
+        if (permis.length <= 1) return null;
+        const familles = famillesVisibles(permis);
+        const hors = orphelins(permis);
+        // Un seul groupe et aucun orphelin : la barre de familles n'apporte rien.
+        if (familles.length <= 1 && !hors.length) {
+          return (
+            <div className="subtabs">
+              {permis.map((s) => (
+                <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>{s.label}</button>
+              ))}
+            </div>
+          );
+        }
+        const famActive = familleDe(sub) || familles[0];
+        const items = (familles.find((f) => f.id === (famActive && famActive.id)) || familles[0]).items;
+        const sequence = !!(famActive && famActive.sequence);
+        return (
+          <>
+            <div className="famtabs" role="tablist" aria-label="Familles d'écrans">
+              {familles.map((f) => (
+                <button key={f.id} type="button" role="tab"
+                  aria-selected={famActive && famActive.id === f.id}
+                  className={`famtab ${famActive && famActive.id === f.id ? "active" : ""}`}
+                  onClick={() => { const d = premierDe(f); if (d) setSub(d); }}>
+                  {f.label}
+                </button>
+              ))}
+              {hors.map((s) => (
+                <button key={s.id} type="button"
+                  className={`famtab ${sub === s.id ? "active" : ""}`}
+                  onClick={() => setSub(s.id)}>{s.label}</button>
+              ))}
+            </div>
+            {items.length > 1 && (
+              <div className={`subtabs${sequence ? " seq" : ""}`}>
+                {items.map((s, i) => (
+                  <button key={s.id} className={`subtab ${sub === s.id ? "active" : ""}`} onClick={() => setSub(s.id)}>
+                    {sequence && <span className="subtab-n">{i + 1}</span>}
+                    {libelleDans(famActive.id, s)}
+                    {s.id === "activite" && changedKeys && changedKeys.size > 0 && sub !== "activite" && <span className="sub-badge">{changedKeys.size}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </>
+        );
+      })()}
 
       {needsConfig && (
         <div className="banner">
@@ -781,7 +859,7 @@ export default function App() {
             onClient={openClient}
             onTicket={setTicket}
             onDev={setDevFiche}
-            goTo={(t, sb) => { setTab(t); setTimeout(() => setSub(sb), 0); }}
+            goTo={goTo}
           />
         )
       )}
@@ -795,7 +873,7 @@ export default function App() {
       {tab === "explorateur" && (
         <>
           <PageHero k="Explorateur" title="Explorateur" sub="Tickets, flux, figés et suivi projets — une seule surface, mêmes facettes." />
-          <Explorateur issues={issues} facts={facts} loading={loading} externalQuery={query} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
+          <Explorateur issues={issues} facts={facts} loading={loading} externalQuery={queryDiff} onTicket={setTicket} onDev={setDevFiche} onClient={openClient} changedKeys={changedKeys} />
         </>
       )}
       {tab === "cockpit" && sub === "activite" && (
@@ -804,9 +882,12 @@ export default function App() {
           <EnCours issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} changedKeys={changedKeys} />
         </>
       )}
-      {tab === "atelier" && sub === "morning" && (isMobile
-        ? <MobileRecap issues={issues} syncedAt={data?.syncedAt || data?.generatedAt} onTicket={setTicket} onBack={() => { setTab("cockpit"); setSub(""); }} />
-        : <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} />
+      {/* Récap : UN SEUL composant, responsive. Plus de fourche mobile/desktop :
+          les deux versions divergeaient (filtres et périmètre différents). */}
+      {tab === "atelier" && sub === "morning" && (
+        <Recap issues={issues} canCR={canCR} onTicket={setTicket} onDev={setDevFiche}
+          deletedDevs={deletedDevs} inactiveDevs={inactiveDevs}
+          syncedAt={data?.syncedAt || data?.generatedAt} />
       )}
       {tab === "atelier" && sub === "devs" && <Developers issues={issues} onTicket={setTicket} onDev={setDevFiche} deletedDevs={deletedDevs} inactiveDevs={inactiveDevs} inactiveMonths={data?.inactiveMonths || 2} onMarkLeft={removeDev} onRestoreDev={restoreDev} />}
       {tab === "atelier" && sub === "charge" && (
@@ -816,6 +897,7 @@ export default function App() {
         </>
       )}
       {tab === "atelier" && sub === "reunions" && <Meetings issues={issues} />}
+      {tab === "atelier" && sub === "engagements" && <Engagements issues={issues} onClient={openClient} />}
       {tab === "atelier" && sub === "transcription" && (<><PageHero k="Atelier" title="Transcription de réunion" sub="Capte le son de ton ordinateur pendant une réunion Teams, transcrit au fil de l'eau et produit le compte rendu." /><Reunion /></>)}
       {tab === "atelier" && sub === "cra" && (<><PageHero k="Atelier" title="CRA — compte rendu d'activité" sub="Temps saisi par personne et par projet (import Excel)." /><CRA onTicket={setTicket} /></>)}
       {tab === "atelier" && sub === "gantt" && (<><PageHero k="Atelier" title="GANTT" sub="Choisis un client et un projet, puis construis ton planning à la charte Armonie." /><GanttTool dossiers={Object.keys(facts?.byDossier || {})} /></>)}

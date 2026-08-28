@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { fetchProjets, downloadProjetsXlsx, openProjetsDoc } from "../api.js";
 import Client360 from "./Client360.jsx";
 import { useScrollLock } from "../modalNav.js";
+import { cle } from "../lib/commun.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
@@ -27,10 +28,9 @@ const initials = (s) => String(s || "").trim().split(/\s+/).map((w) => w[0]).joi
 // ou null si aucun dossier Jira ne correspond (→ repli sur le serveur).
 function factForClient(facts, clientName) {
   if (!facts || !facts.byDossier) return null;
-  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const target = norm(clientName);
+  const target = cle(clientName);
   for (const [d, f] of Object.entries(facts.byDossier)) {
-    if (norm(d) === target) return { total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard };
+    if (cle(d) === target) return { total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard };
   }
   return null;
 }

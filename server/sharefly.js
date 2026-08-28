@@ -22,6 +22,7 @@ import { listImports } from "./import.js";
 import { listDeliverables, getDeliverable } from "./deliverables.js";
 import { analyseCatalogue } from "./catalogueAnalyse.js";
 import * as sharepoint from "./sharepoint.js";
+import { guard } from "./auth-core.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
@@ -198,6 +199,23 @@ function persist() {
 }
 
 router.use(express.json({ limit: "1mb" }));
+
+// ---------------------------------------------------------------------------
+// AUTHENTIFICATION — corrigée le 13/08/2026.
+//
+// Ce router n'avait AUCUN garde. Conséquence : la page ShareFly, le catalogue
+// complet (14 333 documents avec leurs noms et métadonnées, dont des
+// propositions commerciales, des chiffrages et des documents RH) et la route
+// /api/sharefly/spfile — qui redirige vers le contenu réel du fichier dans
+// SharePoint — étaient accessibles SANS COMPTE, à toute personne connaissant
+// l'URL. Les mentions « Accès restreint » affichées sur les espaces Avant-vente
+// et RH n'étaient qu'un texte : rien ne les faisait respecter côté serveur.
+//
+// Le garde est celui de l'application, pas un mécanisme parallèle : une seule
+// façon de s'authentifier, une seule à maintenir.
+router.use(guard);
+// ---------------------------------------------------------------------------
+
 
 /* --- Config front (URL de base SharePoint + retour cp|WIRE), injectée côté page.
    DOIT précéder le static. Surchargeable par env SHAREFLY_SP_BASE / SHAREFLY_CPWIRE_BASE. */

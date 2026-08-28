@@ -1,14 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
+import { daysSince, cle } from "../lib/commun.js";
 import { fetchSla } from "../api.js";
+import { PILL } from "../groups.js";
 
 // Tickets figés — depuis combien de temps chaque ticket n'a pas changé d'état.
 // Donnée RÉELLE : statutDepuis (date d'entrée dans le statut courant, champ Jira), repli sur maj (marqué ≈).
 // On exclut ce qui est terminé / mis en prod / annulé (catégorie Jira réelle). Zéro invention.
 
 const DONE_CATS = new Set(["termine", "miseEnProd", "annule"]);
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
-const norm = (s) => String(s || "").trim();
-const daysSince = (iso) => { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : Math.floor((Date.now() - d.getTime()) / 86400000); };
 const fmtD = (iso) => { try { const d = new Date(iso); return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getFullYear()).slice(2)}`; } catch { return "—"; } };
 const ageCls = (n) => (n == null ? "" : n >= 30 ? "crit" : n >= 15 ? "warn" : n >= 7 ? "mid" : "ok");
 
@@ -40,10 +39,10 @@ export default function StaleTickets({ issues = [], onTicket, onDev, onClient, c
     .filter((i) => i._age != null)
     .sort((a, b) => b._age - a._age), [issues]);
 
-  const clients = useMemo(() => [...new Set(base.map((i) => norm(i.dossier)).filter((d) => d && d !== "—"))].sort(), [base]);
+  const clients = useMemo(() => [...new Set(base.map((i) => cle(i.dossier)).filter((d) => d && d !== "—"))].sort(), [base]);
 
   const shown = useMemo(() => base.filter((i) =>
-    (client === "Tous" || norm(i.dossier) === client) && i._age >= seuil &&
+    (client === "Tous" || cle(i.dossier) === client) && i._age >= seuil &&
     (!slaOnly || !!slaOf(i.cle))
   ), [base, client, seuil, slaOnly, slaMap]);
 
@@ -86,8 +85,8 @@ export default function StaleTickets({ issues = [], onTicket, onDev, onClient, c
             <li className={`af-ev sf-ev${changedKeys && changedKeys.has && changedKeys.has(i.cle) ? " is-fresh" : ""}`} key={i.cle}>
               <span className={`sf-age ${ageCls(i._age)}`}>{i._age} j</span>
               {onClient
-                ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(i.dossier)} title="Ouvrir la fiche client">{norm(i.dossier) || "—"}</button>
-                : <span className="af-cli">{norm(i.dossier) || "—"}</span>}
+                ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(i.dossier)} title="Ouvrir la fiche client">{cle(i.dossier) || "—"}</button>
+                : <span className="af-cli">{cle(i.dossier) || "—"}</span>}
               <button type="button" className="af-cle" onClick={() => openTicket(i)} title="Ouvrir le ticket">{i.cle}</button>
               <span className="sf-st">
                 <span className={`pill ${PILL[i.statut] || ""}`}>{i.statut}</span>

@@ -6,6 +6,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { VALIDES as DONE } from "../shared/groupes.js";
+import { cleCode } from "../shared/texte.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REF_PATH = path.join(__dirname, "referentiel.json");
@@ -19,9 +21,7 @@ export function referentielClients() {
 }
 
 // Normalisation d'un nom de programme : majuscules, sans joker ni espaces de fin.
-const norm = (s) => String(s || "").toUpperCase().replace(/[*\s]+$/g, "").trim();
 
-const DONE = ["termine", "miseEnProd"];
 const RECETTE = ["recetteArmonie", "recetteClient"];
 const RETOUR = ["retourTest", "retourProd"];
 
@@ -41,7 +41,7 @@ const JIRA_BASE = "https://armonie.atlassian.net/browse/";
 function indexByProgramme(issues) {
   const idx = new Map();
   const add = (name, issue) => {
-    const n = norm(name);
+    const n = cleCode(name);
     if (!n) return;
     if (!idx.has(n)) idx.set(n, []);
     if (!idx.get(n).some((x) => x.cle === issue.cle)) idx.get(n).push(issue);
@@ -91,7 +91,7 @@ export function crossReferentiel(issues, client) {
         tickets = [{ cle: tkKey, resume: nom, statut: stExcel || "—", categorie: excelCat(stExcel), url: JIRA_BASE + tkKey, qui: "" }];
       } else {
         // aucun ticket connu : repli par nom de programme sur les titres Jira live
-        tickets = (idx.get(norm(nom)) || []).map((i) => ({
+        tickets = (idx.get(cleCode(nom)) || []).map((i) => ({
           cle: i.cle, resume: i.resume, statut: i.statut, categorie: i.categorie, url: i.url,
           qui: (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne || ""),
         }));

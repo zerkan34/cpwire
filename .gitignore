@@ -16,3 +16,28 @@ server/history.json
 .env.*
 .DS_Store
 *.log
+
+# ---- Anti-récidive (ajouté après le ménage du 13/08/2026) ----
+# Le dépôt s'était rempli de copies périmées du code vivant, déposées à la racine
+# et dans web/ lors d'allers-retours de zips. Certaines avaient même un contenu
+# sans rapport avec leur nom (un package-lock.json contenant du JavaScript, un
+# env.example contenant une police). On interdit désormais le code source hors
+# des dossiers prévus.
+/*.jsx
+/*.js
+/*.py
+/*.css
+/*.ttf
+/*.zip
+/*.csv
+web/*.jsx
+web/*.js
+!web/vite.config.js
+
+# Exception : les manifestes et la configuration restent versionnés.
+!/package.json
+!/render.yaml
+
+# Résidus Windows / OneDrive
+desktop.ini
+Thumbs.db

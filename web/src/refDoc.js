@@ -8,8 +8,8 @@
 //  Règle sacrée : zéro invention. On ne met en page que les données reçues.
 // ============================================================================
 import { C, esc, cover, section, chapter, kpiBand, charterDoc } from "./charter.js";
+import { dateDuJour } from "./lib/commun.js";
 
-const frDate = () => new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" });
 const tkLink = (cle, url) => url
   ? `<a href="${esc(url)}" target="_blank" rel="noopener" class="rd-tk">${esc(cle)}</a>`
   : `<span class="rd-tk">${esc(cle)}</span>`;
@@ -117,7 +117,7 @@ export function buildAnalyseDoc(d) {
       kicker: "Référence · Analyse & apprentissage",
       title: "Analyse &amp; apprentissage",
       subtitle: `${d.client || "Tous les clients"}${d.eng && d.eng !== "Tous" ? ` · ${d.eng}` : ""}`,
-      meta: `Lecture analytique du portefeuille — ${frDate()}`,
+      meta: `Lecture analytique du portefeuille — ${dateDuJour()}`,
       enBref: `Lecture calculée en direct sur les données Jira (zéro invention). ${k.total} ticket(s) sur le périmètre, dont ${k.encours} en cours, ${k.recette} en recette/attente et ${k.reprises} reprise(s).`,
       callout: { value: k.retard || 0, label: "en retard", hint: `${k.bloque || 0} bloqué(s)` },
       etabliPar: "Nicolas Durand",
@@ -155,7 +155,7 @@ export function buildAnnuaireDoc(data, client, urlOf) {
       kicker: "Référence · Annuaire",
       title: "Annuaire — référentiel recette",
       subtitle: client,
-      meta: `Programmes rapprochés de leurs tickets Jira — ${frDate()}`,
+      meta: `Programmes rapprochés de leurs tickets Jira — ${dateDuJour()}`,
       enBref: `${data.nbOptions} option(s) · ${data.nbProgrammes} programme(s). Chaque programme est rapproché de son ticket Jira (« non lié » sinon).`,
       etabliPar: "Nicolas Durand",
     }),
@@ -194,7 +194,7 @@ export function buildMemoireDoc(k) {
       kicker: "Référence · Mémoire d'équipe",
       title: "Mémoire d'équipe",
       subtitle: "Ce que l'assistant sait de votre façon de travailler",
-      meta: `Conventions, glossaire et contexte appris — ${frDate()}`,
+      meta: `Conventions, glossaire et contexte appris — ${dateDuJour()}`,
       enBref: "Base relue par l'assistant à chaque rapport : conventions, glossaire, et, par client, contexte, attentes, vocabulaire, notes et contexte appris automatiquement de Jira.",
       etabliPar: "Nicolas Durand",
     }),

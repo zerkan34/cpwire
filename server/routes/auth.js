@@ -9,13 +9,11 @@ import { persistenceActive } from "../persist.js";
 import { ME } from "../config.js";
 import { verifyUser, createUser, setUserConfirmed } from "../users.js";
 import { sendMail, msConfigured } from "../microsoft.js";
-import {
-  AUTH_EMAIL, AUTH_PASSWORD, AUTH_ENABLED, sessions, saveSessions, loginLimiter,
+import { AUTH_EMAIL, AUTH_PASSWORD, AUTH_ENABLED, sessions, saveSessions, loginLimiter,
   OWNER_TTL_MS, CONFIRM_TTL_MS,
   makeOwnerToken, checkInviteToken, makeConfirmToken, checkConfirmToken,
   baseUrl, confirmEmailHtml, confirmPageHtml, makeGuestToken,
-  guard, writeGuard,
-} from "../auth-core.js";
+  guard, writeGuard, poserCookieJeton, retirerCookieJeton } from "../auth-core.js";
 
 const isPersistent = () => dataDirInfo().persistent || persistenceActive();
 
@@ -25,18 +23,18 @@ authRouter.post("/login", loginLimiter, async (req, res) => {
   const { email, password } = req.body || {};
   if (!AUTH_ENABLED) {
     const t = crypto.randomUUID(); sessions.set(t, { role: "owner", email: ME, lastSeen: Date.now() }); saveSessions();
-    return res.json({ token: t, me: ME, role: "owner", note: "Auth non configurée côté serveur." });
+    poserCookieJeton(res, t); return res.json({ token: t, me: ME, role: "owner", note: "Auth non configurée côté serveur." });
   }
   if (email === AUTH_EMAIL && password === AUTH_PASSWORD) {
     const t = makeOwnerToken(Date.now() + OWNER_TTL_MS);
-    return res.json({ token: t, me: ME, role: "owner" });
+    poserCookieJeton(res, t); return res.json({ token: t, me: ME, role: "owner" });
   }
   try {
     const u = await verifyUser(email, password);
     if (u) {
       if (u.confirmed === false) return res.status(403).json({ error: "Compte non confirmé. Cliquez le lien de confirmation reçu par e-mail, ou demandez à un administrateur de valider votre accès." });
       const t = crypto.randomUUID(); sessions.set(t, { role: u.role, email: u.email, lastSeen: Date.now() }); saveSessions();
-      return res.json({ token: t, me: u.email, role: u.role });
+      poserCookieJeton(res, t); return res.json({ token: t, me: u.email, role: u.role });
     }
   } catch (e) {
     console.error("[POST /api/login]", e && e.message ? e.message : e); return res.status(502).json({ error: "Base de comptes indisponible : " + String(e.message || e) }); }
@@ -85,6 +83,7 @@ authRouter.get("/session", guard, (req, res) => { res.json({ role: req.role || "
 // étant auto-vérifiable, sa révocation fine viendra avec l'audit ; le client efface le
 // jeton dans tous les cas, et un changement de mot de passe invalide tout immédiatement.
 authRouter.post("/logout", guard, (req, res) => {
+  retirerCookieJeton(res);   // la déconnexion doit aussi effacer le cookie de session
   const t = req.headers["x-access-token"];
   if (t && sessions.has(t)) { sessions.delete(t); saveSessions(); }
   res.json({ ok: true });

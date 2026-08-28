@@ -128,8 +128,26 @@ function adfToText(node) {
   if (!node) return "";
   if (typeof node === "string") return node;
   let out = "";
+
+  // Les commentaires Jira contiennent beaucoup de listes et de sauts de ligne.
+  // Sans ces cas, une énumération à puces s'écrasait en une seule ligne illisible.
+  if (node.type === "hardBreak") return "\n";
+  if (node.type === "listItem") {
+    const inner = (node.content || []).map(adfToText).join("").trim();
+    return inner ? "- " + inner.replace(/\n+/g, " ") + "\n" : "";
+  }
+  if (node.type === "codeBlock") {
+    const code = (node.content || []).map(adfToText).join("").trim();
+    return code ? "\n" + code + "\n" : "";
+  }
+  if (node.type === "mention") return "@" + (node.attrs?.text || "").replace(/^@/, "");
+  if (node.type === "inlineCard" || node.type === "blockCard") return node.attrs?.url || "";
+  if (node.type === "mediaSingle" || node.type === "media") return "[pièce jointe]";
+
   if (node.text) out += node.text;
-  if (Array.isArray(node.content)) out += node.content.map(adfToText).join(node.type === "paragraph" ? "" : " ");
+  if (Array.isArray(node.content)) {
+    out += node.content.map(adfToText).join(node.type === "paragraph" ? "" : "");
+  }
   if (node.type === "paragraph" || node.type === "heading") out += "\n";
   return out;
 }
@@ -196,7 +214,7 @@ function fmtSeconds(sec) {
 // Récupère, pour UN ticket, l'historique (qui a fait quoi, quand) et les heures saisies (worklogs).
 // Appel à la demande (ouverture d'un ticket), donc sans impact sur la vitesse d'actualisation.
 export async function fetchIssueActivity(key) {
-  if (!isConfigured() || !key) return { timeline: [], worklogs: [], totalTime: "0h", totalSeconds: 0 };
+  if (!isConfigured() || !key) return { timeline: [], worklogs: [], comments: [], totalTime: "0h", totalSeconds: 0 };
   const headers = { Authorization: authHeader(), Accept: "application/json" };
   const enc = encodeURIComponent(key);
 
@@ -247,10 +265,43 @@ export async function fetchIssueActivity(key) {
     }
   } catch { /* ignore */ }
 
+  // 3) Commentaires de l'anomalie. Ce qui manquait : l'historique dit QUAND un ticket
+  //    a changé d'état, les worklogs COMBIEN de temps y a été passé, mais seul le fil de
+  //    commentaires dit POURQUOI. C'est là que le client explique son besoin et que le
+  //    développeur signale ce qui bloque.
+  const comments = [];
+  try {
+    // orderBy=-created : les plus récents d'abord, et on plafonne pour ne pas
+    // rapatrier des fils de cent messages sur les vieux tickets.
+    const r = await fetch(
+      `${BASE_URL}/rest/api/3/issue/${enc}/comment?orderBy=-created&maxResults=50`,
+      { headers }
+    );
+    if (r.ok) {
+      const data = await r.json();
+      (data.comments || []).forEach((c) => {
+        const texte = adfToText(c.body).trim();
+        if (!texte) return;   // un commentaire vide (image seule) n'apporte rien
+        comments.push({
+          id: c.id,
+          who: displayName(c.author?.displayName || "—"),
+          date: c.created || null,
+          modifie: c.updated && c.updated !== c.created ? c.updated : null,
+          // Visibilité restreinte : on le signale, pour ne pas lire à voix haute
+          // en réunion client un commentaire réservé à l'équipe.
+          restreint: !!c.visibility,
+          texte: texte.slice(0, 4000),
+          tronque: texte.length > 4000,
+        });
+      });
+    }
+  } catch { /* le fil de commentaires est un plus : son absence ne casse pas la fiche */ }
+
   timeline.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
   worklogs.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
+  comments.sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")));
 
-  return { timeline, worklogs, totalTime: fmtSeconds(totalSeconds), totalSeconds };
+  return { timeline, worklogs, comments, totalTime: fmtSeconds(totalSeconds), totalSeconds };
 }
 
 // Pour les RÉCAPS : QUI a réellement fait avancer chaque ticket sur une période.

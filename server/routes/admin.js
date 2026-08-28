@@ -64,3 +64,42 @@ adminRouter.post("/admin/users/confirm", guard, adminGuard, async (req, res) => 
   catch (e) {
     console.error("[POST /api/admin/users/confirm]", e && e.message ? e.message : e); res.status(502).json({ error: String(e.message || e) }); }
 });
+
+// ---------------------------------------------------------------------------
+// Export complet des données, en une archive ZIP.
+//
+// Réservé aux administrateurs : l'archive contient des comptes rendus de
+// réunion, des noms de personnes et des données client. Elle n'inclut en
+// revanche aucun secret ni aucun mot de passe, même haché (voir export.js).
+//
+// L'archive est construite en mémoire puis envoyée : sur les volumes en jeu
+// (quelques mégaoctets), c'est plus simple et plus sûr qu'un fichier temporaire
+// qu'il faudrait penser à nettoyer.
+adminRouter.get("/admin/export", guard, adminGuard, async (req, res) => {
+  try {
+    const { construireExport } = await import("../export.js");
+    const { buffer, nom, resume } = await construireExport({ demandePar: req.userEmail || "" });
+    console.log(`[export] ${nom} · ${(buffer.length / 1024).toFixed(0)} Ko · ${resume.fichiers.length} fichiers · demandé par ${req.userEmail || "?"}`);
+    res.setHeader("Content-Type", "application/zip");
+    res.setHeader("Content-Disposition", `attachment; filename="${nom}"`);
+    res.setHeader("Content-Length", String(buffer.length));
+    res.setHeader("Cache-Control", "no-store");   // une sauvegarde ne se met pas en cache
+    res.end(buffer);
+  } catch (e) {
+    console.error("[GET /api/admin/export]", e && e.message ? e.message : e);
+    res.status(500).json({ error: "Export impossible : " + (e.message || e) });
+  }
+});
+
+// Aperçu de ce que contiendrait l'export, sans le produire : de quoi afficher
+// un récapitulatif avant de lancer un téléchargement de plusieurs mégaoctets.
+adminRouter.get("/admin/export/apercu", guard, adminGuard, async (req, res) => {
+  try {
+    const { construireExport } = await import("../export.js");
+    const { buffer, resume } = await construireExport({ demandePar: req.userEmail || "" });
+    res.json({ octets: buffer.length, contenu: resume.contenu, fichiers: resume.fichiers.length,
+               absents: resume.absents, nonExporte: resume.nonExporte, persistance: resume.persistance });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});

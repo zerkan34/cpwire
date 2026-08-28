@@ -8,6 +8,7 @@
 # Lancé par le serveur Node via child_process : python3 render.py out.pdf < data.json
 import sys, json, html as H
 from weasyprint import HTML
+from safe_fetch import safe_url_fetcher
 
 def e(s): return H.escape("" if s is None else str(s))
 
@@ -162,7 +163,8 @@ def render(data, out):
 {('<p class="note">' + e(meta.get("dormantNote")) + '</p>') if meta.get("dormantNote") else ''}
 {secs}
 </body></html>"""
-    HTML(string=doc).write_pdf(out)
+    # Même garde-fou que html2pdf.py : aucune ressource externe.
+    HTML(string=doc, url_fetcher=safe_url_fetcher).write_pdf(out)
 
 if __name__ == "__main__":
     out = sys.argv[1] if len(sys.argv) > 1 else "/tmp/out.pdf"

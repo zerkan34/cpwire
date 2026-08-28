@@ -1,9 +1,9 @@
+import { VALIDES_SET as DONE } from "../shared/groupes.js";
 // hygiene.js — Contrôle qualité des données Jira.
 // 100 % à partir du snapshot DÉJÀ chargé : aucun appel Jira en plus, aucune invention.
 // On signale, surtout sur les tickets OUVERTS, ce qui manque ou cloche dans Jira,
 // pour le faire corriger à la source. Le cockpit ne corrige pas Jira : il montre où ça cloche.
 
-const DONE = new Set(["termine", "miseEnProd"]);
 const STALE_DAYS = 30; // un ticket ouvert sans mise à jour depuis 30 j "dort"
 
 const daysSince = (iso) => { const t = new Date(iso).getTime(); return isNaN(t) ? null : (Date.now() - t) / 86400000; };

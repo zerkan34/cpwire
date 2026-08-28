@@ -4,6 +4,7 @@ import { buildDoc } from "./docgen.js";
 import { knowledgeForPrompt, saveAuto, autoAgeMs } from "./connaissance.js";
 import { CATEGORY_LABEL, RESTE_CATS, ACTIVE_CATS, DONE_CATS, categoryFromStatus, statusIsExplicit } from "./config.js";
 import { fetchIssueActivity, fetchIssueDescription } from "./jira.js";
+import { escHtml } from "../shared/texte.js";
 
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || "";
 const MISTRAL_KEY = process.env.MISTRAL_API_KEY || "";   // gratuit, UE, compatible OpenAI (recommandé)
@@ -148,10 +149,9 @@ function listHtml(arr) {
   if (!arr.length) return "<p>—</p>";
   return "<ul>" + arr.map((i) => {
     const who = (i.dev && i.dev !== "Non assigné") ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "");
-    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)}${who ? ` — <span class="who">${esc(who)}</span>` : ""}</li>`;
+    return `<li><b>${escHtml(i.cle)}</b> — ${escHtml(i.resume)}${who ? ` — <span class="who">${escHtml(who)}</span>` : ""}</li>`;
   }).join("") + "</ul>";
 }
-function esc(s){return String(s==null?"":s).replace(/[&<>]/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[m]));}
 
 function kpiRow(g, total) {
   return `<div class="kpi-row">
@@ -182,9 +182,9 @@ function catList(arr, { showStatus = false, cap = 60 } = {}) {
   if (!arr.length) return "<p>—</p>";
   const shown = arr.slice(0, cap);
   const li = shown.map((i) => {
-    const who = i.dev && i.dev !== "Non assigné" ? ` — <span class="who">${esc(i.dev)}</span>` : "";
-    const st = showStatus ? ` — <b>${esc(CATEGORY_LABEL[i.categorie] || i.statutJira || "")}</b>` : "";
-    return `<li><b>${esc(i.cle)}</b> — ${esc(i.resume)}${who}${st}</li>`;
+    const who = i.dev && i.dev !== "Non assigné" ? ` — <span class="who">${escHtml(i.dev)}</span>` : "";
+    const st = showStatus ? ` — <b>${escHtml(CATEGORY_LABEL[i.categorie] || i.statutJira || "")}</b>` : "";
+    return `<li><b>${escHtml(i.cle)}</b> — ${escHtml(i.resume)}${who}${st}</li>`;
   }).join("");
   const more = arr.length > cap ? `<li>+ ${arr.length - cap} autre(s)…</li>` : "";
   return `<ul>${li}${more}</ul>`;
@@ -199,8 +199,8 @@ const TK_COLGROUP = `<colgroup><col style="width:10%"><col style="width:40%"><co
 function tkRow(i) {
   const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne && i.assigne !== "Non assigné" ? i.assigne : "Non assigné");
   const st = CATEGORY_LABEL[i.categorie] || i.statut || "—";
-  const prog = i.prog && i.prog.name ? `<span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : "";
-  return `<tr><td class="tk-k"><b>${esc(i.cle)}</b></td><td class="tk-res">${esc(i.resume)}</td><td class="tk-prog">${prog}</td><td class="tk-who"><span class="who">${esc(who)}</span></td><td class="tk-st">${esc(st)}</td></tr>`;
+  const prog = i.prog && i.prog.name ? `<span class="cr-prog">📦 ${escHtml(i.prog.name)}</span>` : "";
+  return `<tr><td class="tk-k"><b>${escHtml(i.cle)}</b></td><td class="tk-res">${escHtml(i.resume)}</td><td class="tk-prog">${prog}</td><td class="tk-who"><span class="who">${escHtml(who)}</span></td><td class="tk-st">${escHtml(st)}</td></tr>`;
 }
 function tkList(arr) {
   if (!arr.length) return `<p class="cr-scope">—</p>`;
@@ -259,10 +259,10 @@ async function detailedTicketsHtml(tickets) {
     const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "");
     // Reformulation claire (IA) si dispo, sinon court extrait — jamais le pavé Jira recopié intégralement.
     const prob = clear[i.cle]
-      ? esc(clear[i.cle])
-      : (desc ? esc(desc.replace(/\s+/g, " ").slice(0, 280)) + (desc.length > 280 ? "…" : "") : `<span class="cr-none">Non documentée dans Jira.</span>`);
+      ? escHtml(clear[i.cle])
+      : (desc ? escHtml(desc.replace(/\s+/g, " ").slice(0, 280)) + (desc.length > 280 ? "…" : "") : `<span class="cr-none">Non documentée dans Jira.</span>`);
     const works = (act.worklogs || []).filter((w) => w.comment)
-      .map((w) => `<li>${esc(w.comment)} <span class="cr-meta">— ${esc(w.who)}${w.time ? ", " + esc(w.time) : ""}</span></li>`);
+      .map((w) => `<li>${escHtml(w.comment)} <span class="cr-meta">— ${escHtml(w.who)}${w.time ? ", " + escHtml(w.time) : ""}</span></li>`);
     const travaux = works.length
       ? `<ul class="cr-works">${works.join("")}</ul>`
       : `<span class="cr-none">Aucun détail de travaux saisi dans Jira — à demander au développeur.</span>`;
@@ -279,18 +279,18 @@ async function detailedTicketsHtml(tickets) {
         visited.add(t.to);
       }
     });
-    const parcours = ordered.length > 1 ? ordered.map((s) => esc(s)).join(" → ") : "";
+    const parcours = ordered.length > 1 ? ordered.map((s) => escHtml(s)).join(" → ") : "";
     const avancement = changes
-      ? `Statut actuel : <b>${esc(statut)}</b><span class="cr-meta"> · ${changes} changement${changes > 1 ? "s" : ""}${retours ? `, dont ${retours} retour${retours > 1 ? "s" : ""}` : ""}${parcours ? ` · parcours : ${parcours}` : ""}</span>`
-      : `Statut actuel : <b>${esc(statut)}</b>`;
-    const tps = act.totalSeconds ? ` · ${esc(act.totalTime)} saisies` : "";
+      ? `Statut actuel : <b>${escHtml(statut)}</b><span class="cr-meta"> · ${changes} changement${changes > 1 ? "s" : ""}${retours ? `, dont ${retours} retour${retours > 1 ? "s" : ""}` : ""}${parcours ? ` · parcours : ${parcours}` : ""}</span>`
+      : `Statut actuel : <b>${escHtml(statut)}</b>`;
+    const tps = act.totalSeconds ? ` · ${escHtml(act.totalTime)} saisies` : "";
     return `<details class="cr-tk">
-      <summary><span class="cr-tk-k">${esc(i.cle)}</span><span class="cr-tk-res">${esc(i.resume)}</span><span class="cr-prog-cell">${i.prog && i.prog.name ? `<span class="cr-prog">📦 ${esc(i.prog.name)}</span>` : ""}</span><span class="cr-tk-who">${esc(who || "—")}</span><span class="cr-tk-st">${esc(statut)}</span></summary>
+      <summary><span class="cr-tk-k">${escHtml(i.cle)}</span><span class="cr-tk-res">${escHtml(i.resume)}</span><span class="cr-prog-cell">${i.prog && i.prog.name ? `<span class="cr-prog">📦 ${escHtml(i.prog.name)}</span>` : ""}</span><span class="cr-tk-who">${escHtml(who || "—")}</span><span class="cr-tk-st">${escHtml(statut)}</span></summary>
       <div class="cr-tk-bd">
         <p class="cr-row"><span class="cr-lbl">Problématique / contexte</span>${prob}</p>
         <div class="cr-row"><span class="cr-lbl">Travaux réalisés</span>${travaux}</div>
         <p class="cr-row"><span class="cr-lbl">Avancement</span>${avancement}</p>
-        <p class="cr-row"><span class="cr-lbl">Intervenant(s)</span>${esc(who || "—")}${tps}</p>
+        <p class="cr-row"><span class="cr-lbl">Intervenant(s)</span>${escHtml(who || "—")}${tps}</p>
       </div>
     </details>`;
   }).join("");
@@ -326,19 +326,19 @@ async function progressHtml(tickets) {
     const who = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "");
     const { etat, next } = plainEtatNext(i);
     const lastT = (act.timeline || []).find((t) => t.champ === "Statut");
-    const mouvement = lastT ? ` Le statut est récemment passé de <b>${esc(lastT.from)}</b> à <b>${esc(lastT.to)}</b>.` : "";
-    const etatLine = `Ce sujet est <b>${esc(etat)}</b>${who ? `, suivi par <b>${esc(who)}</b>` : ""}.${mouvement}`;
+    const mouvement = lastT ? ` Le statut est récemment passé de <b>${escHtml(lastT.from)}</b> à <b>${escHtml(lastT.to)}</b>.` : "";
+    const etatLine = `Ce sujet est <b>${escHtml(etat)}</b>${who ? `, suivi par <b>${escHtml(who)}</b>` : ""}.${mouvement}`;
     const works = (act.worklogs || []).filter((w) => w.comment).slice(0, 4)
-      .map((w) => `<li>${esc(w.comment)} <span class="cr-meta">— ${esc(w.who)}${w.time ? ", " + esc(w.time) : ""}</span></li>`);
+      .map((w) => `<li>${escHtml(w.comment)} <span class="cr-meta">— ${escHtml(w.who)}${w.time ? ", " + escHtml(w.time) : ""}</span></li>`);
     const fait = works.length
       ? `<ul class="cr-works">${works.join("")}</ul>`
-      : `<span class="cr-none">Pas encore de détail noté dans Jira — à voir avec ${esc(who || "la personne concernée")}.</span>`;
+      : `<span class="cr-none">Pas encore de détail noté dans Jira — à voir avec ${escHtml(who || "la personne concernée")}.</span>`;
     return `<details class="cr-tk">
-      <summary><span class="cr-tk-k">${esc(i.cle)}</span> ${esc(i.resume)} <span class="cr-tk-st">${esc(statut)}</span></summary>
+      <summary><span class="cr-tk-k">${escHtml(i.cle)}</span> ${escHtml(i.resume)} <span class="cr-tk-st">${escHtml(statut)}</span></summary>
       <div class="cr-tk-bd">
         <p class="cr-row"><span class="cr-lbl">Où ça en est</span>${etatLine}</p>
         <div class="cr-row"><span class="cr-lbl">Ce qui a déjà été fait</span>${fait}</div>
-        <p class="cr-row"><span class="cr-lbl">À faire ensuite</span><b>${esc(next)}</b></p>
+        <p class="cr-row"><span class="cr-lbl">À faire ensuite</span><b>${escHtml(next)}</b></p>
       </div>
     </details>`;
   }).join("");
@@ -435,24 +435,24 @@ const capKeys = (arr, n = 6) => (arr.length <= n ? arr.map(esc).join(", ") : arr
 function activiteTableHtml(P) {
   const th = ACT_COLS.map(([, lib]) => `<th class="r">${lib}</th>`).join("");
   const rows = P.intervenants.map((w) =>
-    `<tr><td><span class="who">${esc(w.nom)}</span></td>${ACT_COLS.map(([k]) => `<td class="r">${w[k] || "—"}</td>`).join("")}<td class="r"><b>${w.total}</b></td></tr>`
+    `<tr><td><span class="who">${escHtml(w.nom)}</span></td>${ACT_COLS.map(([k]) => `<td class="r">${w[k] || "—"}</td>`).join("")}<td class="r"><b>${w.total}</b></td></tr>`
   ).join("");
-  const tot = `<tr class="act-tot"><td><b>Total ${esc(P.code)}</b></td>${ACT_COLS.map(([k]) => `<td class="r"><b>${P.parStatut[k] || "—"}</b></td>`).join("")}<td class="r"><b>${P.total}</b></td></tr>`;
-  return `<h3>${esc(P.label)} — ${P.total} ticket(s) · ${P.projets.map(esc).join(" / ")}</h3>
+  const tot = `<tr class="act-tot"><td><b>Total ${escHtml(P.code)}</b></td>${ACT_COLS.map(([k]) => `<td class="r"><b>${P.parStatut[k] || "—"}</b></td>`).join("")}<td class="r"><b>${P.total}</b></td></tr>`;
+  return `<h3>${escHtml(P.label)} — ${P.total} ticket(s) · ${P.projets.map(esc).join(" / ")}</h3>
     <table class="data act-tbl"><thead><tr><th>Intervenant</th>${th}<th class="r">Total</th></tr></thead><tbody>${rows}${tot}</tbody></table>`;
 }
 // Bloc « contrôles » (vérifications anti-erreur) — discret, repliable.
 function controlesHtml(act) {
   const c = act.controles;
   const recon = c.reconciliationOK ? "✓ cohérent" : "⚠ écart à vérifier";
-  const perBits = Object.entries(c.sommeParPerimetre).map(([k, v]) => `${esc(k)} = ${v}`).join(" + ");
+  const perBits = Object.entries(c.sommeParPerimetre).map(([k, v]) => `${escHtml(k)} = ${v}`).join(" + ");
   return `<details class="cr-more"><summary>Contrôles de cohérence</summary>
     <ul class="cr-list">
       <li><b>${c.nbIntervenants}</b> intervenant(s) distinct(s) : ${c.intervenantsDistincts.length ? capKeys(c.intervenantsDistincts, 25) : "—"}</li>
       <li>Total : ${perBits || "—"} = <b>${c.ticketsUniques}</b> ticket(s) uniques (${recon}).</li>
       <li>Tickets non assignés : ${c.ticketsNonAssignes.length ? `<b>${c.ticketsNonAssignes.length}</b> (ex. ${capKeys(c.ticketsNonAssignes, 6)})` : "aucun"}.</li>
       <li>Doublons (ticket compté 2×) : ${c.doublons.length ? `<b>${c.doublons.length}</b> (${capKeys(c.doublons, 6)})` : "aucun"}.</li>
-      ${(c.statutsHeuristiques && c.statutsHeuristiques.length) ? `<li>⚠ Statuts Jira non reconnus, classés par déduction <b>(à vérifier)</b> : ${c.statutsHeuristiques.map((x) => `« ${esc(x.statut)} » → ${esc(x.categorie)}`).join(" ; ")}.</li>` : `<li>Statuts Jira : tous reconnus explicitement. ✓</li>`}
+      ${(c.statutsHeuristiques && c.statutsHeuristiques.length) ? `<li>⚠ Statuts Jira non reconnus, classés par déduction <b>(à vérifier)</b> : ${c.statutsHeuristiques.map((x) => `« ${escHtml(x.statut)} » → ${escHtml(x.categorie)}`).join(" ; ")}.</li>` : `<li>Statuts Jira : tous reconnus explicitement. ✓</li>`}
     </ul></details>`;
 }
 // Ventile une liste de tickets par périmètre, et rend chaque sous-liste avec tkList.
@@ -462,7 +462,7 @@ function tkListByPerim(arr, multi) {
   arr.forEach((i) => { const e = i.engagement && i.engagement !== "—" ? i.engagement : "Autre"; (groups[e] ||= []).push(i); });
   const order = ["TMA", "Projet", "Autre"].filter((k) => groups[k]);
   if (!order.length) return tkList(arr);
-  return order.map((k) => `<h4 class="cr-perim">${esc(PERIM_LABEL[k] || k)} (${groups[k].length})</h4>${tkList(groups[k])}`).join("");
+  return order.map((k) => `<h4 class="cr-perim">${escHtml(PERIM_LABEL[k] || k)} (${groups[k].length})</h4>${tkList(groups[k])}`).join("");
 }
 
 function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", within = isToday, isPeriod = false, actorAct = null, dayLabel = "") {
@@ -513,7 +513,7 @@ function templateDaily(dossier, issues, analyseHtml = "", detailedHtml = "", wit
   // Synthèse page 1 : seulement les états qui comptent. Séparée par périmètre si plusieurs.
   const synthFor = (subset, title) => {
     const c = (cat) => subset.filter((i) => i.categorie === cat).length;
-    return `${title ? `<h3 class="cr-perim">${esc(title)}</h3>` : ""}<div class="kpi-row">
+    return `${title ? `<h3 class="cr-perim">${escHtml(title)}</h3>` : ""}<div class="kpi-row">
     <div class="kpi"><div class="v">${c("recetteArmonie")}</div><div class="l">Recette Armonie</div></div>
     <div class="kpi"><div class="v">${c("recetteClient")}</div><div class="l">Recette client</div></div>
     <div class="kpi"><div class="v">${c("attenteClient")}</div><div class="l">Attente client</div></div>
@@ -637,7 +637,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
       const totRecC = act.actors.reduce((s, a) => s + a.recC, 0);
       const totTerm = act.actors.reduce((s, a) => s + a.term, 0);
       const totRecA = act.actors.reduce((s, a) => s + a.recA, 0);
-      const top = act.actors.slice(0, 4).map((a) => `${esc(a.who)} (${a.total})`).join(", ");
+      const top = act.actors.slice(0, 4).map((a) => `${escHtml(a.who)} (${a.total})`).join(", ");
       const bits = [];
       if (totRecC) bits.push(`<b>${totRecC}</b> passage(s) en recette client`);
       if (totTerm) bits.push(`<b>${totTerm}</b> clôture(s)/terminé(s)`);
@@ -646,12 +646,12 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
         (recA ? `<p><b>${recA}</b> ticket(s) restent en attente de recette Armonie — à prioriser.</p>` : "");
     } else if (dayDone.length || dayActive.length) {
       const phrases = [];
-      phrases.push(`${isPeriod ? "Sur la période, " : "Aujourd'hui, "}<b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${esc(dossier)}.`);
-      if (topWho) phrases.push(`Contributions principales : ${esc(topWho)}.`);
+      phrases.push(`${isPeriod ? "Sur la période, " : "Aujourd'hui, "}<b>${dayDone.length}</b> ticket(s) terminé(s) et <b>${dayActive.length}</b> ticket(s) travaillé(s) sur le dossier ${escHtml(dossier)}.`);
+      if (topWho) phrases.push(`Contributions principales : ${escHtml(topWho)}.`);
       if (recA) phrases.push(`<b>${recA}</b> ticket(s) restent en attente de recette côté Armonie — à suivre pour validation.`);
       analyseHtml = `<p>${phrases.join(" ")}</p>`;
     } else {
-      analyseHtml = `<p>Aucune activité enregistrée ${W} sur le dossier ${esc(dossier)} (aucun ticket terminé ni mis à jour).</p>`;
+      analyseHtml = `<p>Aucune activité enregistrée ${W} sur le dossier ${escHtml(dossier)} (aucun ticket terminé ni mis à jour).</p>`;
     }
   }
 
@@ -668,7 +668,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
     const parts = [];
     for (const code of ["TMA", "Projet", "Autre"]) {
       const sub = detailSource.filter((i) => engOf(i) === code);
-      if (sub.length) parts.push(`<h3 class="cr-perim">${esc(PERIM_LABEL[code] || code)} (${sub.length})</h3>` + (await detailedTicketsHtml(sub)));
+      if (sub.length) parts.push(`<h3 class="cr-perim">${escHtml(PERIM_LABEL[code] || code)} (${sub.length})</h3>` + (await detailedTicketsHtml(sub)));
     }
     detailedHtml = parts.join("");
   } else {
@@ -694,7 +694,7 @@ export async function dailyReport(dossier, issues, range = null, transitions = n
 // Sans clé IA : rédaction déterministe, factuelle, regroupée par statut.
 function shorten(s, n = 70) { s = String(s || "").trim(); return s.length > n ? s.slice(0, n - 1).trimEnd() + "…" : s; }
 function devOf(i) { const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || ""); return d && d !== "Non assigné" ? d : ""; }
-function exTicket(i) { const d = devOf(i); return `${esc(shorten(i.resume, 80) || "sujet non précisé")}${d ? " — " + esc(d) : ""}`; }
+function exTicket(i) { const d = devOf(i); return `${escHtml(shorten(i.resume, 80) || "sujet non précisé")}${d ? " — " + escHtml(d) : ""}`; }
 function exList(arr, max = 4) {
   let s = arr.slice(0, max).map(exTicket).join(" ; ");
   if (arr.length > max) s += ` ; et ${arr.length - max} autre(s)`;
@@ -711,7 +711,7 @@ function writtenTemplate(dossier, issues) {
 
   const whoDone = {};
   dayDone.forEach((i) => { const d = devOf(i) || "Non assigné"; whoDone[d] = (whoDone[d] || 0) + 1; });
-  const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([d, n]) => `${esc(d)} (${n})`).join(", ");
+  const topWho = Object.entries(whoDone).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([d, n]) => `${escHtml(d)} (${n})`).join(", ");
 
   const enBref = `<p>Aujourd'hui, l'équipe a terminé <b>${dayDone.length}</b> sujet(s) et fait avancer <b>${dayActive.length}</b> autre(s)${bloquants.length ? `, avec <b>${bloquants.length}</b> point(s) à surveiller` : ""}.${topWho ? ` Principales contributions : ${topWho}.` : ""}</p>`;
   const sTermine = dayDone.length
@@ -820,8 +820,8 @@ export async function writtenDateReport(dossier, range, allIssues = []) {
     } catch { body = ""; }
   }
   if (!body) {
-    const li = (arr) => arr.length ? "<ul>" + arr.slice(0, 60).map((i) => `<li>${esc(i.resume)}${devOf(i) ? " — " + esc(devOf(i)) : ""}${scope ? "" : " <i>(" + esc(i.dossier || "?") + ")</i>"}</li>`).join("") + "</ul>" : "<p>Aucun.</p>";
-    body = `<h2>En bref</h2><p>Période « ${esc(label)} » — ${esc(scopeLabel)}. ${done.length} terminé(s), ${active.length} en cours, ${bloquants.length} à surveiller.</p>` +
+    const li = (arr) => arr.length ? "<ul>" + arr.slice(0, 60).map((i) => `<li>${escHtml(i.resume)}${devOf(i) ? " — " + escHtml(devOf(i)) : ""}${scope ? "" : " <i>(" + escHtml(i.dossier || "?") + ")</i>"}</li>`).join("") + "</ul>" : "<p>Aucun.</p>";
+    body = `<h2>En bref</h2><p>Période « ${escHtml(label)} » — ${escHtml(scopeLabel)}. ${done.length} terminé(s), ${active.length} en cours, ${bloquants.length} à surveiller.</p>` +
       `<h2>Ce qui a été terminé</h2>${li(done)}<h2>Ce qui avance</h2>${li(active)}<h2>Points d'attention</h2>${li(bloquants)}`;
   }
   const html = buildDoc({
@@ -854,7 +854,7 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
   const persons = Object.entries(byDev).sort((a, b) => b[1] - a[1]);
   const charge = persons.length
     ? `<h2>Charge par personne</h2><table class="data"><tr><th>Personne</th><th>Tickets actifs</th></tr>` +
-      persons.map(([d, n]) => `<tr><td><span class="who">${esc(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
+      persons.map(([d, n]) => `<tr><td><span class="who">${escHtml(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
     : "";
 
   const sec = (cat, titre) => {
@@ -890,8 +890,8 @@ export async function morningReport(dossier, issues, clientNames = new Set()) {
   }
   if (!synthese) {
     const bits = [];
-    bits.push(`Sur le dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${active.length}</b> ticket(s) à passer en revue, dont <b>${nEnCours}</b> en cours et <b>${nRetourTest}</b> en retour test.`);
-    if (persons.length) bits.push(`À aborder en priorité avec ${esc(persons.slice(0, 3).map(([d]) => d).join(", "))}.`);
+    bits.push(`Sur le dossier <b>${escHtml(dossier)}</b> (équipe Armonie) : <b>${active.length}</b> ticket(s) à passer en revue, dont <b>${nEnCours}</b> en cours et <b>${nRetourTest}</b> en retour test.`);
+    if (persons.length) bits.push(`À aborder en priorité avec ${escHtml(persons.slice(0, 3).map(([d]) => d).join(", "))}.`);
     if (enRetard.length) bits.push(`<b>Point d'attention :</b> ${enRetard.length} ticket(s) en retard à traiter en priorité.`);
     else bits.push(`Aucun ticket en retard à ce stade.`);
     synthese = `<p>${bits.join(" ")}</p>`;
@@ -977,7 +977,7 @@ export async function globalReport(byDossier) {
       detailBudget -= take.length;
       detailHtml = `<h3>Terminés aujourd'hui — détail</h3>` + (await detailedTicketsHtml(take));
     }
-    body += `<h2>${esc(dossier)}</h2>` + kpiRow(g, issues.length) +
+    body += `<h2>${escHtml(dossier)}</h2>` + kpiRow(g, issues.length) +
       detailHtml +
       `<h3>Terminé</h3>${listHtml(g["Terminé"])}` +
       `<h3>En cours</h3>${listHtml(g["En cours"])}` +
@@ -1022,11 +1022,11 @@ function structureNotes(text) {
     const numbered = line.match(/^(\d+)[.\)]\s+(.+)$/);
     const bullet = line.match(/^[-*•·]\s+(.+)$/);
     const labelColon = line.match(/^([^:]{2,40}):\s*(.*)$/);
-    if (numbered) { closeList(); html += `<h3>${esc(numbered[2])}</h3>`; }
-    else if (bullet) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${esc(bullet[1])}</li>`; }
-    else if (labelColon && labelColon[2]) { closeList(); html += `<p><b>${esc(labelColon[1].trim())} :</b> ${esc(labelColon[2])}</p>`; }
-    else if (labelColon && !labelColon[2]) { closeList(); html += `<p><b>${esc(labelColon[1].trim())}</b></p>`; }
-    else { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${esc(line)}</li>`; }
+    if (numbered) { closeList(); html += `<h3>${escHtml(numbered[2])}</h3>`; }
+    else if (bullet) { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${escHtml(bullet[1])}</li>`; }
+    else if (labelColon && labelColon[2]) { closeList(); html += `<p><b>${escHtml(labelColon[1].trim())} :</b> ${escHtml(labelColon[2])}</p>`; }
+    else if (labelColon && !labelColon[2]) { closeList(); html += `<p><b>${escHtml(labelColon[1].trim())}</b></p>`; }
+    else { if (!inList) { html += "<ul>"; inList = true; } html += `<li>${escHtml(line)}</li>`; }
   }
   closeList();
   return html || "<p>—</p>";
@@ -1034,10 +1034,10 @@ function structureNotes(text) {
 
 function templateMeeting({ titre, participants, notes, transcript }) {
   const parts = parseParticipants(participants);
-  const partHtml = parts.length ? `<ul>${parts.map((p) => `<li>${esc(p)}</li>`).join("")}</ul>` : "<p>—</p>";
+  const partHtml = parts.length ? `<ul>${parts.map((p) => `<li>${escHtml(p)}</li>`).join("")}</ul>` : "<p>—</p>";
   const corps = [notes, transcript].filter(Boolean).join("\n\n");
   const pointsHtml = corps ? structureNotes(corps) : "<p>—</p>";
-  return `<h2>Objet</h2><p>${esc(titre || "Réunion")}</p>
+  return `<h2>Objet</h2><p>${escHtml(titre || "Réunion")}</p>
     <h2>Participants</h2>${partHtml}
     <h2>Points abordés</h2>${pointsHtml}
     <h2>Décisions</h2><ul><li>À compléter.</li></ul>
@@ -1090,7 +1090,7 @@ Réponds UNIQUEMENT par le fragment HTML (pas de <html>/<head>/<body>).`;
     kicker: "Armonie Group",
     title: titre || "Compte rendu de réunion",
     subtitle: new Date().toLocaleDateString("fr-FR", { day: "2-digit", month: "long", year: "numeric" }),
-    cartouche: [["Objet", esc(titre || "Réunion")], ["Équipe", esc(team)], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", esc(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
+    cartouche: [["Objet", escHtml(titre || "Réunion")], ["Équipe", escHtml(team)], ["Chef de projet", process.env.ME || "Nicolas Durand"], ["Participants", escHtml(partLine === "non précisés" ? "—" : partLine)], ["Date", new Date().toLocaleDateString("fr-FR")]],
     bodyHtml: body,
     etabliPar: process.env.ME || "Nicolas Durand",
   });
@@ -1121,7 +1121,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
   active.forEach((i) => { if (isClient(i)) return; const d = i.dev && i.dev !== "Non assigné" ? i.dev : (i.assigne || "Non assigné"); byDev[d] = (byDev[d] || 0) + 1; });
   const persons = Object.entries(byDev).sort((a, b) => b[1] - a[1]);
   const chargeTbl = persons.length
-    ? `<table class="data"><tr><th>Personne</th><th>Tickets actifs</th></tr>` + persons.map(([d, n]) => `<tr><td><span class="who">${esc(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
+    ? `<table class="data"><tr><th>Personne</th><th>Tickets actifs</th></tr>` + persons.map(([d, n]) => `<tr><td><span class="who">${escHtml(d)}</span></td><td><b>${n}</b></td></tr>`).join("") + `</table>`
     : `<p>Aucun intervenant Armonie actif identifié sur ce périmètre.</p>`;
 
   // CONTEXTE (façon chef de projet senior).
@@ -1139,8 +1139,8 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
   }
   if (!contexte) {
     const bits = [];
-    bits.push(`Dossier <b>${esc(dossier)}</b> (équipe Armonie) : <b>${avancement}%</b> terminé (${done.length}/${issues.length}), <b>${active.length}</b> ticket(s) en cours, <b>${recette.length}</b> en recette ou attente.`);
-    if (persons.length) bits.push(`Travaillent dessus : ${esc(persons.slice(0, 4).map(([d]) => d).join(", "))}.`);
+    bits.push(`Dossier <b>${escHtml(dossier)}</b> (équipe Armonie) : <b>${avancement}%</b> terminé (${done.length}/${issues.length}), <b>${active.length}</b> ticket(s) en cours, <b>${recette.length}</b> en recette ou attente.`);
+    if (persons.length) bits.push(`Travaillent dessus : ${escHtml(persons.slice(0, 4).map(([d]) => d).join(", "))}.`);
     if (bloquants.length) bits.push(`<b>Points de friction :</b> ${bloquants.length} bloquant(s)/flaggé(s)${retard.length ? ` et ${retard.length} en retard` : ""} à arbitrer en réunion.`);
     else if (retard.length) bits.push(`<b>Point d'attention :</b> ${retard.length} ticket(s) en retard.`);
     else bits.push(`Pas de blocage majeur identifié à ce stade.`);
@@ -1162,7 +1162,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
     }
     if (!agenda) {
       const lines = matiere.split(/\n+/).map((s) => s.trim()).filter(Boolean);
-      agenda = `<h3>Points à aborder</h3><ul>${lines.slice(0, 40).map((l) => `<li>${esc(l)}</li>`).join("")}</ul>`;
+      agenda = `<h3>Points à aborder</h3><ul>${lines.slice(0, 40).map((l) => `<li>${escHtml(l)}</li>`).join("")}</ul>`;
     }
   } else {
     agenda = `<p class="indic">Ajoute des notes ou importe un fichier pour générer l'ordre du jour. Le contexte ci-dessus est déjà prêt pour démarrer la réunion.</p>`;
@@ -1184,7 +1184,7 @@ export async function meetingPrep({ dossier, sujet = "", type = "", notes = "", 
     `<h2>Recette &amp; retours</h2>` +
     `<div class="kpi-row"><div class="kpi"><div class="v">${reste}</div><div class="l">À recetter</div></div><div class="kpi"><div class="v">${enRecette.length}</div><div class="l">En recette</div></div><div class="kpi"><div class="v">${retours.length}</div><div class="l">À retravailler</div></div></div>` +
     `<h3>↩ Programmes à retravailler (retours)</h3>${retours.length ? catList(retours, { showStatus: true, cap: 40 }) : "<p>Aucun retour de test/production en cours sur ce périmètre.</p>"}` +
-    `<h2>Réunion — ${esc(sujet || type || "Point projet")}</h2>${agenda}`;
+    `<h2>Réunion — ${escHtml(sujet || type || "Point projet")}</h2>${agenda}`;
 
   const html = buildDoc({
     kicker: "Préparation de réunion",

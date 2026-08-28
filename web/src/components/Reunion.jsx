@@ -21,7 +21,7 @@ function mmss(ms) {
 function entetes() {
   const t = getToken ? getToken() : '';
   const h = { 'Content-Type': 'application/json' };
-  if (t) h.Authorization = String(t).startsWith('Bearer ') ? t : 'Bearer ' + t;
+  if (t) h['x-access-token'] = t;
   return h;
 }
 
@@ -51,8 +51,10 @@ export default function Reunion() {
   const [cr, setCr] = useState(null);
   const [crEnCours, setCrEnCours] = useState(false);
   const [sante, setSante] = useState(null);
+  const [versement, setVersement] = useState('');
 
   const controleur = useRef(null);
+  const idReunion = useRef('reu_' + Date.now().toString(36));
   const file = useRef(Promise.resolve());
   const contexte = useRef('');
   const supporte = captureSupportee();
@@ -225,6 +227,30 @@ export default function Reunion() {
       );
     } catch (e) {
       setMessage('Enregistrement : ' + e.message);
+    }
+  }
+
+  // Le compte rendu ne doit pas mourir en PDF : ses actions et décisions partent dans
+  // le registre, où elles auront un porteur, une échéance et un statut. Réversible et
+  // rejouable : un même CR versé deux fois ne crée pas de doublon (contrôle côté serveur).
+  async function verserAuRegistre() {
+    if (!cr) return;
+    setVersement('envoi…');
+    try {
+      const r = await poster('/api/engagements/depuis-cr', {
+        cr,
+        client,
+        origine: titre ? `réunion : ${titre}` : 'réunion',
+        reunionId: idReunion.current,
+      });
+      setVersement(
+        r.ajoutes
+          ? `${r.ajoutes} engagement${r.ajoutes > 1 ? 's' : ''} ajouté${r.ajoutes > 1 ? 's' : ''} au registre` +
+            (r.ignores ? ` (${r.ignores} déjà présent${r.ignores > 1 ? 's' : ''})` : '')
+          : 'Rien de nouveau : tout était déjà dans le registre.'
+      );
+    } catch (e) {
+      setVersement('Échec : ' + e.message);
     }
   }
 
@@ -497,6 +523,10 @@ export default function Reunion() {
             <button className="reu-btn" onClick={enregistrer} disabled={!segments.length}>
               Enregistrer
             </button>
+            <button className="reu-btn" onClick={verserAuRegistre} disabled={!cr}
+              title="Envoyer les actions et décisions du compte rendu vers le registre des engagements">
+              Verser au registre
+            </button>
             <button className="reu-btn" onClick={copier} disabled={!segments.length}>
               Copier
             </button>
@@ -508,6 +538,8 @@ export default function Reunion() {
             </button>
           </div>
         </div>
+
+        {versement && <div className="reu-msg">{versement}</div>}
 
         {!cr ? (
           <p className="reu-vide">

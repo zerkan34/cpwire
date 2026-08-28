@@ -4,21 +4,17 @@ import { ProjetModal } from "./Projets.jsx";
 import { genDailyCR, genWrittenCR, fetchClientMails, fetchHygiene, fetchReferentiel, importAnalyze, importApply, fetchDossierCr, exportHtmlPdf, fetchRisk } from "../api.js";
 import { buildRecapDoc } from "../recapDoc.js";
 import EdlMax from "./EdlMax.jsx";
-import { RECETTE, RETOUR } from "../groups.js";
+import { RECETTE, RETOUR, CAT_LABEL } from "../groups.js";
 import { useModalBack } from "../modalNav.js";
 import PointDuSoir from "./PointDuSoir.jsx";
 import { printHtml } from "../utils.js";
+import { cle } from "../lib/commun.js";
 
 const EUR = (n) => (n == null ? "—" : new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n).replace(/\u202f/g, "\u00a0"));
 const METEO = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#b8b5c9" };
 const ETAT_CLS = { "En cours": "pf-en", "Signé": "pf-si", "Propal envoyée": "pf-pr", "AVV Pipe": "pf-av", "Terminé": "pf-te" };
 const frMonth = (s) => { if (!s) return ""; const d = new Date(s); return isNaN(d) ? s : d.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }); };
 const frDay = (s) => { if (!s) return "—"; const d = new Date(s); return isNaN(d) ? "—" : d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short" }); };
-const CAT_LABEL = {
-  afaire: "À faire", encours: "En cours", retourTest: "Retour test", retourProd: "Retour prod",
-  recetteArmonie: "Recette Armonie", recetteClient: "Recette client", attenteClient: "Attente client",
-  miseEnProd: "Mise en prod", termine: "Terminé", annule: "Annulé",
-};
 const CAT_PILL = {
   termine: "done", miseEnProd: "done", encours: "prog", recetteArmonie: "prog", recetteClient: "prog",
   afaire: "todo", attenteClient: "todo", retourTest: "block", retourProd: "block", annule: "todo",
@@ -59,7 +55,7 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const [crType, setCrType] = useState("COMOP");
   const [crMsg, setCrMsg] = useState("");
   const [risk, setRisk] = useState(null);
-  useEffect(() => { let on = true; fetchRisk().then((r) => { if (!on) return; const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); setRisk((r.dossiers || []).find((d) => norm(d.dossier) === norm(c.client)) || null); }).catch(() => on && setRisk(null)); return () => { on = false; }; }, [c.client]);
+  useEffect(() => { let on = true; fetchRisk().then((r) => { if (!on) return; setRisk((r.dossiers || []).find((d) => cle(d.dossier) === cle(c.client)) || null); }).catch(() => on && setRisk(null)); return () => { on = false; }; }, [c.client]);
 
   const genComiteCr = async () => {
     setCrBusy(true); setCrMsg("");
@@ -83,28 +79,27 @@ export default function Client360({ c, issues = [], facts, canCR = true, onClose
   const engOf = (k) => (/^P/i.test(k || "") ? "Projet" : "TMA");
   if (!c) return null;
   const fin = c.finances || {}, a = c.acces;
-  const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   // Chiffres tickets canoniques (facts, live Jira) du client — insensible à la casse.
   let j = c.jira || {}, fblock = null, canonDossier = c.client;
   if (facts && facts.byDossier) {
-    const t = norm(c.client);
+    const t = cle(c.client);
     for (const [d, f] of Object.entries(facts.byDossier)) {
-      if (norm(d) === t) { fblock = f; canonDossier = d; j = { present: true, total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
+      if (cle(d) === t) { fblock = f; canonDossier = d; j = { present: true, total: f.total, actifs: f.actifsDev, recette: f.enRecette, retours: f.retours, retard: f.enRetard }; break; }
     }
   }
 
   const recent = useMemo(() => {
-    return issues.filter((i) => norm(i.dossier) === norm(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg))
+    return issues.filter((i) => cle(i.dossier) === cle(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg))
       .slice().sort((x, y) => String(y.maj || "").localeCompare(String(x.maj || "")))
       .slice(0, 12);
   }, [issues, c.client, seg, hasBoth]);
 
-  const dossierIssues = useMemo(() => issues.filter((i) => norm(i.dossier) === norm(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg)), [issues, c.client, seg, hasBoth]);
+  const dossierIssues = useMemo(() => issues.filter((i) => cle(i.dossier) === cle(c.client) && (!hasBoth || seg === "all" || engOf(i.cle) === seg)), [issues, c.client, seg, hasBoth]);
   const recSet = new Set(RECETTE), retSet = new Set(RETOUR);
   const recetteItems = dossierIssues.filter((i) => recSet.has(i.categorie) || retSet.has(i.categorie))
     .sort((a, b) => (retSet.has(b.categorie) ? 1 : 0) - (retSet.has(a.categorie) ? 1 : 0));
-  const hygScore = hyg ? (hyg.byDossier || []).find((d) => norm(d.dossier) === norm(c.client)) : null;
-  const hygChecks = hyg ? (hyg.checks || []).map((ch) => ({ id: ch.id, label: ch.label, tickets: (ch.tickets || []).filter((t) => norm(t.dossier) === norm(c.client)) })).filter((x) => x.tickets.length) : [];
+  const hygScore = hyg ? (hyg.byDossier || []).find((d) => cle(d.dossier) === cle(c.client)) : null;
+  const hygChecks = hyg ? (hyg.checks || []).map((ch) => ({ id: ch.id, label: ch.label, tickets: (ch.tickets || []).filter((t) => cle(t.dossier) === cle(c.client)) })).filter((x) => x.tickets.length) : [];
   // Recherche transverse de la fiche : filtre les listes (projets, activité, recette, anomalies).
   const qx = q.trim().toLowerCase();
   const qmatch = (...parts) => !qx || parts.filter(Boolean).join(" ").toLowerCase().includes(qx);

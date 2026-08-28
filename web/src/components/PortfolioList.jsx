@@ -1,4 +1,5 @@
 import React from "react";
+import { cle } from "../lib/commun.js";
 
 // Portefeuille en LISTE éditoriale (refonte accueil) — une rangée lisible par
 // dossier : nom, engagement, pastille de risque, avancement, compteurs réels,
@@ -20,12 +21,11 @@ const lastMove = (f) => {
 };
 
 export default function PortfolioList({ entries = [], risk = {}, engagement = {}, attention = {}, onOpen, onOpen360, can360 }) {
-  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
   if (!entries.length) return <div className="panel empty">Aucun dossier à afficher.</div>;
   return (
     <div className="panel eh-list">
       {entries.map(([dossier, f]) => {
-        const rk = risk[norm(dossier)];
+        const rk = risk[cle(dossier)];
         const eng = engagement[dossier];
         const mv = lastMove(f);
         const niv = rk && rk.score > 0 ? rk.niveau.replace(/é/g, "e") : null;

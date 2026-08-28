@@ -12,6 +12,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { VALIDES_SET as DONE } from "../shared/groupes.js";
+import { cle } from "../shared/texte.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JSON_PATH = process.env.SLA_JSON || path.join(__dirname, "sla.json");
@@ -27,11 +29,10 @@ try {
   }
 } catch (e) { console.log(`[sla] erreur de chargement : ${e.message}`); }
 
-const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
 // Priorité Jira (libre, FR/EN) → bucket canonique P1..P4.
 export function prioBucket(name) {
-  const n = norm(name);
+  const n = cle(name);
   if (/highest|critical|criti|bloqu|urgent|tres haute|p1/.test(n)) return "P1";
   if (/high|haute|elevee|eleve|p2/.test(n)) return "P2";
   if (/medium|moyen|normal|p3/.test(n)) return "P3";
@@ -53,7 +54,6 @@ function target(dossier, prio) {
 }
 
 const HRS = (a, b) => { const x = new Date(a).getTime(), y = new Date(b).getTime(); return (isNaN(x) || isNaN(y)) ? null : (y - x) / 3600000; };
-const DONE = new Set(["termine", "miseEnProd"]);
 
 export function configured() { return Object.keys(CONFIG.dossiers || {}).length > 0 || Object.keys(CONFIG.defaut || {}).length > 0; }
 export function slaStatus() { return { configured: configured(), dossiers: Object.keys(CONFIG.dossiers || {}), path: JSON_PATH }; }

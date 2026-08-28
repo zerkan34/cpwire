@@ -38,12 +38,12 @@ function labelAutour(clause, matchIndex, depuis) {
   return before || clause.slice(0, 60).trim();
 }
 
-function anneeComplete(a2or4, ancre) {
+function anneeComplete(a2or4, ancre, maintenant = new Date()) {
   if (!a2or4) return null;
   const n = Number(a2or4);
   if (a2or4.length === 4) return n;
   // 2 chiffres : complète autour de l'année ancre si connue, sinon autour de l'année en cours.
-  const base = ancre || new Date().getFullYear();
+  const base = ancre || maintenant.getFullYear();
   const siecle = Math.floor(base / 100) * 100;
   return siecle + n;
 }
@@ -55,7 +55,7 @@ function anneeComplete(a2or4, ancre) {
 // qu'une classification « intelligente » qui pourrait se tromper silencieusement.
 const RETROSPECTIF_RE = /\b(mis(?:e)? à jour le|PV d[eu]|CR du|compte[- ]rendu du|jalons? trac[ée]s?|acté(?:e)?|démarrage|fondée? en|depuis \d{4}|réalisé(?:e)? le)\b/i;
 
-function extraireTexte(dossier, source, text) {
+function extraireTexte(dossier, source, text, maintenant = new Date()) {
   const out = [];
   for (const cl of clauses(text)) {
     if (RETROSPECTIF_RE.test(cl)) continue; // décrit le passé, pas une échéance à venir
@@ -69,14 +69,14 @@ function extraireTexte(dossier, source, text) {
       const jour = Number(m[1]), mois = Number(m[2]);
       if (!MOIS_VALIDE(mois)) { depuis = m.index + m[0].length; continue; }
       let yearInferred = !m[3];
-      let annee = m[3] ? anneeComplete(m[3], ancre) : ancre;
-      if (annee == null) { annee = new Date().getFullYear(); yearInferred = true; }
+      let annee = m[3] ? anneeComplete(m[3], ancre, maintenant) : ancre;
+      if (annee == null) { annee = maintenant.getFullYear(); yearInferred = true; }
       if (!JOUR_VALIDE(jour, mois, annee)) { depuis = m.index + m[0].length; continue; } // faux positif (ex. 31/02)
       let d = new Date(annee, mois - 1, jour);
       // Sans année écrite ET date déjà passée depuis longtemps : probablement l'occurrence
       // suivante (jalon récurrent ou fiche relue en début de cycle) → on avance d'un an.
       if (yearInferred) {
-        const joursEcoules = (Date.now() - d.getTime()) / 86400000;
+        const joursEcoules = (maintenant.getTime() - d.getTime()) / 86400000;
         if (joursEcoules > 45) { annee += 1; d = new Date(annee, mois - 1, jour); }
       }
       out.push({
@@ -118,16 +118,20 @@ function similaires(a, b) {
 // entre les sources, ce n'est plus une simple redite — les sources se contredisent. On ne
 // choisit JAMAIS laquelle croire (ce serait inventer un arbitrage) : on affiche les deux,
 // avec un signalement explicite, pour que ce soit vérifié par un humain.
-export function buildDeadlineRadar(dossiers = {}, connaissance = {}) {
+// `maintenant` est injectable UNIQUEMENT pour les tests : sans lui, ceux-ci codent en dur
+// des dates qui deviennent passées avec le temps et finissent par échouer sans qu'aucune
+// ligne de code n'ait bougé (c'est ce qui s'était produit : trois tests rouges pour des
+// jalons de juin 2026 relus en août 2026). En production, l'appel reste inchangé.
+export function buildDeadlineRadar(dossiers = {}, connaissance = {}, maintenant = new Date()) {
   const items = [];
   const noms = new Set([...Object.keys(dossiers || {}), ...Object.keys(connaissance?.clients || {})]);
   for (const nom of noms) {
     const d = dossiers?.[nom];
-    if (d?.description) items.push(...extraireTexte(nom, "fiche", d.description));
+    if (d?.description) items.push(...extraireTexte(nom, "fiche", d.description, maintenant));
     const c = connaissance?.clients?.[nom];
-    if (c?.contexte) items.push(...extraireTexte(nom, "contexte", c.contexte));
-    for (const a of c?.attentes || []) items.push(...extraireTexte(nom, "attentes", a));
-    for (const n of c?.notes || []) items.push(...extraireTexte(nom, "notes", n));
+    if (c?.contexte) items.push(...extraireTexte(nom, "contexte", c.contexte, maintenant));
+    for (const a of c?.attentes || []) items.push(...extraireTexte(nom, "attentes", a, maintenant));
+    for (const n of c?.notes || []) items.push(...extraireTexte(nom, "notes", n, maintenant));
   }
 
   // 1) Mutualise : regroupe par (dossier, date) exact — une seule ligne par échéance réelle,
@@ -164,7 +168,7 @@ export function buildDeadlineRadar(dossiers = {}, connaissance = {}) {
     }
   }
 
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date(maintenant); today.setHours(0, 0, 0, 0);
   const in7 = new Date(today); in7.setDate(in7.getDate() + 7);
   const in31 = new Date(today); in31.setDate(in31.getDate() + 31);
   const retardMax = new Date(today); retardMax.setDate(retardMax.getDate() - 60);

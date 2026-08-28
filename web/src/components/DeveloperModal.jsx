@@ -1,14 +1,14 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { printHtml, buildSimpleDoc } from "../utils.js";
+import { daysSince } from "../lib/commun.js";
+import { printHtml, buildSimpleDoc, esc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 import Avatar from "./Avatar.jsx";
 import { fetchDevWork } from "../api.js";
 import { useModalBack, backOut } from "../modalNav.js";
 import { useReadOnly } from "../readonly.js";
 
-import { ACTIFS as ACTIVE, VALIDES as DONE } from "../groups.js";
+import { ACTIFS as ACTIVE, VALIDES as DONE, PILL } from "../groups.js";
 const WAIT = ["recetteArmonie", "recetteClient", "attenteClient"];
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 const FTEST = {
   pris: () => true,
   done: (i) => DONE.includes(i.categorie),
@@ -48,9 +48,7 @@ function inRange(iso, range) {
 }
 function ymKey(iso) { if (!iso) return null; const d = new Date(iso); return isNaN(d) ? null : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`; }
 function fr(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
-function daysSince(iso) { if (!iso) return null; const t = new Date(iso).getTime(); if (isNaN(t)) return null; return Math.floor((Date.now() - t) / 86400000); }
 function agoTxt(iso) { const d = daysSince(iso); if (d === null) return ""; if (d <= 0) return "aujourd'hui"; if (d === 1) return "hier"; if (d < 30) return `il y a ${d} j`; const m = Math.floor(d / 30); return `il y a ${m} mois`; }
-function esc(s) { return String(s == null ? "" : s).replace(/[&<>]/g, (m) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[m])); }
 
 export default function DeveloperModal({ devName, allIssues = [], onClose, onTicket, onRefresh, deleted = false, onDelete, onRestore }) {
   const [period, setPeriod] = useState("tout");

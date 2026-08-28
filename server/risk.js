@@ -1,3 +1,4 @@
+import { CLOS_SET as CLOSED } from "../shared/groupes.js";
 // risk.js — SCORE DE RISQUE par dossier.
 // -----------------------------------------------------------------------------
 // Condense en UN indicateur (0–100) tout ce que le cockpit sait déjà repérer :
@@ -8,7 +9,6 @@
 // Ce n'est pas une vérité absolue mais une aide à la priorisation : un chiffre pour
 // dire « regarde ici en premier », avec le détail qui le justifie.
 
-const CLOSED = new Set(["termine", "miseEnProd", "annule"]);
 // « Figé » = aucune activité depuis longtemps → on mesure la dernière MISE À JOUR
 // (i.maj = champ Jira « updated »), et NON statutDepuis (= entrée de catégorie de
 // statut, trop grossier : un ticket « En cours » depuis des mois mais travaillé hier

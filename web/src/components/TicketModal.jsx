@@ -4,8 +4,8 @@ import { frDate, esc, buildSimpleDoc, openExternal } from "../utils.js";
 import { useModalBack, backOut } from "../modalNav.js";
 import { useReadOnly } from "../readonly.js";
 import ExportBar from "./ExportBar.jsx";
+import { PILL } from "../groups.js";
 
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
 function whenFmt(iso) {
   if (!iso) return "—";
@@ -38,6 +38,7 @@ function lastEvent(activity) {
 }
 
 export default function TicketModal({ ticket, onClose, onPushed }) {
+  const [cmtTous, setCmtTous] = useState(false);   // fil replié à 4 commentaires par défaut
   const [note, setNote] = useState("");
   const [report, setReport] = useState("");
   const [markDone, setMarkDone] = useState(true);
@@ -92,7 +93,7 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
     finally { setBusy(""); }
   };
 
-  const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length));
+  const hasActivity = activity && ((activity.worklogs && activity.worklogs.length) || (activity.timeline && activity.timeline.length) || (activity.comments && activity.comments.length));
 
   const buildTicketHtml = () => {
     const cartouche = [
@@ -108,6 +109,17 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
     if (explication) body += `<h2>Explication</h2><p>${esc(explication)}</p>`;
     if (note) body += `<h2>Note du chef de projet</h2><p>${esc(note)}</p>`;
     if (report) body += `<h2>Rapport</h2><p>${esc(report).replace(/\n/g, "<br>")}</p>`;
+    if (activity?.comments?.length) {
+      // Les commentaires partent aussi dans le document : c'est souvent la seule trace
+      // écrite de ce que le client a demandé. Les commentaires à visibilité restreinte
+      // sont signalés, pour qu'on ne les lise pas par mégarde en réunion client.
+      body += `<h2>Commentaires</h2>` +
+        activity.comments.map((c) =>
+          `<p><b>${esc(c.who)}</b> <span class="muted">${esc(whenFmt(c.date))}` +
+          `${c.restreint ? " · interne" : ""}</span><br>` +
+          `${esc(c.texte).replace(/\n/g, "<br>")}${c.tronque ? " […]" : ""}</p>`
+        ).join("");
+    }
     if (activity?.timeline?.length) {
       body += `<h2>Historique des changements</h2>` +
         `<table><tr><th>Quand</th><th>Qui</th><th>Action</th></tr>` +
@@ -240,6 +252,34 @@ export default function TicketModal({ ticket, onClose, onPushed }) {
                     </div>
                   );
                 })()}
+                {activity.comments && activity.comments.length > 0 && (
+                  <>
+                    {/* Le fil de commentaires vient AVANT l'historique : l'historique dit
+                        quand un ticket a bougé, les commentaires disent pourquoi. C'est
+                        cette raison qu'on cherche en ouvrant une fiche. */}
+                    <div className="act-sub">
+                      Commentaires <span className="act-n">{activity.comments.length}</span>
+                    </div>
+                    <ul className="cmt-list">
+                      {(cmtTous ? activity.comments : activity.comments.slice(0, 4)).map((c) => (
+                        <li key={c.id} className="cmt">
+                          <div className="cmt-h">
+                            <b className="cmt-who">{c.who}</b>
+                            <span className="cmt-when">{whenFmt(c.date)}</span>
+                            {c.modifie && <span className="cmt-edit" title={`Modifié le ${whenFmt(c.modifie)}`}>modifié</span>}
+                            {c.restreint && <span className="cmt-priv" title="Visibilité restreinte dans Jira">interne</span>}
+                          </div>
+                          <div className="cmt-txt">{c.texte}{c.tronque ? " […]" : ""}</div>
+                        </li>
+                      ))}
+                    </ul>
+                    {activity.comments.length > 4 && (
+                      <button type="button" className="cmt-more" onClick={() => setCmtTous((v) => !v)}>
+                        {cmtTous ? "Réduire" : `Voir les ${activity.comments.length} commentaires`}
+                      </button>
+                    )}
+                  </>
+                )}
                 {activity.timeline && activity.timeline.length > 0 && (
                   <>
                     <div className="act-sub">Historique des changements</div>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { frDateCourte, cle, libelle } from "../lib/commun.js";
 import { fetchActivite } from "../api.js";
 
 // Flux d'activité — ce qui bouge, avec de la donnée RÉELLE, zéro invention.
@@ -8,7 +9,6 @@ import { fetchActivite } from "../api.js";
 //    et classement des basculeurs du jour.
 
 const SEEN_KEY = "cpwire:activite:seen";
-const norm = (s) => String(s || "").trim();
 const PAD = (n) => String(n).padStart(2, "0");
 const hhmm = (iso) => { try { const d = new Date(iso); return `${PAD(d.getHours())}:${PAD(d.getMinutes())}`; } catch { return "—"; } };
 const nowHM = () => { const d = new Date(); return `${PAD(d.getHours())}:${PAD(d.getMinutes())}`; };
@@ -40,7 +40,6 @@ function durTxt(a, b) {
   if (mo < 12) return `${mo} mois`;
   return `${(j / 365).toFixed(1)} an(s)`;
 }
-function frDate(iso) { try { return new Date(iso).toLocaleDateString("fr-FR"); } catch { return ""; } }
 
 // Mini-courbe (sparkline) SVG pour le pouls d'un client.
 function Sparkline({ data = [], w = 108, h = 24 }) {
@@ -90,6 +89,11 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
   const [payload, setPayload] = useState(null);
   const [client, setClient] = useState("Tous");
   const [type, setType] = useState("Tous"); // Tous | transition | creation | regression
+  // Deux critères qui manquaient : QUI a fait bouger le ticket, et SUR QUELLE PÉRIODE.
+  // Sans eux, retrouver « ce qu'Adrien a bougé cette semaine » obligeait à parcourir
+  // le flux à l'œil, alors que l'information est déjà dans les données.
+  const [qui, setQui] = useState("Tous");
+  const [periode, setPeriode] = useState("tout"); // tout | jour | semaine
   const [auto, setAuto] = useState(true);
   const [lastAt, setLastAt] = useState("");
   const [openRank, setOpenRank] = useState(false);
@@ -125,20 +129,45 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
   const history = payload?.history || [];
   const pulse = payload?.pulse || {};
 
+  // On rapproche sur la CLÉ (accents et casse ignorés) mais on affiche le LIBELLÉ
+  // d'origine. Avant, la clé servait aussi d'étiquette : les pastilles annonçaient
+  // « edl » et « ds smith » au lieu de « EDL » et « DS Smith ».
   const clients = useMemo(() => {
-    const set = new Set();
-    events.forEach((e) => set.add(norm(e.dossier)));
-    history.forEach((d) => (d.movements || []).forEach((m) => set.add(norm(m.dossier))));
-    Object.keys(pulse).forEach((d) => set.add(norm(d)));
-    return [...set].filter((d) => d && d !== "—").sort();
+    const par = new Map();   // clé -> premier libellé rencontré
+    const noter = (d) => { const k = cle(d); if (k && k !== "—" && !par.has(k)) par.set(k, libelle(d)); };
+    events.forEach((e) => noter(e.dossier));
+    history.forEach((d) => (d.movements || []).forEach((m) => noter(m.dossier)));
+    Object.keys(pulse).forEach(noter);
+    return [...par.entries()]
+      .map(([k, lab]) => ({ cle: k, label: lab }))
+      .sort((a, b) => a.label.localeCompare(b.label, "fr"));
   }, [events, history, pulse]);
 
-  const inClient = (d) => client === "Tous" || norm(d) === client;
+  const inClient = (d) => client === "Tous" || cle(d) === client;
+  const inQui = (w) => qui === "Tous" || (w || "") === qui;
+
+  // Personnes présentes dans le flux : aucune liste écrite en dur.
+  const personnes = useMemo(() => {
+    const set = new Set();
+    (payload?.events || []).forEach((e) => { if (e.who) set.add(e.who); });
+    (history || []).forEach((d) => (d.movements || []).forEach((m) => { if (m.who) set.add(m.who); }));
+    return [...set].sort();
+  }, [payload, history]);
+
+  // Fenêtre de temps : « aujourd'hui » masque la traîne des jours précédents,
+  // « 7 jours » la limite à une semaine. Le jour courant est toujours conservé.
+  const limiteJour = useMemo(() => {
+    if (periode === "tout") return null;
+    const n = periode === "jour" ? 0 : 6;
+    const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - n);
+    return d.toISOString().slice(0, 10);
+  }, [periode]);
 
   const shownToday = useMemo(() => events.filter((e) =>
     inClient(e.dossier) &&
+    inQui(e.who) &&
     (type === "Tous" ? true : type === "regression" ? e.regression : e.kind === type)
-  ), [events, client, type]);
+  ), [events, client, type, qui]);
 
   const nMov = events.filter((e) => e.kind === "transition").length;
   const nNew = events.filter((e) => e.kind === "creation").length;
@@ -170,17 +199,21 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
   // Traîne : jours précédents filtrés (client + type). Créations n'existent pas dans la traîne.
   const shownHistory = useMemo(() => {
     if (type === "creation") return [];
-    return history.map((d) => ({
-      ...d,
-      movements: (d.movements || []).filter((m) => inClient(m.dossier) && (type !== "regression" || m.regression)),
-    })).filter((d) => d.movements.length);
-  }, [history, client, type]);
+    return history
+      .filter((d) => !limiteJour || String(d.day) >= limiteJour)
+      .map((d) => ({
+        ...d,
+        movements: (d.movements || []).filter((m) =>
+          inClient(m.dossier) && inQui(m.who) && (type !== "regression" || m.regression)),
+      }))
+      .filter((d) => d.movements.length);
+  }, [history, client, type, qui, limiteJour]);
 
   const openTicket = (cle) => { if (onTicket) onTicket(byKey[cle] || { cle }); };
 
   const Cli = ({ d }) => (onClient
-    ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{norm(d) || "—"}</button>
-    : <span className="af-cli">{norm(d) || "—"}</span>);
+    ? <button type="button" className="af-cli af-cli-btn" onClick={() => onClient(d)} title="Ouvrir la fiche client">{cle(d) || "—"}</button>
+    : <span className="af-cli">{cle(d) || "—"}</span>);
 
   // Pulse « nouveau mouvement » : uniquement les tickets qui viennent de bouger (diff serveur changedKeys).
   const isFresh = (cle) => changedKeys && changedKeys.has && changedKeys.has(cle);
@@ -279,9 +312,33 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
       <div className="af-filters">
         <button type="button" className={`af-chip ${client === "Tous" ? "on" : ""}`} onClick={() => setClient("Tous")}>Tous <b>{events.length}</b></button>
         {clients.map((c) => (
-          <button type="button" key={c} className={`af-chip ${client === c ? "on" : ""}`} onClick={() => setClient(c)}>{c}</button>
+          <button type="button" key={c.cle} className={`af-chip ${client === c.cle ? "on" : ""}`} onClick={() => setClient(c.cle)}>{c.label}</button>
         ))}
       </div>
+      <div className="af-critere">
+        <label className="af-sel">
+          <span>Période</span>
+          <select value={periode} onChange={(e) => setPeriode(e.target.value)}>
+            <option value="tout">Tout l'historique</option>
+            <option value="semaine">7 derniers jours</option>
+            <option value="jour">Aujourd'hui seulement</option>
+          </select>
+        </label>
+        <label className="af-sel">
+          <span>Par qui</span>
+          <select value={qui} onChange={(e) => setQui(e.target.value)} disabled={!personnes.length}>
+            <option value="Tous">Tout le monde</option>
+            {personnes.map((w) => <option key={w} value={w}>{w}</option>)}
+          </select>
+        </label>
+        {(client !== "Tous" || type !== "Tous" || qui !== "Tous" || periode !== "tout") && (
+          <button type="button" className="af-reset"
+            onClick={() => { setClient("Tous"); setType("Tous"); setQui("Tous"); setPeriode("tout"); }}>
+            × réinitialiser
+          </button>
+        )}
+      </div>
+
       <div className="af-types" role="tablist" aria-label="Type d'événement">
         {[["Tous", "Tout"], ["transition", "Mouvements"], ["creation", "Apparitions"], ["regression", `Régressions${nReg ? " " + nReg : ""}`]].map(([id, lbl]) => (
           <button type="button" key={id} className={`af-type ${type === id ? "on" : ""} ${id === "regression" && nReg ? "has-reg" : ""}`} onClick={() => setType(id)}>{lbl}</button>
@@ -310,7 +367,7 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
                     <Cli d={e.dossier} />
                     <button type="button" className="af-cle" onClick={() => openTicket(e.cle)} title="Ouvrir le ticket">{e.cle}</button>
                     <StatusChips from={e.from} to={e.to} statut={e.statut} kind={e.kind} regression={e.regression} />
-                    <span className="af-t" title={e.resume}><span className="af-t-txt">{e.resume || "—"}</span>{lead ? <span className="af-lead" title={`Créé le ${frDate(e.cree)} → terminé aujourd'hui`}>réalisé en {lead}</span> : null}</span>
+                    <span className="af-t" title={e.resume}><span className="af-t-txt">{e.resume || "—"}</span>{lead ? <span className="af-lead" title={`Créé le ${frDateCourte(e.cree)} → terminé aujourd'hui`}>réalisé en {lead}</span> : null}</span>
                     <span className="af-who">
                       {(e.who || e.dev)
                         ? <>{e.who ? <>par <b>{e.who}</b></> : null}{e.dev && e.dev !== e.who ? <span className="af-dev"> · dév. {e.dev}</span> : null}</>
@@ -330,7 +387,7 @@ export default function ActivityFeed({ issues = [], onTicket, onClient, changedK
               </ul>
             </div>
           ) : (type !== "creation" || nNew === 0) && !shownHistory.length ? (
-            <p className="af-empty">Rien à afficher{client !== "Tous" ? ` sur ${client}` : ""}{type !== "Tous" ? ` (${type === "transition" ? "mouvements" : type === "creation" ? "apparitions" : "régressions"})` : ""}. Le flux se remplit dès qu'un ticket bouge ou apparaît.</p>
+            <p className="af-empty">Rien à afficher{client !== "Tous" ? ` sur ${(clients.find((c) => c.cle === client) || {}).label || client}` : ""}{qui !== "Tous" ? ` pour ${qui}` : ""}{periode === "jour" ? " aujourd'hui" : periode === "semaine" ? " sur 7 jours" : ""}{type !== "Tous" ? ` (${type === "transition" ? "mouvements" : type === "creation" ? "apparitions" : "régressions"})` : ""}. Le flux se remplit dès qu'un ticket bouge ou apparaît.</p>
           ) : null}
 
           {/* Traîne : jours précédents (au jour) */}

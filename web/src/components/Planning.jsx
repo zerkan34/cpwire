@@ -1,10 +1,9 @@
 import React, { useState, useMemo, useRef } from "react";
 import { parsePlanning } from "../planning.js";
-import { buildSimpleDoc } from "../utils.js";
+import { buildSimpleDoc, esc } from "../utils.js";
 import ExportBar from "./ExportBar.jsx";
 
 const ME = "Nicolas Durand";
-const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
 export default function Planning() {
   const [data, setData] = useState(null);

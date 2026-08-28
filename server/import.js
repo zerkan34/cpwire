@@ -7,6 +7,7 @@ import { dataDir } from "./paths.js";
 import { classifyImport } from "./ai.js";
 import { learnFromImport } from "./connaissance.js";
 import { saveBlob as dbSaveBlob, restoreBlob, restoreManyBlobs } from "./persist.js";
+import { separateursEnEspaces } from "../shared/texte.js";
 
 const DIR = dataDir();
 const FILE = path.join(DIR, "imports.json");
@@ -159,8 +160,7 @@ const DOSSIER_SIGNS = [
 ];
 export function detectDossier(filename, text) {
   // Les noms de fichiers sont en underscore : on neutralise _ et - (sinon \b ne « voit » pas les mots).
-  const norm = (s) => String(s || "").replace(/[_\-]+/g, " ");
-  const hay = `${norm(filename)}\n${norm(String(text || "").slice(0, 800))}`;
+  const hay = `${separateursEnEspaces(filename)}\n${separateursEnEspaces(String(text || "").slice(0, 800))}`;
   for (const s of DOSSIER_SIGNS) if (s.rx.test(hay)) return s.dossier;
   return "";
 }

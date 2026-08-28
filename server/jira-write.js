@@ -36,9 +36,11 @@ export async function listTransitions(key) {
 export async function transition(key, targetStatus) {
   if (!isConfigured()) return { simulated: true, message: `Mode démo : passage à "${targetStatus}" non envoyé.` };
   const trans = await listTransitions(key);
-  const norm = (s) => String(s).toLowerCase();
-  const match = trans.find((t) => norm(t.to) === norm(targetStatus) || norm(t.name) === norm(targetStatus)) ||
-    trans.find((t) => /(termin|done|fait|clos)/.test(norm(t.to) + norm(t.name)));
+  // Comparaison de valeurs Jira brutes : minuscules seulement, ni accents ni trim,
+  // car on rapproche des identifiants techniques et non des libellés humains.
+  const minuscule = (s) => String(s).toLowerCase();
+  const match = trans.find((t) => minuscule(t.to) === minuscule(targetStatus) || minuscule(t.name) === minuscule(targetStatus)) ||
+    trans.find((t) => /(termin|done|fait|clos)/.test(minuscule(t.to) + minuscule(t.name)));
   if (!match) throw new Error(`Aucune transition vers "${targetStatus}" disponible pour ${key}.`);
   const res = await fetch(`${BASE_URL}/rest/api/3/issue/${key}/transitions`, {
     method: "POST", headers: headers(), body: JSON.stringify({ transition: { id: match.id } }),

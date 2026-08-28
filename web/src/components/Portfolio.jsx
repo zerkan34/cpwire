@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { ACTIFS } from "../groups.js";
+import { cle } from "../lib/commun.js";
 
 const SEV_CLS = { critique: "red", surveiller: "amber", controle: "green" };
 const CAT_CLS = { encours: "prog", retourTest: "block", retourProd: "block" };
@@ -112,11 +113,10 @@ export default function Portfolio({ facts, engagement = {}, attention = {}, risk
   const score = (d, f) => (attention[d]?.score ?? localScore(f));
   const entries = Object.entries(facts?.byDossier || {}).sort((a, b) => score(b[0], b[1]) - score(a[0], a[1]));
   if (!entries.length) return <div className="panel empty">Aucun projet à afficher pour l'instant.</div>;
-  const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
   return (
     <div className="cards">
       {entries.map(([dossier, f]) => (
-        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} att={attention[dossier]} risk={risk[norm(dossier)]}
+        <Card key={dossier} dossier={dossier} f={f} eng={engagement[dossier]} att={attention[dossier]} risk={risk[cle(dossier)]}
           onClick={() => onOpen(dossier)} onOpen360={onOpen360} can360={can360} onTicket={onTicket} />
       ))}
     </div>

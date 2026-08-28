@@ -10,18 +10,18 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { cle } from "../shared/texte.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const JSON_PATH = process.env.PERSONNES_JSON || path.join(__dirname, "personnes.json");
 
-const norm = (s) => String(s || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
 
-let ALIAS = {}; // norm(nom Jira) -> "Prénom Nom"
+let ALIAS = {}; // cle(nom Jira) -> "Prénom Nom"
 try {
   if (fs.existsSync(JSON_PATH)) {
     const cfg = JSON.parse(fs.readFileSync(JSON_PATH, "utf8")) || {};
     const src = cfg.alias || {};
-    for (const k of Object.keys(src)) if (k[0] !== "_") ALIAS[norm(k)] = src[k];
+    for (const k of Object.keys(src)) if (k[0] !== "_") ALIAS[cle(k)] = src[k];
     console.log(`[personnes] ${Object.keys(ALIAS).length} correction(s) de nom chargée(s) depuis ${JSON_PATH}`);
   } else {
     console.log(`[personnes] aucune table (${JSON_PATH} absent) — redressement automatique seul.`);
@@ -44,12 +44,12 @@ const FIRST_NAMES = new Set([
   "elodie", "laura", "laetitia", "margaux", "sarah", "virginie",
 ]);
 
-const isFirst = (w) => FIRST_NAMES.has(norm(w));
+const isFirst = (w) => FIRST_NAMES.has(cle(w));
 
 export function displayName(raw) {
   const s = String(raw || "").trim().replace(/\s+/g, " ");
   if (!s) return s;
-  const hit = ALIAS[norm(s)];
+  const hit = ALIAS[cle(s)];
   if (hit) return hit;
   const parts = s.split(" ");
   // 2 mots clairement à l'envers : "Nom Prénom" -> "Prénom Nom"

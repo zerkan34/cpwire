@@ -1,3 +1,4 @@
+import { estValide as DONE } from "../shared/groupes.js";
 // cadence.js — Rythme réel de l'équipe, calculé depuis les données Jira (aucune IA).
 // Tout est déterministe et explicable : débit (tickets résolus), délai de traitement,
 // charge en cours, tickets qui traînent. S'affine tout seul à mesure que les données s'accumulent.
@@ -26,7 +27,6 @@ const ddMM = (t) => {
   return `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 };
 
-const DONE = (i) => i.categorie === "termine" || i.categorie === "miseEnProd";
 const OPEN = (i) => !DONE(i) && i.categorie !== "annule";
 const whoOf = (i) => i.dev || i.assigne || "Non assigné";
 

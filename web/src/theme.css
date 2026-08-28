@@ -5739,3 +5739,104 @@ input, select, textarea { transition: border-color .15s ease, box-shadow .15s ea
   .famtab { padding: 7px 13px; font-size: 12.5px; }
   .subtabs.seq .subtab + .subtab::before { width: 8px; margin-right: 5px; }
 }
+
+/* Flux d'activité : critères de filtrage (période, personne).
+   Les chips client et les onglets de type existaient déjà ; il manquait de quoi
+   répondre à « qu'est-ce qu'Adrien a bougé cette semaine ». */
+.af-critere {
+  display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; margin: 4px 0 10px;
+}
+.af-sel { display: flex; flex-direction: column; gap: 4px; }
+.af-sel > span {
+  font-size: 10px; font-weight: 700; letter-spacing: .09em;
+  text-transform: uppercase; color: var(--muted);
+}
+.af-sel select {
+  font: inherit; font-size: 13px; padding: 7px 10px; border-radius: 9px;
+  border: 1px solid var(--line); background: var(--card); color: var(--ink); min-width: 170px;
+}
+.af-sel select:focus { outline: 2px solid var(--purple); outline-offset: 1px; }
+.af-sel select:disabled { opacity: .5; cursor: not-allowed; }
+.af-critere .af-reset {
+  border: 0; background: transparent; color: var(--purple);
+  font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; padding: 8px 2px;
+}
+.af-critere .af-reset:hover { text-decoration: underline; }
+
+@media (max-width: 720px) {
+  .af-sel, .af-sel select { flex: 1 1 100%; min-width: 0; width: 100%; }
+  .af-critere { gap: 8px; }
+}
+
+/* Fil de commentaires Jira, dans la fiche ticket.
+   L'historique dit quand un ticket a bougé, les worklogs combien de temps y a été
+   passé ; seuls les commentaires disent pourquoi. D'où leur place en tête. */
+.act-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 6px;
+  border-radius: 9px; background: var(--line); color: var(--muted);
+  font-size: 11px; font-weight: 700;
+}
+.cmt-list { list-style: none; margin: 0 0 10px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.cmt {
+  background: var(--card-2, #F5F2FC); border: 1px solid var(--line);
+  border-left: 3px solid var(--purple); border-radius: 10px; padding: 9px 12px;
+}
+.cmt-h { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin-bottom: 4px; }
+.cmt-who { font-size: 12.5px; color: var(--ink); }
+.cmt-when { font-size: 11px; color: var(--muted); }
+.cmt-edit, .cmt-priv {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 6px; border-radius: 5px; border: 1px solid var(--line); color: var(--muted);
+}
+/* Visibilité restreinte : signalée franchement, pour ne pas lire à voix haute
+   en réunion client un commentaire réservé à l'équipe. */
+.cmt-priv { color: var(--amber, #C2691A); border-color: currentColor; }
+.cmt-txt {
+  font-size: 13px; line-height: 1.55; color: var(--ink);
+  white-space: pre-wrap;      /* les listes à puces gardent leurs retours à la ligne */
+  overflow-wrap: anywhere;    /* une URL longue ne fait pas déborder la fiche */
+}
+.cmt-more {
+  border: 1px solid var(--line); background: var(--card); color: var(--purple);
+  font: inherit; font-size: 12px; font-weight: 600; padding: 6px 13px;
+  border-radius: 8px; cursor: pointer; margin-bottom: 12px;
+}
+.cmt-more:hover { border-color: var(--purple); }
+
+/* Outil GANTT : plannings partagés (et non plus enfermés dans un navigateur). */
+.gantt-chip-n {
+  font-style: normal; font-size: 10px; font-weight: 700; margin-left: 7px;
+  padding: 1px 6px; border-radius: 8px; background: var(--line); color: var(--muted);
+}
+.gantt-chip.on .gantt-chip-n { background: rgba(255,255,255,.25); color: #fff; }
+.gantt-vide { margin: 8px 0 0; font-size: 13px; color: var(--muted); font-style: italic; }
+.gantt-msg {
+  margin-top: 10px; font-size: 12.5px; padding: 8px 12px; border-radius: 9px;
+  background: var(--card-2, #F5F2FC); border: 1px solid var(--line); color: var(--ink);
+}
+.gantt-alerte {
+  margin-top: 10px; font-size: 12.5px; padding: 9px 12px; border-radius: 9px;
+  background: #FFF6DF; border: 1px solid #F0DFAE; color: #8A5A00;
+}
+.gantt-alerte code { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; }
+
+/* Admin : export complet des données. */
+.adm-export-note { color: var(--muted); font-size: 12.5px; }
+.adm-export-btns { display: flex; gap: 8px; flex-wrap: wrap; margin: 12px 0 0; }
+.adm-export-recap {
+  margin-top: 14px; padding: 12px 14px; border-radius: 10px;
+  background: var(--card-2, #F5F2FC); border: 1px solid var(--line);
+}
+.adm-export-tot { font-family: Poppins, Inter, sans-serif; font-weight: 800; font-size: 14px; margin-bottom: 8px; }
+.adm-export-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.adm-export-list li {
+  display: inline-flex; align-items: baseline; gap: 7px; font-size: 12.5px;
+  background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 4px 11px;
+}
+.adm-export-list li span { font-weight: 700; color: var(--purple); }
+.adm-export-warn { margin: 10px 0 0; font-size: 12.5px; color: #8A5A00; }
+.adm-export-err {
+  margin-top: 12px; padding: 9px 12px; border-radius: 9px;
+  background: #FDECEF; border: 1px solid #F6C6D2; color: #8A1C3C; font-size: 13px;
+}

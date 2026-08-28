@@ -31,6 +31,25 @@ export function saveSessions() {
     try { saveBlob("sessions", JSON.stringify([...sessions])); } catch (e) { console.error("[sessions] miroir Neon impossible:", e.message || e); }
   } catch (e) { console.error("[sessions] écriture fichier impossible:", e.message || e); }
 }
+// Durée d'inactivité au-delà de laquelle une session invitée est abandonnée.
+// Sans cela, lastSeen était écrit à chaque requête mais jamais relu : une session
+// créée une fois restait valable indéfiniment, et survivait désormais aux
+// redéploiements puisqu'elle est persistée. Les comptes les moins fiables avaient
+// donc la durée de vie la plus longue, alors que le jeton owner expire à 30 jours.
+export const SESSION_IDLE_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Retire les sessions inactives depuis plus de SESSION_IDLE_MS. Renvoie le nombre purgé.
+export function purgeSessions() {
+  const limite = Date.now() - SESSION_IDLE_MS;
+  let n = 0;
+  for (const [t, s] of sessions) {
+    const vu = Number(s && s.lastSeen) || 0;
+    if (vu < limite) { sessions.delete(t); n++; }
+  }
+  if (n) saveSessions();
+  return n;
+}
+
 export async function initSessions() {
   let raw = null;
   try { raw = await restoreBlob("sessions"); } catch (e) { console.error("[sessions] restauration Neon impossible:", e.message || e); }
@@ -39,6 +58,8 @@ export async function initSessions() {
   try {
     const entries = JSON.parse(raw);
     if (Array.isArray(entries)) for (const [t, s] of entries) if (t && s) sessions.set(t, s);
+    const purgees = purgeSessions();
+    if (purgees) console.log(`[sessions] ${purgees} session(s) inactive(s) purgée(s) au démarrage.`);
     return sessions.size > 0;
   } catch (e) { console.error("[sessions] JSON invalide, on repart à vide:", e.message || e); return false; }
 }
@@ -58,7 +79,7 @@ const SIGN_SECRET = AUTH_PASSWORD || (() => {
 })();
 
 // Routes interdites au rôle « consultation » : aucun récap, aucun CR, aucune réunion.
-export const CONSULT_FORBIDDEN = [/^\/api\/cr\//, /^\/api\/recap$/, /^\/api\/meeting\//];
+export const CONSULT_FORBIDDEN = [/^\/api\/cr\//, /^\/api\/recap$/, /^\/api\/meeting\//, /^\/api\/reunion\//];
 
 // Durée de vie d'une session « owner » : 30 jours, puis reconnexion demandée.
 export const OWNER_TTL_MS = 30 * 24 * 60 * 60 * 1000;
@@ -175,17 +196,62 @@ export function checkOwnerToken(t) {
 }
 
 // Détermine le rôle de la requête : "owner" (total), "consultation" (lecture, sans récap/CR) ou "guest".
+export const COOKIE_JETON = "cpw_tok";
+
+/** Lit le jeton de session dans les cookies, sans dépendance externe. */
+export function jetonDuCookie(req) {
+  const brut = req && req.headers && req.headers.cookie;
+  if (!brut) return "";
+  for (const part of String(brut).split(";")) {
+    const i = part.indexOf("=");
+    if (i < 0) continue;
+    if (part.slice(0, i).trim() === COOKIE_JETON) {
+      try { return decodeURIComponent(part.slice(i + 1).trim()); } catch { return ""; }
+    }
+  }
+  return "";
+}
+
+/** Pose le cookie de session à la connexion. httpOnly : inaccessible au JavaScript. */
+export function poserCookieJeton(res, token, maxAgeMs) {
+  const bits = [
+    `${COOKIE_JETON}=${encodeURIComponent(token)}`,
+    "Path=/", "HttpOnly", "SameSite=Strict",
+    `Max-Age=${Math.floor((maxAgeMs || 30 * 24 * 3600e3) / 1000)}`,
+  ];
+  if (process.env.NODE_ENV === "production") bits.push("Secure");
+  res.append("Set-Cookie", bits.join("; "));
+}
+
+/** Retire le cookie à la déconnexion. */
+export function retirerCookieJeton(res) {
+  res.append("Set-Cookie", `${COOKIE_JETON}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+}
+
 export function guard(req, res, next) {
   if (!AUTH_ENABLED) { req.role = "owner"; req.userEmail = ME; return next(); }
-  const t = req.headers["x-access-token"];
+  // Le jeton arrive normalement dans l'en-tête « x-access-token », posé par le front.
+  // Mais ShareFly et l'Atelier de flux s'ouvrent par une NAVIGATION PLEINE PAGE : le
+  // navigateur n'envoie alors aucun en-tête personnalisé, et ces pages étaient donc
+  // impossibles à protéger. D'où le repli sur un cookie de session, posé à la connexion.
+  // SameSite=Strict : le navigateur ne l'envoie jamais depuis un autre site, ce qui
+  // ferme la porte au CSRF que l'usage d'un cookie ouvrirait autrement.
+  const t = req.headers["x-access-token"] || jetonDuCookie(req);
   let role = null, email = null;
   if (checkOwnerToken(t)) { role = "owner"; email = AUTH_EMAIL; }
-  else if (t && sessions.has(t)) { const s = sessions.get(t); role = s.role; email = s.email; s.lastSeen = Date.now(); }
+  else if (t && sessions.has(t)) {
+    const s = sessions.get(t);
+    // Session dormante au-delà du seuil : on la refuse et on la retire, sans attendre la purge.
+    if ((Number(s.lastSeen) || 0) < Date.now() - SESSION_IDLE_MS) { sessions.delete(t); }
+    else { role = s.role; email = s.email; s.lastSeen = Date.now(); }
+  }
   else if (checkGuestToken(t)) { role = "guest"; }
   if (!role) return res.status(401).json({ error: "Authentification requise." });
   req.role = role; req.userEmail = email;
-  // Verrou serveur : le rôle consultation ne peut PAS atteindre un récap/CR/réunion, même en forçant l'URL.
-  if (role === "consultation" && CONSULT_FORBIDDEN.some((re) => re.test(req.path))) {
+  // Verrou serveur : ni le rôle consultation ni le rôle invité (lien partagé) ne peuvent
+  // atteindre un récap/CR/réunion, même en forçant l'URL. Le rôle "guest" était omis :
+  // un lien qui circule avait donc plus de droits qu'un compte nominatif.
+  if ((role === "consultation" || role === "guest") && CONSULT_FORBIDDEN.some((re) => re.test(req.path))) {
     return res.status(403).json({ error: "Accès non autorisé pour ce rôle." });
   }
   next();

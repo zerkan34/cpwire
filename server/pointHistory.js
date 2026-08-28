@@ -23,6 +23,7 @@ import fs from "fs";
 import path from "path";
 import { dataDir } from "./paths.js";
 import { CATEGORY_LABEL } from "./config.js";
+import { cle } from "../shared/texte.js";
 
 const FILE = path.join(dataDir(), "point-history.json");
 const KEEP_DAYS = 14;
@@ -36,7 +37,6 @@ const ALL = "Tous dossiers";
 
 // Normalisation IDENTIQUE au front (Client360 `norm`) pour une parité de clé sûre,
 // même si la casse/les accents diffèrent entre `canonDossier` et `i.dossier`.
-const norm = (s) => String(s || "").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 
@@ -117,8 +117,8 @@ export function baselineFor(dossier, scopeKey = "") {
   // 1) clé exacte, sinon 2) clé normalisée-égale.
   let node = db[dossier];
   if (!node) {
-    const target = norm(dossier);
-    const hit = Object.keys(db).find((k) => norm(k) === target);
+    const target = cle(dossier);
+    const hit = Object.keys(db).find((k) => cle(k) === target);
     node = hit ? db[hit] : null;
   }
   const s = node && node[scopeKey || ""];

@@ -1,3 +1,4 @@
+import { VALIDES_SET as DONE, CLOS_SET as CLOSED } from "../shared/groupes.js";
 // coherence.js — AUDIT DE COHÉRENCE (« on fait pas fausse route »).
 // -----------------------------------------------------------------------------
 // Croise les données ENTRE ELLES pour lever les incohérences AVANT qu'elles ne
@@ -6,8 +7,6 @@
 // Arcad) sont PRÉVUS mais déclarés « non connectés » tant que l'accès n'est pas
 // fourni — on ne simule jamais un résultat qu'on n'a pas.
 
-const DONE = new Set(["termine", "miseEnProd"]);
-const CLOSED = new Set(["termine", "miseEnProd", "annule"]);
 const ACTIVE = new Set(["encours", "retourTest", "recetteArmonie", "recetteClient"]);
 const today = () => new Date().toISOString().slice(0, 10);
 const hasWorker = (i) => !!(i.assigne && String(i.assigne).trim()) || (Array.isArray(i.contributors) && i.contributors.length > 0);

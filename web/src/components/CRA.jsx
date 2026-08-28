@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useRef } from "react";
+import { frDateCourte } from "../lib/commun.js";
 import { fetchCRA, importCRA } from "../api.js";
 import CraHours from "./CraHours.jsx";
 import { buildSimpleDoc, esc } from "../utils.js";
@@ -23,7 +24,6 @@ function presets() {
     last7: { label: "7 derniers jours", start: iso(d7), end: iso(today) },
   };
 }
-const frDate = (s) => { try { return new Date(s + "T00:00:00").toLocaleDateString("fr-FR"); } catch { return s; } };
 const hDec = (sec) => (sec / 3600);
 
 export default function CRA({ onTicket }) {
@@ -131,11 +131,11 @@ export default function CRA({ onTicket }) {
 
     return buildSimpleDoc({
       kicker: "Compte rendu d'activité",
-      title: `CRA — ${frDate(start)} au ${frDate(end)}`,
+      title: `CRA — ${frDateCourte(start)} au ${frDateCourte(end)}`,
       subtitle: person === "Tous" ? "Tous les intervenants" : person,
       cartouche: [
         ["Chef de projet", ME],
-        ["Période", `${frDate(start)} → ${frDate(end)}`],
+        ["Période", `${frDateCourte(start)} → ${frDateCourte(end)}`],
         ["Périmètre", person === "Tous" ? "Tous les intervenants" : person],
         ["Source", cra && cra.source === "excel" ? "Fichier Excel importé" : "Temps saisis dans Jira"],
       ],
@@ -235,7 +235,7 @@ export default function CRA({ onTicket }) {
                   {(cra.byPerson || []).some((p) => p.who === ME) && <option value={ME}>Moi ({ME})</option>}
                   {(cra.byPerson || []).map((p) => p.who).filter((w) => w !== ME).map((w) => <option key={w} value={w}>{w}</option>)}
                 </select>
-                <span className="hint" style={{ margin: 0 }}>{frDate(start)} → {frDate(end)}{cra.capped ? ` · ⚠ ${cra.scanned}/${cra.total} tickets analysés (volume plafonné)` : ""}</span>
+                <span className="hint" style={{ margin: 0 }}>{frDateCourte(start)} → {frDateCourte(end)}{cra.capped ? ` · ⚠ ${cra.scanned}/${cra.total} tickets analysés (volume plafonné)` : ""}</span>
               </div>
 
               <div className="cra-card">
@@ -303,7 +303,7 @@ export default function CRA({ onTicket }) {
 
               <div className="row-actions" style={{ marginTop: 12, gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <button className="btn-line sm" onClick={downloadCsv} title="Télécharger un CSV (s'ouvre dans Excel) — temps par projet et par personne">⬇ CSV pour Excel</button>
-                <ExportBar buildHtml={buildDocHtml} filename={`CRA_${start}_${end}.html`} subject={`CRA — ${frDate(start)} au ${frDate(end)}`} />
+                <ExportBar buildHtml={buildDocHtml} filename={`CRA_${start}_${end}.html`} subject={`CRA — ${frDateCourte(start)} au ${frDateCourte(end)}`} />
               </div>
             </>
           )}

@@ -1,3 +1,4 @@
+import { cle } from "../shared/texte.js";
 // config.js — paramétrage métier du cockpit CPwire.
 
 export const DOSSIERS = {
@@ -68,9 +69,6 @@ export function resolveEngagement(key = "", text = "", labels = []) {
 
 // --- Normalisation des statuts Jira -------------------------------------
 // Enlève accents + minuscule, pour comparer sans se soucier de la casse.
-function norm(s) {
-  return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
-}
 
 // Statuts RÉELS du workflow Armonie -> catégorie interne.
 // >>> Si un statut est renommé dans Jira, ajuste juste la clé ici. <<<
@@ -89,7 +87,7 @@ const STATUS_CATEGORY = {
 
 // Catégorie d'un statut (avec repli heuristique pour tout statut inconnu).
 export function categoryFromStatus(statusName = "") {
-  const n = norm(statusName);
+  const n = cle(statusName);
   if (STATUS_CATEGORY[n]) return STATUS_CATEGORY[n];
   if (/(annul|cancel)/.test(n)) return "annule";
   if (/mise en prod|en production/.test(n)) return "miseEnProd";
@@ -105,7 +103,7 @@ export function categoryFromStatus(statusName = "") {
 
 // Vrai si le statut est mappé EXPLICITEMENT (pas via repli heuristique) — sert au contrôle d'exactitude.
 export function statusIsExplicit(name = "") {
-  return Object.prototype.hasOwnProperty.call(STATUS_CATEGORY, norm(name));
+  return Object.prototype.hasOwnProperty.call(STATUS_CATEGORY, cle(name));
 }
 
 // Libellés lisibles par catégorie (pour les rapports et l'onglet Développeurs).

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef, useMemo } from "react";
 import { PILOT_DATA_URI } from "../pilot.js";
 import MasterWarning from "./MasterWarning.jsx";
 import { computeBlockers } from "../blockers.js";
+import { PILL } from "../groups.js";
 
 function Kpi({ lbl, val, cls, onClick, active }) {
   if (onClick) {
@@ -27,7 +28,6 @@ function timeAgo(ts) {
   const h = Math.round(m / 60); if (h < 24) return `il y a ${h} h`;
   const d = Math.round(h / 24); return `il y a ${d} j`;
 }
-const PILL = { Bloqué: "block", "À faire": "todo", "En cours": "prog", Terminé: "done" };
 
 export default function Header({ kpis, source, generatedAt, syncedAt, loading, me, onRefresh, onReloadAll, onLogout, onRelaunch, role, presence = [], onPresence, query, onQuery, notifOn, onToggleNotifOn, notifs = [], onOpenNotif, onMarkAllRead, issues = [], onOpenTicket, onOpen360, onDev, onBurger, tab, pageLabel, onKpi, activeKpi }) {
   const [notifOpen, setNotifOpen] = useState(false);

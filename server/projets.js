@@ -9,6 +9,8 @@ import ExcelJS from "exceljs";
 import { crossReferentiel } from "./referentiel.js";
 import { buildDoc } from "./docgen.js";
 import { ARMONIE_PALETTE as P } from "../shared/armonie-palette.js";
+import { VALIDES as DONE } from "../shared/groupes.js";
+import { escHtml } from "../shared/texte.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const P_PATH = path.join(__dirname, "projets.json");
@@ -25,7 +27,6 @@ export function loadAcces() {
 
 const ACTIVE = ["encours", "retourTest", "retourProd"];
 const RECETTE = ["recetteArmonie", "recetteClient", "attenteClient"];
-const DONE = ["termine", "miseEnProd"];
 const RETOUR = ["retourTest", "retourProd"];
 const ETATS = ["AVV Pipe", "Propal envoyée", "Signé", "En cours", "Terminé"];
 const num = (v) => (typeof v === "number" && !isNaN(v) ? v : 0);
@@ -319,7 +320,6 @@ export async function projetsWorkbookBuffer(issues) {
 export function projetsDocHtml(issues) {
   const d = buildProjets(issues);
   const eur = (n) => (n == null || n === "" ? "—" : new Intl.NumberFormat("fr-FR").format(Math.round(n)).replace(/\u202f/g, "\u00a0") + "\u00a0€");
-  const esc = (s) => String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
   const PILL = { "Terminé": "done", "Mise en prod": "done", "En cours": "prog", "Signé": "prog", "Propal envoyée": "todo", "AVV Pipe": "todo" };
   const DOT = { vert: "#1f8a5f", orange: "#e0600f", rouge: "#c0392b", neutre: "#c7c4d6" };
   const fr = (s) => { if (!s) return "—"; const x = new Date(s); if (isNaN(x)) return s; return x.toLocaleDateString("fr-FR", { month: "short", year: "2-digit" }); };
@@ -330,18 +330,18 @@ export function projetsDocHtml(issues) {
   const kpiBand = `<div class="pp-kpis">${kpis.map(([l, v]) => `<div class="pp-kpi"><div class="v">${v}</div><div class="l">${l}</div></div>`).join("")}</div>`;
 
   const alertes = d.recap.alertes.length
-    ? `<table class="pp-tbl"><tbody>${d.recap.alertes.map((a) => `<tr><td class="w-pill"><span class="pill ${a.niveau === "rouge" ? "block" : "todo"}">${esc(a.type)}</span></td><td class="w-cli"><b>${esc(a.client)}</b></td><td>${esc(a.projet)}${a.perimetre ? " · " + esc(a.perimetre) : ""}</td><td class="pp-det">${esc(a.detail)}</td></tr>`).join("")}</tbody></table>`
+    ? `<table class="pp-tbl"><tbody>${d.recap.alertes.map((a) => `<tr><td class="w-pill"><span class="pill ${a.niveau === "rouge" ? "block" : "todo"}">${escHtml(a.type)}</span></td><td class="w-cli"><b>${escHtml(a.client)}</b></td><td>${escHtml(a.projet)}${a.perimetre ? " · " + escHtml(a.perimetre) : ""}</td><td class="pp-det">${escHtml(a.detail)}</td></tr>`).join("")}</tbody></table>`
     : `<p class="pp-ok">Rien d'urgent — portefeuille sous contrôle.</p>`;
-  const pipe = `<table class="pp-tbl pp-pipe"><thead><tr><th>Étape</th><th class="r">Affaires</th><th class="r">Montant</th></tr></thead><tbody>${d.pipeline.map((p) => `<tr><td>${esc(p.etat)}</td><td class="r">${p.n}</td><td class="r">${p.montant ? eur(p.montant) : "—"}</td></tr>`).join("")}</tbody></table>`;
+  const pipe = `<table class="pp-tbl pp-pipe"><thead><tr><th>Étape</th><th class="r">Affaires</th><th class="r">Montant</th></tr></thead><tbody>${d.pipeline.map((p) => `<tr><td>${escHtml(p.etat)}</td><td class="r">${p.n}</td><td class="r">${p.montant ? eur(p.montant) : "—"}</td></tr>`).join("")}</tbody></table>`;
 
   let rows = "";
   for (const c of d.clients) {
     c.projets.forEach((p, i) => {
       rows += `<tr class="${i === 0 ? "grp" : ""}">
-        <td class="pp-cli">${i === 0 ? esc(c.client) : ""}</td>
-        <td class="pp-pj">${esc(p.nom)}${p.perimetre ? `<span class="pm">${esc(p.perimetre)}</span>` : ""}</td>
-        <td><span class="dot" style="background:${DOT[p.meteo] || DOT.neutre}"></span><span class="pill ${PILL[p.etat] || "todo"}">${esc(p.etat)}</span></td>
-        <td class="pp-num">${esc(p.num) || "—"}</td>
+        <td class="pp-cli">${i === 0 ? escHtml(c.client) : ""}</td>
+        <td class="pp-pj">${escHtml(p.nom)}${p.perimetre ? `<span class="pm">${escHtml(p.perimetre)}</span>` : ""}</td>
+        <td><span class="dot" style="background:${DOT[p.meteo] || DOT.neutre}"></span><span class="pill ${PILL[p.etat] || "todo"}">${escHtml(p.etat)}</span></td>
+        <td class="pp-num">${escHtml(p.num) || "—"}</td>
         <td class="ctr">${fr(p.debut)}</td>
         <td class="ctr">${fr(p.fin)}</td>
         <td class="r">${p.jh ?? "—"}</td>
