@@ -213,7 +213,12 @@ router.use(express.json({ limit: "1mb" }));
 //
 // Le garde est celui de l'application, pas un mécanisme parallèle : une seule
 // façon de s'authentifier, une seule à maintenir.
-router.use(guard);
+// PORTÉE : ce router est monté sans chemin (app.use(shareflyRouter)), il reçoit
+// donc TOUTES les requêtes de l'application. Un router.use(guard) sans chemin
+// s'appliquait par conséquent aussi à la racine « / », qui redirigeait vers
+// « /?retour=/ », lui-même intercepté : boucle de redirection infinie.
+// Le garde doit être limité aux chemins de ShareFly, et à eux seuls.
+router.use(["/sharefly", "/api/sharefly"], guard);
 // ---------------------------------------------------------------------------
 
 

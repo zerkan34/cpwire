@@ -106,3 +106,25 @@ test("un appel d'API non authentifié reste du JSON", async () => {
   assert.equal(r.status, 401);
   assert.match(r.headers.get("content-type") || "", /application\/json/);
 });
+
+// --- Régression du 28/08/2026 (seconde) ----------------------------------
+// Le router ShareFly est monté SANS chemin : il reçoit toutes les requêtes.
+// Un router.use(guard) sans chemin protégeait donc aussi la racine « / », qui
+// redirigeait vers « /?retour=/ », lui-même intercepté : ERR_TOO_MANY_REDIRECTS,
+// application entièrement inaccessible.
+
+test("la racine n'est JAMAIS redirigée : sinon l'application boucle", async () => {
+  for (const url of ["/", "/?retour=%2Fsharefly%2F", "/index.html"]) {
+    const r = await fetch(base + url, { headers: { accept: "text/html" }, redirect: "manual" });
+    assert.notEqual(r.status, 302,
+      `${url} ne doit pas rediriger : c'est la page de connexion elle-même`);
+  }
+});
+
+test("la page de connexion reste atteignable sans compte", async () => {
+  // Évidence à vérifier : si elle exigeait un compte, personne ne pourrait
+  // jamais se connecter.
+  const r = await fetch(base + "/", { headers: { accept: "text/html" }, redirect: "manual" });
+  assert.ok(r.status === 200 || r.status === 404,
+    "200 si le front est construit, 404 sinon — mais jamais 401 ni 302");
+});
