@@ -68,3 +68,41 @@ test("le cookie de session est httpOnly et SameSite=Strict", async () => {
   assert.match(sc, /HttpOnly/i, "inaccessible au JavaScript");
   assert.match(sc, /SameSite=Strict/i, "jamais envoyé depuis un autre site : pas de CSRF");
 });
+
+// --- Régression du 28/08/2026 --------------------------------------------
+// Le cookie n'était posé qu'à la connexion. Les personnes DÉJÀ connectées au
+// moment du déploiement se voyaient refuser ShareFly avec un
+// « {"error":"Authentification requise."} » brut en pleine page.
+
+test("une session existante récupère le cookie au premier appel d'API", async () => {
+  const lg = await fetch(`${base}/api/login`, {
+    method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: process.env.AUTH_EMAIL, password: process.env.AUTH_PASSWORD }),
+  });
+  const jeton = (await lg.json()).token;
+
+  // Appel d'API ordinaire, jeton en en-tête, sans cookie : c'est le cas de
+  // quelqu'un dont l'onglet était déjà ouvert avant le déploiement.
+  const r = await fetch(`${base}/api/sharefly/state`, { headers: { "x-access-token": jeton } });
+  assert.equal(r.status, 200);
+  const pose = (r.headers.get("set-cookie") || "").split(";")[0];
+  assert.match(pose, /^cpw_tok=/, "le cookie doit être posé au passage");
+
+  // Et ce cookie ouvre bien ShareFly, sans reconnexion.
+  const sf = await fetch(`${base}/sharefly/`, { headers: { cookie: pose }, redirect: "manual" });
+  assert.equal(sf.status, 200);
+});
+
+test("une navigation non authentifiée mène à la connexion, pas à du JSON brut", async () => {
+  const r = await fetch(`${base}/sharefly/`, { headers: { accept: "text/html" }, redirect: "manual" });
+  assert.equal(r.status, 302, "une page doit rediriger, pas renvoyer une erreur JSON");
+  assert.match(r.headers.get("location") || "", /^\/\?retour=/, "l'adresse demandée est mémorisée");
+});
+
+test("un appel d'API non authentifié reste du JSON", async () => {
+  // La redirection ne doit concerner que les navigations : un appel d'API qui
+  // recevrait du HTML casserait le front sans message clair.
+  const r = await fetch(`${base}/api/sharefly/state`);
+  assert.equal(r.status, 401);
+  assert.match(r.headers.get("content-type") || "", /application\/json/);
+});

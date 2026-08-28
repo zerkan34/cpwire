@@ -246,8 +246,30 @@ export function guard(req, res, next) {
     else { role = s.role; email = s.email; s.lastSeen = Date.now(); }
   }
   else if (checkGuestToken(t)) { role = "guest"; }
-  if (!role) return res.status(401).json({ error: "Authentification requise." });
+  if (!role) {
+    // Deux publics, deux réponses. Un appel d'API attend du JSON ; une NAVIGATION
+    // (ShareFly, Atelier de flux, ouverts en pleine page) affichait jusqu'ici
+    // « {"error":"Authentification requise."} » en texte brut, ce qui laisse
+    // l'utilisateur devant une page blanche sans savoir quoi faire. On le renvoie
+    // vers l'application, qui sait le faire se connecter, avec l'adresse demandée
+    // en mémoire pour l'y ramener ensuite.
+    const veutHtml = String(req.headers.accept || "").includes("text/html");
+    if (veutHtml && req.method === "GET") {
+      const retour = encodeURIComponent(req.originalUrl || req.url || "/");
+      return res.redirect(302, `/?retour=${retour}`);
+    }
+    return res.status(401).json({ error: "Authentification requise." });
+  }
   req.role = role; req.userEmail = email;
+
+  // Le cookie de session n'était posé qu'à la CONNEXION : les personnes déjà
+  // connectées avant sa mise en place n'en avaient pas, et se voyaient refuser
+  // ShareFly et l'Atelier de flux jusqu'à une reconnexion manuelle. Dès qu'une
+  // requête authentifiée arrive avec le jeton en en-tête, on pose le cookie :
+  // la session se répare d'elle-même, sans que personne n'ait à se déconnecter.
+  if (t && !jetonDuCookie(req)) {
+    try { poserCookieJeton(res, t); } catch (e) { /* en-têtes déjà envoyés : sans gravité */ }
+  }
   // Verrou serveur : ni le rôle consultation ni le rôle invité (lien partagé) ne peuvent
   // atteindre un récap/CR/réunion, même en forçant l'URL. Le rôle "guest" était omis :
   // un lien qui circule avait donc plus de droits qu'un compte nominatif.

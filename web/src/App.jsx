@@ -696,6 +696,14 @@ export default function App() {
       invite={invite}
       onSuccess={(d) => {
         if (invite || (d && d.role === "guest")) { stripInviteFromUrl(); setReadOnly(true); }
+        // Si le serveur nous a renvoyés ici depuis une page protégée (ShareFly,
+        // Atelier de flux), on y retourne : sinon la personne se retrouve à
+        // l'accueil sans comprendre où est passé ce qu'elle avait demandé.
+        let retour = "";
+        try { retour = new URLSearchParams(window.location.search).get("retour") || ""; } catch (e) { /* ignoré */ }
+        // On n'accepte qu'un chemin interne : une URL absolue serait une porte
+        // ouverte à la redirection vers un site tiers.
+        if (retour && /^\/[^/\\]/.test(retour)) { window.location.replace(retour); return; }
         setAuthed(true);
       }}
     />
